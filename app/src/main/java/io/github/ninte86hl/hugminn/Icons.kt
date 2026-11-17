@@ -9,7 +9,7 @@ import android.view.View
 
 /** Simple line icons drawn in code, so they look the same everywhere and follow the theme colour. */
 class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 22) : View(ctx) {
-    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR }
+    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO }
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -82,6 +82,59 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
                 c.drawRoundRect(RectF(s * 0.1f, s * 0.28f, s * 0.9f, s * 0.82f), s * 0.1f, s * 0.1f, p)
                 c.drawLine(s * 0.36f, s * 0.18f, s * 0.64f, s * 0.18f, p)
                 c.drawCircle(m, s * 0.55f, s * 0.15f, p)
+            }
+            Kind.AIRPLANE -> c.drawPath(Path().apply {
+                moveTo(m, s * 0.1f); lineTo(m, s * 0.75f)
+                moveTo(s * 0.12f, s * 0.55f); lineTo(m, s * 0.38f); lineTo(s * 0.88f, s * 0.55f)
+                moveTo(s * 0.34f, s * 0.9f); lineTo(m, s * 0.78f); lineTo(s * 0.66f, s * 0.9f)
+            }, p)
+            Kind.MOON -> c.drawPath(Path().apply {
+                addArc(RectF(s * 0.14f, s * 0.14f, s * 0.86f, s * 0.86f), 70f, 250f)
+                arcTo(RectF(s * 0.34f, s * 0.08f, s * 0.92f, s * 0.66f), 200f, -170f)
+            }, p)
+            Kind.ROTATE -> {
+                c.drawArc(RectF(s * 0.16f, s * 0.16f, s * 0.84f, s * 0.84f), 300f, 280f, false, p)
+                c.drawPath(Path().apply { moveTo(s * 0.62f, s * 0.12f); lineTo(s * 0.82f, s * 0.2f); lineTo(s * 0.7f, s * 0.38f) }, p)
+            }
+            Kind.SCREEN -> {
+                c.drawRoundRect(RectF(s * 0.1f, s * 0.2f, s * 0.9f, s * 0.7f), s * 0.08f, s * 0.08f, p)
+                c.drawLine(s * 0.35f, s * 0.86f, s * 0.65f, s * 0.86f, p)
+                c.drawLine(m, s * 0.7f, m, s * 0.86f, p)
+            }
+            Kind.BROOM -> {
+                c.drawLine(s * 0.78f, s * 0.12f, s * 0.48f, s * 0.48f, p)
+                c.drawPath(Path().apply {
+                    moveTo(s * 0.38f, s * 0.42f); lineTo(s * 0.56f, s * 0.58f); lineTo(s * 0.4f, s * 0.9f)
+                    lineTo(s * 0.12f, s * 0.66f); close()
+                }, p)
+            }
+            Kind.GAMEPAD -> {
+                c.drawRoundRect(RectF(s * 0.06f, s * 0.28f, s * 0.94f, s * 0.76f), s * 0.22f, s * 0.22f, p)
+                c.drawLine(s * 0.24f, s * 0.52f, s * 0.4f, s * 0.52f, p)
+                c.drawLine(s * 0.32f, s * 0.44f, s * 0.32f, s * 0.6f, p)
+                c.drawCircle(s * 0.66f, s * 0.47f, s * 0.03f, p)
+                c.drawCircle(s * 0.74f, s * 0.57f, s * 0.03f, p)
+            }
+            Kind.SUN -> {
+                c.drawCircle(m, m, s * 0.17f, p)
+                for (i in 0 until 8) {
+                    c.save()
+                    c.rotate(45f * i, m, m)
+                    c.drawLine(m, s * 0.06f, m, s * 0.18f, p)
+                    c.restore()
+                }
+            }
+            Kind.SPEAKER -> {
+                c.drawPath(Path().apply {
+                    moveTo(s * 0.12f, s * 0.38f); lineTo(s * 0.3f, s * 0.38f); lineTo(s * 0.52f, s * 0.18f)
+                    lineTo(s * 0.52f, s * 0.82f); lineTo(s * 0.3f, s * 0.62f); lineTo(s * 0.12f, s * 0.62f); close()
+                }, p)
+                c.drawArc(RectF(s * 0.5f, s * 0.32f, s * 0.74f, s * 0.68f), -60f, 120f, false, p)
+                c.drawArc(RectF(s * 0.5f, s * 0.18f, s * 0.9f, s * 0.82f), -60f, 120f, false, p)
+            }
+            Kind.THERMO -> {
+                c.drawRoundRect(RectF(s * 0.4f, s * 0.08f, s * 0.6f, s * 0.66f), s * 0.1f, s * 0.1f, p)
+                c.drawCircle(m, s * 0.76f, s * 0.15f, p)
             }
             Kind.GEAR -> {
                 c.drawCircle(m, m, s * 0.14f, p)

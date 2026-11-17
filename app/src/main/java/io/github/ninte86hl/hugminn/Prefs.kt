@@ -27,6 +27,11 @@ enum class Theme(val label: String) {
     OLED("OLED-Schwarz"),
 }
 
+enum class TileShape(val label: String) {
+    ROUND("Rund"),
+    SQUARE("Abgerundetes Quadrat"),
+}
+
 enum class GlyphStyle(val label: String) {
     AUTO("Automatisch"),
     XBOX("Xbox"),
@@ -65,6 +70,15 @@ class Prefs(ctx: Context) {
     var switcherGeometry: String?
         get() = p.getString("switcherGeometry", null)
         set(v) = p.edit().putString("switcherGeometry", v).apply()
+
+    /** Quick tiles shown in the Control Center, in catalog order. */
+    var ccTiles: List<String>
+        get() = p.getString("ccTiles", null)?.split(',')?.filter { it in TileCatalog.all } ?: TileCatalog.defaults
+        set(v) = p.edit().putString("ccTiles", TileCatalog.all.keys.filter { it in v }.joinToString(",")).apply()
+
+    var tileShape: TileShape
+        get() = enumOr(p.getString("tileShape", null), TileShape.ROUND)
+        set(v) = p.edit().putString("tileShape", v.name).apply()
 
     var theme: Theme
         get() = enumOr(p.getString("theme", null), Theme.SYSTEM)

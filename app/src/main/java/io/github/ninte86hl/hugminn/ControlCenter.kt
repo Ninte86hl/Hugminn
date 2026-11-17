@@ -109,7 +109,7 @@ class ControlCenter(private val svc: HugminnService) {
         r.animate().alpha(1f).setDuration(120).start()
         root = r
         r.requestFocus()
-        showFocus()
+        r.post { showFocus() }
         svc.ui.post(tick)
     }
 
@@ -143,7 +143,7 @@ class ControlCenter(private val svc: HugminnService) {
         val panel = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(pal.surface)
-            setPadding(28 * d, 18 * d, 28 * d, 14 * d)
+            setPadding(28 * d, 16 * d, 28 * d, 12 * d)
             isClickable = true
         }
 
@@ -163,10 +163,10 @@ class ControlCenter(private val svc: HugminnService) {
         panel.addView(header)
         graphUpdates += { s -> battery.text = "${s.batPct} %${if (s.charging) " ⚡" else ""}" }
 
-        val body = LinearLayout(svc).apply { setPadding(0, 14 * d, 0, 10 * d) }
-        body.addView(controls(), lp(0, MATCH, 1f))
-        body.addView(View(svc), lp(16 * d, MATCH))
-        body.addView(graphs(), lp(0, MATCH, 1f))
+        val body = LinearLayout(svc).apply { setPadding(0, 12 * d, 0, 8 * d) }
+        body.addView(stats(), lp(0, MATCH, 1f))
+        body.addView(View(svc), lp(14 * d, MATCH))
+        body.addView(controls(), lp(0, MATCH, 1.15f))
         panel.addView(body, lp(MATCH, 0, 1f))
 
         val footer = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.END }
@@ -175,188 +175,268 @@ class ControlCenter(private val svc: HugminnService) {
             footer.addView(text(s, 13f, pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
         }
         if (!svc.prefs.githubToken.isNullOrBlank()) hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback")
+        if (pageCount() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
         hint(KeyEvent.KEYCODE_BUTTON_A, "Auswählen")
         hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück")
         panel.addView(footer)
         return panel
     }
 
-    // ---------- tiles ----------
+    private fun card() = LinearLayout(svc).apply {
+        orientation = LinearLayout.VERTICAL
+        background = rounded(pal.surfaceHigh, 22f * d)
+        setPadding(16 * d, 12 * d, 16 * d, 12 * d)
+    }
 
-    private data class Tile(val title: String, val icon: IconView.Kind, val state: () -> String, val on: () -> Boolean, val act: () -> Unit)
+    // ---------- left: frame rate, temperature, fan, gauges (AYN Thor style) ----------
+
+    private fun stats(): View {
+        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+
+        // Frame rate
+        val fps = card().apply { gravity = Gravity.CENTER }
+        val modeChip = text("", 13f, pal.onPrimaryContainer, bold = true).apply {
+            background = rounded(pal.primaryContainer, 14f * d)
+            setPadding(14 * d, 4 * d, 14 * d, 4 * d)
+        }
+        val fpsRow = LinearLayout(svc).apply { gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL }
+        val fpsValue = text("–", 54f, pal.onSurface, bold = true)
+        fpsRow.addView(fpsValue)
+        fpsRow.addView(text(" FPS", 18f, pal.onSurfaceVariant, bold = true).apply { setPadding(0, 0, 0, 12 * d) })
+        fps.addView(modeChip)
+        fps.addView(fpsRow)
+        fps.addView(text("Aktuelle Bildrate", 12f, pal.onSurfaceVariant))
+        col.addView(fps, lp(MATCH, 0, 1.2f).apply { bottomMargin = 10 * d })
+        val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+        graphUpdates += { s ->
+            fpsValue.text = if (s.fps >= 0) "${s.fps}" else "–"
+            modeChip.text = "${Math.round(display?.refreshRate ?: 60f)} Hz Modus"
+        }
+
+        // Temperature and fan
+        val small = LinearLayout(svc)
+        fun smallCard(icon: IconView.Kind, title: String): Pair<View, Pair<TextView, TextView>> {
+            val c = card()
+            val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+            head.addView(IconView(svc, icon, 18).apply { setColor(pal.onSurfaceVariant) })
+            head.addView(text(title, 12f, pal.onSurfaceVariant, bold = true).apply { setPadding(8 * d, 0, 0, 0) })
+            val big = text("–", 24f, pal.onSurface, bold = true)
+            val sub = text("", 11f, pal.onSurfaceVariant)
+            c.addView(head)
+            c.addView(big)
+            c.addView(sub)
+            return c to (big to sub)
+        }
+        val (tempCard, temp) = smallCard(IconView.Kind.THERMO, "TEMPERATUR")
+        val (fanCard, fan) = smallCard(IconView.Kind.FAN, "LÜFTER")
+        small.addView(tempCard, lp(0, MATCH, 1f).apply { marginEnd = 10 * d })
+        small.addView(fanCard, lp(0, MATCH, 1f))
+        col.addView(small, lp(MATCH, 0, 0.75f).apply { bottomMargin = 10 * d })
+        graphUpdates += { s ->
+            temp.first.text = if (s.cpuTemp > 0) "${s.cpuTemp.toInt()} °C" else "–"
+            temp.second.text = listOfNotNull(
+                s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()} °C" },
+                s.batTemp.takeIf { it > 0 }?.let { "Akku ${it.toInt()} °C" },
+            ).joinToString(" · ")
+            fan.first.text = Device.fanLabel(svc)
+            fan.second.text = Device.fanSpeed(svc)?.let { "Drehzahl $it" } ?: ""
+        }
+
+        // Gauges
+        val rings = card().apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(8 * d, 8 * d, 8 * d, 8 * d)
+        }
+        val cpu = RingView(svc, pal, "CPU", pal.primary)
+        val gpu = RingView(svc, pal, "GPU", 0xFF4FC3F7.toInt())
+        val pwr = RingView(svc, pal, "LEISTUNG", 0xFFFFB74D.toInt())
+        val ram = RingView(svc, pal, "RAM", 0xFF81C784.toInt())
+        listOf(cpu, gpu, pwr, ram).forEach { rings.addView(it, lp(0, MATCH, 1f)) }
+        col.addView(rings, lp(MATCH, 0, 1f))
+        graphUpdates += { s ->
+            cpu.set(s.cpuPct / 100f, "%.2f".format(s.cpuMhz / 1000f), "GHz · ${s.cpuPct.toInt()} %")
+            gpu.set(s.gpuPct / 100f, "${s.gpuMhz}", "MHz · ${s.gpuPct.toInt()} %")
+            pwr.set(s.watts / 15f, "%.1f".format(s.watts), if (s.charging) "W · lädt" else "W")
+            val pct = if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f
+            ram.set(pct, "%.1f".format(s.ramUsedMb / 1024f), "GB · ${(pct * 100).toInt()} %")
+        }
+        return col
+    }
+
+    // ---------- right: quick tiles (chosen in the settings) and sliders ----------
+
+    private data class Tile(val title: String, val icon: IconView.Kind, val state: () -> String?, val on: () -> Boolean, val act: () -> Unit)
+
+    private val tiles = mutableListOf<Tile>()
+    private var page = 0
+    private val perPage = 8
+    private var tileGrid: LinearLayout? = null
+    private var dots: LinearLayout? = null
+    private val sliderItems = mutableListOf<Item>()
+
+    private fun pageCount() = ((tiles.size + perPage - 1) / perPage).coerceAtLeast(1)
+
+    private fun tileFor(id: String, rootOk: Boolean): Tile? = when (id) {
+        "wifi" -> Tile("WLAN", IconView.Kind.WIFI, { if (Device.wifiOn(svc)) Device.wifiName(svc) ?: "An" else "Aus" }, { Device.wifiOn(svc) }) { wifiMenu(rootOk) }
+        "bt" -> Tile("Bluetooth", IconView.Kind.BLUETOOTH, {
+            if (!Device.btOn(svc)) "Aus" else Device.pairedDevices(svc).firstOrNull { it.second }?.first ?: "An"
+        }, { Device.btOn(svc) }) { btMenu(rootOk) }
+        "perf" -> if (rootOk && Device.sys(svc, "performance_mode") != null) Tile("Leistung", IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
+            profileMenu("Leistung", "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
+        } else null
+        "fan" -> if (rootOk && Device.sys(svc, "fan_mode") != null) Tile("Lüfter", IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
+            profileMenu("Lüfter", "fan_mode", Device.fanProfiles) { v -> Device.setFan(v) { refreshAll() } }
+        } else null
+        "refresh" -> {
+            val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+            if (rootOk && display?.supportedModes?.any { it.refreshRate > 100f } == true)
+                Tile("Bildrate", IconView.Kind.REFRESH, { if (Device.highRefresh(svc)) "120 Hz" else "60 Hz" }, { Device.highRefresh(svc) }) {
+                    Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
+                } else null
+        }
+        "leds" -> if (rootOk && Device.sys(svc, "joystick_light_enabled") != null) Tile("Stick-LEDs", IconView.Kind.LED, { if (Device.stickLeds(svc)) "An" else "Aus" }, { Device.stickLeds(svc) }) {
+            Device.setStickLeds(!Device.stickLeds(svc)) { refreshAll() }
+        } else null
+        "dnd" -> if (rootOk) Tile("Nicht stören", IconView.Kind.MOON, { if (Device.dnd(svc)) "An" else "Aus" }, { Device.dnd(svc) }) {
+            Device.setDnd(!Device.dnd(svc)) { refreshAll() }
+        } else null
+        "airplane" -> if (rootOk) Tile("Flugmodus", IconView.Kind.AIRPLANE, { if (Device.airplane(svc)) "An" else "Aus" }, { Device.airplane(svc) }) {
+            Device.setAirplane(!Device.airplane(svc)) { refreshAll() }
+        } else null
+        "rotation" -> Tile("Drehung sperren", IconView.Kind.ROTATE, { if (Device.rotationLocked(svc)) "Gesperrt" else "Automatisch" }, { Device.rotationLocked(svc) }) {
+            Device.setRotationLocked(svc, !Device.rotationLocked(svc)) { refreshAll() }
+        }
+        "screen" -> if (rootOk && Device.sys(svc, "keep_screen_on") != null) Tile("Bildschirm an", IconView.Kind.SCREEN, { if (Device.keepScreenOn(svc)) "An" else "Aus" }, { Device.keepScreenOn(svc) }) {
+            Device.setKeepScreenOn(!Device.keepScreenOn(svc)) { refreshAll() }
+        } else null
+        "clean" -> if (rootOk) Tile("Speicher leeren", IconView.Kind.BROOM, { null }, { false }) {
+            Thread {
+                val mb = Device.cleanMemory(svc)
+                svc.ui.post { android.widget.Toast.makeText(svc, "$mb MB freigegeben", android.widget.Toast.LENGTH_SHORT).show() }
+            }.start()
+        } else null
+        "screenshot" -> Tile("Screenshot", IconView.Kind.CAMERA, { null }, { false }) {
+            close()
+            svc.ui.postDelayed({ svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) }, 300)
+        }
+        "rpsettings" -> svc.packageManager.getLaunchIntentForPackage("com.rp.settings")?.let { i ->
+            Tile("Retroid-Einstellungen", IconView.Kind.GAMEPAD, { null }, { false }) { close(); svc.startApp(i) }
+        }
+        "settings" -> Tile("Android-Einstellungen", IconView.Kind.GEAR, { null }, { false }) { openSystem(Settings.ACTION_SETTINGS) }
+        "hugminn" -> Tile("Hugminn", IconView.Kind.GEAR, { null }, { false }) {
+            close()
+            svc.startApp(Intent(svc, MainActivity::class.java))
+        }
+        else -> null
+    }
 
     private fun controls(): View {
         val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         val rootOk = Root.available()
-        val tiles = mutableListOf<Tile>()
+        tiles.clear()
+        svc.prefs.ccTiles.forEach { id -> tileFor(id, rootOk)?.let { tiles += it } }
+        page = 0
 
-        tiles += Tile("WLAN", IconView.Kind.WIFI, { if (Device.wifiOn(svc)) Device.wifiName(svc) ?: "An" else "Aus" }, { Device.wifiOn(svc) }) { wifiMenu(rootOk) }
-        tiles += Tile("Bluetooth", IconView.Kind.BLUETOOTH, {
-            if (!Device.btOn(svc)) "Aus" else Device.pairedDevices(svc).firstOrNull { it.second }?.first ?: "An"
-        }, { Device.btOn(svc) }) { btMenu(rootOk) }
-        if (rootOk && Device.sys(svc, "performance_mode") != null) {
-            tiles += Tile("Leistung", IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
-                profileMenu("Leistung", "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
-            }
-        }
-        if (rootOk && Device.sys(svc, "fan_mode") != null) {
-            tiles += Tile("Lüfter", IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
-                profileMenu("Lüfter", "fan_mode", Device.fanProfiles) { v -> Device.setFan(v) { refreshAll() } }
-            }
-        }
-        val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)
-            ?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
-        val has120 = display?.supportedModes?.any { it.refreshRate > 100f } == true
-        if (rootOk && has120) {
-            tiles += Tile("Bildrate", IconView.Kind.REFRESH, { if (Device.highRefresh(svc)) "120 Hz" else "60 Hz" }, { Device.highRefresh(svc) }) {
-                Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
-            }
-        }
-        if (rootOk && Device.sys(svc, "joystick_light_enabled") != null) {
-            tiles += Tile("Stick-LEDs", IconView.Kind.LED, { if (Device.stickLeds(svc)) "An" else "Aus" }, { Device.stickLeds(svc) }) {
-                Device.setStickLeds(!Device.stickLeds(svc)) { refreshAll() }
-            }
-        }
-        tiles += Tile("Screenshot", IconView.Kind.CAMERA, { "Aufnehmen" }, { false }) {
-            close()
-            svc.ui.postDelayed({ svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) }, 300)
-        }
-        tiles += Tile("Hugminn", IconView.Kind.GEAR, { "Einstellungen" }, { false }) {
-            close()
-            svc.startApp(Intent(svc, MainActivity::class.java))
-        }
+        val tilesCard = card().apply { setPadding(8 * d, 12 * d, 8 * d, 8 * d) }
+        val grid = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        tileGrid = grid
+        tilesCard.addView(grid, lp(MATCH, 0, 1f))
+        val dotRow = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+        dots = dotRow
+        tilesCard.addView(dotRow, lp(MATCH, 10 * d))
+        col.addView(tilesCard, lp(MATCH, 0, 1f).apply { bottomMargin = 10 * d })
 
-        val perRow = 4
-        tiles.chunked(perRow).forEach { chunk ->
-            val row = LinearLayout(svc)
-            chunk.forEach { t -> row.addView(tileView(t), lp(0, 72 * d, 1f).apply { setMargins(0, 0, 8 * d, 8 * d) }) }
-            repeat(perRow - chunk.size) { row.addView(View(svc), lp(0, 1, 1f).apply { marginEnd = 8 * d }) }
-            col.addView(row)
-        }
-        col.addView(View(svc), lp(MATCH, 0, 1f))
-        col.addView(slider("Helligkeit", 255, Device.brightness(svc), 12) { Device.setBrightness(svc, it) })
+        sliderItems.clear()
+        val bright = BigSlider(svc, pal, IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc)) { Device.setBrightness(svc, it) }
         val maxVol = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        col.addView(slider("Lautstärke", maxVol, audio.getStreamVolume(AudioManager.STREAM_MUSIC), 1) {
+        val vol = BigSlider(svc, pal, IconView.Kind.SPEAKER, "Lautstärke", maxVol, audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
             audio.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
-        })
+        }
+        col.addView(bright, lp(MATCH, 50 * d).apply { bottomMargin = 10 * d })
+        col.addView(vol, lp(MATCH, 50 * d))
+        sliderItems += Item(bright, null) { dir -> bright.step(5 * dir) }
+        sliderItems += Item(vol, null) { dir -> vol.step(5 * dir) }
+        fillPage()
         return col
     }
 
-    private fun tileView(t: Tile): View {
-        val icon = IconView(svc, t.icon, 22)
-        val title = text(t.title, 14f, pal.onSurface, bold = true)
-        val state = text("", 12f, pal.onSurfaceVariant)
-        val texts = LinearLayout(svc).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(title)
-            addView(state)
+    /** Builds the tiles of the current page (4 per row, 2 rows) and the item list for the D-pad. */
+    private fun fillPage() {
+        val grid = tileGrid ?: return
+        grid.removeAllViews()
+        refreshers.clear()
+        val tileItems = mutableListOf<Item>()
+        val shown = tiles.drop(page * perPage).take(perPage)
+        shown.chunked(4).forEach { chunk ->
+            val row = LinearLayout(svc)
+            chunk.forEach { t ->
+                val (view, focusView) = tileView(t)
+                row.addView(view, lp(0, MATCH, 1f))
+                tileItems += Item(focusView, t.act)
+            }
+            repeat(4 - chunk.size) { row.addView(View(svc), lp(0, 1, 1f)) }
+            grid.addView(row, lp(MATCH, 0, 1f))
         }
-        val tile = LinearLayout(svc).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(12 * d, 0, 8 * d, 0)
-            addView(icon)
-            addView(texts, lp(0, WRAP, 1f).apply { marginStart = 10 * d })
+        if (shown.size <= 4) grid.addView(View(svc), lp(MATCH, 0, 1f))
+        dots?.let { dr ->
+            dr.removeAllViews()
+            if (pageCount() > 1) repeat(pageCount()) { i ->
+                dr.addView(View(svc).apply { background = rounded(if (i == page) pal.primary else pal.outline, 4f * d) },
+                    lp(if (i == page) 16 * d else 7 * d, 7 * d).apply { marginStart = 3 * d; marginEnd = 3 * d })
+            }
+        }
+        items.clear()
+        items += tileItems
+        items += sliderItems
+        focus = 0
+        showFocus()
+    }
+
+    /** One tile: round (or rounded square) icon button with the full name below (two lines, shrinks to fit). */
+    private fun tileView(t: Tile): Pair<View, View> {
+        val size = 54 * d
+        val round = svc.prefs.tileShape == TileShape.ROUND
+        val icon = IconView(svc, t.icon, 24)
+        val button = FrameLayout(svc).apply {
+            addView(icon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
             setOnClickListener { t.act() }
+        }
+        val title = TextView(svc).apply {
+            text = t.title
+            gravity = Gravity.CENTER
+            maxLines = 2
+            setTextColor(pal.onSurface)
+            setTypeface(typeface, Typeface.BOLD)
+            setAutoSizeTextTypeUniformWithConfiguration(9, 13, 1, TypedValue.COMPLEX_UNIT_SP)
+        }
+        val state = text("", 11f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER }
+        val box = LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            addView(button, LinearLayout.LayoutParams(size, size))
+            addView(title, lp(MATCH, 30 * d).apply { topMargin = 4 * d })
+            addView(state, lp(MATCH, WRAP))
+            setPadding(2 * d, 0, 2 * d, 0)
         }
         val refresh = {
             val on = t.on()
-            tile.background = rounded(if (on) pal.primaryContainer else pal.surfaceHighest, 20f * d)
-            val fg = if (on) pal.onPrimaryContainer else pal.onSurface
-            title.setTextColor(fg)
-            icon.setColor(fg)
-            state.setTextColor(if (on) pal.onPrimaryContainer else pal.onSurfaceVariant)
-            state.text = t.state()
+            button.background = rounded(if (on) pal.primary else pal.surfaceHighest, if (round) size / 2f else 16f * d)
+            icon.setColor(if (on) pal.onPrimary else pal.onSurface)
+            val st = t.state()
+            state.text = st ?: ""
+            state.visibility = if (st == null) View.GONE else View.VISIBLE
         }
         refresh()
         refreshers += refresh
-        items += Item(tile, t.act)
-        return tile
+        return box to button
     }
 
-    private fun slider(label: String, max: Int, value: Int, step: Int, set: (Int) -> Unit): View {
-        val box = LinearLayout(svc).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(14 * d, 8 * d, 14 * d, 6 * d)
-            background = rounded(pal.surfaceHigh, 20f * d)
-        }
-        val value0 = value.coerceIn(0, max)
-        fun pct(p: Int) = p * 100 / max.coerceAtLeast(1)
-        val head = LinearLayout(svc)
-        head.addView(text(label, 13f, pal.onSurface, bold = true), lp(0, WRAP, 1f))
-        val pctText = text("${pct(value0)} %", 13f, pal.onSurfaceVariant)
-        head.addView(pctText)
-        val bar = SeekBar(svc).apply {
-            this.max = max
-            progress = value0
-            progressTintList = ColorStateList.valueOf(pal.primary)
-            thumbTintList = ColorStateList.valueOf(pal.primary)
-            progressBackgroundTintList = ColorStateList.valueOf(pal.outline)
-            isFocusable = false
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
-                    pctText.text = "${pct(p)} %"
-                    if (fromUser) set(p)
-                }
-                override fun onStartTrackingTouch(sb: SeekBar) {}
-                override fun onStopTrackingTouch(sb: SeekBar) {}
-            })
-        }
-        box.addView(head)
-        box.addView(bar)
-        items += Item(box, null) { dir ->
-            bar.progress = (bar.progress + dir * step).coerceIn(0, max)
-            set(bar.progress)
-        }
-        return box.also { it.layoutParams = lp(MATCH, WRAP).apply { setMargins(0, 0, 8 * d, 8 * d) } }
-    }
-
-    // ---------- graphs ----------
-
-    private fun graphs(): View {
-        val grid = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-        fun card(title: String, color: Int, max: Float, update: (Metrics.Sample) -> Triple<Float, String, String>): View {
-            val value = text("–", 22f, pal.onSurface, bold = true)
-            val sub = text("", 12f, pal.onSurfaceVariant)
-            val graph = GraphView(svc, color, max)
-            val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-            head.addView(View(svc).apply { background = rounded(color, 4f * d) }, lp(8 * d, 8 * d).apply { marginEnd = 6 * d })
-            head.addView(text(title, 12f, pal.onSurfaceVariant, bold = true))
-            val c = LinearLayout(svc).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(14 * d, 10 * d, 14 * d, 10 * d)
-                background = rounded(pal.surfaceHigh, 20f * d)
-                addView(head)
-                addView(value)
-                addView(sub)
-                addView(graph, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
-            }
-            graphUpdates += { s ->
-                val (v, big, small) = update(s)
-                graph.push(v)
-                value.text = big
-                sub.text = small
-            }
-            return c
-        }
-        fun temp(t: Float) = if (t > 0) " · ${t.toInt()} °C" else ""
-        val cpuColor = pal.primary
-        val rows = listOf(
-            card("CPU", cpuColor, 100f) { s -> Triple(s.cpuPct, "${s.cpuPct.toInt()} %", "%.2f GHz".format(s.cpuMhz / 1000f) + temp(s.cpuTemp)) } to
-                card("GPU", 0xFF4FC3F7.toInt(), 100f) { s -> Triple(s.gpuPct, "${s.gpuPct.toInt()} %", "${s.gpuMhz} MHz" + temp(s.gpuTemp)) },
-            card("RAM", 0xFF81C784.toInt(), 100f) { s ->
-                val pct = if (s.ramTotalMb > 0) s.ramUsedMb * 100f / s.ramTotalMb else 0f
-                Triple(pct, "%.1f / %.0f GB".format(s.ramUsedMb / 1024f, s.ramTotalMb / 1024f), "${pct.toInt()} % belegt")
-            } to card("Akku", 0xFFFFB74D.toInt(), 15f) { s ->
-                Triple(s.watts, "%.1f W".format(s.watts), "${s.batPct} %" + (if (s.charging) " · lädt" else "") + temp(s.batTemp))
-            },
-        )
-        rows.forEachIndexed { i, (a, b) ->
-            val row = LinearLayout(svc)
-            row.addView(a, lp(0, MATCH, 1f).apply { marginEnd = 8 * d })
-            row.addView(b, lp(0, MATCH, 1f))
-            grid.addView(row, lp(MATCH, 0, 1f).apply { if (i == 0) bottomMargin = 8 * d })
-        }
-        return grid
+    private fun changePage(dir: Int): Boolean {
+        val n = pageCount()
+        if (n < 2) return false
+        page = (page + dir + n) % n
+        fillPage()
+        return true
     }
 
     // ---------- sub menus ----------
@@ -480,8 +560,10 @@ class ControlCenter(private val svc: HugminnService) {
     // ---------- controller focus ----------
 
     private fun showFocus() {
+        val round = svc.prefs.tileShape == TileShape.ROUND
         items.forEachIndexed { i, it ->
-            it.view.foreground = if (i == focus) rounded(0, 20f * d, 3 * d, pal.primary) else null
+            val r = if (it.onAdjust != null) it.view.height / 2f else if (round) it.view.width / 2f else 16f * d
+            it.view.foreground = if (i == focus) rounded(0, r.coerceAtLeast(12f * d), 3 * d, pal.onSurface) else null
         }
     }
 
@@ -508,6 +590,9 @@ class ControlCenter(private val svc: HugminnService) {
         if (best >= 0) {
             focus = best
             showFocus()
+        } else if (dx != 0 && items.getOrNull(focus)?.onAdjust == null) {
+            // Past the last tile of a page: next/previous page.
+            changePage(dx)
         }
     }
 
@@ -528,8 +613,8 @@ class ControlCenter(private val svc: HugminnService) {
             KeyEvent.KEYCODE_DPAD_DOWN -> move(0, 1)
             KeyEvent.KEYCODE_DPAD_LEFT -> item?.onAdjust?.invoke(-1) ?: move(-1, 0)
             KeyEvent.KEYCODE_DPAD_RIGHT -> item?.onAdjust?.invoke(1) ?: move(1, 0)
-            KeyEvent.KEYCODE_BUTTON_L1 -> item?.onAdjust?.invoke(-3)
-            KeyEvent.KEYCODE_BUTTON_R1 -> item?.onAdjust?.invoke(3)
+            KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
+            KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close()
         }

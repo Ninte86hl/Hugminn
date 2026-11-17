@@ -207,6 +207,18 @@ class MainActivity : Activity() {
         row(ccs, "Statusleiste ausblenden", "Das Control Center füllt den ganzen Bildschirm; aus = Android-Statusleiste bleibt sichtbar", { if (prefs.ccHideStatus) "An" else "Aus" }) {
             prefs.ccHideStatus = !prefs.ccHideStatus
         }
+        row(ccs, "Form der Kacheln", null, { prefs.tileShape.label }) {
+            prefs.tileShape = cycle(TileShape.values().toList(), prefs.tileShape)
+        }
+        ccs.addView(text("Angezeigte Kacheln (mehr als 8 werden auf Seiten verteilt, LB/RB blättert):", 13f, pal.onSurfaceVariant).apply {
+            setPadding(0, d(10), 0, d(2))
+        })
+        TileCatalog.all.forEach { (id, name) ->
+            row(ccs, name, null, { if (id in prefs.ccTiles) "An" else "Aus" }) {
+                val cur = prefs.ccTiles
+                prefs.ccTiles = if (id in cur) cur - id else cur + id
+            }
+        }
 
         // Glyphs
         val gl = section("Tastensymbole")

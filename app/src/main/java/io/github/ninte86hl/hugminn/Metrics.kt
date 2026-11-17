@@ -12,7 +12,23 @@ class Metrics(private val ctx: Context) {
         val ramUsedMb: Long, val ramTotalMb: Long,
         val cpuTemp: Float, val gpuTemp: Float, val batTemp: Float,
         val batPct: Int, val watts: Float, val charging: Boolean,
+        /** Frames the display composed per second (needs root), -1 if unknown. */
+        val fps: Int,
     )
+
+    private var lastFrames = -1L
+    private var lastFrameTime = 0L
+
+    /** SurfaceFlinger's frame counter (transaction 1013) via the root service. */
+    private fun fps(): Int {
+        val out = Root.exec("service call SurfaceFlinger 1013", 1500) ?: return -1
+        val frames = Regex("Parcel\\(\\s*([0-9a-fA-F]{8})").find(out)?.groupValues?.get(1)?.toLongOrNull(16) ?: return -1
+        val now = android.os.SystemClock.elapsedRealtime()
+        val r = if (lastFrames >= 0 && now > lastFrameTime) ((frames - lastFrames) * 1000f / (now - lastFrameTime)).toInt() else -1
+        lastFrames = frames
+        lastFrameTime = now
+        return r.coerceIn(-1, 240)
+    }
 
     private var lastIdle = 0L
     private var lastTotal = 0L
@@ -77,6 +93,7 @@ class Metrics(private val ctx: Context) {
         return Sample(
             cpuPct.coerceIn(0f, 100f), cpuMhz, gpuPct.coerceIn(0f, 100f), gpuMhz,
             usedMb, totalMb, maxTemp(cpuZones), maxTemp(gpuZones), batTemp, batPct, watts, charging,
+            if (Root.available()) fps() else -1,
         )
     }
 }

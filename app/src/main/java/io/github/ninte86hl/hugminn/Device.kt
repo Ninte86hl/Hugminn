@@ -60,6 +60,39 @@ object Device {
     fun setStickLeds(on: Boolean, then: () -> Unit) =
         Root.run(Root.putSetting("system", "joystick_light_enabled", if (on) "1,1" else "0,0"), then = then)
 
+    fun airplane(ctx: Context) = Settings.Global.getInt(ctx.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) != 0
+    fun setAirplane(on: Boolean, then: () -> Unit) =
+        Root.run("cmd connectivity airplane-mode ${if (on) "enable" else "disable"}", then = then)
+
+    fun dnd(ctx: Context) = Settings.Global.getInt(ctx.contentResolver, "zen_mode", 0) != 0
+    fun setDnd(on: Boolean, then: () -> Unit) = Root.run("cmd notification set_dnd ${if (on) "on" else "off"}", then = then)
+
+    /** True when the screen rotation is locked. */
+    fun rotationLocked(ctx: Context) = Settings.System.getInt(ctx.contentResolver, Settings.System.ACCELEROMETER_ROTATION, 0) == 0
+    fun setRotationLocked(ctx: Context, locked: Boolean, then: () -> Unit) {
+        val v = if (locked) 0 else 1
+        if (Settings.System.canWrite(ctx)) {
+            Settings.System.putInt(ctx.contentResolver, Settings.System.ACCELEROMETER_ROTATION, v)
+            then()
+        } else Root.run("settings put system accelerometer_rotation $v", then = then)
+    }
+
+    fun keepScreenOn(ctx: Context) = sys(ctx, "keep_screen_on") == "1"
+    fun setKeepScreenOn(on: Boolean, then: () -> Unit) =
+        Root.run(Root.putSetting("system", "keep_screen_on", if (on) "1" else "0"), then = then)
+
+    fun fanSpeed(ctx: Context) = sys(ctx, "fan_speed")?.toIntOrNull()
+
+    /** Ends background apps (like "Clean memory" on AYN); returns the freed RAM in MB. */
+    fun cleanMemory(ctx: Context): Long {
+        val am = ctx.getSystemService(android.app.ActivityManager::class.java)
+        fun avail() = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }.availMem / 1_048_576
+        val before = avail()
+        Root.exec("am kill-all", 8_000)
+        Thread.sleep(600)
+        return (avail() - before).coerceAtLeast(0)
+    }
+
     fun wifiOn(ctx: Context) = Settings.Global.getInt(ctx.contentResolver, "wifi_on", 0) != 0
     fun setWifi(on: Boolean, then: () -> Unit) = Root.run("svc wifi ${if (on) "enable" else "disable"}", then = then)
 
