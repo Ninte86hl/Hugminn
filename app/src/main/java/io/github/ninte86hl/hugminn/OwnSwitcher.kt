@@ -212,7 +212,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         var shown = false
         val once = { if (!shown) { shown = true; show() } }
         val afterList = {
-            if (Root.available()) {
+            // swipe: Android's view is already on screen, cover it at once (the list follows right after)
+            if (Root.available() && !swipe) {
                 thread {
                     val list = loadTasks()
                     if (list != null) synchronized(this) {

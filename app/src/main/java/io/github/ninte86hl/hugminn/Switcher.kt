@@ -306,8 +306,8 @@ class Switcher(private val svc: HugminnService) {
     private fun pollRecents(n: Int) {
         svc.ui.postDelayed({
             if (svc.own.isOpen) return@postDelayed
-            if (settledRecents()) svc.openOwnFromSwipe() else if (n < 20) pollRecents(n + 1)
-        }, 40)
+            if (settledRecents()) svc.openOwnFromSwipe() else if (n < 30) pollRecents(n + 1)
+        }, 30)
     }
 
     private fun settledRecents(): Boolean = try {
