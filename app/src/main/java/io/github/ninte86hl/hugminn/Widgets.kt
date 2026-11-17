@@ -272,8 +272,8 @@ object GaugeColors {
         return stops.last().second
     }
 
-    fun of(pal: Palette, palette: GaugePalette, fraction: Float): Int = if (pal.dots) {
-        // dot-matrix: white, red only when it gets high
+    fun of(pal: Palette, palette: GaugePalette, fraction: Float): Int = if (pal.dots && palette == GaugePalette.MONO) {
+        // dot-matrix, monochrome: white, red only when it gets high (Nothing look)
         if (fraction >= 0.8f) pal.primary else pal.onSurface
     } else when (palette) {
         GaugePalette.TRAFFIC -> blend(listOf(0f to 0xFF4CAF50.toInt(), 0.5f to 0xFF8BC34A.toInt(), 0.7f to 0xFFFFC107.toInt(), 0.85f to 0xFFFF9800.toInt(), 1f to 0xFFF44336.toInt()), fraction)
