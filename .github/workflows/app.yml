@@ -50,7 +50,9 @@ jobs:
           name: Hugminn v${{ steps.ver.outputs.name }}
           prerelease: true
           make_latest: false
-          files: hugminn.apk
+          files: |
+            hugminn.apk
+            obtainium.json
           body: |
             Test build ${{ steps.ver.outputs.name }} of Hugminn. Install `hugminn.apk` on the handheld.
 
@@ -61,7 +63,9 @@ jobs:
           name: Hugminn (test build)
           prerelease: true
           make_latest: false
-          files: hugminn.apk
+          files: |
+            hugminn.apk
+            obtainium.json
           body: |
             Current test build of Hugminn. Download `hugminn.apk` below and install it on the handheld.
             Test builds are signed with a fixed test key, so new builds install over old ones.

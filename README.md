@@ -90,7 +90,13 @@ Hugminn detects the device and only shows what it supports, for example no 120 H
 
 ## Installation
 
-Not available yet. Once the first build is ready, APKs will be published under **Releases**, built automatically by GitHub Actions.
+Hugminn is in early testing. Every build is published under **Releases**, built automatically by GitHub Actions.
+
+- **Direct download:** [hugminn.apk](https://github.com/Ninte86hl/Hugminn/releases/download/latest/hugminn.apk) (always the newest test build)
+- **With [Obtainium](https://github.com/ImranR98/Obtainium) (recommended, keeps Hugminn up to date):** download [obtainium.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium.json) (also attached to every release) and import it in Obtainium under *Import/Export → Obtainium Import*.
+  Manual setup works too: source `https://github.com/Ninte86hl/Hugminn`, enable *Include prereleases*, APK filter `^hugminn\.apk$`.
+
+After installing, open Hugminn and tap **Aktivieren** to turn on its accessibility service.
 
 ## Acknowledgements
 

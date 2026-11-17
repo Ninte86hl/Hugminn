@@ -1,0 +1,23 @@
+{
+  "apps": [
+    {
+      "id": "io.github.ninte86hl.hugminn",
+      "url": "https://github.com/Ninte86hl/Hugminn",
+      "author": "Ninte86hl",
+      "name": "Hugminn",
+      "installedVersion": null,
+      "latestVersion": "v0.1.1",
+      "apkUrls": "[]",
+      "otherAssetUrls": "[]",
+      "preferredApkIndex": 0,
+      "additionalSettings": "{\"includePrereleases\": true, \"fallbackToOlderReleases\": true, \"filterReleaseTitlesByRegEx\": \"^Hugminn v\\\\d\", \"filterReleaseNotesByRegEx\": \"\", \"verifyLatestTag\": false, \"sortMethodChoice\": \"date\", \"useLatestAssetDateAsReleaseDate\": false, \"releaseTitleAsVersion\": false, \"trackOnly\": false, \"versionExtractionRegEx\": \"\", \"matchGroupToUse\": \"\", \"versionDetection\": true, \"releaseDateAsVersion\": false, \"useVersionCodeAsOSVersion\": false, \"apkFilterRegEx\": \"^hugminn\\\\.apk$\", \"invertAPKFilter\": false, \"autoApkFilterByArch\": true, \"appName\": \"Hugminn\", \"appAuthor\": \"Ninte86hl\", \"shizukuPretendToBeGooglePlay\": false, \"allowInsecure\": false, \"exemptFromBackgroundUpdates\": false, \"skipUpdateNotifications\": false, \"about\": \"Game Switcher (Muninn) and Control Center (Huginn) for Retroid and AYN handhelds.\", \"refreshBeforeDownload\": false}",
+      "lastUpdateCheck": null,
+      "pinned": false,
+      "categories": [],
+      "releaseDate": null,
+      "changeLog": null,
+      "overrideSource": "GitHub",
+      "allowIdChange": false
+    }
+  ]
+}
