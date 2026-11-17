@@ -40,6 +40,10 @@ class ControlCenter(private val svc: HugminnService) {
     private var root: FrameLayout? = null
     private val items = mutableListOf<Item>()
     private var focus = 0
+    /** No element is highlighted until the D-pad (or A) is used for the first time. */
+    private var focusVisible = false
+    /** A slider was confirmed with A: the D-pad now changes its value instead of moving. */
+    private var adjusting = false
     private var metrics: Metrics? = null
     private val refreshers = mutableListOf<() -> Unit>()
     private val graphUpdates = mutableListOf<(Metrics.Sample) -> Unit>()
@@ -80,6 +84,8 @@ class ControlCenter(private val svc: HugminnService) {
         refreshers.clear()
         graphUpdates.clear()
         focus = 0
+        focusVisible = false
+        adjusting = false
         metrics = Metrics(svc) { svc.foregroundPkg }
         // Full window over everything; the status bar is covered unless the user wants to keep it.
         val metrics = wm.currentWindowMetrics
@@ -591,7 +597,7 @@ class ControlCenter(private val svc: HugminnService) {
             typeface = Look.font(svc, pixel, true)
             maxLines = 1
             if (small) setAutoSizeTextTypeUniformWithConfiguration(12, 26, 1, TypedValue.COMPLEX_UNIT_SP)
-            else setTextSize(TypedValue.COMPLEX_UNIT_SP, if (big) 34f else 24f)
+            else setTextSize(TypedValue.COMPLEX_UNIT_SP, if (big) 34f else 19f)
         }
         val sub = text("", 11f, pal.onSurfaceVariant)
         var bar: GaugeBar? = null
@@ -1063,28 +1069,119 @@ class ControlCenter(private val svc: HugminnService) {
             showMenu("Stick-LEDs", entries, select)
             return
         }
+        ledRow = 1
+        ledCol = 0
+        ledPicker()
+    }
+
+    /** Cells of the LED colour window: rows of (view, action); the window closes after a colour is chosen. */
+    private var ledCells: List<List<Pair<View, () -> Unit>>>? = null
+    private var ledRow = 1
+    private var ledCol = 0
+
+    private fun ledPicker() {
+        val r = root ?: return
+        closeMenu()
+        val on = Device.stickLeds(svc)
         val (left, right) = Device.ledColors(svc) ?: (android.graphics.Color.WHITE to android.graphics.Color.WHITE)
-        val targets = listOf("Beide Sticks", "Linker Stick", "Rechter Stick")
-        entries += MenuEntry("Ziel: ${targets[ledTarget]}", hint = "Wechselt zwischen beiden, links und rechts") {
-            ledTarget = (ledTarget + 1) % 3
-            ledMenu(1)
-        }
-        entries += MenuEntry("Farbe", header = true, run = null)
         val current = if (ledTarget == 2) right else left
-        Device.ledPresets.forEach { (name, c) ->
-            val idx = entries.size
-            entries += MenuEntry(name, checked = (current or 0xFF000000.toInt()) == c && (ledTarget != 0 || left == right), swatch = c) {
-                val l = if (ledTarget == 2) left else c
-                val r = if (ledTarget == 1) right else c
-                Device.setLedColors(l, r, turnOn = !on) {
-                    svc.ui.post {
-                        refreshAll()
-                        if (root != null && menuView == null) ledMenu(idx)
-                    }
+        val box = LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
+            setPadding(20 * d, 16 * d, 20 * d, 16 * d)
+            elevation = 12f * d
+            isClickable = true
+        }
+        box.addView(text("Stick-LEDs", 18f, pal.onSurface, bold = true).apply { setPadding(0, 0, 0, 12 * d) })
+        val rows = mutableListOf<List<Pair<View, () -> Unit>>>()
+
+        // which stick
+        val targetRow = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+        val targets = mutableListOf<Pair<View, () -> Unit>>()
+        listOf("Beide", "Links", "Rechts").forEachIndexed { i, label ->
+            val sel = i == ledTarget
+            val chip = text(label, 14f, if (sel) pal.onPrimaryContainer else pal.onSurfaceVariant, bold = sel).apply {
+                gravity = Gravity.CENTER
+                background = shape(if (sel) pal.primaryContainer else pal.surfaceHighest, 16f * d)
+            }
+            val act = { ledTarget = i; ledRow = 0; ledCol = i; ledPicker() }
+            chip.setOnClickListener { act() }
+            targetRow.addView(chip, lp(76 * d, 36 * d).apply { marginStart = 4 * d; marginEnd = 4 * d })
+            targets += chip to act
+        }
+        box.addView(targetRow)
+        rows += targets
+
+        // 3 × 3 colours
+        val grid = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 12 * d, 0, 12 * d) }
+        Device.ledPresets.chunked(3).forEach { line ->
+            val row = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+            val cells = mutableListOf<Pair<View, () -> Unit>>()
+            line.forEach { (name, c) ->
+                val chosen = (current or 0xFF000000.toInt()) == c && (ledTarget != 0 || left == right)
+                val cell = FrameLayout(svc).apply {
+                    background = shape(c, 16f * d)
+                    contentDescription = name
+                    if (chosen) addView(text("✓", 22f, onColor(c), bold = true).apply { gravity = Gravity.CENTER },
+                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                 }
+                val act = {
+                    val l = if (ledTarget == 2) left else c
+                    val rr = if (ledTarget == 1) right else c
+                    closeMenu()
+                    Device.setLedColors(l, rr, turnOn = !on) { svc.ui.post { refreshAll() } }
+                }
+                cell.setOnClickListener { act() }
+                row.addView(cell, lp(72 * d, 72 * d).apply { setMargins(5 * d, 5 * d, 5 * d, 5 * d) })
+                cells += cell to act
+            }
+            grid.addView(row)
+            rows += cells
+        }
+        box.addView(grid)
+
+        // switch
+        val toggle = text(if (on) "LEDs ausschalten" else "LEDs einschalten", 14f, pal.onSurface).apply {
+            gravity = Gravity.CENTER
+            background = shape(pal.surfaceHighest, 16f * d)
+        }
+        val toggleAct = { closeMenu(); Device.setStickLeds(!on) { refreshAll() } }
+        toggle.setOnClickListener { toggleAct() }
+        box.addView(toggle, lp(3 * 82 * d, 40 * d))
+        rows += listOf(toggle to toggleAct)
+
+        ledCells = rows
+        ledRow = ledRow.coerceIn(0, rows.lastIndex)
+        ledCol = ledCol.coerceIn(0, rows[ledRow].lastIndex)
+        r.addView(box, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        menuView = box
+        showLedSel()
+    }
+
+    private fun showLedSel() {
+        ledCells?.forEachIndexed { y, row ->
+            row.forEachIndexed { x, (v, _) ->
+                v.foreground = if (y == ledRow && x == ledCol) shape(0, 16f * d, 3 * d, pal.onSurface) else null
             }
         }
-        showMenu("Stick-LEDs", entries, select)
+    }
+
+    private fun ledKey(code: Int) {
+        val rows = ledCells ?: return
+        when (code) {
+            KeyEvent.KEYCODE_DPAD_UP -> ledRow = (ledRow - 1).coerceAtLeast(0)
+            KeyEvent.KEYCODE_DPAD_DOWN -> ledRow = (ledRow + 1).coerceAtMost(rows.lastIndex)
+            KeyEvent.KEYCODE_DPAD_LEFT -> ledCol -= 1
+            KeyEvent.KEYCODE_DPAD_RIGHT -> ledCol += 1
+            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                rows[ledRow].getOrNull(ledCol)?.second?.invoke()
+                return
+            }
+            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> { closeMenu(); return }
+        }
+        ledCol = ledCol.coerceIn(0, rows[ledRow].lastIndex)
+        showLedSel()
     }
 
     private fun openSystem(action: String) {
@@ -1164,6 +1261,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun closeMenu() {
         menuView?.let { v -> (v.parent as? ViewGroup)?.removeView(v) }
         menuView = null
+        ledCells = null
     }
 
     private fun runMenu(i: Int) {
@@ -1190,12 +1288,17 @@ class ControlCenter(private val svc: HugminnService) {
     private fun showFocus() {
         if (editing) return
         val round = pal.dots
+        if (!focusVisible) {
+            items.forEach { it.view.foreground = null }
+            return
+        }
         items.forEachIndexed { i, it ->
             // Same corners as the element itself: round only for the round 1×1 switches of the dot style.
             val v = it.view
             val circle = round && v.width > 0 && kotlin.math.abs(v.width - v.height) < 4 * d && v.width < 160 * d
             val r = if (circle) v.width / 2f else 22f * d
-            v.foreground = if (i == focus) shape(0, r, 3 * d, pal.onSurface) else null
+            val adj = adjusting && i == focus && it.onAdjust != null
+            v.foreground = if (i == focus) shape(0, r, (if (adj) 5 else 3) * d, if (adj) tileOn() else pal.onSurface) else null
         }
     }
 
@@ -1822,7 +1925,7 @@ class ControlCenter(private val svc: HugminnService) {
     private var aDownAt = 0L
     private var aLong = false
     private val aLongPress = Runnable {
-        if (!isOpen || editing || menuView != null) return@Runnable
+        if (!isOpen || editing || menuView != null || !focusVisible) return@Runnable
         aLong = true
         val idx = itemEntry.getOrNull(focus) ?: return@Runnable
         beginEditAt(idx)
@@ -1839,7 +1942,16 @@ class ControlCenter(private val svc: HugminnService) {
                 svc.ui.postDelayed(aLongPress, 500)
             } else if (e.action == KeyEvent.ACTION_UP) {
                 svc.ui.removeCallbacks(aLongPress)
-                if (!aLong) items.getOrNull(focus)?.onA?.invoke()
+                if (!aLong) {
+                    val it = items.getOrNull(focus)
+                    when {
+                        // first press only shows where the cursor is
+                        !focusVisible -> { focusVisible = true; showFocus() }
+                        // sliders: A starts/ends changing the value with the D-pad
+                        it?.onAdjust != null -> { adjusting = !adjusting; showFocus() }
+                        else -> it?.onA?.invoke()
+                    }
+                }
                 aLong = false
             }
             return true
@@ -1870,6 +1982,10 @@ class ControlCenter(private val svc: HugminnService) {
             }
             return true
         }
+        if (ledCells != null && menuView != null) {
+            ledKey(e.keyCode)
+            return true
+        }
         if (menuView != null) {
             when (e.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> moveMenu(-1)
@@ -1884,11 +2000,26 @@ class ControlCenter(private val svc: HugminnService) {
             return true
         }
         val item = items.getOrNull(focus)
+        val dpad = e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+            e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+        if (dpad && !focusVisible) {
+            // Navigation starts with the first press; it only reveals the cursor.
+            focusVisible = true
+            showFocus()
+            return true
+        }
+        val adj = if (adjusting) item?.onAdjust else null
+        if (adjusting && (adj == null || e.keyCode == KeyEvent.KEYCODE_BUTTON_B || e.keyCode == KeyEvent.KEYCODE_BACK)) {
+            adjusting = false
+            showFocus()
+            if (adj != null) return true
+        }
+        val vert = item?.vertical == true
         when (e.keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> if (item?.vertical == true) item.onAdjust?.invoke(1) else gridNav(0, -1)
-            KeyEvent.KEYCODE_DPAD_DOWN -> if (item?.vertical == true) item.onAdjust?.invoke(-1) else gridNav(0, 1)
-            KeyEvent.KEYCODE_DPAD_LEFT -> if (item?.vertical == false && item.onAdjust != null) item.onAdjust.invoke(-1) else gridNav(-1, 0)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> if (item?.vertical == false && item.onAdjust != null) item.onAdjust.invoke(1) else gridNav(1, 0)
+            KeyEvent.KEYCODE_DPAD_UP -> if (adj != null && vert) adj(1) else { adjusting = false; gridNav(0, -1) }
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (adj != null && vert) adj(-1) else { adjusting = false; gridNav(0, 1) }
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (adj != null && !vert) adj(-1) else { adjusting = false; gridNav(-1, 0) }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (adj != null && !vert) adj(1) else { adjusting = false; gridNav(1, 0) }
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()

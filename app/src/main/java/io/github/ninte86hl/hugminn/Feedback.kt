@@ -205,6 +205,16 @@ object Feedback {
         Crash.last(svc)?.let { appendLine(); appendLine("Letzter Fehler:"); appendLine(it) }
         val changes = synchronized(SettingsWatch.log) { SettingsWatch.log.toList() }
         if (changes.isNotEmpty()) { appendLine(); appendLine("Geänderte Systemeinstellungen:"); changes.forEach { appendLine("  $it") } }
+        runCatching {
+            svc.contentResolver.query(android.provider.Settings.System.CONTENT_URI, arrayOf("name", "value"), null, null, null)?.use { c ->
+                val lines = mutableListOf<String>()
+                while (c.moveToNext()) {
+                    val n = c.getString(0) ?: continue
+                    if (Regex("joystick|led|light", RegexOption.IGNORE_CASE).containsMatchIn(n)) lines += "  $n = ${c.getString(1)}"
+                }
+                if (lines.isNotEmpty()) { appendLine(); appendLine("LED-Einstellungen:"); lines.forEach { appendLine(it) } }
+            }
+        }
         val opened = synchronized(svc.windowLog) { svc.windowLog.toList() }
         if (opened.isNotEmpty()) { appendLine(); appendLine("Zuletzt geöffnete Fenster:"); opened.forEach { appendLine("  $it") } }
         appendLine()

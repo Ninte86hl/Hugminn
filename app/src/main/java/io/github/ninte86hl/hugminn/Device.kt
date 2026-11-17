@@ -89,19 +89,17 @@ object Device {
         Root.run(*cmds.toTypedArray(), then = then)
     }
 
+    /** Nine clear, fully saturated colours (the LEDs show pastel tones washed out). */
     val ledPresets = listOf(
         "Weiß" to 0xFFFFFFFF.toInt(),
-        "Warmweiß" to 0xFFFFE0A0.toInt(),
         "Rot" to 0xFFFF0000.toInt(),
-        "Orange" to 0xFFFF7A00.toInt(),
-        "Gelb" to 0xFFFFFF00.toInt(),
+        "Orange" to 0xFFFF6600.toInt(),
+        "Gelb" to 0xFFFFDD00.toInt(),
         "Grün" to 0xFF00FF00.toInt(),
-        "Türkis" to 0xFF00FFB0.toInt(),
-        "Cyan" to 0xFF00E5FF.toInt(),
-        "Blau" to 0xFF0040FF.toInt(),
-        "Lila" to 0xFF8000FF.toInt(),
-        "Pink" to 0xFFFF60C0.toInt(),
-        "Magenta" to 0xFFFF00FF.toInt(),
+        "Cyan" to 0xFF00FFFF.toInt(),
+        "Blau" to 0xFF0000FF.toInt(),
+        "Lila" to 0xFF8800FF.toInt(),
+        "Pink" to 0xFFFF00AA.toInt(),
     )
 
     fun airplane(ctx: Context) = Settings.Global.getInt(ctx.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) != 0

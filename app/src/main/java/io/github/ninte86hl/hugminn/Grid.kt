@@ -222,7 +222,9 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
             }
             android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                 val c = cell()
-                val totalW = c * cols + gap * (cols - 1)
+                // Outside edit mode the board is centred on the columns actually in use (no empty strip on the right).
+        val used = if (editing()) cols else (pos.values.maxOfOrNull { it[0] + it[2] } ?: cols).coerceIn(1, cols)
+        val totalW = c * used + gap * (used - 1)
                 val ox = (width - totalW) / 2
                 val cx = Math.round((v.left + v.translationX - ox) / (c + gap).toFloat())
                 val cy = Math.round((v.top + v.translationY) / (c + gap).toFloat())
