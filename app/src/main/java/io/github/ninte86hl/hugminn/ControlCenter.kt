@@ -1112,7 +1112,10 @@ class ControlCenter(private val svc: HugminnService) {
                 svc.ui.post { startBtScan(rootOk) }
             } else {
                 if (found.isEmpty()) entries += MenuEntry("Noch nichts gefunden", run = null)
-                found.forEach { d ->
+                // devices with a name first; nameless ones (often phones, TVs, beacons nearby) only as a count
+                val named = found.filter { runCatching { it.name }.getOrNull() != null }
+                val nameless = found.size - named.size
+                named.forEach { d ->
                     entries += MenuEntry(Bt.name(d), hint = "A koppelt") {
                         stopBtScan()
                         Toast.makeText(svc, "Kopple ${Bt.name(d)} …", Toast.LENGTH_SHORT).show()
@@ -1120,6 +1123,7 @@ class ControlCenter(private val svc: HugminnService) {
                         Bt.confirmPairing(svc, Bt.name(d))
                     }
                 }
+                if (nameless > 0) entries += MenuEntry("$nameless weitere ohne Namen", hint = "Meist Handys, Fernseher oder Sender in der Nähe", run = null)
             }
         }
         val again = menuView != null && menuTitle == "Bluetooth"

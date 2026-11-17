@@ -143,12 +143,15 @@ object Bt {
                 if (known == null || (runCatching { known.name }.getOrNull() == null && runCatching { d.name }.getOrNull() != null)) {
                     list[d.address] = d
                     found(list.values.toList())
+                } else if (i.action == BluetoothDevice.ACTION_NAME_CHANGED) {
+                    list[d.address] = d
+                    found(list.values.toList())
                 }
             }
         }
 
         fun start() {
-            runCatching { ctx.registerReceiver(rx, IntentFilter(BluetoothDevice.ACTION_FOUND)) }
+            runCatching { ctx.registerReceiver(rx, IntentFilter(BluetoothDevice.ACTION_FOUND).apply { addAction(BluetoothDevice.ACTION_NAME_CHANGED) }) }
             // make sure the search may run (rights granted through the system shell)
             listOf(android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.ACCESS_FINE_LOCATION)
                 .filter { ctx.checkSelfPermission(it) != 0 }
