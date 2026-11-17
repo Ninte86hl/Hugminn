@@ -177,6 +177,22 @@ object LedFx {
      * Zone test on the left stick: reads the driver's files, then lights indices 0–8 one after another
      * (each 1.5 s, the others dark) and reports each step via [show]. Shows whether single LEDs exist.
      */
+    private const val LDIR = "/sys/class/sn3112l/led"
+
+    /** Current content of the left driver's files. */
+    fun readDriver(): String {
+        val read = listOf("brightness", "breath", "enable").joinToString("; ") { "echo $it=\$(cat $LDIR/$it 2>&1 | head -c 200)" }
+        return (Root.execLong(read) ?: "keine Antwort").replace('\n', ' ')
+    }
+
+    /** Left stick: only index [i] lit white, all others (0–8) dark. Returns an error text, if any. */
+    fun lightZone(i: Int): String? {
+        stop()
+        fun w(v: String) = Root.exec("echo $v > $LDIR/brightness 2>&1")
+        for (j in 0..8) if (j != i) w("$j-0:0:0:0")
+        return w("$i-255:255:255:255")?.takeIf { it.isNotBlank() }
+    }
+
     fun probeZones(show: (String) -> Unit) {
         stop()
         val dir = "/sys/class/sn3112l/led"
