@@ -568,8 +568,8 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     private fun slider(icon: IconView.Kind, label: String, max: Int, value: Int, set: (Int) -> Unit): View {
-        val v = BigSlider(svc, pal, icon, label, max, value, pixel, set)
-        sliderItems += Item(v, null) { dir -> v.step(5 * dir) }
+        val v = BigSlider(svc, pal, icon, label, max, value, pixel, false, set)
+        sliderItems += Item(v, null, { dir -> v.step(5 * dir) })
         return v
     }
 
