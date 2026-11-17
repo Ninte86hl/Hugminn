@@ -6,6 +6,7 @@ import android.content.res.ColorStateList
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.media.AudioManager
+import android.os.SystemClock
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.TypedValue
@@ -276,6 +277,10 @@ class ControlCenter(private val svc: HugminnService) {
         itemEntry.clear()
         body.removeAllViews()
         val board = GridBoard(svc, gridCols, 10 * d)
+        val viewIndex = HashMap<View, Int>()
+        board.editing = { editing }
+        board.onLongPress = { v -> viewIndex[v]?.let { beginEditAt(it) } }
+        board.onDrop = { v, x, y -> viewIndex[v]?.let { dropAt(it, x, y) } }
         val rootOk = Root.available()
         val covered = Array(GridLayout.ROWS) { BooleanArray(gridCols) }
         val cursorEl = if (editing) elementAt(cursorX, cursorY) else -1
@@ -283,15 +288,17 @@ class ControlCenter(private val svc: HugminnService) {
             if (pl.page != gridPage) return@forEachIndexed
             for (yy in pl.y until pl.y + pl.entry.h) for (xx in pl.x until (pl.x + pl.entry.w).coerceAtMost(gridCols)) covered[yy][xx] = true
             val (view, item) = element(pl.entry, rootOk)
+            viewIndex[view] = idx
             if (editing) {
                 val sel = idx == cursorEl
+                view.setOnClickListener { cursorX = pl.x; cursorY = pl.y; elementMenu(idx) }
                 view.foreground = if (sel) shape(0, 22f * d, (if (holding) 5 else 3) * d, if (holding) tileOn() else pal.onSurface) else null
                 if (sel && holding) { view.scaleX = 0.94f; view.scaleY = 0.94f }
             } else if (item != null) {
                 items += item
                 itemEntry += idx
             }
-            board.place(view, pl.x, pl.y, pl.entry.w.coerceAtMost(gridCols), pl.entry.h)
+            board.place(view, pl.x, pl.y, pl.entry.w.coerceAtMost(gridCols), pl.entry.h, drag = true)
         }
         if (editing) {
             // Free cells as dashed squares; A on one adds something there
@@ -1092,6 +1099,31 @@ class ControlCenter(private val svc: HugminnService) {
         renderGrid()
     }
 
+    /** Long press on an element: edit mode starts with this element (the finger can keep dragging it). */
+    private fun beginEditAt(idx: Int) {
+        val p = placed.getOrNull(idx) ?: return
+        if (!editing) {
+            entries = placed.map { it.entry.copy(x = it.x, y = it.y, page = it.page) }.toMutableList()
+            editing = true
+            holding = false
+            closeMenu()
+        }
+        cursorX = p.x
+        cursorY = p.y
+        // the grid is re-drawn when the finger lets go (re-drawing now would end the drag)
+    }
+
+    /** Drag & drop: put element [idx] at cell x/y if it fits there. */
+    private fun dropAt(idx: Int, x: Int, y: Int) {
+        val p = placed.getOrNull(idx) ?: return renderGrid()
+        if (fitsAt(p.entry, x, y, gridPage, idx)) {
+            entries[idx] = p.entry.copy(x = x, y = y, page = gridPage)
+            cursorX = x
+            cursorY = y
+        }
+        renderGrid()
+    }
+
     private fun finishEdit() {
         svc.prefs.ccGrid = placed.map { it.entry.copy(x = it.x, y = it.y, page = it.page) }
         editing = false
@@ -1639,7 +1671,31 @@ class ControlCenter(private val svc: HugminnService) {
         rebuildPanel()
     }
 
+    private var aDownAt = 0L
+    private var aLong = false
+    private val aLongPress = Runnable {
+        if (!isOpen || editing || menuView != null) return@Runnable
+        aLong = true
+        val idx = itemEntry.getOrNull(focus) ?: return@Runnable
+        beginEditAt(idx)
+        renderGrid()
+    }
+
     fun onKey(e: KeyEvent): Boolean {
+        // A: short press acts on release, holding it (½ s) opens the edit mode on that element
+        val isA = e.keyCode == KeyEvent.KEYCODE_BUTTON_A || e.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || e.keyCode == KeyEvent.KEYCODE_ENTER
+        if (isA && !editing && menuView == null && editView == null && gridEdit == null) {
+            if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {
+                aDownAt = SystemClock.uptimeMillis()
+                aLong = false
+                svc.ui.postDelayed(aLongPress, 500)
+            } else if (e.action == KeyEvent.ACTION_UP) {
+                svc.ui.removeCallbacks(aLongPress)
+                if (!aLong) items.getOrNull(focus)?.onA?.invoke()
+                aLong = false
+            }
+            return true
+        }
         if (e.action != KeyEvent.ACTION_DOWN) return true
         if (gridEdit != null) {
             when (e.keyCode) {

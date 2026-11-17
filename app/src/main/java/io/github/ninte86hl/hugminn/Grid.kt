@@ -139,10 +139,105 @@ object GridLayout {
 /** Places its children on a grid of square cells (positions set via [place]). */
 class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : ViewGroup(ctx) {
     private val pos = HashMap<View, IntArray>()
+    private val draggable = HashSet<View>()
 
-    fun place(v: View, x: Int, y: Int, w: Int, h: Int) {
+    /** Whether elements can be dragged right away (edit mode). */
+    var editing: () -> Boolean = { false }
+    /** Long press on an element (outside edit mode). */
+    var onLongPress: ((View) -> Unit)? = null
+    /** Element dropped; x/y = cell of its top-left corner. */
+    var onDrop: ((View, Int, Int) -> Unit)? = null
+
+    fun place(v: View, x: Int, y: Int, w: Int, h: Int, drag: Boolean = false) {
         pos[v] = intArrayOf(x, y, w, h)
+        if (drag) draggable += v
         addView(v)
+    }
+
+    // ---- drag & drop ----
+    private var dragView: View? = null
+    private var downX = 0f
+    private var downY = 0f
+    private var longFired = false
+    private var dragging = false
+    private val slop = android.view.ViewConfiguration.get(ctx).scaledTouchSlop
+    private val longPress = Runnable {
+        val v = dragView ?: return@Runnable
+        longFired = true
+        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        // the element must not also be "clicked"
+        val cancel = android.view.MotionEvent.obtain(0, 0, android.view.MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
+        v.dispatchTouchEvent(cancel)
+        cancel.recycle()
+        onLongPress?.invoke(v)
+        lift(v)
+    }
+
+    private fun lift(v: View) {
+        v.animate().scaleX(1.05f).scaleY(1.05f).setDuration(90).start()
+        v.elevation = 16f
+        v.bringToFront()
+    }
+
+    private fun childAt(x: Float, y: Float): View? {
+        for (i in childCount - 1 downTo 0) {
+            val c = getChildAt(i)
+            if (c in draggable && x >= c.left && x < c.right && y >= c.top && y < c.bottom) return c
+        }
+        return null
+    }
+
+    override fun onInterceptTouchEvent(e: android.view.MotionEvent): Boolean {
+        when (e.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                downX = e.x
+                downY = e.y
+                longFired = false
+                dragging = false
+                dragView = childAt(e.x, e.y)
+                if (dragView != null && !editing()) postDelayed(longPress, 450)
+            }
+            android.view.MotionEvent.ACTION_MOVE -> {
+                val far = Math.hypot((e.x - downX).toDouble(), (e.y - downY).toDouble()) > slop
+                if (far && !longFired) removeCallbacks(longPress)
+                if (far && dragView != null && (editing() || longFired) && !dragging) {
+                    dragging = true
+                    if (!longFired) lift(dragView!!)
+                }
+            }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> removeCallbacks(longPress)
+        }
+        return dragging || longFired
+    }
+
+    override fun onTouchEvent(e: android.view.MotionEvent): Boolean {
+        val v = dragView ?: return false
+        when (e.actionMasked) {
+            android.view.MotionEvent.ACTION_MOVE -> {
+                if (!dragging && Math.hypot((e.x - downX).toDouble(), (e.y - downY).toDouble()) > slop) dragging = true
+                if (dragging) {
+                    v.translationX = e.x - downX
+                    v.translationY = e.y - downY
+                }
+            }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                val c = cell()
+                val totalW = c * cols + gap * (cols - 1)
+                val ox = (width - totalW) / 2
+                val cx = Math.round((v.left + v.translationX - ox) / (c + gap).toFloat())
+                val cy = Math.round((v.top + v.translationY) / (c + gap).toFloat())
+                v.translationX = 0f
+                v.translationY = 0f
+                v.scaleX = 1f
+                v.scaleY = 1f
+                v.elevation = 0f
+                dragView = null
+                dragging = false
+                longFired = false
+                if (e.actionMasked == android.view.MotionEvent.ACTION_UP) onDrop?.invoke(v, cx, cy)
+            }
+        }
+        return true
     }
 
     private fun cell(): Int {
