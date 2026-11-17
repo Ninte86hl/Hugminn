@@ -19,6 +19,7 @@ import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -113,6 +114,7 @@ class Switcher(private val svc: HugminnService) {
     fun close(goBack: Boolean) {
         if (!isOpen) return
         isOpen = false
+        hat.stop()
         closedAt = SystemClock.uptimeMillis()
         generation++
         menu = null
@@ -428,8 +430,17 @@ class Switcher(private val svc: HugminnService) {
         shell = s
 
         val b = object : FrameLayout(svc) {
+            // The D-pad is a joystick hat: Hugminn reads it here and moves the recents view itself.
+            override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
+                hat.onMotion(event) || super.dispatchGenericMotionEvent(event)
+
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-                if (event.action == KeyEvent.ACTION_DOWN) try { handleKey(event.keyCode) } catch (t: Throwable) { Crash.note(svc, t) }
+                if (event.action == KeyEvent.ACTION_DOWN) try {
+                    val lr = event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+                    if (menu == null && lr) navigate(event.keyCode) else handleKey(event.keyCode)
+                } catch (t: Throwable) {
+                    Crash.note(svc, t)
+                }
                 return true
             }
         }.apply {
@@ -439,7 +450,7 @@ class Switcher(private val svc: HugminnService) {
         val blp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT, m.bounds.height() - barTop,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -447,6 +458,7 @@ class Switcher(private val svc: HugminnService) {
         }
         wm.addView(b, blp)
         bar = b
+        b.requestFocus()
     }
 
     private fun text(s: String, sizeSp: Float, color: Int, bold: Boolean = false) = TextView(svc).apply {
@@ -549,6 +561,34 @@ class Switcher(private val svc: HugminnService) {
         return true
     }
 
+    private val hat = HatInput(svc.ui) { code ->
+        try {
+            if (menu != null) handleKey(code) else navigate(code)
+        } catch (t: Throwable) {
+            Crash.note(svc, t)
+        }
+    }
+
+    /** D-pad left/right: snap the recents view to the neighbouring card (on screen, not by index). */
+    private fun navigate(code: Int) {
+        if (!scanned || cards.size < 2) return
+        val step = when (code) {
+            KeyEvent.KEYCODE_DPAD_RIGHT -> 1
+            KeyEvent.KEYCODE_DPAD_LEFT -> -1
+            else -> return
+        }
+        // dir < 0: higher index sits further left
+        val next = target + if (dir < 0) -step else step
+        if (next !in cards.indices) return
+        lastKeyAt = SystemClock.uptimeMillis()
+        val node = cards[next].node
+        animateTo(next)
+        // The launcher snaps to a card asked to be shown on screen (same animation as with a D-pad).
+        if (!node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)) {
+            node.performAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS)
+        }
+    }
+
     private fun handleKey(keyCode: Int) {
         val m = menu
         when (keyCode) {
@@ -565,7 +605,10 @@ class Switcher(private val svc: HugminnService) {
         setBarFocus(menu != null)
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun setBarFocus(on: Boolean) {
+        // The bar keeps input focus the whole time (needed for the D-pad); nothing to switch.
+        return
         val b = bar ?: return
         val lp = b.layoutParams as? WindowManager.LayoutParams ?: return
         val notFocusable = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE

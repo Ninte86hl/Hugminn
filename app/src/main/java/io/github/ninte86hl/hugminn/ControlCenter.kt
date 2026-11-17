@@ -11,6 +11,7 @@ import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -62,6 +63,14 @@ class ControlCenter(private val svc: HugminnService) {
 
     private val d get() = svc.dp(1)
 
+    private val hat = HatInput(svc.ui) { code ->
+        try {
+            onKey(KeyEvent(KeyEvent.ACTION_DOWN, code))
+        } catch (t: Throwable) {
+            Crash.note(svc, t)
+        }
+    }
+
     fun open() {
         if (isOpen) return
         isOpen = true
@@ -78,6 +87,10 @@ class ControlCenter(private val svc: HugminnService) {
         // The window takes input focus: the D-pad of these handhelds is a joystick hat, which Android
         // only turns into D-pad keys inside the focused window (an accessibility service never sees it).
         val r = object : FrameLayout(svc) {
+            // The D-pad is a joystick hat: read it directly (Android would only fake keys from it).
+            override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
+                hat.onMotion(event) || super.dispatchGenericMotionEvent(event)
+
             override fun dispatchKeyEvent(event: KeyEvent): Boolean = try {
                 onKey(event)
             } catch (t: Throwable) {
@@ -118,6 +131,7 @@ class ControlCenter(private val svc: HugminnService) {
     fun close() {
         if (!isOpen) return
         isOpen = false
+        hat.stop()
         menuView = null
         editView = null
         gridEdit = null
