@@ -100,10 +100,11 @@ object Bt {
      * refused, Hugminn opens the Bluetooth settings and taps the device there itself.
      */
     fun toggle(svc: HugminnService, d: BluetoothDevice, connect: Boolean, done: (Boolean) -> Unit) {
-        val ok = runCatching {
-            val r = d.javaClass.getMethod(if (connect) "connect" else "disconnect").invoke(d)
-            r == null || r == 0 || r == true
-        }.getOrDefault(false)
+        val res = runCatching { d.javaClass.getMethod(if (connect) "connect" else "disconnect").invoke(d) }
+        val ok = res.getOrNull().let { it == null && res.isSuccess || it == 0 || it == true }
+        diag = "${if (connect) "Verbinden" else "Trennen"} ${name(d)}: " +
+            (res.exceptionOrNull()?.let { (it.cause ?: it).javaClass.simpleName + ": " + (it.cause ?: it).message } ?: "Antwort ${res.getOrNull()}") +
+            if (ok) "" else " → über die Einstellungen"
         if (ok) { done(true); return }
         tapInSettings(svc, name(d), done)
     }
@@ -148,6 +149,10 @@ object Bt {
 
         fun start() {
             runCatching { ctx.registerReceiver(rx, IntentFilter(BluetoothDevice.ACTION_FOUND)) }
+            // make sure the search may run (rights granted through the system shell)
+            listOf(android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                .filter { ctx.checkSelfPermission(it) != 0 }
+                .forEach { Root.exec("pm grant ${ctx.packageName} $it") }
             val r = runCatching { adapter(ctx)?.startDiscovery() }
             diag = "Suche gestartet: ${r.getOrNull()} ${r.exceptionOrNull()?.let { it.javaClass.simpleName + ": " + it.message } ?: ""}" +
                 " · Rechte: scan=${ctx.checkSelfPermission(android.Manifest.permission.BLUETOOTH_SCAN) == 0}" +
