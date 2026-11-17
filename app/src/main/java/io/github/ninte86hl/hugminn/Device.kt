@@ -71,6 +71,27 @@ object Device {
         return Settings.Secure.getString(ctx.contentResolver, "enabled_accessibility_services").orEmpty().contains(comp)
     }
 
+    /** Retroid/AYN kill background apps that are not on this list (Settings.System, comma separated). */
+    private const val WHITELIST = "app_whiteList"
+
+    fun hasWhitelist(ctx: Context) = sys(ctx, WHITELIST) != null
+
+    fun whitelisted(ctx: Context): Boolean =
+        sys(ctx, WHITELIST)?.split(',')?.map { it.trim() }?.contains(ctx.packageName) == true
+
+    /** Puts Hugminn on the firmware's background whitelist and exempts it from battery optimisation. */
+    fun ensureWhitelist(ctx: Context): Boolean {
+        if (!Root.available()) return whitelisted(ctx)
+        val pkg = ctx.packageName
+        if (hasWhitelist(ctx) && !whitelisted(ctx)) {
+            val cur = sys(ctx, WHITELIST).orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() && it != "null" }
+            Root.exec(Root.putSetting("system", WHITELIST, (cur + pkg).joinToString(",")))
+        }
+        Root.exec("dumpsys deviceidle whitelist +$pkg")
+        Root.exec("cmd appops set $pkg RUN_ANY_IN_BACKGROUND allow")
+        return !hasWhitelist(ctx) || whitelisted(ctx)
+    }
+
     /** Grants usage access (helps to name apps in the switcher) and screen brightness writing via root. */
     fun grantExtras(ctx: Context) {
         Root.exec("appops set ${ctx.packageName} GET_USAGE_STATS allow")

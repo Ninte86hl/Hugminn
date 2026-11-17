@@ -122,6 +122,24 @@ class MainActivity : Activity() {
             else "Kein Root-Dienst gefunden: Game Switcher und Graphen gehen, Geräteschalter öffnen die Android-Einstellungen.",
             12f, pal.onSurfaceVariant,
         ))
+        if (Device.hasWhitelist(this)) {
+            val wl = Device.whitelisted(this)
+            st.addView(text(
+                if (wl) "✓ Auf der Hintergrund-Whitelist: Das System beendet Hugminn nicht."
+                else "✕ Nicht auf der Hintergrund-Whitelist: Das System kann Hugminn im Hintergrund beenden.",
+                13f, pal.onSurface,
+            ).apply { setPadding(0, d(8), 0, 0) })
+            if (!wl && rootOk) {
+                val b = LinearLayout(this).apply { setPadding(0, d(8), 0, d(4)) }
+                b.addView(button("Zur Whitelist hinzufügen") {
+                    thread {
+                        Device.ensureWhitelist(this)
+                        runOnUiThread { build() }
+                    }
+                })
+                st.addView(b)
+            }
+        }
         if (!running) {
             val b = LinearLayout(this).apply { setPadding(0, d(8), 0, d(4)) }
             b.addView(button("Aktivieren") { enable(rootOk) })
@@ -206,6 +224,7 @@ class MainActivity : Activity() {
         thread {
             val ok = Device.enableService(this)
             Device.grantExtras(this)
+            Device.ensureWhitelist(this)
             runOnUiThread {
                 if (ok) {
                     window.decorView.postDelayed({ build() }, 600)

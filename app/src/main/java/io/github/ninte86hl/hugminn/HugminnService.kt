@@ -42,6 +42,8 @@ class HugminnService : AccessibilityService() {
         switcher = Switcher(this)
         controlCenter = ControlCenter(this)
         instance = this
+        // Keep the firmware from killing Hugminn in the background.
+        Thread { Device.ensureWhitelist(this) }.start()
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
