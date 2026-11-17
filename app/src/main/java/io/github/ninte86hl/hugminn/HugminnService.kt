@@ -44,6 +44,7 @@ class HugminnService : AccessibilityService() {
         instance = this
         // Keep the firmware from killing Hugminn in the background.
         Thread { Device.ensureWhitelist(this) }.start()
+        SettingsWatch.start(this)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -53,6 +54,7 @@ class HugminnService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        SettingsWatch.stop(this)
         instance = null
         super.onDestroy()
     }
@@ -66,6 +68,12 @@ class HugminnService : AccessibilityService() {
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
+        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || switcher.isOpen)) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                Feedback.capture(this, if (controlCenter.isOpen) "controlcenter" else "switcher")
+            }
+            return true
+        }
         if (controlCenter.isOpen) return controlCenter.onKey(event)
         if (switcher.isOpen) return switcher.onKey(event)
         return false

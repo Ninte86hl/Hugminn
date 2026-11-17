@@ -11,10 +11,20 @@ import android.view.Gravity
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.widget.TextView
+import android.graphics.Rect
+import android.view.View
 
 /** Material You colours taken from the system palette (falls back to Hugminn red on older Android). */
 class Palette(private val ctx: Context) {
-    val dark = (ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    val dark: Boolean = run {
+        // Services keep an old configuration, so ask the system for the current night mode first.
+        val um = ctx.getSystemService(android.app.UiModeManager::class.java)
+        when (um?.nightMode) {
+            android.app.UiModeManager.MODE_NIGHT_YES -> true
+            android.app.UiModeManager.MODE_NIGHT_NO -> false
+            else -> (ctx.applicationContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        }
+    }
     private fun sys(name: String, fallback: Int): Int {
         if (Build.VERSION.SDK_INT < 31) return fallback
         val id = ctx.resources.getIdentifier(name, "color", "android")
@@ -51,6 +61,10 @@ fun rounded(color: Int, radius: Float, stroke: Int = 0, strokeColor: Int = 0) = 
  */
 object Glyphs {
     enum class Pos { BOTTOM, RIGHT, LEFT, TOP }
+    enum class Shape { CROSS, CIRCLE, SQUARE, TRIANGLE }
+
+    /** What to draw: a letter or a PlayStation shape, or a label for other buttons. */
+    data class Glyph(val text: String?, val shape: Shape?, val color: Int)
 
     /** True when the handheld runs in Retroid/Nintendo layout (A on the right). */
     fun nintendoLayout(): Boolean = InputDevice.getDeviceIds().any { id ->
@@ -70,31 +84,30 @@ object Glyphs {
         else -> prefs.glyphStyle
     }
 
-    /** Label and colour (0 = neutral) for a face button. */
-    fun glyph(prefs: Prefs, keyCode: Int): Pair<String, Int> {
+    fun glyph(prefs: Prefs, keyCode: Int): Glyph {
         val nintendo = nintendoLayout()
-        val pos = posOf(keyCode, nintendo) ?: return keyLabel(keyCode) to 0
-        val (label, color) = when (styleFor(prefs, nintendo)) {
+        val pos = posOf(keyCode, nintendo) ?: return Glyph(keyLabel(keyCode), null, 0)
+        val g = when (styleFor(prefs, nintendo)) {
             GlyphStyle.PLAYSTATION -> when (pos) {
-                Pos.BOTTOM -> "✕" to 0xFF7DA7E8.toInt()
-                Pos.RIGHT -> "○" to 0xFFE86A6A.toInt()
-                Pos.LEFT -> "□" to 0xFFD88FD0.toInt()
-                Pos.TOP -> "△" to 0xFF3EC1A4.toInt()
+                Pos.BOTTOM -> Glyph(null, Shape.CROSS, 0xFF8FB4F0.toInt())
+                Pos.RIGHT -> Glyph(null, Shape.CIRCLE, 0xFFF07A7A.toInt())
+                Pos.LEFT -> Glyph(null, Shape.SQUARE, 0xFFE59AD9.toInt())
+                Pos.TOP -> Glyph(null, Shape.TRIANGLE, 0xFF4CD1B0.toInt())
             }
             GlyphStyle.NINTENDO -> when (pos) {
-                Pos.BOTTOM -> "B" to 0xFFE5C33A.toInt()
-                Pos.RIGHT -> "A" to 0xFFE5403A.toInt()
-                Pos.LEFT -> "Y" to 0xFF3DBB4B.toInt()
-                Pos.TOP -> "X" to 0xFF2F7BEA.toInt()
+                Pos.BOTTOM -> Glyph("B", null, 0xFFF2CF4A.toInt())
+                Pos.RIGHT -> Glyph("A", null, 0xFFF0625C.toInt())
+                Pos.LEFT -> Glyph("Y", null, 0xFF5CCB68.toInt())
+                Pos.TOP -> Glyph("X", null, 0xFF5B9BF2.toInt())
             }
             else -> when (pos) {
-                Pos.BOTTOM -> "A" to 0xFF3DBB4B.toInt()
-                Pos.RIGHT -> "B" to 0xFFE5403A.toInt()
-                Pos.LEFT -> "X" to 0xFF2F7BEA.toInt()
-                Pos.TOP -> "Y" to 0xFFF4C20D.toInt()
+                Pos.BOTTOM -> Glyph("A", null, 0xFF5CCB68.toInt())
+                Pos.RIGHT -> Glyph("B", null, 0xFFF0625C.toInt())
+                Pos.LEFT -> Glyph("X", null, 0xFF5B9BF2.toInt())
+                Pos.TOP -> Glyph("Y", null, 0xFFF2CF4A.toInt())
             }
         }
-        return label to if (prefs.glyphColored) color else 0
+        return if (prefs.glyphColored) g else g.copy(color = 0)
     }
 
     private fun keyLabel(k: Int) = when (k) {
@@ -102,25 +115,94 @@ object Glyphs {
         KeyEvent.KEYCODE_BUTTON_R1 -> "RB"
         KeyEvent.KEYCODE_BUTTON_START -> "☰"
         KeyEvent.KEYCODE_BUTTON_SELECT -> "⧉"
-        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> "◀▶"
         else -> "?"
     }
 
-    /** A round button chip like on the controller. */
-    fun chip(ctx: Context, prefs: Prefs, pal: Palette, keyCode: Int): TextView {
-        val (label, color) = glyph(prefs, keyCode)
-        val size = ctx.dp(22)
-        return TextView(ctx).apply {
-            text = label
-            gravity = Gravity.CENTER
-            setTypeface(typeface, Typeface.BOLD)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (label.length > 1) 9f else 12f)
-            val bg = if (color != 0) color else pal.onSurface
-            setTextColor(if (color != 0) Color.WHITE else pal.surface)
-            background = rounded(bg, size / 2f)
-            minWidth = size
-            minHeight = size
-            setPadding(ctx.dp(4), 0, ctx.dp(4), 0)
+    /** A round button like on the controller: dark cap, coloured symbol (or plain in mono mode). */
+    fun chip(ctx: Context, prefs: Prefs, pal: Palette, keyCode: Int, sizeDp: Int = 24): View =
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) DpadView(ctx, pal, sizeDp)
+        else GlyphView(ctx, glyph(prefs, keyCode), pal, sizeDp)
+}
+
+class GlyphView(ctx: Context, private val g: Glyphs.Glyph, pal: Palette, private val sizeDp: Int) : View(ctx) {
+    private val cap = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = if (g.color != 0) (if (pal.dark) 0xFF34343A.toInt() else 0xFF2B2B30.toInt()) else pal.onSurface
+    }
+    private val ink = if (g.color != 0) g.color else pal.surface
+    private val stroke = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.STROKE
+        strokeCap = android.graphics.Paint.Cap.ROUND
+        strokeJoin = android.graphics.Paint.Join.ROUND
+        color = ink
+    }
+    private val textPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = ink
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = android.graphics.Paint.Align.CENTER
+    }
+
+    override fun onMeasure(w: Int, h: Int) {
+        val wide = (g.text?.length ?: 1) > 1
+        val s = context.dp(sizeDp)
+        setMeasuredDimension(if (wide) (s * 1.5f).toInt() else s, s)
+    }
+
+    override fun onDraw(c: android.graphics.Canvas) {
+        val w = width.toFloat()
+        val h = height.toFloat()
+        val r = h / 2f
+        c.drawRoundRect(0f, 0f, w, h, r, r, cap)
+        val cx = w / 2f
+        val cy = h / 2f
+        val s = h * 0.24f // half size of the symbol
+        stroke.strokeWidth = h * 0.09f
+        when (g.shape) {
+            Glyphs.Shape.CROSS -> {
+                c.drawLine(cx - s, cy - s, cx + s, cy + s, stroke)
+                c.drawLine(cx - s, cy + s, cx + s, cy - s, stroke)
+            }
+            Glyphs.Shape.CIRCLE -> c.drawCircle(cx, cy, s * 1.05f, stroke)
+            Glyphs.Shape.SQUARE -> c.drawRect(cx - s * 0.92f, cy - s * 0.92f, cx + s * 0.92f, cy + s * 0.92f, stroke)
+            Glyphs.Shape.TRIANGLE -> {
+                val t = android.graphics.Path().apply {
+                    moveTo(cx, cy - s * 1.1f)
+                    lineTo(cx + s * 1.15f, cy + s * 0.85f)
+                    lineTo(cx - s * 1.15f, cy + s * 0.85f)
+                    close()
+                }
+                c.drawPath(t, stroke)
+            }
+            null -> {
+                val text = g.text ?: return
+                textPaint.textSize = h * (if (text.length > 1) 0.42f else 0.56f)
+                val b = Rect().also { textPaint.getTextBounds(text, 0, text.length, it) }
+                c.drawText(text, cx, cy + b.height() / 2f - b.bottom.coerceAtLeast(0) / 2f, textPaint)
+            }
         }
+    }
+}
+
+/** Small D-pad symbol for "change" hints. */
+class DpadView(ctx: Context, pal: Palette, private val sizeDp: Int) : View(ctx) {
+    private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = pal.onSurfaceVariant }
+    private val hole = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = pal.surface }
+
+    override fun onMeasure(w: Int, h: Int) {
+        val s = context.dp(sizeDp)
+        setMeasuredDimension(s, s)
+    }
+
+    override fun onDraw(c: android.graphics.Canvas) {
+        val s = height.toFloat()
+        val a = s * 0.33f
+        val r = s * 0.08f
+        c.drawRoundRect(a, 0f, s - a, s, r, r, p)
+        c.drawRoundRect(0f, a, s, s - a, r, r, p)
+        // highlight left/right arms
+        val t = android.graphics.Path().apply {
+            moveTo(s * 0.08f, s / 2); lineTo(s * 0.24f, s * 0.38f); lineTo(s * 0.24f, s * 0.62f); close()
+            moveTo(s * 0.92f, s / 2); lineTo(s * 0.76f, s * 0.38f); lineTo(s * 0.76f, s * 0.62f); close()
+        }
+        c.drawPath(t, hole)
     }
 }

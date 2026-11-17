@@ -1,0 +1,98 @@
+package io.github.ninte86hl.hugminn
+
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.view.View
+
+/** Simple line icons drawn in code, so they look the same everywhere and follow the theme colour. */
+class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 22) : View(ctx) {
+    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR }
+
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+
+    fun setColor(c: Int) {
+        p.color = c
+        invalidate()
+    }
+
+    override fun onMeasure(w: Int, h: Int) {
+        val s = context.dp(sizeDp)
+        setMeasuredDimension(s, s)
+    }
+
+    override fun onDraw(c: Canvas) {
+        val s = width.toFloat()
+        p.strokeWidth = s * 0.09f
+        val m = s / 2f
+        when (kind) {
+            Kind.WIFI -> {
+                for (i in 1..3) {
+                    val r = s * 0.15f * i + s * 0.02f
+                    c.drawArc(RectF(m - r, s * 0.82f - r, m + r, s * 0.82f + r), 225f, 90f, false, p)
+                }
+                p.style = Paint.Style.FILL
+                c.drawCircle(m, s * 0.8f, s * 0.06f, p)
+                p.style = Paint.Style.STROKE
+            }
+            Kind.BLUETOOTH -> c.drawPath(Path().apply {
+                moveTo(s * 0.3f, s * 0.32f); lineTo(s * 0.7f, s * 0.68f); lineTo(m, s * 0.86f); lineTo(m, s * 0.14f)
+                lineTo(s * 0.7f, s * 0.32f); lineTo(s * 0.3f, s * 0.68f)
+            }, p)
+            Kind.BOLT -> c.drawPath(Path().apply {
+                moveTo(s * 0.58f, s * 0.1f); lineTo(s * 0.28f, s * 0.56f); lineTo(s * 0.5f, s * 0.56f)
+                lineTo(s * 0.42f, s * 0.9f); lineTo(s * 0.72f, s * 0.44f); lineTo(s * 0.5f, s * 0.44f); close()
+            }, p)
+            Kind.FAN -> {
+                for (i in 0 until 3) {
+                    c.save()
+                    c.rotate(120f * i, m, m)
+                    c.drawPath(Path().apply {
+                        moveTo(m, m)
+                        cubicTo(s * 0.35f, s * 0.35f, s * 0.38f, s * 0.08f, m, s * 0.1f)
+                        cubicTo(s * 0.66f, s * 0.12f, s * 0.62f, s * 0.35f, m, m)
+                    }, p)
+                    c.restore()
+                }
+            }
+            Kind.REFRESH -> {
+                c.drawRoundRect(RectF(s * 0.12f, s * 0.22f, s * 0.88f, s * 0.72f), s * 0.08f, s * 0.08f, p)
+                c.drawLine(s * 0.35f, s * 0.86f, s * 0.65f, s * 0.86f, p)
+                c.drawPath(Path().apply {
+                    moveTo(s * 0.24f, s * 0.6f); lineTo(s * 0.38f, s * 0.4f); lineTo(s * 0.5f, s * 0.54f)
+                    lineTo(s * 0.62f, s * 0.36f); lineTo(s * 0.76f, s * 0.5f)
+                }, p)
+            }
+            Kind.LED -> {
+                c.drawCircle(m, m, s * 0.18f, p)
+                for (i in 0 until 8) {
+                    c.save()
+                    c.rotate(45f * i, m, m)
+                    c.drawLine(m, s * 0.08f, m, s * 0.2f, p)
+                    c.restore()
+                }
+            }
+            Kind.CAMERA -> {
+                c.drawRoundRect(RectF(s * 0.1f, s * 0.28f, s * 0.9f, s * 0.82f), s * 0.1f, s * 0.1f, p)
+                c.drawLine(s * 0.36f, s * 0.18f, s * 0.64f, s * 0.18f, p)
+                c.drawCircle(m, s * 0.55f, s * 0.15f, p)
+            }
+            Kind.GEAR -> {
+                c.drawCircle(m, m, s * 0.14f, p)
+                c.drawCircle(m, m, s * 0.3f, p)
+                for (i in 0 until 8) {
+                    c.save()
+                    c.rotate(45f * i, m, m)
+                    c.drawLine(m, s * 0.08f, m, s * 0.2f, p)
+                    c.restore()
+                }
+            }
+        }
+    }
+}

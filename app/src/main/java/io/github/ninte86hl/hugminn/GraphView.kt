@@ -22,6 +22,7 @@ class GraphView(ctx: Context, private val color: Int, private val max: Float = 1
     private val path = Path()
 
     fun push(v: Float) {
+        if (values.isEmpty()) repeat(capacity - 1) { values.addLast(v.coerceIn(0f, max)) }
         values.addLast(v.coerceIn(0f, max))
         while (values.size > capacity) values.removeFirst()
         invalidate()

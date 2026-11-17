@@ -51,6 +51,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("glyphColored", true)
         set(v) = p.edit().putBoolean("glyphColored", v).apply()
 
+    /** GitHub token for uploading feedback screenshots (needs write access to the repository). */
+    var githubToken: String?
+        get() = p.getString("githubToken", null)
+        set(v) = p.edit().putString("githubToken", v).apply()
+
     /** Max gap between two presses for a double press, in ms. */
     var doubleMs: Int
         get() = p.getInt("doubleMs", 300)

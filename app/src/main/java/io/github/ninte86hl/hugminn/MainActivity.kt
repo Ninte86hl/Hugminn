@@ -194,6 +194,51 @@ class MainActivity : Activity() {
             12f, pal.onSurfaceVariant,
         ).apply { setPadding(0, 0, 0, d(6)) })
 
+        // Profile learning
+        val pr = section("Geräteprofile erkennen")
+        pr.addView(text(
+            "Öffne die Retroid-Schnelleinstellungen und schalte nacheinander durch alle Leistungs- und Lüfterprofile. " +
+                "Hugminn schreibt hier mit, welche Werte sich ändern. Schick davon einfach ein Foto.",
+            12f, pal.onSurfaceVariant,
+        ).apply { setPadding(0, d(6), 0, d(6)) })
+        val log = synchronized(SettingsWatch.log) { SettingsWatch.log.toList() }
+        pr.addView(text(if (log.isEmpty()) "Noch keine Änderungen erkannt." else log.take(20).joinToString("\n"), 13f, pal.onSurface).apply {
+            maxLines = 20
+            typeface = android.graphics.Typeface.MONOSPACE
+            setPadding(0, 0, 0, d(6))
+        })
+        val prb = LinearLayout(this).apply { setPadding(0, 0, 0, d(6)) }
+        prb.addView(button("Aktualisieren") { build() })
+        prb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
+        prb.addView(button("Liste leeren") { SettingsWatch.log.clear(); build() })
+        pr.addView(prb)
+
+        // Feedback upload
+        val fb = section("Feedback an Claude")
+        fb.addView(text(
+            "Drücke Select, während der Game Switcher oder das Control Center offen ist: Hugminn lädt einen Screenshot " +
+                "und eine Beschreibung des Bildschirms auf GitHub hoch (Zweig „feedback“). Dafür braucht Hugminn einen eigenen " +
+                "GitHub-Token mit Schreibrecht: Repository Hugminn, Berechtigung „Contents: Read and write“.",
+            12f, pal.onSurfaceVariant,
+        ).apply { setPadding(0, d(6), 0, d(6)) })
+        val hasToken = !prefs.githubToken.isNullOrBlank()
+        fb.addView(text(if (hasToken) "✓ Token eingetragen" else "✕ Kein Token eingetragen", 15f, pal.onSurface, bold = true))
+        val fbb = LinearLayout(this).apply { setPadding(0, d(8), 0, d(6)) }
+        fbb.addView(button("Token aus Zwischenablage einfügen") {
+            val cm = getSystemService(android.content.ClipboardManager::class.java)
+            val t = cm.primaryClip?.getItemAt(0)?.text?.toString()?.trim()
+            if (t != null && (t.startsWith("github_pat_") || t.startsWith("ghp_"))) {
+                prefs.githubToken = t
+                Toast.makeText(this, "Token gespeichert", Toast.LENGTH_SHORT).show()
+            } else Toast.makeText(this, "In der Zwischenablage ist kein GitHub-Token", Toast.LENGTH_LONG).show()
+            build()
+        })
+        if (hasToken) {
+            fbb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
+            fbb.addView(button("Token entfernen") { prefs.githubToken = null; build() })
+        }
+        fb.addView(fbb)
+
         // About
         val a = section("Über")
         a.addView(text(

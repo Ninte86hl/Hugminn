@@ -9,25 +9,44 @@ object Device {
 
     val isRetroid get() = android.os.Build.MODEL.contains("Retroid", ignoreCase = true)
 
-    // Performance mode as the Retroid quick tile sets it.
-    fun performance(ctx: Context) = sys(ctx, "performance_mode") == "1"
-    fun setPerformance(on: Boolean, then: () -> Unit) = Root.run(
-        Root.putSetting("system", "performance_mode", if (on) "1" else "0"),
-        "setprop persist.vendor.debug.mode ${if (on) 1 else 0}",
+    fun performance(ctx: Context) = (sys(ctx, "performance_mode") ?: "0") != "0"
+
+    /** Known profiles (value → name). Values not listed yet are shown raw and can still be picked. */
+    val perfProfiles = linkedMapOf("0" to "Normal", "1" to "Leistung")
+    val fanProfiles = linkedMapOf("1" to "Leise", "4" to "Smart")
+
+    fun profileLabel(ctx: Context, key: String, table: Map<String, String>): String {
+        val v = sys(ctx, key) ?: return "–"
+        return table[v] ?: "Profil $v"
+    }
+
+    fun fanLabel(ctx: Context) = profileLabel(ctx, "fan_mode", fanProfiles)
+    fun perfLabel(ctx: Context) = profileLabel(ctx, "performance_mode", perfProfiles)
+
+    fun setFan(value: String, then: () -> Unit) = Root.run(Root.putSetting("system", "fan_mode", value), then = then)
+    fun setPerf(value: String, then: () -> Unit) = Root.run(
+        Root.putSetting("system", "performance_mode", value),
+        "setprop persist.vendor.debug.mode ${if (value == "0") 0 else 1}",
         then = then,
     )
 
-    /** Known fan modes; other values are shown raw. */
-    val fanModes = linkedMapOf("1" to "Leise", "4" to "Smart")
-    fun fanLabel(ctx: Context): String {
-        val v = sys(ctx, "fan_mode") ?: return "–"
-        return fanModes[v] ?: "Modus $v"
+    fun wifiName(ctx: Context): String? {
+        val wm = ctx.applicationContext.getSystemService(android.net.wifi.WifiManager::class.java) ?: return null
+        @Suppress("DEPRECATION")
+        val ssid = wm.connectionInfo?.ssid?.trim('"') ?: return null
+        return ssid.takeIf { it.isNotBlank() && it != "<unknown ssid>" }
     }
-    fun nextFan(ctx: Context, then: () -> Unit) {
-        val keys = fanModes.keys.toList()
-        val cur = sys(ctx, "fan_mode")
-        val next = keys[(keys.indexOf(cur) + 1).mod(keys.size)]
-        Root.run(Root.putSetting("system", "fan_mode", next), then = then)
+
+    /** Paired Bluetooth devices with their connection state (needs the Bluetooth permission). */
+    fun pairedDevices(ctx: Context): List<Pair<String, Boolean>> = try {
+        val bm = ctx.getSystemService(android.bluetooth.BluetoothManager::class.java)
+        @Suppress("MissingPermission")
+        bm?.adapter?.bondedDevices?.map { d ->
+            val connected = runCatching { d.javaClass.getMethod("isConnected").invoke(d) as Boolean }.getOrDefault(false)
+            (d.name ?: d.address) to connected
+        }?.sortedByDescending { it.second } ?: emptyList()
+    } catch (t: Throwable) {
+        emptyList()
     }
 
     fun highRefresh(ctx: Context) = (sys(ctx, "peak_refresh_rate")?.toFloatOrNull() ?: 60f) > 61f
@@ -96,5 +115,41 @@ object Device {
     fun grantExtras(ctx: Context) {
         Root.exec("appops set ${ctx.packageName} GET_USAGE_STATS allow")
         Root.exec("appops set ${ctx.packageName} WRITE_SETTINGS allow")
+        Root.exec("pm grant ${ctx.packageName} android.permission.ACCESS_FINE_LOCATION")
+        Root.exec("pm grant ${ctx.packageName} android.permission.BLUETOOTH_CONNECT")
+    }
+}
+
+/**
+ * Writes down every change of a system setting while Hugminn runs, so the values behind the
+ * firmware's profiles (performance, fan, ...) can be learned by simply switching through them.
+ */
+object SettingsWatch {
+    private val skip = Regex("^(volume_|screen_brightness|screen_off_timeout|next_alarm|dim_screen|haptic|sound_effects)")
+    val log: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf())
+    private var observer: android.database.ContentObserver? = null
+
+    fun start(ctx: Context) {
+        if (observer != null) return
+        val app = ctx.applicationContext
+        val o = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+                val key = uri?.lastPathSegment ?: return
+                if (skip.containsMatchIn(key)) return
+                val v = Device.sys(app, key)
+                val t = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.GERMANY).format(java.util.Date())
+                synchronized(log) {
+                    log.add(0, "$t  $key = $v")
+                    while (log.size > 60) log.removeAt(log.lastIndex)
+                }
+            }
+        }
+        app.contentResolver.registerContentObserver(Settings.System.CONTENT_URI, true, o)
+        observer = o
+    }
+
+    fun stop(ctx: Context) {
+        observer?.let { ctx.applicationContext.contentResolver.unregisterContentObserver(it) }
+        observer = null
     }
 }
