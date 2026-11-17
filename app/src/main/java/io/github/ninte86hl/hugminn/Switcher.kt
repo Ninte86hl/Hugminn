@@ -426,10 +426,9 @@ class Switcher(private val svc: HugminnService) {
      * the first or last card.
      */
     private fun computeFrame(): Frame {
-        // Until the cards are read: opened from an app there is at least that card, so the window opens
-        // right away at the remembered place (Android's zoom-out shows through it, no fade). Opened from
-        // the home screen there may be no app at all: the window stays closed (no empty overview).
-        if (!scanned && (fromPkg == null || model == null)) return Frame(listOf(RectF()), emptyList(), emptyList(), target)
+        // Until the cards are read the window opens right away at the remembered place (Android's own
+        // animation shows through it). Only without any remembered geometry it stays closed.
+        if (!scanned && model == null) return Frame(listOf(RectF()), emptyList(), emptyList(), target)
         val m = model ?: return Frame(emptyList(), emptyList(), emptyList(), target)
         if (scanned && cards.isEmpty()) return Frame(emptyList(), emptyList(), emptyList(), 0)
         val snap = m.snap?.let { RectF(it.left + m.card.left, it.top + m.card.top, it.right + m.card.left, it.bottom + m.card.top) } ?: RectF(m.card)
@@ -477,7 +476,7 @@ class Switcher(private val svc: HugminnService) {
         }
         s.alpha = 0f
         wm.addView(s, lp)
-        s.animate().alpha(1f).setDuration(160).start()
+        s.animate().alpha(1f).setDuration(50).start()
         shell = s
 
         val b = object : FrameLayout(svc) {
