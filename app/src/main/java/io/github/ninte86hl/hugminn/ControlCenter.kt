@@ -75,9 +75,21 @@ class ControlCenter(private val svc: HugminnService) {
         val metrics = wm.currentWindowMetrics
         val bounds = metrics.bounds
         val statusH = metrics.windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top
-        val r = FrameLayout(svc).apply {
+        // The window takes input focus: the D-pad of these handhelds is a joystick hat, which Android
+        // only turns into D-pad keys inside the focused window (an accessibility service never sees it).
+        val r = object : FrameLayout(svc) {
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean = try {
+                onKey(event)
+            } catch (t: Throwable) {
+                Crash.note(svc, t)
+                close()
+                true
+            }
+        }.apply {
             setBackgroundColor(pal.surface)
             setOnClickListener { if (menuView != null) closeMenu() }
+            isFocusable = true
+            isFocusableInTouchMode = true
         }
         val panel = build()
         if (!svc.prefs.ccHideStatus) panel.setPadding(panel.paddingLeft, panel.paddingTop + statusH, panel.paddingRight, panel.paddingBottom)
@@ -85,8 +97,7 @@ class ControlCenter(private val svc: HugminnService) {
         val lp = WindowManager.LayoutParams(
             bounds.width(), bounds.height(),
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -97,6 +108,7 @@ class ControlCenter(private val svc: HugminnService) {
         wm.addView(r, lp)
         r.animate().alpha(1f).setDuration(120).start()
         root = r
+        r.requestFocus()
         showFocus()
         svc.ui.post(tick)
     }

@@ -297,8 +297,6 @@ class Switcher(private val svc: HugminnService) {
         target = i
         anim = android.animation.ValueAnimator.ofFloat(from, i.toFloat()).apply {
             duration = 750
-            // The key reaches the launcher a little after Hugminn sees it.
-            startDelay = 40
             interpolator = android.animation.TimeInterpolator { t -> val u = t - 1f; u * u * u * u * u + 1f }
             addUpdateListener {
                 pos = it.animatedValue as Float
@@ -462,14 +460,7 @@ class Switcher(private val svc: HugminnService) {
     fun onKey(e: KeyEvent): Boolean {
         val m = menu
         if (m == null && (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
-            // Android's recents view moves itself (as fast as always, wrapping at the ends); the frame follows.
-            if (e.action == KeyEvent.ACTION_DOWN && cards.size > 1 && model != null) {
-                lastKeyAt = SystemClock.uptimeMillis()
-                val n = cards.size
-                // The launcher lists the newest card first and older cards to the left of it.
-                val next = if (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) (target - 1 + n) % n else (target + 1) % n
-                animateTo(next)
-            }
+            // Android's recents view moves itself; the frame follows its focus events (see onEvent).
             return false
         }
         if (e.action != KeyEvent.ACTION_DOWN) return true
@@ -492,6 +483,20 @@ class Switcher(private val svc: HugminnService) {
             return
         }
         val pkg = e.packageName?.toString()
+        if (e.eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED && pkg == launcherPkg) {
+            // The launcher focuses the card it snaps to right when the move starts (D-pad, stick, keyboard).
+            val src = e.source
+            var i = if (src != null) cards.indexOfFirst { it.node == src } else -1
+            if (i < 0) {
+                val label = e.contentDescription?.toString() ?: e.text.firstOrNull()?.toString()
+                if (label != null) i = cards.indexOfFirst { it.label == label }
+            }
+            if (i >= 0 && i != target && model != null) {
+                lastKeyAt = SystemClock.uptimeMillis()
+                animateTo(i)
+            }
+            return
+        }
         if (e.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
             // Scrolled by touch: the launcher reports which cards are visible once it has settled.
             if (pkg == launcherPkg && SystemClock.uptimeMillis() - lastKeyAt > 900 && e.fromIndex >= 0 && e.toIndex >= 0) {
