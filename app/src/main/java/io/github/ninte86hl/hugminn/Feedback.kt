@@ -167,6 +167,30 @@ object Feedback {
         }
     }
 
+    /** Uploads a text report (e.g. the input test) with the progress notification. */
+    fun uploadText(ctx: Context, where: String, text: String) {
+        val token = Prefs(ctx).githubToken
+        if (token.isNullOrBlank()) {
+            android.widget.Toast.makeText(ctx, "Bitte zuerst einen GitHub-Token eintragen", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        val note = UploadNotification(ctx)
+        note.progress("Bericht wird hochgeladen …", -1)
+        thread {
+            try {
+                val stamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.GERMANY).format(Date())
+                val body = ("Hugminn ${ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName} · $where\n" +
+                    "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}\n\n$text").toByteArray()
+                val ok = put(token, "feedback/${stamp}_$where.txt", body, "Report ($where)") { sent ->
+                    note.progress("Bericht wird hochgeladen …", (sent * 100L / body.size).toInt())
+                }
+                if (ok) note.done("Bericht hochgeladen ✓", "$stamp · $where") else note.failed("Hochladen fehlgeschlagen", "Token prüfen")
+            } catch (t: Throwable) {
+                note.failed("Hochladen fehlgeschlagen", "${t.javaClass.simpleName}: ${t.message}")
+            }
+        }
+    }
+
     private fun toast(svc: HugminnService, s: String) = svc.ui.post { Toast.makeText(svc, s, Toast.LENGTH_SHORT).show() }
 
     /** Device, settings and a dump of all windows on screen (ids, texts, bounds). */

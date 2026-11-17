@@ -207,10 +207,13 @@ class MainActivity : Activity() {
         row(ccs, "Statusleiste ausblenden", "Das Control Center füllt den ganzen Bildschirm; aus = Android-Statusleiste bleibt sichtbar", { if (prefs.ccHideStatus) "An" else "Aus" }) {
             prefs.ccHideStatus = !prefs.ccHideStatus
         }
+        row(ccs, "Farben der Anzeigen", "Färbt CPU, GPU, Leistung, RAM und Temperatur nach Auslastung", { prefs.gaugePalette.label }) {
+            prefs.gaugePalette = cycle(GaugePalette.values().toList(), prefs.gaugePalette)
+        }
         row(ccs, "Form der Kacheln", null, { prefs.tileShape.label }) {
             prefs.tileShape = cycle(TileShape.values().toList(), prefs.tileShape)
         }
-        ccs.addView(text("Angezeigte Kacheln (mehr als 8 werden auf Seiten verteilt, LB/RB blättert):", 13f, pal.onSurfaceVariant).apply {
+        ccs.addView(text("Angezeigte Kacheln. Reihenfolge ändern: im Control Center Y drücken. Mehr als 8 werden auf Seiten verteilt (LB/RB).", 13f, pal.onSurfaceVariant).apply {
             setPadding(0, d(10), 0, d(2))
         })
         TileCatalog.all.forEach { (id, name) ->
@@ -277,6 +280,15 @@ class MainActivity : Activity() {
         prb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
         prb.addView(button("Liste leeren") { SettingsWatch.log.clear(); fillLog() })
         pr.addView(prb)
+
+        // Diagnosis
+        val dg = section("Diagnose")
+        dg.addView(text("Zeichnet jede Taste und jede Achse des Controllers auf (Steuerkreuz, Sticks, Trigger) und lädt sie mit Select hoch.", 12f, pal.onSurfaceVariant).apply {
+            setPadding(0, d(6), 0, d(6))
+        })
+        val dgb = LinearLayout(this).apply { setPadding(0, 0, 0, d(6)) }
+        dgb.addView(button("Eingabetest starten") { startActivity(Intent(this, InputTestActivity::class.java)) })
+        dg.addView(dgb)
 
         // Feedback upload
         val fb = section("Feedback an Claude")

@@ -362,18 +362,15 @@ class Switcher(private val svc: HugminnService) {
     }
 
     /**
-     * One wide window over the row of cards (from the top of the app windows to their bottom). It does
-     * not move with the cards, so it can never lag behind Android's animation; icon and lock above the
-     * windows stay covered.
+     * A fixed window exactly where the selected card rests (the middle). Cards slide through it when
+     * switching, so nothing has to follow Android's animation, and no empty background shows next to
+     * the first or last card.
      */
     private fun computeFrame(): Frame {
         val m = model ?: return Frame(emptyList(), emptyList(), emptyList(), target)
         if (scanned && cards.isEmpty()) return Frame(emptyList(), emptyList(), emptyList(), 0)
-        val w = wm.currentWindowMetrics.bounds.width().toFloat()
-        val top = m.card.top + (m.snap?.top ?: 0f)
-        val bottom = m.card.top + (m.snap?.bottom ?: m.card.height())
-        val side = svc.dp(10).toFloat()
-        return Frame(listOf(RectF(side, top, w - side, bottom)), listOf(""), listOf(null), -1)
+        val snap = m.snap?.let { RectF(it.left + m.card.left, it.top + m.card.top, it.right + m.card.left, it.bottom + m.card.top) } ?: RectF(m.card)
+        return Frame(listOf(snap), listOf(""), listOf(null), -1)
     }
 
     private fun redraw() {

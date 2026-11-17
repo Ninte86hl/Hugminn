@@ -28,6 +28,10 @@ class RingView(ctx: Context, private val pal: Palette, private val label: String
         this.color = pal.onSurface
     }
 
+    fun setColor(c: Int) {
+        arc.color = c
+    }
+
     fun set(fraction: Float, value: String, unit: String) {
         this.fraction = fraction.coerceIn(0f, 1f)
         this.value = value
@@ -122,5 +126,26 @@ class BigSlider(
         val baseline = h / 2f - (fm.ascent + fm.descent) / 2f
         text.color = if (fw > w - h * 0.4f) pal.onPrimary else pal.onSurface
         c.drawText("$label  $pct %", w - h * 0.45f, baseline, text)
+    }
+}
+
+/** Colour for a load between 0 and 1 in the chosen gauge palette. */
+object GaugeColors {
+    private val eval = android.animation.ArgbEvaluator()
+    private fun blend(stops: List<Pair<Float, Int>>, f: Float): Int {
+        val x = f.coerceIn(0f, 1f)
+        for (i in 1 until stops.size) {
+            val (p1, c1) = stops[i]
+            val (p0, c0) = stops[i - 1]
+            if (x <= p1) return eval.evaluate((x - p0) / (p1 - p0), c0, c1) as Int
+        }
+        return stops.last().second
+    }
+
+    fun of(pal: Palette, palette: GaugePalette, fraction: Float): Int = when (palette) {
+        GaugePalette.TRAFFIC -> blend(listOf(0f to 0xFF4CAF50.toInt(), 0.5f to 0xFF8BC34A.toInt(), 0.7f to 0xFFFFC107.toInt(), 0.85f to 0xFFFF9800.toInt(), 1f to 0xFFF44336.toInt()), fraction)
+        GaugePalette.COOL_WARM -> blend(listOf(0f to 0xFF42A5F5.toInt(), 0.5f to 0xFF7E57C2.toInt(), 0.8f to 0xFFEC407A.toInt(), 1f to 0xFFEF5350.toInt()), fraction)
+        GaugePalette.ACCENT -> pal.primary
+        GaugePalette.MONO -> pal.onSurfaceVariant
     }
 }

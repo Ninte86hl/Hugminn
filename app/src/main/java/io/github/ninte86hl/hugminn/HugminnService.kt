@@ -79,6 +79,11 @@ class HugminnService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
+        if (InputTestActivity.active) {
+            InputTestActivity.add("HUGMINN ${if (event.action == KeyEvent.ACTION_DOWN) "DOWN" else "UP  "} ${KeyEvent.keyCodeToString(event.keyCode)} scan=${event.scanCode} dev=\"${event.device?.name}\"")
+            // Let everything through to the test (except Home, so the test can be left).
+            if (event.keyCode != KeyEvent.KEYCODE_MOVE_HOME && event.keyCode != KeyEvent.KEYCODE_HOME) return false
+        }
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || switcher.isOpen)) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {

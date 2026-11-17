@@ -27,6 +27,14 @@ enum class Theme(val label: String) {
     OLED("OLED-Schwarz"),
 }
 
+/** Colours of the performance gauges. */
+enum class GaugePalette(val label: String) {
+    TRAFFIC("Ampel (grün → rot)"),
+    COOL_WARM("Kalt → warm"),
+    ACCENT("Akzentfarbe"),
+    MONO("Einfarbig"),
+}
+
 enum class TileShape(val label: String) {
     ROUND("Rund"),
     SQUARE("Abgerundetes Quadrat"),
@@ -74,7 +82,11 @@ class Prefs(ctx: Context) {
     /** Quick tiles shown in the Control Center, in catalog order. */
     var ccTiles: List<String>
         get() = p.getString("ccTiles", null)?.split(',')?.filter { it in TileCatalog.all } ?: TileCatalog.defaults
-        set(v) = p.edit().putString("ccTiles", TileCatalog.all.keys.filter { it in v }.joinToString(",")).apply()
+        set(v) = p.edit().putString("ccTiles", v.filter { it in TileCatalog.all }.distinct().joinToString(",")).apply()
+
+    var gaugePalette: GaugePalette
+        get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)
+        set(v) = p.edit().putString("gaugePalette", v.name).apply()
 
     var tileShape: TileShape
         get() = enumOr(p.getString("tileShape", null), TileShape.ROUND)

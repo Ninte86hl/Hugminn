@@ -117,6 +117,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (!isOpen) return
         isOpen = false
         menuView = null
+        editView = null
         svc.ui.removeCallbacks(tick)
         root?.let { runCatching { wm.removeView(it) } }
         root = null
@@ -176,6 +177,7 @@ class ControlCenter(private val svc: HugminnService) {
         }
         if (!svc.prefs.githubToken.isNullOrBlank()) hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback")
         if (pageCount() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
+        hint(KeyEvent.KEYCODE_BUTTON_Y, "Kacheln")
         hint(KeyEvent.KEYCODE_BUTTON_A, "Auswählen")
         hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück")
         panel.addView(footer)
@@ -232,8 +234,11 @@ class ControlCenter(private val svc: HugminnService) {
         small.addView(tempCard, lp(0, MATCH, 1f).apply { marginEnd = 10 * d })
         small.addView(fanCard, lp(0, MATCH, 1f))
         col.addView(small, lp(MATCH, 0, 0.75f).apply { bottomMargin = 10 * d })
+        val gp = svc.prefs.gaugePalette
         graphUpdates += { s ->
             temp.first.text = if (s.cpuTemp > 0) "${s.cpuTemp.toInt()} °C" else "–"
+            // 40 °C cool … 85 °C hot
+            temp.first.setTextColor(if (s.cpuTemp > 0 && gp != GaugePalette.MONO) GaugeColors.of(pal, gp, (s.cpuTemp - 40f) / 45f) else pal.onSurface)
             temp.second.text = listOfNotNull(
                 s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()} °C" },
                 s.batTemp.takeIf { it > 0 }?.let { "Akku ${it.toInt()} °C" },
@@ -254,6 +259,10 @@ class ControlCenter(private val svc: HugminnService) {
         listOf(cpu, gpu, pwr, ram).forEach { rings.addView(it, lp(0, MATCH, 1f)) }
         col.addView(rings, lp(MATCH, 0, 1f))
         graphUpdates += { s ->
+            cpu.setColor(GaugeColors.of(pal, gp, s.cpuPct / 100f))
+            gpu.setColor(GaugeColors.of(pal, gp, s.gpuPct / 100f))
+            pwr.setColor(GaugeColors.of(pal, gp, s.watts / 15f))
+            ram.setColor(GaugeColors.of(pal, gp, if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f))
             cpu.set(s.cpuPct / 100f, "%.2f".format(s.cpuMhz / 1000f), "GHz · ${s.cpuPct.toInt()} %")
             gpu.set(s.gpuPct / 100f, "${s.gpuMhz}", "MHz · ${s.gpuPct.toInt()} %")
             pwr.set(s.watts / 15f, "%.1f".format(s.watts), if (s.charging) "W · lädt" else "W")
@@ -365,12 +374,16 @@ class ControlCenter(private val svc: HugminnService) {
             Device.setSys(key, if (Device.sysOn(svc, key)) "0" else "1") { refreshAll() }
         }
 
-    private fun controls(): View {
-        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+    private fun loadTiles() {
         val rootOk = Root.available()
         tiles.clear()
         svc.prefs.ccTiles.forEach { id -> tileFor(id, rootOk)?.let { tiles += it } }
         page = 0
+    }
+
+    private fun controls(): View {
+        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        loadTiles()
 
         val tilesCard = card().apply { setPadding(8 * d, 12 * d, 8 * d, 8 * d) }
         val grid = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
@@ -631,8 +644,139 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
+    // ---------- tile editor (Y): choose tiles and their order ----------
+
+    private var editView: View? = null
+    private var editScroll: android.widget.ScrollView? = null
+    private val editIds = mutableListOf<String>()
+    private val editOn = mutableSetOf<String>()
+    private var editSel = 0
+    private var editListView: LinearLayout? = null
+
+    private fun openEditor() {
+        val r = root ?: return
+        closeMenu()
+        val chosen = svc.prefs.ccTiles
+        editIds.clear()
+        editIds += chosen
+        editIds += TileCatalog.all.keys.filter { it !in chosen }
+        editOn.clear()
+        editOn += chosen
+        editSel = 0
+        val box = LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            background = rounded(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
+            setPadding(12 * d, 16 * d, 12 * d, 12 * d)
+            elevation = 12f * d
+            isClickable = true
+        }
+        box.addView(text("Kacheln bearbeiten", 18f, pal.onSurface, bold = true).apply { setPadding(12 * d, 0, 12 * d, 4 * d) })
+        val help = LinearLayout(svc).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(12 * d, 0, 12 * d, 10 * d)
+        }
+        fun h(k: Int, t: String) {
+            help.addView(Glyphs.chip(svc, svc.prefs, pal, k, 20))
+            help.addView(text(t, 12f, pal.onSurfaceVariant).apply { setPadding(5 * d, 0, 12 * d, 0) })
+        }
+        h(KeyEvent.KEYCODE_BUTTON_A, "an/aus")
+        h(KeyEvent.KEYCODE_BUTTON_L1, "nach oben")
+        h(KeyEvent.KEYCODE_BUTTON_R1, "nach unten")
+        h(KeyEvent.KEYCODE_BUTTON_B, "fertig")
+        box.addView(help)
+        val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        editListView = list
+        val sc = android.widget.ScrollView(svc).apply { addView(list) }
+        editScroll = sc
+        box.addView(sc, lp(MATCH, 0, 1f))
+        val w = (r.width * 0.46f).toInt().coerceAtLeast(340 * d)
+        val hgt = (r.height * 0.86f).toInt()
+        r.addView(box, FrameLayout.LayoutParams(w, hgt, Gravity.CENTER))
+        editView = box
+        renderEditor()
+    }
+
+    private fun renderEditor() {
+        val list = editListView ?: return
+        list.removeAllViews()
+        val rootOk = Root.available()
+        var pos = 0
+        editIds.forEachIndexed { i, id ->
+            val on = id in editOn
+            if (on) pos++
+            val available = tileFor(id, rootOk) != null
+            val row = LinearLayout(svc).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(12 * d, 0, 12 * d, 0)
+                minimumHeight = 44 * d
+                background = if (i == editSel) rounded(pal.secondaryContainer, 16f * d) else null
+                setOnClickListener { editSel = i; toggleEdit() }
+            }
+            row.addView(text(if (on) "●" else "○", 15f, if (on) pal.primary else pal.outline).apply { setPadding(0, 0, 12 * d, 0) })
+            row.addView(text(TileCatalog.all[id] ?: id, 15f, if (available) pal.onSurface else pal.outline, bold = on), lp(0, WRAP, 1f))
+            row.addView(text(if (!available) "nicht verfügbar" else if (on) "$pos" else "", 12f, pal.onSurfaceVariant))
+            list.addView(row, lp(MATCH, WRAP))
+        }
+        list.post {
+            val v = list.getChildAt(editSel) ?: return@post
+            editScroll?.let { sc ->
+                if (v.top < sc.scrollY) sc.scrollTo(0, v.top)
+                else if (v.bottom > sc.scrollY + sc.height) sc.scrollTo(0, v.bottom - sc.height)
+            }
+        }
+    }
+
+    private fun toggleEdit() {
+        val id = editIds.getOrNull(editSel) ?: return
+        if (id in editOn) {
+            editOn -= id
+            // move behind the chosen ones
+            editIds.removeAt(editSel)
+            val insert = editIds.count { it in editOn }
+            editIds.add(insert, id)
+            editSel = insert
+        } else {
+            editOn += id
+            editIds.removeAt(editSel)
+            val insert = editIds.count { it in editOn } - 1
+            editIds.add(insert.coerceAtLeast(0), id)
+            editSel = insert.coerceAtLeast(0)
+        }
+        renderEditor()
+    }
+
+    private fun moveEdit(dir: Int) {
+        val id = editIds.getOrNull(editSel) ?: return
+        if (id !in editOn) return
+        val to = editSel + dir
+        if (to < 0 || to >= editIds.size || editIds[to] !in editOn) return
+        editIds[editSel] = editIds[to]
+        editIds[to] = id
+        editSel = to
+        renderEditor()
+    }
+
+    private fun closeEditor() {
+        svc.prefs.ccTiles = editIds.filter { it in editOn }
+        editView?.let { v -> (v.parent as? ViewGroup)?.removeView(v) }
+        editView = null
+        loadTiles()
+        fillPage()
+    }
+
     fun onKey(e: KeyEvent): Boolean {
         if (e.action != KeyEvent.ACTION_DOWN) return true
+        if (editView != null) {
+            when (e.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> { editSel = (editSel - 1).coerceAtLeast(0); renderEditor() }
+                KeyEvent.KEYCODE_DPAD_DOWN -> { editSel = (editSel + 1).coerceAtMost(editIds.lastIndex); renderEditor() }
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> toggleEdit()
+                KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_DPAD_LEFT -> moveEdit(-1)
+                KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_DPAD_RIGHT -> moveEdit(1)
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_Y -> closeEditor()
+            }
+            return true
+        }
         if (menuView != null) {
             when (e.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> moveMenu(-1)
@@ -651,6 +795,7 @@ class ControlCenter(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()
+            KeyEvent.KEYCODE_BUTTON_Y -> openEditor()
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close()
         }
         return true
