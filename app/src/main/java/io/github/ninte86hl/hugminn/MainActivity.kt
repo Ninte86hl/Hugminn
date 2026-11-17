@@ -217,9 +217,9 @@ class MainActivity : Activity() {
         row(ccs, "Statusleiste", "Oben im Control Center: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste", { prefs.ccStatusBar.label }) {
             prefs.ccStatusBar = cycle(StatusBar.values().toList(), prefs.ccStatusBar)
         }
-        row(ccs, "LED-App", "Welche App die Farben der Stick-LEDs einstellt; die Kachel bietet sie neben dem Ein-/Ausschalten an", {
+        row(ccs, "LED-App", "Wer die Farben der Stick-LEDs einstellt: Hugminn selbst (wie Retroids LED-Fenster) oder eine installierte LED-App", {
             val cur = prefs.ledApp
-            if (cur.isEmpty()) "Keine (nur Ein/Aus)" else Apps.ledApps(this).firstOrNull { it.second == cur }?.first ?: "Nicht installiert"
+            if (cur.isEmpty()) "Hugminn" else Apps.ledApps(this).firstOrNull { it.second == cur }?.first ?: "Nicht installiert"
         }) {
             val options = listOf("") + Apps.ledApps(this).map { it.second }
             prefs.ledApp = cycle(options, prefs.ledApp.takeIf { it in options } ?: "")

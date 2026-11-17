@@ -146,7 +146,7 @@ class Prefs(ctx: Context) {
         get() = p.getInt("volumePct", -1)
         set(v) = p.edit().putInt("volumePct", v).apply()
 
-    /** Package of the app that sets the stick LED colours (empty: none, the tile only switches). */
+    /** Package of the app that sets the stick LED colours (empty: Hugminn sets the colours itself). */
     var ledApp: String
         get() = p.getString("ledApp", "") ?: ""
         set(v) = p.edit().putString("ledApp", v).apply()

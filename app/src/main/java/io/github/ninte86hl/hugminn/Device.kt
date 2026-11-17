@@ -74,6 +74,36 @@ object Device {
     fun setStickLeds(on: Boolean, then: () -> Unit) =
         Root.run(Root.putSetting("system", "joystick_light_enabled", if (on) "1,1" else "0,0"), then = then)
 
+    /** Colours of the stick LEDs as Retroid's LED window stores them: "#AARRGGBB,#AARRGGBB" (left, right). */
+    fun ledColors(ctx: Context): Pair<Int, Int>? = try {
+        val parts = sys(ctx, "joystick_led_light_picker_color")?.split(',')?.map { android.graphics.Color.parseColor(it.trim()) }
+        if (parts == null || parts.isEmpty()) null else parts[0] to parts.getOrElse(1) { parts[0] }
+    } catch (t: Throwable) {
+        null
+    }
+
+    fun setLedColors(left: Int, right: Int, turnOn: Boolean, then: () -> Unit) {
+        fun hex(c: Int) = "#%08x".format(c or 0xFF000000.toInt())
+        val cmds = mutableListOf(Root.putSetting("system", "joystick_led_light_picker_color", "${hex(left)},${hex(right)}"))
+        if (turnOn) cmds += Root.putSetting("system", "joystick_light_enabled", "1,1")
+        Root.run(*cmds.toTypedArray(), then = then)
+    }
+
+    val ledPresets = listOf(
+        "Weiß" to 0xFFFFFFFF.toInt(),
+        "Warmweiß" to 0xFFFFE0A0.toInt(),
+        "Rot" to 0xFFFF0000.toInt(),
+        "Orange" to 0xFFFF7A00.toInt(),
+        "Gelb" to 0xFFFFFF00.toInt(),
+        "Grün" to 0xFF00FF00.toInt(),
+        "Türkis" to 0xFF00FFB0.toInt(),
+        "Cyan" to 0xFF00E5FF.toInt(),
+        "Blau" to 0xFF0040FF.toInt(),
+        "Lila" to 0xFF8000FF.toInt(),
+        "Pink" to 0xFFFF60C0.toInt(),
+        "Magenta" to 0xFFFF00FF.toInt(),
+    )
+
     fun airplane(ctx: Context) = Settings.Global.getInt(ctx.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) != 0
     fun setAirplane(on: Boolean, then: () -> Unit) =
         Root.run("cmd connectivity airplane-mode ${if (on) "enable" else "disable"}", then = then)

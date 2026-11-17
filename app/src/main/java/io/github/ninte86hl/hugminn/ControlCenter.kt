@@ -1041,23 +1041,50 @@ class ControlCenter(private val svc: HugminnService) {
         showMenu("Bluetooth", entries)
     }
 
-    /** Stick LEDs: without an LED app chosen in the settings the tile only switches; with one it offers both. */
-    private fun ledMenu() {
+    /** Which stick the LED colour menu changes: 0 both, 1 left, 2 right. */
+    private var ledTarget = 0
+
+    /**
+     * Stick LEDs. With an LED app chosen in the settings (Bifrost, AmbiLuma …) the menu links to it;
+     * otherwise Hugminn sets the colours itself, the same way Retroid's own LED window does.
+     */
+    private fun ledMenu(select: Int = -1) {
         val on = Device.stickLeds(svc)
         val pkg = svc.prefs.ledApp.takeIf { it.isNotEmpty() }
         val intent = pkg?.let { svc.packageManager.getLaunchIntentForPackage(it) }
-        if (intent == null) {
-            Device.setStickLeds(!on) { refreshAll() }
-            return
-        }
-        val label = runCatching { svc.packageManager.getApplicationLabel(svc.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
-        showMenu("Stick-LEDs", listOf(
-            MenuEntry(if (on) "LEDs ausschalten" else "LEDs einschalten") { Device.setStickLeds(!on) { refreshAll() } },
-            MenuEntry("Farben & Effekte in $label") {
+        val entries = mutableListOf<MenuEntry>()
+        entries += MenuEntry(if (on) "LEDs ausschalten" else "LEDs einschalten") { Device.setStickLeds(!on) { refreshAll() } }
+        if (intent != null) {
+            val label = runCatching { svc.packageManager.getApplicationLabel(svc.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+            entries += MenuEntry("Farben & Effekte in $label") {
                 close()
                 svc.startApp(intent)
-            },
-        ))
+            }
+            showMenu("Stick-LEDs", entries, select)
+            return
+        }
+        val (left, right) = Device.ledColors(svc) ?: (android.graphics.Color.WHITE to android.graphics.Color.WHITE)
+        val targets = listOf("Beide Sticks", "Linker Stick", "Rechter Stick")
+        entries += MenuEntry("Ziel: ${targets[ledTarget]}", hint = "Wechselt zwischen beiden, links und rechts") {
+            ledTarget = (ledTarget + 1) % 3
+            ledMenu(1)
+        }
+        entries += MenuEntry("Farbe", header = true, run = null)
+        val current = if (ledTarget == 2) right else left
+        Device.ledPresets.forEach { (name, c) ->
+            val idx = entries.size
+            entries += MenuEntry(name, checked = (current or 0xFF000000.toInt()) == c && (ledTarget != 0 || left == right), swatch = c) {
+                val l = if (ledTarget == 2) left else c
+                val r = if (ledTarget == 1) right else c
+                Device.setLedColors(l, r, turnOn = !on) {
+                    svc.ui.post {
+                        refreshAll()
+                        if (root != null && menuView == null) ledMenu(idx)
+                    }
+                }
+            }
+        }
+        showMenu("Stick-LEDs", entries, select)
     }
 
     private fun openSystem(action: String) {
@@ -1065,12 +1092,12 @@ class ControlCenter(private val svc: HugminnService) {
         svc.startApp(Intent(action))
     }
 
-    private fun showMenu(title: String, entries: List<MenuEntry>) {
+    private fun showMenu(title: String, entries: List<MenuEntry>, select: Int = -1) {
         val r = root ?: return
         closeMenu()
         menuEntries = entries
         menuRows.clear()
-        menuSel = entries.indexOfFirst { it.run != null }.coerceAtLeast(0)
+        menuSel = select.takeIf { it in entries.indices && entries[it].run != null } ?: entries.indexOfFirst { it.run != null }.coerceAtLeast(0)
         val box = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
@@ -1164,8 +1191,11 @@ class ControlCenter(private val svc: HugminnService) {
         if (editing) return
         val round = pal.dots
         items.forEachIndexed { i, it ->
-            val r = if (it.onAdjust != null) it.view.height / 2f else if (round) it.view.width / 2f else 16f * d
-            it.view.foreground = if (i == focus) shape(0, r.coerceAtLeast(12f * d), 3 * d, pal.onSurface) else null
+            // Same corners as the element itself: round only for the round 1×1 switches of the dot style.
+            val v = it.view
+            val circle = round && v.width > 0 && kotlin.math.abs(v.width - v.height) < 4 * d && v.width < 160 * d
+            val r = if (circle) v.width / 2f else 22f * d
+            v.foreground = if (i == focus) shape(0, r, 3 * d, pal.onSurface) else null
         }
     }
 
