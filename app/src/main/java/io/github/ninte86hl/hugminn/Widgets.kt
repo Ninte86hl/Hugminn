@@ -96,7 +96,16 @@ class BigSlider(
     private val iconView = IconView(ctx, icon, 22)
 
     /** Changes the value by [percent] of the full range (controller: 5 % per press). */
-    fun step(percent: Int) = setValue(value + Math.round(max * percent / 100f).coerceAtLeast(1) * Integer.signum(percent))
+    fun step(percent: Int) {
+        // Snap to the 5 % grid, then one step further (also when the range has few steps, e.g. volume 0-15).
+        val dir = Integer.signum(percent)
+        if (dir == 0 || max <= 0) return
+        val cur = value * 100f / max
+        val target = (Math.round(cur / 5f) * 5 + 5 * dir).coerceIn(0, 100)
+        var v = Math.round(target * max / 100f)
+        if (v == value) v += dir
+        setValue(v)
+    }
 
     fun setValue(v: Int) {
         val n = v.coerceIn(0, max)
@@ -156,7 +165,7 @@ class BigSlider(
         text.textSize = h * 0.36f
         text.typeface = Look.font(context, pixel, true)
         text.textAlign = Paint.Align.RIGHT
-        val pct = value * 100 / max.coerceAtLeast(1)
+        val pct = Math.round(value * 100f / max.coerceAtLeast(1))
         val fm = text.fontMetrics
         val baseline = h / 2f - (fm.ascent + fm.descent) / 2f
         text.color = if (!pixel && fw > w - h * 0.4f) pal.onPrimary else pal.onSurface
