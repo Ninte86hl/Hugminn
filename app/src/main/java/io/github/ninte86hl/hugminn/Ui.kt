@@ -13,7 +13,7 @@ import android.view.KeyEvent
 import android.widget.TextView
 
 /** Material You colours taken from the system palette (falls back to Hugminn red on older Android). */
-class Palette(ctx: Context) {
+class Palette(private val ctx: Context) {
     val dark = (ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
     private fun sys(name: String, fallback: Int): Int {
         if (Build.VERSION.SDK_INT < 31) return fallback
