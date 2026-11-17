@@ -71,7 +71,9 @@ class PerfOverlay(private val svc: HugminnService) {
         val box = LinearLayout(svc).apply {
             orientation = if (row) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
-            background = Look.shape(svc, pixel, 0xB0000000.toInt(), 10f * d * k)
+            // in the chosen style: rounded (modern), stepped corners (pixel), ring of dots (dot matrix)
+            background = if (p.uiStyle == UiStyle.DOTS) Look.shape(svc, false, 0xD0000000.toInt(), 10f * d * k, (2 * d * k).toInt().coerceAtLeast(2), 0xFF5A5A5A.toInt())
+                else Look.shape(svc, pixel, 0xB0000000.toInt(), 10f * d * k)
             setPadding(sz(10), sz(5), sz(10), sz(5))
         }
         fun label(color: Int = 0xFFFFFFFF.toInt(), bold: Boolean = true) = TextView(svc).apply {
@@ -89,7 +91,7 @@ class PerfOverlay(private val svc: HugminnService) {
         val gp = p.gaugePalette.takeIf { it != GaugePalette.ACCENT && it != GaugePalette.MONO } ?: GaugePalette.TRAFFIC
         for (id in p.overlayItems) {
             when (OverlayItem.of(id)) {
-                OverlayItem.FPS -> label(0xFF7CFC9A.toInt()).also { t -> addItem(t); updates += { s -> t.text = if (s.fps >= 0) "${s.fps} FPS" else "– FPS" } }
+                OverlayItem.FPS -> label(if (p.uiStyle == UiStyle.DOTS) pal.primary else 0xFF7CFC9A.toInt()).also { t -> addItem(t); updates += { s -> t.text = if (s.fps >= 0) "${s.fps} FPS" else "– FPS" } }
                 OverlayItem.FRAMETIME -> {
                     val g = GraphView(svc, 0xFF7CFC9A.toInt(), 50f)
                     box.addView(g, LinearLayout.LayoutParams(sz(90), sz(22)).apply { if (box.childCount > 0) { if (row) marginStart = sz(12) else topMargin = sz(2) } })

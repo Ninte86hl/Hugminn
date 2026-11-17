@@ -31,7 +31,7 @@ object FrameRate {
         val l = findLayer(pkg) ?: return null
         val out = Root.execLong("dumpsys SurfaceFlinger --latency ${Root.quote(l)}", 4_000) ?: return null
         val presents = out.lines().drop(1).mapNotNull { line ->
-            val p = line.trim().split(Regex("\\\\s+"))
+            val p = line.trim().split(Regex("\\s+"))
             if (p.size < 3) null else p[1].toLongOrNull()
         }.filter { it in 1 until Long.MAX_VALUE }.sorted()
         if (presents.size < 2) {
