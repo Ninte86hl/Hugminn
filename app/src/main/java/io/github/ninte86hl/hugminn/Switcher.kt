@@ -115,7 +115,7 @@ class Switcher(private val svc: HugminnService) {
         busyUntil = System.currentTimeMillis() + 1500
         if (findPanel() == null) svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
         // Show the frame right away with the geometry from last time; it is refined once the cards are read.
-        if (model != null) svc.ui.post { if (isOpen && !scanned) redraw() }
+        svc.ui.post { if (isOpen && !scanned) redraw() }
         worker = HandlerThread("hugminn-switcher").also { it.start() }
         work = Handler(worker!!.looper)
         val gen = generation
@@ -191,7 +191,9 @@ class Switcher(private val svc: HugminnService) {
         val nodes = try { cardNodes() } catch (t: Throwable) { emptyList() }
         val now = nodes.map { bounds(it) }
         // No open apps: the recents view is shown but has no cards. Wait a moment to be sure.
-        val panelShown = nodes.isEmpty() && (try { findPanel()?.isVisibleToUser == true } catch (t: Throwable) { false })
+        // (The empty view is drawn by the launcher itself, so the panel may not count as visible; after
+        // a short while without any card the view is taken as empty as well.)
+        val panelShown = nodes.isEmpty() && (attempt >= 8 || (try { findPanel() != null } catch (t: Throwable) { false }))
         val streak = if (panelShown) emptyStreak + 1 else 0
         // While the view opens the cards are scaled down; only accept full-size, unchanged cards.
         val screen = wm.currentWindowMetrics.bounds
@@ -410,8 +412,10 @@ class Switcher(private val svc: HugminnService) {
      * the first or last card.
      */
     private fun computeFrame(): Frame {
+        // Until the cards are read the window stays closed (an empty overview must not show through).
+        if (!scanned) return Frame(listOf(RectF()), emptyList(), emptyList(), target)
         val m = model ?: return Frame(emptyList(), emptyList(), emptyList(), target)
-        if (scanned && cards.isEmpty()) return Frame(emptyList(), emptyList(), emptyList(), 0)
+        if (cards.isEmpty()) return Frame(emptyList(), emptyList(), emptyList(), 0)
         val snap = m.snap?.let { RectF(it.left + m.card.left, it.top + m.card.top, it.right + m.card.left, it.bottom + m.card.top) } ?: RectF(m.card)
         // Neighbours are not shown live (half-cut cards, gaps and launcher parts made it look restless);
         // instead a calm placeholder with icon and name shows which app lies in which direction.
