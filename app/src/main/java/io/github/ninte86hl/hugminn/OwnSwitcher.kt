@@ -235,7 +235,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             close(back = false)
             return
         }
-        Root.run("am force-stop ${a.pkg}")
+        removeTask(a)
         Snapshots.remove(svc, a.pkg)
         synchronized(this) { known.removeAll { it.pkg == a.pkg } }
         if (a.pkg == fromPkg) fromPkg = null
@@ -243,6 +243,16 @@ class OwnSwitcher(private val svc: HugminnService) {
         sel = sel.coerceAtMost((apps.size - 1).coerceAtLeast(0))
         carousel?.set(apps, sel, animate = true)
         renderBar()
+    }
+
+    /** Ends the app and removes its card from Android's recents view as well. */
+    private fun removeTask(a: RecentApp) {
+        thread {
+            // task id: from the list, or look it up now
+            val id = a.taskId.takeIf { it > 0 } ?: loadTasks()?.firstOrNull { it.pkg == a.pkg }?.taskId ?: -1
+            if (id > 0) Root.exec("am stack remove $id")
+            Root.exec("am force-stop ${a.pkg}")
+        }
     }
 
     private fun openMenu() {
@@ -260,7 +270,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
         if (Root.available() && apps.size > 1) items += "Alle anderen schließen" to {
             apps.filter { it.pkg != a.pkg }.forEach { o ->
-                Root.run("am force-stop ${o.pkg}")
+                removeTask(o)
                 Snapshots.remove(svc, o.pkg)
                 synchronized(this) { known.removeAll { it.pkg == o.pkg } }
             }
@@ -338,7 +348,11 @@ class OwnSwitcher(private val svc: HugminnService) {
         val top = if (mode == StatusBar.HIDDEN) 0 else statusH
         if (mode == StatusBar.OVERLAY) r.addView(StatusBand(svc, pal, "Muninn · Game Switcher"), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, statusH))
         val barH = svc.dp(76)
-        val c = Carousel(svc, pal) { i -> if (i == sel) openSelected() else { sel = i; carousel?.set(apps, sel, true); renderBar() } }
+        val c = Carousel(svc, pal,
+            onTap = { i -> if (i == sel) openSelected() else { sel = i; carousel?.set(apps, sel, true); renderBar() } },
+            onScroll = { i -> sel = i; carousel?.set(apps, sel, true); renderBar() },
+            onSwipeUp = { i -> sel = i; closeSelected() },
+        )
         r.addView(c, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
             topMargin = top
             bottomMargin = barH
@@ -436,7 +450,13 @@ class OwnSwitcher(private val svc: HugminnService) {
     }
 
     /** The cards: the selected one large in the middle, the others smaller to the sides. */
-    private class Carousel(ctx: Context, private val pal: Palette, private val onTap: (Int) -> Unit) : View(ctx) {
+    private class Carousel(
+        ctx: Context,
+        private val pal: Palette,
+        private val onTap: (Int) -> Unit,
+        private val onScroll: (Int) -> Unit,
+        private val onSwipeUp: (Int) -> Unit,
+    ) : View(ctx) {
         private var apps: List<RecentApp> = emptyList()
         private var pos = 0f
         private var anim: android.animation.ValueAnimator? = null
@@ -520,6 +540,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             val order = apps.indices.sortedByDescending { abs(it - pos) }
             for (i in order) {
                 val (r, scale) = frame(i)
+                if (i == liftIndex && lift < 0f) r.offset(0f, lift)
                 if (r.right < 0 || r.left > width) continue
                 val path = shape(r)
                 val shot = Snapshots.get(context, apps[i].pkg)
@@ -559,10 +580,54 @@ class OwnSwitcher(private val svc: HugminnService) {
             }
         }
 
+        private var downX = 0f
+        private var downY = 0f
+        private var downPos = 0f
+        private var mode = 0 // 0 undecided, 1 scrolling, 2 swiping a card up
+        private var lift = 0f
+        private var liftIndex = -1
+
+        /** Distance between two neighbouring cards (for dragging). */
+        private fun pitch(): Float {
+            val h = height * 0.70f
+            val w = min(h * 16f / 9f, width * 0.56f)
+            return w * 0.66f + context.dp(22)
+        }
+
         override fun onTouchEvent(e: MotionEvent): Boolean {
-            if (e.actionMasked == MotionEvent.ACTION_UP) {
-                val hit = apps.indices.firstOrNull { frame(it).first.contains(e.x, e.y) }
-                if (hit != null) onTap(hit)
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    anim?.cancel()
+                    downX = e.x; downY = e.y; downPos = pos; mode = 0
+                    liftIndex = apps.indices.firstOrNull { frame(it).first.contains(e.x, e.y) } ?: -1
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = e.x - downX
+                    val dy = e.y - downY
+                    val slop = context.dp(10)
+                    if (mode == 0 && (abs(dx) > slop || abs(dy) > slop)) mode = if (abs(dy) > abs(dx) && dy < 0 && liftIndex >= 0) 2 else 1
+                    if (mode == 1 && apps.isNotEmpty()) {
+                        pos = (downPos - dx / pitch()).coerceIn(-0.3f, apps.size - 0.7f)
+                        invalidate()
+                    } else if (mode == 2) {
+                        lift = dy.coerceAtMost(0f)
+                        invalidate()
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    when (mode) {
+                        0 -> if (e.actionMasked == MotionEvent.ACTION_UP) apps.indices.firstOrNull { frame(it).first.contains(e.x, e.y) }?.let(onTap)
+                        1 -> onScroll(Math.round(pos).coerceIn(0, (apps.size - 1).coerceAtLeast(0)))
+                        2 -> {
+                            val i = liftIndex
+                            if (-lift > height * 0.18f && i >= 0) onSwipeUp(i)
+                            lift = 0f
+                            liftIndex = -1
+                            invalidate()
+                        }
+                    }
+                    mode = 0
+                }
             }
             return true
         }

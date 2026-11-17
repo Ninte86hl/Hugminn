@@ -184,6 +184,10 @@ class HugminnService : AccessibilityService() {
         when (e.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (e.repeatCount > 0) return true
+                // picture of the game right now, before anything covers it (own switcher)
+                if (!overlayOpen && p.ownSwitcher && !pendingSingle) foregroundPkg?.let { fg ->
+                    if (runCatching { rootInActiveWindow?.packageName?.toString() }.getOrNull() == fg) Snapshots.capture(this, fg)
+                }
                 if (pendingSingle) {
                     ui.removeCallbacks(singlePress)
                     pendingSingle = false
