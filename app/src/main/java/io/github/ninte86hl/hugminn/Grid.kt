@@ -222,14 +222,8 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
             }
             android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                 val c = cell()
-                // Outside edit mode the board is centred on the columns actually in use (no empty strip on the right).
-        val used = if (editing()) cols else (pos.values.maxOfOrNull { it[0] + it[2] } ?: cols).coerceIn(1, cols)
-        val totalW = c * used + gap * (used - 1)
-                val ox = (width - totalW) / 2
-        val usedRows = if (editing()) GridLayout.ROWS else (pos.values.maxOfOrNull { it[1] + it[3] } ?: GridLayout.ROWS).coerceIn(1, GridLayout.ROWS)
-        val oy = ((height - (c * usedRows + gap * (usedRows - 1))) / 2).coerceAtLeast(0)
-                val cx = Math.round((v.left + v.translationX - ox) / (c + gap).toFloat())
-                val cy = Math.round((v.top + v.translationY) / (c + gap).toFloat())
+                val cx = Math.round((v.left + v.translationX - originX(c)) / (c + gap).toFloat())
+                val cy = Math.round((v.top + v.translationY - originY(c)) / (c + gap).toFloat())
                 v.translationX = 0f
                 v.translationY = 0f
                 v.scaleX = 1f
@@ -265,10 +259,21 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
         }
     }
 
+    /** Outside edit mode the board is centred on the cells actually in use (no empty strip on a side). */
+    private fun originX(c: Int): Int {
+        val used = if (editing()) cols else (pos.values.maxOfOrNull { it[0] + it[2] } ?: cols).coerceIn(1, cols)
+        return (width - (c * used + gap * (used - 1))) / 2
+    }
+
+    private fun originY(c: Int): Int {
+        val rows = if (editing()) GridLayout.ROWS else (pos.values.maxOfOrNull { it[1] + it[3] } ?: GridLayout.ROWS).coerceIn(1, GridLayout.ROWS)
+        return ((height - (c * rows + gap * (rows - 1))) / 2).coerceAtLeast(0)
+    }
+
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         val c = cell()
-        val totalW = c * cols + gap * (cols - 1)
-        val ox = (width - totalW) / 2
+        val ox = originX(c)
+        val oy = originY(c)
         for (i in 0 until childCount) {
             val v = getChildAt(i)
             val p = pos[v] ?: continue

@@ -208,12 +208,6 @@ class HugminnService : AccessibilityService() {
     /** Roots of all windows on screen (the recents view lives in the launcher's window). */
     fun roots(): List<AccessibilityNodeInfo> = runCatching { windows.mapNotNull { it.root } }.getOrDefault(emptyList())
 
-    /** Closes the Control Center and the Game Switcher (e.g. before Hugminn shows a window of its own). */
-    fun closeOverlays() {
-        if (::controlCenter.isInitialized && controlCenter.isOpen) controlCenter.close()
-        if (::switcher.isInitialized && switcher.isOpen) switcher.close(goBack = false)
-    }
-
     fun startApp(i: Intent) {
         try {
             startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
