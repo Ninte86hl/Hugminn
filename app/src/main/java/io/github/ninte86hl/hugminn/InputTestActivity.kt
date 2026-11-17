@@ -85,7 +85,7 @@ class InputTestActivity : Activity() {
         })
         root.addView(buttons)
         setContentView(root)
-        add("Eingabegeräte: " + InputDevice.getDeviceIds().mapNotNull { InputDevice.getDevice(it) }
+        add("Eingabegeräte: " + InputDevice.getDeviceIds().toList().mapNotNull { InputDevice.getDevice(it) }
             .filter { it.sources and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0 }
             .joinToString { "\"${it.name}\" ${"%04x".format(it.vendorId)}:${"%04x".format(it.productId)}" })
         refresh()
