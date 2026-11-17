@@ -95,6 +95,7 @@ object Probe {
         appendLine("Dienst gefunden: ${b != null}" + (Root.lastError?.let { "   ($it)" } ?: ""))
         if (b == null) return@buildString
         appendLine("Binder lebt: ${b.isBinderAlive}")
+        appendLine(Root.detect())
         appendLine("Direkte Antwort auf 'id': ${Root.rawExec("id")?.trim()}")
         appendLine("Über Datei:")
         appendLine(Root.exec(ctx, "id; getenforce; whoami") ?: "keine Antwort")
@@ -208,6 +209,11 @@ object Probe {
             } else {
                 settingsViaApi(ctx, ns).forEach { (k, v) -> map["$ns:$k"] = v }
             }
+        }
+        val cr = ctx.contentResolver
+        for (key in KNOWN_KEYS) {
+            runCatching { Settings.System.getString(cr, key) }.getOrNull()?.let { map["known.system:$key"] = it }
+            runCatching { Settings.Global.getString(cr, key) }.getOrNull()?.let { map["known.global:$key"] = it }
         }
         for (id in InputDevice.getDeviceIds()) {
             val d = InputDevice.getDevice(id) ?: continue

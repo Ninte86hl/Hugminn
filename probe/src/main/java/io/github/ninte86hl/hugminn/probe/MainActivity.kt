@@ -91,8 +91,8 @@ class MainActivity : Activity() {
     private var homeLeft = false
     private var homeRecorded = -1
     private val homeResults = StringBuilder()
-    @Volatile private var rawCapture: String? = null
-    private var rawThread: Thread? = null
+    private var rawFile: String? = null
+    private var round1Pad: String? = null
 
     // Setting comparisons
     private val compareTasks = listOf(
@@ -208,11 +208,17 @@ class MainActivity : Activity() {
         if (actions.childCount > 0) actions.getChildAt(0).requestFocus()
     }
 
+    private fun currentPad(): String =
+        InputDevice.getDeviceIds().toList().mapNotNull { InputDevice.getDevice(it) }
+            .filter { (it.sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD }
+            .map { it.name }.distinct().joinToString().ifEmpty { "keiner erkannt" }
+
     private fun render() {
         val rootOk = Root.available()
         val a11y = ProbeAccessibilityService.instance != null
         statusLine.text = "Root-Dienst: ${if (rootOk) "gefunden" else "nicht gefunden"}\n" +
-            "Bedienungshilfe: ${if (a11y) "aktiv" else "aus"}"
+            "Bedienungshilfe: ${if (a11y) "aktiv" else "aus"}\n" +
+            "Controller: ${currentPad()}"
         stepList.text = if (expert) "Expertenmodus" else Step.values().filter { it != Step.INTRO }.joinToString("\n") {
             when {
                 it.ordinal < step.ordinal -> "✓  ${it.label}"
@@ -350,8 +356,9 @@ class MainActivity : Activity() {
         val round = if (keyRound > 1) " (2. Durchgang)" else ""
         page(
             "Drücke: ${prompts[promptIndex]}",
-            "Taste ${promptIndex + 1} von ${prompts.size}$round · wird nach 10 Sekunden übersprungen.\n" +
-                "Gemeint ist die Beschriftung auf dem Gerät.",
+            "Drücke die Taste, auf der „${prompts[promptIndex]}“ steht – egal wo sie sitzt.\n" +
+                "Taste ${promptIndex + 1} von ${prompts.size}$round · Controller: ${currentPad()}\n" +
+                "Wird nach 10 Sekunden übersprungen.",
             keyResults.toString()
         )
         ui.postDelayed(promptTimeout, 10_000)
@@ -368,7 +375,9 @@ class MainActivity : Activity() {
     }
 
     private fun finishKeys() {
-        report["Tastenbelegung (Durchgang $keyRound)"] = keyResults.toString()
+        val pad = currentPad()
+        if (keyRound == 1) round1Pad = pad
+        report["Tastenbelegung (Durchgang $keyRound, Controller: $pad)"] = keyResults.toString()
         if (keyRound == 1) goTo(Step.HOME) else goTo(Step.RECENTS)
     }
 
@@ -378,13 +387,15 @@ class MainActivity : Activity() {
         homeIndex = 0
         homeRecorded = -1
         homeResults.setLength(0)
-        rawCapture = null
+        rawFile = null
         if (Root.available()) {
-            val t = Thread { rawCapture = Root.exec(this, "timeout 150 getevent -lt", 160_000) }
-            rawThread = t
-            t.start()
+            background({ Root.startBackground("timeout 150 getevent -lt") ?: "" }) {
+                rawFile = it.ifEmpty { null }
+                startHomeTask()
+            }
+        } else {
+            startHomeTask()
         }
-        startHomeTask()
     }
 
     private fun startHomeTask() {
@@ -419,19 +430,18 @@ class MainActivity : Activity() {
 
     private fun finishHome() {
         report["Home-Taste"] = homeResults.toString()
-        val t = rawThread
-        if (t == null) {
+        val f = rawFile
+        if (f == null) {
             goTo(Step.COMPARE)
             return
         }
         page("Home-Taste", "Werte die Rohdaten aus …")
         background({
-            Root.exec(this, "pkill -x getevent; true", 5_000)
-            t.join(8_000)
-            rawCapture ?: "keine Rohdaten"
+            Root.kill("getevent")
+            Root.collect(f, 10_000)
         }) { raw ->
-            report["Tasten-Rohdaten (Home-Test)"] = raw
-            rawThread = null
+            report["Tasten-Rohdaten (Home-Test)"] = raw.ifEmpty { "keine Rohdaten" }
+            rawFile = null
             goTo(Step.COMPARE)
         }
     }
@@ -503,13 +513,33 @@ class MainActivity : Activity() {
     private fun finishCompare() {
         if (controllerSwitched && keyRound == 1) {
             keyRound = 2
-            page(
-                "Tasten im anderen Modus",
-                "Du hast den Controller-Stil gewechselt. Bitte die Tasten noch einmal drücken, damit wir beide Modi kennen."
-            )
-            setActions("Starten" to { goTo(Step.KEYS) }, "Überspringen" to { goTo(Step.RECENTS) })
+            checkSecondRound()
         } else {
             goTo(Step.RECENTS)
+        }
+    }
+
+    private fun checkSecondRound() {
+        val now = currentPad()
+        if (now == round1Pad) {
+            page(
+                "Bitte Controller-Stil wechseln",
+                "Der Controller meldet sich gerade als „$now“ – genau wie im ersten Durchgang.\n\n" +
+                    "Stell den Controller-Stil bitte auf den anderen Modus um (z. B. in den Schnelleinstellungen) " +
+                    "und komm dann zurück."
+            )
+            setActions(
+                "Erneut prüfen" to { checkSecondRound() },
+                "Trotzdem starten" to { goTo(Step.KEYS) },
+                "Überspringen" to { goTo(Step.RECENTS) }
+            )
+        } else {
+            page(
+                "Tasten im anderen Modus",
+                "Controller jetzt: „$now“ (vorher: „${round1Pad ?: "?"}“).\n\n" +
+                    "Bitte die Tasten noch einmal nach ihrer Beschriftung drücken."
+            )
+            setActions("Starten" to { goTo(Step.KEYS) }, "Überspringen" to { goTo(Step.RECENTS) })
         }
     }
 
@@ -745,7 +775,7 @@ class MainActivity : Activity() {
     // ---------- Report ----------
 
     private fun fullReport(): String = buildString {
-        appendLine("Hugminn Probe 0.2.0 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+        appendLine("Hugminn Probe 0.3.0 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         appendLine("Gerät: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE}), Android ${Build.VERSION.RELEASE}")
         appendLine("Persönliche Werte (Seriennummer, Konten, WLAN, MAC usw.) wurden entfernt.")
         appendLine()
