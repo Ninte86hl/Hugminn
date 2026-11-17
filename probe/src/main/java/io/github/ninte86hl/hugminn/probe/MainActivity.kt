@@ -66,7 +66,11 @@ class MainActivity : Activity() {
 
     // Key prompts
     private val prompts = listOf(
-        "A", "B", "X", "Y", "L1", "R1", "L2", "R2", "Start", "Select",
+        "Untere Taste (Xbox A · PlayStation ✕ · Nintendo B)",
+        "Rechte Taste (Xbox B · PlayStation ○ · Nintendo A)",
+        "Linke Taste (Xbox X · PlayStation □ · Nintendo Y)",
+        "Obere Taste (Xbox Y · PlayStation △ · Nintendo X)",
+        "L1", "R1", "L2", "R2", "Start", "Select",
         "Linken Stick drücken (L3)", "Rechten Stick drücken (R3)", "Steuerkreuz nach oben",
         "Linken Stick nach rechts", "Rechten Stick nach rechts"
     )
@@ -358,7 +362,7 @@ class MainActivity : Activity() {
         val round = if (keyRound > 1) " (2. Durchgang)" else ""
         page(
             "Drücke: ${prompts[promptIndex]}",
-            "Drücke die Taste, auf der „${prompts[promptIndex]}“ steht – egal wo sie sitzt.\n" +
+            "Gemeint ist die Position der Taste, nicht ihr Aufdruck.\n" +
                 "Taste ${promptIndex + 1} von ${prompts.size}$round · Controller: ${currentPad()}\n" +
                 "Wird nach 6 Sekunden übersprungen.",
             keyResults.toString()
@@ -547,7 +551,7 @@ class MainActivity : Activity() {
             page(
                 "Tasten im anderen Modus",
                 "Controller jetzt: „$now“ (vorher: „${round1Pad ?: "?"}“).\n\n" +
-                    "Bitte die Tasten noch einmal nach ihrer Beschriftung drücken."
+                    "Bitte die Tasten noch einmal drücken – wieder nach Position."
             )
             setActions("Starten" to { goTo(Step.KEYS) }, "Überspringen" to { goTo(Step.RECENTS) })
         }
@@ -790,7 +794,7 @@ class MainActivity : Activity() {
     // ---------- Report ----------
 
     private fun fullReport(): String = buildString {
-        appendLine("Hugminn Probe 0.4.0 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+        appendLine("Hugminn Probe 0.4.1 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         appendLine("Gerät: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE}), Android ${Build.VERSION.RELEASE}")
         appendLine("Persönliche Werte (Seriennummer, Konten, WLAN, MAC usw.) wurden entfernt.")
         appendLine()
