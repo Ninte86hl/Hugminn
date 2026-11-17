@@ -719,26 +719,6 @@ class ShellView(
             c.clipRect(0f, statusH.toFloat(), width.toFloat(), barTop.toFloat())
             c.drawRoundRect(s, snapR, snapR, p)
             c.restore()
-            // Own title above each window (covers the launcher's icon and lock): app icon + name.
-            val on = i == f.selected
-            labelPaint.color = if (on) pal.onSurface else pal.onSurfaceVariant
-            labelPaint.isFakeBoldText = on
-            val name = android.text.TextUtils.ellipsize(f.labels[i], android.text.TextPaint(labelPaint), s.width() - iconSize * 2, android.text.TextUtils.TruncateAt.END).toString()
-            val tw = labelPaint.measureText(name)
-            val total = iconSize + iconGap + tw
-            val cy = s.top - titleGap - iconSize / 2f
-            var x = s.centerX() - total / 2f
-            if (on) {
-                val pad = iconGap
-                c.drawRoundRect(x - pad * 1.5f, cy - iconSize / 2f - pad, x + total + pad * 2f, cy + iconSize / 2f + pad, iconSize, iconSize, chipFill)
-            }
-            f.icons[i]?.let { d ->
-                d.setBounds(x.toInt(), (cy - iconSize / 2f).toInt(), (x + iconSize).toInt(), (cy + iconSize / 2f).toInt())
-                d.draw(c)
-            }
-            x += iconSize + iconGap
-            val fm = labelPaint.fontMetrics
-            c.drawText(name, x, cy - (fm.ascent + fm.descent) / 2f, labelPaint)
         }
     }
 }
