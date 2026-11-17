@@ -70,7 +70,11 @@ class HugminnService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        if (::switcher.isInitialized) switcher.onEvent(event)
+        if (::switcher.isInitialized) try {
+            switcher.onEvent(event)
+        } catch (t: Throwable) {
+            Crash.note(this, t)
+        }
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
@@ -82,9 +86,17 @@ class HugminnService : AccessibilityService() {
             }
             return true
         }
-        if (controlCenter.isOpen) return controlCenter.onKey(event)
-        if (switcher.isOpen) return switcher.onKey(event)
-        return false
+        return try {
+            when {
+                controlCenter.isOpen -> controlCenter.onKey(event)
+                switcher.isOpen -> switcher.onKey(event)
+                else -> false
+            }
+        } catch (t: Throwable) {
+            Crash.note(this, t)
+            runCatching { closeOverlays() }
+            true
+        }
     }
 
     private fun onHome(e: KeyEvent): Boolean {
@@ -122,6 +134,16 @@ class HugminnService : AccessibilityService() {
     }
 
     fun perform(a: Action) {
+        try {
+            performUnsafe(a)
+        } catch (t: Throwable) {
+            // Never let one broken feature take the whole service (and the accessibility permission) down.
+            Crash.note(this, t)
+            runCatching { closeOverlays() }
+        }
+    }
+
+    private fun performUnsafe(a: Action) {
         when (a) {
             Action.NONE -> {}
             Action.HOME -> {

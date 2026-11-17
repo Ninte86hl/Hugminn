@@ -208,11 +208,12 @@ class Switcher(private val svc: HugminnService) {
             val r = rs[i]
             return if (r.width() < b.width() - 2 && r.left <= 0) (r.right - b.width()).toFloat() else r.left.toFloat()
         }
-        val pitch = when {
+        // Card distance (the launcher reports positions mirrored, only the size of the step is used).
+        val pitch = abs(when {
             full + 1 < rs.size && rs[full + 1].right > 0 && rs[full + 1].left < screenW -> left(full + 1) - left(full)
             full > 0 && rs[full - 1].right > 0 -> left(full) - left(full - 1)
             else -> b.width() * 1.04f
-        }.takeIf { it > b.width() * 0.5f } ?: (b.width() * 1.04f)
+        }).takeIf { it > b.width() * 0.5f } ?: (b.width() * 1.04f)
         // Card rect as it sits in the middle of the screen.
         val mid = screenW / 2f
         val card = RectF(mid - b.width() / 2f, b.top.toFloat(), mid + b.width() / 2f, b.bottom.toFloat())
@@ -316,7 +317,8 @@ class Switcher(private val svc: HugminnService) {
                 snaps += RectF(); icons += RectF(); locks += RectF()
                 continue
             }
-            val dx = (i - pos) * m.pitch
+            // Mirrored: a higher index (older app) sits further left on screen.
+            val dx = -(i - pos) * m.pitch
             val left = m.card.left + dx
             val top = m.card.top
             fun off(x: RectF?) = x?.let { RectF(it.left + left, it.top + top, it.right + left, it.bottom + top) } ?: RectF()
@@ -457,7 +459,8 @@ class Switcher(private val svc: HugminnService) {
             if (e.action == KeyEvent.ACTION_DOWN && cards.size > 1 && model != null) {
                 lastKeyAt = SystemClock.uptimeMillis()
                 val n = cards.size
-                val next = if (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) (target + 1) % n else (target - 1 + n) % n
+                // The launcher lists the newest card first and older cards to the left of it.
+                val next = if (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) (target - 1 + n) % n else (target + 1) % n
                 animateTo(next)
             }
             return false

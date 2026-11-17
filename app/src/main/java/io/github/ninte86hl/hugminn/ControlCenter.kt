@@ -184,7 +184,9 @@ class ControlCenter(private val svc: HugminnService) {
                 profileMenu("Lüfter", "fan_mode", Device.fanProfiles) { v -> Device.setFan(v) { refreshAll() } }
             }
         }
-        val has120 = svc.display?.supportedModes?.any { it.refreshRate > 100f } == true
+        val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)
+            ?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+        val has120 = display?.supportedModes?.any { it.refreshRate > 100f } == true
         if (rootOk && has120) {
             tiles += Tile("Bildrate", IconView.Kind.REFRESH, { if (Device.highRefresh(svc)) "120 Hz" else "60 Hz" }, { Device.highRefresh(svc) }) {
                 Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
