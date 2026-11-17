@@ -1218,11 +1218,14 @@ class ControlCenter(private val svc: HugminnService) {
         val (left, right) = Device.ledColors(svc) ?: (android.graphics.Color.WHITE to android.graphics.Color.WHITE)
         val l = if (ledTarget == 2) left else c
         val r = if (ledTarget == 1) right else c
-        closeMenu()
         val keep = svc.prefs.ledEffect == LedEffect.BREATHE || svc.prefs.ledEffect == LedEffect.PULSE
         Device.setLedColors(l, r, turnOn = !on) {
             if (keep) LedFx.resume(svc) else LedFx.set(svc, LedEffect.NONE)
-            svc.ui.post { refreshAll() }
+            // the window stays open (with the new colour ticked) for further changes
+            svc.ui.post {
+                refreshAll()
+                if (root != null && ledCells != null) ledPicker()
+            }
         }
     }
 
