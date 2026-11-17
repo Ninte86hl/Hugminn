@@ -1182,8 +1182,8 @@ class ControlCenter(private val svc: HugminnService) {
         }
 
         // right: target, quick colours, effects, brightness and speed
-        val right = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(18 * d, 0, 0, 0) }
-        cols.addView(right)
+        val side = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(18 * d, 0, 0, 0) }
+        cols.addView(side)
         fun header(t: String) = text(t, 12f, pal.primary, bold = true).apply { setPadding(2 * d, 8 * d, 0, 5 * d) }
         fun chip(label: String, sel: Boolean) = text(label, 13f, if (sel) pal.onPrimaryContainer else pal.onSurfaceVariant, bold = sel).apply {
             gravity = Gravity.CENTER
@@ -1191,7 +1191,7 @@ class ControlCenter(private val svc: HugminnService) {
             background = shape(if (sel) pal.primaryContainer else pal.surfaceHighest, 16f * d)
         }
 
-        right.addView(header("Stick"))
+        side.addView(header("Stick"))
         val targetRow = LinearLayout(svc)
         listOf(1 to "Links", 2 to "Rechts", 0 to "Beide").forEach { (i, label) ->
             val c = chip(label, i == ledTarget)
@@ -1200,9 +1200,9 @@ class ControlCenter(private val svc: HugminnService) {
             targetRow.addView(c, lp(72 * d, 34 * d).apply { marginEnd = 6 * d })
             cells += LedCell("t$i", c, act)
         }
-        right.addView(targetRow)
+        side.addView(targetRow)
 
-        right.addView(header("Farben"))
+        side.addView(header("Farben"))
         Device.ledPresets.chunked(6).forEachIndexed { line, list ->
             val row = LinearLayout(svc)
             list.forEachIndexed { j, (name, c) ->
@@ -1217,10 +1217,10 @@ class ControlCenter(private val svc: HugminnService) {
                 row.addView(cell, lp(36 * d, 36 * d).apply { setMargins(0, 0, 8 * d, 8 * d) })
                 cells += LedCell("p${line * 6 + j}", cell) { applyLed(c) }
             }
-            right.addView(row)
+            side.addView(row)
         }
 
-        right.addView(header("Effekt"))
+        side.addView(header("Effekt"))
         val fxRow = LinearLayout(svc)
         LedEffect.values().forEach { ef ->
             val c = chip(ef.label, svc.prefs.ledEffect == ef)
@@ -1234,7 +1234,7 @@ class ControlCenter(private val svc: HugminnService) {
             fxRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
             cells += LedCell("fx${ef.ordinal}", c, act)
         }
-        right.addView(fxRow)
+        side.addView(fxRow)
 
         val tune = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, 12 * d, 0, 0) }
         fun stepper(key: String, label: String, value: String, minus: () -> Unit, plus: () -> Unit) {
@@ -1263,7 +1263,7 @@ class ControlCenter(private val svc: HugminnService) {
         stepper("s", "Tempo", "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
             { LedFx.setSpeed(svc, LedFx.speeds[(si - 1).coerceAtLeast(0)]); again("s-") },
             { LedFx.setSpeed(svc, LedFx.speeds[(si + 1).coerceAtMost(LedFx.speeds.lastIndex)]); again("s+") })
-        right.addView(tune)
+        side.addView(tune)
 
         ledCells = cells
         if (cells.none { it.key == ledFocus }) ledFocus = "wheel"
