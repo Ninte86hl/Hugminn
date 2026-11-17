@@ -455,9 +455,7 @@ class Switcher(private val svc: HugminnService) {
             fitInsetsTypes = 0
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
-        s.alpha = 0f
         wm.addView(s, lp)
-        s.animate().alpha(1f).setDuration(70).start()
         shell = s
 
         val b = object : FrameLayout(svc) {
@@ -481,7 +479,9 @@ class Switcher(private val svc: HugminnService) {
         val blp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT, m.bounds.height() - barTop,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            // NOT_TOUCH_MODAL: the bar takes key focus, but touches outside it (swiping a card away)
+            // must still reach the recents view.
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -850,8 +850,9 @@ class ShellView(
             addRect(0f, 0f, width.toFloat(), height.toFloat(), Path.Direction.CW)
         }
         val clip = Path()
-        // 1 px inside the snapshot so no launcher edge or card corner shows through.
-        val hole = f?.snaps?.firstOrNull()?.takeIf { !it.isEmpty }?.let { RectF(it.left + 1, it.top + 1, it.right - 1, it.bottom - 1) }
+        // A little inside the snapshot so no launcher edge or rounded card corner shows through.
+        val inset = context.dp(3).toFloat()
+        val hole = f?.snaps?.firstOrNull()?.takeIf { !it.isEmpty }?.let { RectF(it.left + inset, it.top + inset, it.right - inset, it.bottom - inset) }
         if (hole != null) shape(hole, clip)
         if (mode == StatusBar.SYSTEM) clip.addRect(0f, 0f, width.toFloat(), statusH.toFloat(), Path.Direction.CW)
         val area = Path().apply { addRect(0f, top, width.toFloat(), barTop.toFloat(), Path.Direction.CW) }
