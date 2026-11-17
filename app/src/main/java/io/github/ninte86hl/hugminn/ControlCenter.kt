@@ -1117,6 +1117,7 @@ class ControlCenter(private val svc: HugminnService) {
                         stopBtScan()
                         Toast.makeText(svc, "Kopple ${Bt.name(d)} …", Toast.LENGTH_SHORT).show()
                         Bt.pair(svc, d)
+                        Bt.confirmPairing(svc, Bt.name(d))
                     }
                 }
             }
@@ -1440,6 +1441,9 @@ class ControlCenter(private val svc: HugminnService) {
         val r = root ?: return
         // another menu replaces the Bluetooth list: its search ends (a fresh search starts with menuTitle empty)
         if (menuTitle.isNotEmpty() && title != menuTitle) { menuTitle = ""; stopBtScan() }
+        // the same menu again (a list that updates itself): no open animation, keep the scroll position
+        val refresh = menuView != null && title == menuTitle
+        val keepScroll = if (refresh) menuScroll?.scrollY ?: 0 else 0
         removeMenuView()
         menuEntries = entries
         menuRows.clear()
@@ -1480,17 +1484,21 @@ class ControlCenter(private val svc: HugminnService) {
             list.addView(row, lp(MATCH, WRAP))
             menuRows += row
         }
-        val tall = entries.size > 6
+        val tall = entries.size > 6 || title == "Bluetooth" || title == "WLAN"
         val sc = android.widget.ScrollView(svc).apply { addView(list) }
         menuScroll = sc
         box.addView(sc, if (tall) lp(MATCH, 0, 1f) else lp(MATCH, WRAP))
         val w = (r.width * 0.42f).toInt().coerceAtLeast(320 * d)
         r.addView(box, FrameLayout.LayoutParams(w, if (tall) (r.height * 0.86f).toInt() else FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
-        box.scaleX = 0.96f
-        box.scaleY = 0.96f
-        box.alpha = 0f
-        box.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(110).start()
+        if (refresh) {
+            sc.post { sc.scrollTo(0, keepScroll) }
+        } else {
+            box.scaleX = 0.96f
+            box.scaleY = 0.96f
+            box.alpha = 0f
+            box.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(110).start()
+        }
         showMenuSel()
     }
 

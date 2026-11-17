@@ -167,4 +167,40 @@ object Bt {
     }
 
     fun pair(ctx: Context, d: BluetoothDevice) = runCatching { adapter(ctx)?.cancelDiscovery(); d.createBond() }.getOrDefault(false)
+
+    /**
+     * Android asks for the pairing in a dialog of its own (code shown on both devices). Hugminn
+     * confirms it by itself, since the pairing was just started on purpose; a code to type in stays
+     * with Android.
+     */
+    fun confirmPairing(svc: HugminnService, name: String) {
+        var tries = 0
+        val words = listOf("Koppeln", "KOPPELN", "Pair", "PAIR", "Verbinden", "OK")
+        val look = object : Runnable {
+            override fun run() {
+                for (r in svc.roots()) {
+                    val pkg = r.packageName?.toString() ?: continue
+                    if (!pkg.contains("settings") && !pkg.contains("bluetooth") && !pkg.contains("systemui")) continue
+                    // only the pairing dialog: it names the device or asks for a pairing code
+                    val isPairing = r.findAccessibilityNodeInfosByText(name).isNotEmpty() ||
+                        r.findAccessibilityNodeInfosByText("Kopplung").isNotEmpty() || r.findAccessibilityNodeInfosByText("pair").isNotEmpty()
+                    if (!isPairing) continue
+                    // a field for typing a code: leave it to the user
+                    if (r.findAccessibilityNodeInfosByViewId("com.android.settings:id/text").isNotEmpty()) {
+                        diag += " · Code-Eingabe bei Android"
+                        svc.closeOverlays() // the dialog must be visible for typing the code
+                        return
+                    }
+                    val btn = words.firstNotNullOfOrNull { w -> r.findAccessibilityNodeInfosByText(w).firstOrNull { it.isClickable && it.text?.toString()?.equals(w, true) == true } }
+                    if (btn != null) {
+                        btn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        diag += " · Kopplung bestätigt"
+                        return
+                    }
+                }
+                if (++tries < 60) svc.ui.postDelayed(this, 250)
+            }
+        }
+        svc.ui.postDelayed(look, 300)
+    }
 }
