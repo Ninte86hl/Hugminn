@@ -226,6 +226,8 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
         val used = if (editing()) cols else (pos.values.maxOfOrNull { it[0] + it[2] } ?: cols).coerceIn(1, cols)
         val totalW = c * used + gap * (used - 1)
                 val ox = (width - totalW) / 2
+        val usedRows = if (editing()) GridLayout.ROWS else (pos.values.maxOfOrNull { it[1] + it[3] } ?: GridLayout.ROWS).coerceIn(1, GridLayout.ROWS)
+        val oy = ((height - (c * usedRows + gap * (usedRows - 1))) / 2).coerceAtLeast(0)
                 val cx = Math.round((v.left + v.translationX - ox) / (c + gap).toFloat())
                 val cy = Math.round((v.top + v.translationY) / (c + gap).toFloat())
                 v.translationX = 0f
@@ -271,7 +273,7 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
             val v = getChildAt(i)
             val p = pos[v] ?: continue
             val x = ox + p[0] * (c + gap)
-            val y = p[1] * (c + gap)
+            val y = oy + p[1] * (c + gap)
             v.layout(x, y, x + v.measuredWidth, y + v.measuredHeight)
         }
     }

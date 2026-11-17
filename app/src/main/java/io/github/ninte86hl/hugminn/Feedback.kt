@@ -42,16 +42,43 @@ object Feedback {
                 val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
                 val bmp = hw?.copy(Bitmap.Config.ARGB_8888, false)
                 result.hardwareBuffer.close()
-                upload(svc, token, where, bmp, info)
+                ask(svc, Pending(token, where, bmp, info))
             }
 
             override fun onFailure(errorCode: Int) {
-                upload(svc, token, where, null, "$info\n\nScreenshot fehlgeschlagen (Code $errorCode)")
+                ask(svc, Pending(token, where, null, "$info\n\nScreenshot fehlgeschlagen (Code $errorCode)"))
             }
         })
     }
 
-    private fun upload(svc: HugminnService, token: String, where: String, bmp: Bitmap?, info: String) {
+    /** Screenshot and report waiting for the user's description. */
+    class Pending(val token: String, val where: String, val bmp: Bitmap?, val info: String)
+    @Volatile private var pending: Pending? = null
+
+    /** The screenshot is taken; now ask for a short description in a small window of its own. */
+    private fun ask(svc: HugminnService, p: Pending) {
+        pending = p
+        svc.ui.post {
+            svc.closeOverlays()
+            svc.startApp(android.content.Intent(svc, FeedbackActivity::class.java))
+        }
+    }
+
+    /** Sends what [ask] collected, with the description on top of the report. */
+    fun sendPending(ctx: Context, description: String) {
+        val p = pending ?: return
+        pending = null
+        val head = if (description.isBlank()) "Beschreibung: –" else "Beschreibung:\n${description.trim()}"
+        upload(ctx, p.token, p.where, p.bmp, "$head\n\n${p.info}")
+    }
+
+    fun cancelPending() {
+        if (pending == null) return
+        pending = null
+        busy = false
+    }
+
+    private fun upload(svc: Context, token: String, where: String, bmp: Bitmap?, info: String) {
         val note = UploadNotification(svc)
         note.progress("Feedback wird vorbereitet …", -1)
         thread {

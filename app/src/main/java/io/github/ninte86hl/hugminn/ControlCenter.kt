@@ -234,7 +234,8 @@ class ControlCenter(private val svc: HugminnService) {
             })
         }
         val gear = FrameLayout(svc).apply {
-            background = shape(pal.surfaceHighest, 20f * d)
+            // follows the style: filled circle (modern), stepped square (pixel), ring of dots (dot matrix)
+            background = if (pal.dots) shape(0, 20f * d, 3 * d, pal.onSurfaceVariant) else shape(pal.surfaceHighest, 20f * d)
             addView(IconView(svc, IconView.Kind.GEAR, 22).apply { setColor(pal.onSurface) },
                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
             setOnClickListener { openSystem(Settings.ACTION_SETTINGS) }
