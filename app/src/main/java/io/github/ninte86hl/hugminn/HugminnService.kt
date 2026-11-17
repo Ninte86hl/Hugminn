@@ -44,7 +44,12 @@ class HugminnService : AccessibilityService() {
         controlCenter = ControlCenter(this)
         instance = this
         // Keep the firmware from killing Hugminn in the background.
-        Thread { Device.ensureWhitelist(this) }.start()
+        Thread {
+            Device.ensureWhitelist(this)
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                Root.exec("pm grant $packageName android.permission.POST_NOTIFICATIONS")
+            }
+        }.start()
         SettingsWatch.start(this)
     }
 

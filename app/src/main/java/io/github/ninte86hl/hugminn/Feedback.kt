@@ -51,21 +51,33 @@ object Feedback {
     }
 
     private fun upload(svc: HugminnService, token: String, where: String, bmp: Bitmap?, info: String) {
-        toast(svc, "Feedback wird hochgeladen …")
+        val note = UploadNotification(svc)
+        note.progress("Feedback wird vorbereitet …", -1)
         thread {
             try {
                 val stamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.GERMANY).format(Date())
                 val base = "feedback/${stamp}_$where"
-                var ok = true
-                if (bmp != null) {
+                val image = bmp?.let {
                     val out = ByteArrayOutputStream()
-                    bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
-                    ok = put(token, "$base.jpg", out.toByteArray(), "Feedback screenshot ($where)")
+                    it.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                    out.toByteArray()
                 }
-                ok = put(token, "$base.txt", info.toByteArray(), "Feedback info ($where)") && ok
-                toast(svc, if (ok) "Feedback hochgeladen ✓" else "Feedback: Hochladen fehlgeschlagen (Token prüfen)")
+                val text = info.toByteArray()
+                val total = (image?.size ?: 0) + text.size
+                var done = 0
+                var ok = true
+                if (image != null) {
+                    ok = put(token, "$base.jpg", image, "Feedback screenshot ($where)") { sent ->
+                        note.progress("Screenshot wird hochgeladen …", ((done + sent) * 100L / total).toInt())
+                    }
+                    done += image.size
+                }
+                ok = put(token, "$base.txt", text, "Feedback info ($where)") { sent ->
+                    note.progress("Beschreibung wird hochgeladen …", ((done + sent) * 100L / total).toInt())
+                } && ok
+                if (ok) note.done("Feedback hochgeladen ✓", "$stamp · $where") else note.failed("Hochladen fehlgeschlagen", "GitHub hat abgelehnt – Token prüfen (Contents: Read and write)")
             } catch (t: Throwable) {
-                toast(svc, "Feedback: ${t.javaClass.simpleName}: ${t.message}")
+                note.failed("Hochladen fehlgeschlagen", "${t.javaClass.simpleName}: ${t.message}")
             } finally {
                 busy = false
             }
@@ -73,7 +85,7 @@ object Feedback {
     }
 
     /** Creates a file through the GitHub contents API. */
-    private fun put(token: String, path: String, bytes: ByteArray, message: String): Boolean {
+    private fun put(token: String, path: String, bytes: ByteArray, message: String, progress: (Int) -> Unit): Boolean {
         val c = URL("https://api.github.com/repos/$REPO/contents/$path").openConnection() as HttpURLConnection
         c.requestMethod = "PUT"
         c.doOutput = true
@@ -86,7 +98,22 @@ object Feedback {
             .put("message", message)
             .put("branch", BRANCH)
             .put("content", Base64.encodeToString(bytes, Base64.NO_WRAP))
-        c.outputStream.use { it.write(body.toString().toByteArray()) }
+            .toString().toByteArray()
+        c.setFixedLengthStreamingMode(body.size)
+        c.outputStream.use { out ->
+            var off = 0
+            var lastReport = 0L
+            while (off < body.size) {
+                val n = minOf(32 * 1024, body.size - off)
+                out.write(body, off, n)
+                off += n
+                val now = System.currentTimeMillis()
+                if (now - lastReport > 150 || off == body.size) {
+                    lastReport = now
+                    progress((off.toLong() * bytes.size / body.size).toInt())
+                }
+            }
+        }
         val code = c.responseCode
         c.disconnect()
         return code in 200..299

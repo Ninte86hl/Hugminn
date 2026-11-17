@@ -130,6 +130,7 @@ object Device {
         Root.exec("appops set ${ctx.packageName} WRITE_SETTINGS allow")
         Root.exec("pm grant ${ctx.packageName} android.permission.ACCESS_FINE_LOCATION")
         Root.exec("pm grant ${ctx.packageName} android.permission.BLUETOOTH_CONNECT")
+        Root.exec("pm grant ${ctx.packageName} android.permission.POST_NOTIFICATIONS")
     }
 }
 
