@@ -52,17 +52,25 @@ object Probe {
         }
     }
 
-    fun all(ctx: Context): LinkedHashMap<String, String> = linkedMapOf(
-        "Gerät" to safe { device(ctx) },
-        "Root-Dienst (PServerBinder)" to safe { rootInfo(ctx) },
-        "Bekannte Einstellungen (ohne Root gelesen)" to safe { knownKeys(ctx) },
-        "Systemeinstellungen (alle)" to safe { settingsDump(ctx) },
-        "Systemeigenschaften (getprop)" to safe { props() },
-        "Eingabegeräte" to safe { inputDevices(ctx) },
-        "Lesbarkeit ohne Root" to safe { readability() },
-        "Hardware, Dienste, Pakete (Root)" to safe { hardware(ctx) },
-        "Installierte relevante Apps" to safe { packages(ctx) }
-    )
+    fun all(ctx: Context, progress: (String) -> Unit = {}): LinkedHashMap<String, String> {
+        val steps = listOf<Pair<String, () -> String>>(
+            "Gerät" to { device(ctx) },
+            "Root-Dienst (PServerBinder)" to { rootInfo(ctx) },
+            "Bekannte Einstellungen (ohne Root gelesen)" to { knownKeys(ctx) },
+            "Systemeinstellungen (alle)" to { settingsDump(ctx) },
+            "Systemeigenschaften (getprop)" to { props() },
+            "Eingabegeräte" to { inputDevices(ctx) },
+            "Lesbarkeit ohne Root" to { readability() },
+            "Hardware, Dienste, Pakete (Root)" to { hardware(ctx, progress) },
+            "Installierte relevante Apps" to { packages(ctx) }
+        )
+        val out = LinkedHashMap<String, String>()
+        steps.forEachIndexed { i, (name, work) ->
+            progress("${i + 1}/${steps.size} · $name")
+            out[name] = safe(work)
+        }
+        return out
+    }
 
     fun device(ctx: Context): String = buildString {
         appendLine("Hersteller: ${Build.MANUFACTURER}   Marke: ${Build.BRAND}")
@@ -183,12 +191,13 @@ object Probe {
         }
     }
 
-    fun hardware(ctx: Context): String {
+    fun hardware(ctx: Context, progress: (String) -> Unit = {}): String {
         if (!Root.available()) return "Nur mit Root-Dienst möglich."
         val sections = listOf("leds", "cpu", "gpu", "thermal", "cooling", "fan", "power", "backlight", "input", "packages", "services", "surfaceflinger")
-        return sections.joinToString("\n\n") { sec ->
-            "## $sec\n" + (Root.runAsset(ctx, "hardware.sh", sec, timeoutMs = 15_000)?.let { redact(it) } ?: "keine Antwort")
-        }
+        return sections.mapIndexed { i, sec ->
+            progress("8/9 · Hardware: $sec (${i + 1}/${sections.size})")
+            "## $sec\n" + (Root.runAsset(ctx, "hardware.sh", sec, timeoutMs = 8_000)?.let { redact(it) } ?: "keine Antwort")
+        }.joinToString("\n\n")
     }
 
     fun packages(ctx: Context): String = buildString {

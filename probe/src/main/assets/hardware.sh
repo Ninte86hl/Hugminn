@@ -49,12 +49,12 @@ input)
   cat /proc/bus/input/devices 2>&1
   ;;
 packages)
-  pm list packages -f 2>/dev/null | grep -iE 'retroid|com\.ro\.|com\.rp\.|odin|ayn|moorechip|ayaneo|anbernic'
+  timeout 5 pm list packages -f 2>/dev/null | grep -iE 'retroid|com\.ro\.|com\.rp\.|odin|ayn|moorechip|ayaneo|anbernic'
   ;;
 services)
-  service list 2>&1
+  timeout 5 service list 2>&1
   ;;
 surfaceflinger)
-  dumpsys SurfaceFlinger --list 2>&1 | head -40
+  timeout 5 dumpsys SurfaceFlinger --list 2>&1 | head -40
   ;;
 esac

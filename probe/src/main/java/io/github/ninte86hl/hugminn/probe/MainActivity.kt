@@ -320,7 +320,11 @@ class MainActivity : Activity() {
         page("Gerät einlesen", "Lese alle Infos ein … das kann bis zu einer Minute dauern.")
         busy = true
         Thread {
-            val sections = Probe.all(this)
+            val started = System.currentTimeMillis()
+            val sections = Probe.all(this) { step ->
+                val sec = (System.currentTimeMillis() - started) / 1000
+                ui.post { if (this.step == Step.READ) body.text = "Lese alle Infos ein …\n\n$step\n($sec s)" }
+            }
             ui.post { onReadDone(sections) }
         }.start()
     }
@@ -633,7 +637,7 @@ class MainActivity : Activity() {
     private fun expertReadAll() {
         body.text = "Lese alles ein …"
         background({
-            val s = Probe.all(this)
+            val s = Probe.all(this) { p -> ui.post { body.text = "Lese alles ein … $p" } }
             report.putAll(s)
             s.entries.joinToString("\n\n") { "### ${it.key}\n${it.value}" }
         }) {
@@ -794,7 +798,7 @@ class MainActivity : Activity() {
     // ---------- Report ----------
 
     private fun fullReport(): String = buildString {
-        appendLine("Hugminn Probe 0.4.1 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+        appendLine("Hugminn Probe 0.4.2 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         appendLine("Gerät: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE}), Android ${Build.VERSION.RELEASE}")
         appendLine("Persönliche Werte (Seriennummer, Konten, WLAN, MAC usw.) wurden entfernt.")
         appendLine()
