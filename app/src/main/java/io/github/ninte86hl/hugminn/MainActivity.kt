@@ -189,6 +189,12 @@ class MainActivity : Activity() {
         }
 
         val look = section("Darstellung")
+        row(look, "Stil", "Pixel: Pixelschrift und Pixelecken passend zum Retroid Pocket Classic/Dual", { prefs.uiStyle.label }) {
+            prefs.uiStyle = cycle(UiStyle.values().toList(), prefs.uiStyle)
+        }
+        row(look, "Kachelfarbe", "Farbe aktiver Kacheln im Control Center", { TILE_COLORS[prefs.tileColor] ?: "" }) {
+            prefs.tileColor = cycle(TILE_COLORS.keys.toList(), prefs.tileColor)
+        }
         row(look, "Farbschema", "OLED-Schwarz: echtes Schwarz als Hintergrund, spart auf OLED-Bildschirmen Strom", { prefs.theme.label }) {
             prefs.theme = cycle(Theme.values().toList(), prefs.theme)
             content.post { build() } // all colours change
@@ -213,7 +219,7 @@ class MainActivity : Activity() {
         row(ccs, "Form der Kacheln", null, { prefs.tileShape.label }) {
             prefs.tileShape = cycle(TileShape.values().toList(), prefs.tileShape)
         }
-        ccs.addView(text("Angezeigte Kacheln. Reihenfolge ändern: im Control Center Y drücken. Mehr als 8 werden auf Seiten verteilt (LB/RB).", 13f, pal.onSurfaceVariant).apply {
+        ccs.addView(text("Angezeigte Kacheln. Layout, Reihenfolge und Farben: im Control Center Y drücken. Mehr als 8 werden auf Seiten verteilt (LB/RB).", 13f, pal.onSurfaceVariant).apply {
             setPadding(0, d(10), 0, d(2))
         })
         TileCatalog.all.forEach { (id, name) ->

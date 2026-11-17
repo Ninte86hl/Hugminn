@@ -213,3 +213,85 @@ class DpadView(ctx: Context, pal: Palette, private val sizeDp: Int) : View(ctx) 
         c.drawPath(t, hole)
     }
 }
+
+/** Visual style of Hugminn's own screens. */
+enum class UiStyle(val label: String) { MODERN("Modern"), PIXEL("Pixel") }
+
+/**
+ * Shapes and fonts for the chosen style. "Pixel" (matching the Retroid Pocket Classic/Dual design
+ * line) uses the Pixelify Sans font (SIL Open Font License) and notched, square-pixel corners.
+ */
+object Look {
+    @Volatile private var regular: Typeface? = null
+    @Volatile private var bold: Typeface? = null
+
+    fun pixel(ctx: Context) = Prefs(ctx).uiStyle == UiStyle.PIXEL
+
+    private fun pixelFont(ctx: Context, b: Boolean): Typeface {
+        val cached = if (b) bold else regular
+        if (cached != null) return cached
+        val tf = try {
+            Typeface.Builder(ctx.assets, "fonts/PixelifySans.ttf").setFontVariationSettings("'wght' ${if (b) 700 else 450}").build()
+        } catch (t: Throwable) {
+            Typeface.MONOSPACE
+        }
+        if (b) bold = tf else regular = tf
+        return tf
+    }
+
+    fun font(ctx: Context, pixel: Boolean, b: Boolean): Typeface =
+        if (pixel) pixelFont(ctx, b) else Typeface.create(Typeface.DEFAULT, if (b) Typeface.BOLD else Typeface.NORMAL)
+
+    /** Background shape: rounded (modern) or with stepped pixel corners. */
+    fun shape(ctx: Context, pixel: Boolean, color: Int, radius: Float, stroke: Int = 0, strokeColor: Int = 0): android.graphics.drawable.Drawable =
+        if (pixel) PixelShape(color, ctx.dp(3).toFloat(), if (radius > ctx.dp(20)) 3 else 2, stroke.toFloat(), strokeColor)
+        else rounded(color, radius, stroke, strokeColor)
+}
+
+/** Rectangle with stepped corners like pixel art; [steps] pixel steps of [unit] size per corner. */
+class PixelShape(private val color: Int, private val unit: Float, private val steps: Int, private val stroke: Float, private val strokeColor: Int) :
+    android.graphics.drawable.Drawable() {
+    private val fill = android.graphics.Paint().apply { this.color = this@PixelShape.color }
+    private val line = android.graphics.Paint().apply {
+        style = android.graphics.Paint.Style.STROKE
+        strokeWidth = stroke
+        this.color = strokeColor
+    }
+
+    private fun path(r: android.graphics.RectF): android.graphics.Path {
+        val p = android.graphics.Path()
+        val u = unit
+        val n = steps
+        p.moveTo(r.left + u * n, r.top)
+        p.lineTo(r.right - u * n, r.top)
+        for (i in n - 1 downTo 0) { p.lineTo(r.right - u * i, r.top + u * (n - 1 - i)); p.lineTo(r.right - u * i, r.top + u * (n - i)) }
+        p.lineTo(r.right, r.bottom - u * n)
+        for (i in 1..n) { p.lineTo(r.right - u * (i - 1), r.bottom - u * (n - i)); p.lineTo(r.right - u * i, r.bottom - u * (n - i)) }
+        p.lineTo(r.left + u * n, r.bottom)
+        for (i in n - 1 downTo 0) { p.lineTo(r.left + u * i, r.bottom - u * (n - 1 - i)); p.lineTo(r.left + u * i, r.bottom - u * (n - i)) }
+        p.lineTo(r.left, r.top + u * n)
+        for (i in 1..n) { p.lineTo(r.left + u * (i - 1), r.top + u * (n - i)); p.lineTo(r.left + u * i, r.top + u * (n - i)) }
+        p.close()
+        return p
+    }
+
+    override fun draw(c: android.graphics.Canvas) {
+        val b = android.graphics.RectF(bounds)
+        if (android.graphics.Color.alpha(color) > 0) c.drawPath(path(b), fill)
+        if (stroke > 0) {
+            val h = stroke / 2
+            c.drawPath(path(android.graphics.RectF(b.left + h, b.top + h, b.right - h, b.bottom - h)), line)
+        }
+    }
+
+    override fun setAlpha(alpha: Int) {}
+    override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+}
+
+/** Black or white, whichever reads better on [bg]. */
+fun onColor(bg: Int): Int {
+    val l = (0.299 * Color.red(bg) + 0.587 * Color.green(bg) + 0.114 * Color.blue(bg)) / 255
+    return if (l > 0.6) 0xFF1B1B1F.toInt() else Color.WHITE
+}

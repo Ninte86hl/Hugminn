@@ -9,7 +9,7 @@ import android.view.MotionEvent
 import android.view.View
 
 /** Round gauge like on the AYN Thor: arc for the load, value and unit in the middle, label on top. */
-class RingView(ctx: Context, private val pal: Palette, private val label: String, private val color: Int) : View(ctx) {
+class RingView(ctx: Context, private val pal: Palette, private val label: String, private val color: Int, private val pixel: Boolean = false) : View(ctx) {
     private var fraction = 0f
     private var value = "–"
     private var unit = ""
@@ -48,17 +48,29 @@ class RingView(ctx: Context, private val pal: Palette, private val label: String
         val cy = height / 2f
         val r = size / 2f - stroke
         val box = RectF(cx - r, cy - r, cx + r, cy + r)
-        c.drawArc(box, 135f, 270f, false, track)
-        if (fraction > 0f) c.drawArc(box, 135f, 270f * fraction, false, arc)
-        text.typeface = Typeface.DEFAULT
+        if (pixel) {
+            // 18 square segments instead of a smooth arc
+            track.strokeCap = Paint.Cap.BUTT
+            arc.strokeCap = Paint.Cap.BUTT
+            val n = 18
+            val seg = 270f / n
+            val lit = Math.round(fraction * n)
+            for (i in 0 until n) c.drawArc(box, 135f + i * seg, seg * 0.62f, false, if (i < lit) arc else track)
+        } else {
+            c.drawArc(box, 135f, 270f, false, track)
+            if (fraction > 0f) c.drawArc(box, 135f, 270f * fraction, false, arc)
+        }
+        val regular = Look.font(context, pixel, false)
+        val bold = Look.font(context, pixel, true)
+        text.typeface = regular
         text.color = pal.onSurfaceVariant
         text.textSize = size * 0.12f
         c.drawText(label, cx, cy - size * 0.17f, text)
-        text.typeface = Typeface.DEFAULT_BOLD
+        text.typeface = bold
         text.color = pal.onSurface
         text.textSize = size * 0.21f
         c.drawText(value, cx, cy + size * 0.08f, text)
-        text.typeface = Typeface.DEFAULT
+        text.typeface = regular
         text.color = pal.onSurfaceVariant
         text.textSize = size * 0.11f
         c.drawText(unit, cx, cy + size * 0.25f, text)
@@ -73,6 +85,7 @@ class BigSlider(
     private val label: String,
     private val max: Int,
     initial: Int,
+    private val pixel: Boolean = false,
     private val onChange: (Int) -> Unit,
 ) : View(ctx) {
     var value = initial.coerceIn(0, max)
@@ -105,10 +118,27 @@ class BigSlider(
         val h = height.toFloat()
         val w = width.toFloat()
         val r = h / 2f
-        c.drawRoundRect(0f, 0f, w, h, r, r, track)
         val fw = (h + (w - h) * value / max.coerceAtLeast(1).toFloat())
-        c.drawRoundRect(0f, 0f, fw, h, r, r, fill)
+        if (pixel) {
+            Look.shape(context, true, pal.surfaceHighest, 0f).apply { setBounds(0, 0, w.toInt(), h.toInt()) }.draw(c)
+            // filled part as square blocks
+            val n = 20
+            val gap = h * 0.08f
+            val bw = (w - h * 0.2f) / n
+            val lit = Math.round(value.toFloat() / max.coerceAtLeast(1) * n)
+            for (i in 0 until lit) {
+                val x = h * 0.1f + i * bw
+                c.drawRect(x + gap / 2, h * 0.14f, x + bw - gap / 2, h * 0.86f, fill)
+            }
+        } else {
+            c.drawRoundRect(0f, 0f, w, h, r, r, track)
+            c.drawRoundRect(0f, 0f, fw, h, r, r, fill)
+        }
         // icon inside the filled part
+        if (pixel) {
+            drawLabel(c, w, h, fw)
+            return
+        }
         val isz = h * 0.5f
         c.save()
         c.translate(h * 0.25f + (h - isz) / 4f, (h - isz) / 2f)
@@ -118,13 +148,18 @@ class BigSlider(
         iconView.layout(0, 0, context.dp(22), context.dp(22))
         iconView.draw(c)
         c.restore()
+        drawLabel(c, w, h, fw)
+    }
+
+    private fun drawLabel(c: Canvas, w: Float, h: Float, fw: Float) {
         // label + percent on the right
         text.textSize = h * 0.36f
+        text.typeface = Look.font(context, pixel, true)
         text.textAlign = Paint.Align.RIGHT
         val pct = value * 100 / max.coerceAtLeast(1)
         val fm = text.fontMetrics
         val baseline = h / 2f - (fm.ascent + fm.descent) / 2f
-        text.color = if (fw > w - h * 0.4f) pal.onPrimary else pal.onSurface
+        text.color = if (!pixel && fw > w - h * 0.4f) pal.onPrimary else pal.onSurface
         c.drawText("$label  $pct %", w - h * 0.45f, baseline, text)
     }
 }

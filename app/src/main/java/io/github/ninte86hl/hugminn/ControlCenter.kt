@@ -28,7 +28,7 @@ import kotlin.math.abs
  */
 class ControlCenter(private val svc: HugminnService) {
     private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null)
-    private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val run: (() -> Unit)?)
+    private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val swatch: Int = 0, val run: (() -> Unit)?)
 
     var isOpen = false
         private set
@@ -125,11 +125,13 @@ class ControlCenter(private val svc: HugminnService) {
 
     // ---------- layout helpers ----------
 
+    private var pixel = false
+
     private fun text(s: String, sp: Float, color: Int, bold: Boolean = false) = TextView(svc).apply {
         text = s
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
         setTextColor(color)
-        if (bold) setTypeface(typeface, Typeface.BOLD)
+        typeface = Look.font(svc, pixel, bold)
         maxLines = 1
         ellipsize = TextUtils.TruncateAt.END
     }
@@ -138,17 +140,26 @@ class ControlCenter(private val svc: HugminnService) {
     private val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
     private val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
 
+    private fun shape(color: Int, radius: Float, stroke: Int = 0, strokeColor: Int = 0) = Look.shape(svc, pixel, color, radius, stroke, strokeColor)
+
     private fun refreshAll() = svc.ui.postDelayed({ refreshers.forEach { it() } }, 300)
 
+    /** Colour of active tiles: chosen in the editor, or the Material You accent. */
+    private fun tileOn() = svc.prefs.tileColor.takeIf { it != 0 } ?: pal.primary
+    private fun tileOnFg() = if (svc.prefs.tileColor == 0) pal.onPrimary else onColor(svc.prefs.tileColor)
+
+    private var gearItem: Item? = null
+
     private fun build(): View {
+        pixel = svc.prefs.uiStyle == UiStyle.PIXEL
         val panel = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(pal.surface)
-            setPadding(28 * d, 16 * d, 28 * d, 12 * d)
+            setPadding(28 * d, 14 * d, 28 * d, 12 * d)
             isClickable = true
         }
 
-        // Header
+        // Header with a permanent button for Android's own settings
         val header = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(text("Huginn", 20f, pal.primary, bold = true))
         header.addView(text("  ·  Control Center", 15f, pal.onSurfaceVariant), lp(0, WRAP, 1f))
@@ -159,15 +170,31 @@ class ControlCenter(private val svc: HugminnService) {
             format12Hour = "h:mm"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             setTextColor(pal.onSurface)
-            setTypeface(typeface, Typeface.BOLD)
+            typeface = Look.font(svc, pixel, true)
         })
+        val gear = FrameLayout(svc).apply {
+            background = shape(pal.surfaceHighest, 20f * d)
+            addView(IconView(svc, IconView.Kind.GEAR, 22).apply { setColor(pal.onSurface) },
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+            setOnClickListener { openSystem(Settings.ACTION_SETTINGS) }
+        }
+        header.addView(gear, lp(40 * d, 40 * d).apply { marginStart = 16 * d })
+        gearItem = Item(gear, { openSystem(Settings.ACTION_SETTINGS) })
         panel.addView(header)
         graphUpdates += { s -> battery.text = "${s.batPct} %${if (s.charging) " ⚡" else ""}" }
 
+        // Body: the user's own layout in two columns
+        val (left, right) = svc.prefs.ccLayout
         val body = LinearLayout(svc).apply { setPadding(0, 12 * d, 0, 8 * d) }
-        body.addView(stats(), lp(0, MATCH, 1f))
-        body.addView(View(svc), lp(14 * d, MATCH))
-        body.addView(controls(), lp(0, MATCH, 1.15f))
+        tiles.clear()
+        tileGrid = null
+        sliderItems.clear()
+        val cols = listOf(left, right).filter { it.isNotEmpty() }
+        cols.forEachIndexed { i, ids ->
+            if (i > 0) body.addView(View(svc), lp(14 * d, MATCH))
+            body.addView(column(ids), lp(0, MATCH, if (ids.contains("tiles")) 1.15f else 1f))
+        }
+        if (cols.isEmpty()) body.addView(text("Alles ausgeblendet – mit Y bearbeiten", 15f, pal.onSurfaceVariant), lp(MATCH, WRAP))
         panel.addView(body, lp(MATCH, 0, 1f))
 
         val footer = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.END }
@@ -177,47 +204,98 @@ class ControlCenter(private val svc: HugminnService) {
         }
         if (!svc.prefs.githubToken.isNullOrBlank()) hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback")
         if (pageCount() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
-        hint(KeyEvent.KEYCODE_BUTTON_Y, "Kacheln")
+        hint(KeyEvent.KEYCODE_BUTTON_Y, "Bearbeiten")
         hint(KeyEvent.KEYCODE_BUTTON_A, "Auswählen")
         hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück")
         panel.addView(footer)
+        fillPage()
         return panel
+    }
+
+    /** One column: blocks top to bottom; neighbouring small blocks share a row. */
+    private fun column(ids: List<String>): View {
+        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        val blocks = ids.mapNotNull { CcBlock.of(it) }
+        var i = 0
+        var first = true
+        fun add(v: View, params: LinearLayout.LayoutParams) {
+            if (!first) params.topMargin = 10 * d
+            first = false
+            col.addView(v, params)
+        }
+        while (i < blocks.size) {
+            val b = blocks[i]
+            if (b.small) {
+                val row = LinearLayout(svc)
+                var n = 0
+                while (i < blocks.size && blocks[i].small && n < 4) {
+                    row.addView(smallBlock(blocks[i]), lp(0, MATCH, 1f).apply { if (n > 0) marginStart = 10 * d })
+                    i++
+                    n++
+                }
+                add(row, lp(MATCH, 0, 1f))
+                continue
+            }
+            when (b) {
+                CcBlock.TILES -> add(tilesBlock(), lp(MATCH, 0, 2.2f))
+                CcBlock.FPS -> add(fpsBlock(), lp(MATCH, 0, 1.3f))
+                CcBlock.BRIGHTNESS -> add(slider(IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc)) { Device.setBrightness(svc, it) }, lp(MATCH, 50 * d))
+                CcBlock.VOLUME -> {
+                    val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                    add(slider(IconView.Kind.SPEAKER, "Lautstärke", max, audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
+                        audio.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
+                    }, lp(MATCH, 50 * d))
+                }
+                else -> {}
+            }
+            i++
+        }
+        return col
+    }
+
+    private fun slider(icon: IconView.Kind, label: String, max: Int, value: Int, set: (Int) -> Unit): View {
+        val v = BigSlider(svc, pal, icon, label, max, value, pixel, set)
+        sliderItems += Item(v, null) { dir -> v.step(5 * dir) }
+        return v
     }
 
     private fun card() = LinearLayout(svc).apply {
         orientation = LinearLayout.VERTICAL
-        background = rounded(pal.surfaceHigh, 22f * d)
-        setPadding(16 * d, 12 * d, 16 * d, 12 * d)
+        background = shape(pal.surfaceHigh, 22f * d)
+        setPadding(14 * d, 10 * d, 14 * d, 10 * d)
     }
 
-    // ---------- left: frame rate, temperature, fan, gauges (AYN Thor style) ----------
-
-    private fun stats(): View {
-        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-
-        // Frame rate
+    private fun fpsBlock(): View {
         val fps = card().apply { gravity = Gravity.CENTER }
         val modeChip = text("", 13f, pal.onPrimaryContainer, bold = true).apply {
-            background = rounded(pal.primaryContainer, 14f * d)
+            background = shape(pal.primaryContainer, 14f * d)
             setPadding(14 * d, 4 * d, 14 * d, 4 * d)
         }
-        val fpsRow = LinearLayout(svc).apply { gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL }
-        val fpsValue = text("–", 54f, pal.onSurface, bold = true)
-        fpsRow.addView(fpsValue)
-        fpsRow.addView(text(" FPS", 18f, pal.onSurfaceVariant, bold = true).apply { setPadding(0, 0, 0, 12 * d) })
+        val row = LinearLayout(svc).apply { gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL }
+        val value = text("–", 50f, pal.onSurface, bold = true)
+        row.addView(value)
+        row.addView(text(" FPS", 18f, pal.onSurfaceVariant, bold = true).apply { setPadding(0, 0, 0, 10 * d) })
         fps.addView(modeChip)
-        fps.addView(fpsRow)
+        fps.addView(row)
         fps.addView(text("Aktuelle Bildrate", 12f, pal.onSurfaceVariant))
-        col.addView(fps, lp(MATCH, 0, 1.2f).apply { bottomMargin = 10 * d })
         val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
         graphUpdates += { s ->
-            fpsValue.text = if (s.fps >= 0) "${s.fps}" else "–"
+            value.text = if (s.fps >= 0) "${s.fps}" else "–"
             modeChip.text = "${Math.round(display?.refreshRate ?: 60f)} Hz Modus"
         }
+        return fps
+    }
 
-        // Temperature and fan
-        val small = LinearLayout(svc)
-        fun smallCard(icon: IconView.Kind, title: String): Pair<View, Pair<TextView, TextView>> {
+    private fun smallBlock(b: CcBlock): View {
+        val gp = svc.prefs.gaugePalette
+        fun ring(label: String, color: Int, update: RingView.(Metrics.Sample) -> Unit): View {
+            val c = card().apply { setPadding(4 * d, 4 * d, 4 * d, 4 * d) }
+            val r = RingView(svc, pal, label, color, pixel)
+            c.addView(r, lp(MATCH, MATCH))
+            graphUpdates += { s -> r.update(s) }
+            return c
+        }
+        fun info(icon: IconView.Kind, title: String, update: (TextView, TextView, Metrics.Sample) -> Unit): View {
             val c = card()
             val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
             head.addView(IconView(svc, icon, 18).apply { setColor(pal.onSurfaceVariant) })
@@ -225,54 +303,52 @@ class ControlCenter(private val svc: HugminnService) {
             val big = text("–", 24f, pal.onSurface, bold = true)
             val sub = text("", 11f, pal.onSurfaceVariant)
             c.addView(head)
+            c.addView(View(svc), lp(1, 0, 1f))
             c.addView(big)
             c.addView(sub)
-            return c to (big to sub)
+            graphUpdates += { s -> update(big, sub, s) }
+            return c
         }
-        val (tempCard, temp) = smallCard(IconView.Kind.THERMO, "TEMPERATUR")
-        val (fanCard, fan) = smallCard(IconView.Kind.FAN, "LÜFTER")
-        small.addView(tempCard, lp(0, MATCH, 1f).apply { marginEnd = 10 * d })
-        small.addView(fanCard, lp(0, MATCH, 1f))
-        col.addView(small, lp(MATCH, 0, 0.75f).apply { bottomMargin = 10 * d })
-        val gp = svc.prefs.gaugePalette
-        graphUpdates += { s ->
-            temp.first.text = if (s.cpuTemp > 0) "${s.cpuTemp.toInt()} °C" else "–"
-            // 40 °C cool … 85 °C hot
-            temp.first.setTextColor(if (s.cpuTemp > 0 && gp != GaugePalette.MONO) GaugeColors.of(pal, gp, (s.cpuTemp - 40f) / 45f) else pal.onSurface)
-            temp.second.text = listOfNotNull(
-                s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()} °C" },
-                s.batTemp.takeIf { it > 0 }?.let { "Akku ${it.toInt()} °C" },
-            ).joinToString(" · ")
-            fan.first.text = Device.fanLabel(svc)
-            fan.second.text = Device.fanSpeed(svc)?.let { "Drehzahl $it" } ?: ""
+        return when (b) {
+            CcBlock.TEMP -> info(IconView.Kind.THERMO, "TEMPERATUR") { big, sub, s ->
+                big.text = if (s.cpuTemp > 0) "${s.cpuTemp.toInt()} °C" else "–"
+                big.setTextColor(if (s.cpuTemp > 0 && gp != GaugePalette.MONO) GaugeColors.of(pal, gp, (s.cpuTemp - 40f) / 45f) else pal.onSurface)
+                sub.text = listOfNotNull(
+                    s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()} °C" },
+                    s.batTemp.takeIf { it > 0 }?.let { "Akku ${it.toInt()} °C" },
+                ).joinToString(" · ")
+            }
+            CcBlock.FAN -> info(IconView.Kind.FAN, "LÜFTER") { big, sub, _ ->
+                big.text = Device.fanLabel(svc)
+                sub.text = Device.fanSpeed(svc)?.let { "Drehzahl $it" } ?: ""
+            }
+            CcBlock.BATTERY -> info(IconView.Kind.PLUG, "AKKU") { big, sub, s ->
+                big.text = "${s.batPct} %"
+                big.setTextColor(if (gp != GaugePalette.MONO) GaugeColors.of(pal, gp, 1f - s.batPct / 100f) else pal.onSurface)
+                sub.text = "%.1f W".format(s.watts) + if (s.charging) " · lädt" else ""
+            }
+            CcBlock.CPU -> ring("CPU", pal.primary) { s ->
+                setColor(GaugeColors.of(pal, gp, s.cpuPct / 100f))
+                set(s.cpuPct / 100f, "%.2f".format(s.cpuMhz / 1000f), "GHz · ${s.cpuPct.toInt()} %")
+            }
+            CcBlock.GPU -> ring("GPU", pal.primary) { s ->
+                setColor(GaugeColors.of(pal, gp, s.gpuPct / 100f))
+                set(s.gpuPct / 100f, "${s.gpuMhz}", "MHz · ${s.gpuPct.toInt()} %")
+            }
+            CcBlock.POWER -> ring("LEISTUNG", pal.primary) { s ->
+                setColor(GaugeColors.of(pal, gp, s.watts / 15f))
+                set(s.watts / 15f, "%.1f".format(s.watts), if (s.charging) "W · lädt" else "W")
+            }
+            CcBlock.RAM -> ring("RAM", pal.primary) { s ->
+                val pct = if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f
+                setColor(GaugeColors.of(pal, gp, pct))
+                set(pct, "%.1f".format(s.ramUsedMb / 1024f), "GB · ${(pct * 100).toInt()} %")
+            }
+            else -> View(svc)
         }
-
-        // Gauges
-        val rings = card().apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(8 * d, 8 * d, 8 * d, 8 * d)
-        }
-        val cpu = RingView(svc, pal, "CPU", pal.primary)
-        val gpu = RingView(svc, pal, "GPU", 0xFF4FC3F7.toInt())
-        val pwr = RingView(svc, pal, "LEISTUNG", 0xFFFFB74D.toInt())
-        val ram = RingView(svc, pal, "RAM", 0xFF81C784.toInt())
-        listOf(cpu, gpu, pwr, ram).forEach { rings.addView(it, lp(0, MATCH, 1f)) }
-        col.addView(rings, lp(MATCH, 0, 1f))
-        graphUpdates += { s ->
-            cpu.setColor(GaugeColors.of(pal, gp, s.cpuPct / 100f))
-            gpu.setColor(GaugeColors.of(pal, gp, s.gpuPct / 100f))
-            pwr.setColor(GaugeColors.of(pal, gp, s.watts / 15f))
-            ram.setColor(GaugeColors.of(pal, gp, if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f))
-            cpu.set(s.cpuPct / 100f, "%.2f".format(s.cpuMhz / 1000f), "GHz · ${s.cpuPct.toInt()} %")
-            gpu.set(s.gpuPct / 100f, "${s.gpuMhz}", "MHz · ${s.gpuPct.toInt()} %")
-            pwr.set(s.watts / 15f, "%.1f".format(s.watts), if (s.charging) "W · lädt" else "W")
-            val pct = if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f
-            ram.set(pct, "%.1f".format(s.ramUsedMb / 1024f), "GB · ${(pct * 100).toInt()} %")
-        }
-        return col
     }
 
-    // ---------- right: quick tiles (chosen in the settings) and sliders ----------
+    // ---------- quick tiles ----------
 
     private data class Tile(val title: String, val icon: IconView.Kind, val state: () -> String?, val on: () -> Boolean, val act: () -> Unit)
 
@@ -381,10 +457,8 @@ class ControlCenter(private val svc: HugminnService) {
         page = 0
     }
 
-    private fun controls(): View {
-        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+    private fun tilesBlock(): View {
         loadTiles()
-
         val tilesCard = card().apply { setPadding(8 * d, 12 * d, 8 * d, 8 * d) }
         val grid = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         tileGrid = grid
@@ -392,58 +466,48 @@ class ControlCenter(private val svc: HugminnService) {
         val dotRow = LinearLayout(svc).apply { gravity = Gravity.CENTER }
         dots = dotRow
         tilesCard.addView(dotRow, lp(MATCH, 10 * d))
-        col.addView(tilesCard, lp(MATCH, 0, 1f).apply { bottomMargin = 10 * d })
-
-        sliderItems.clear()
-        val bright = BigSlider(svc, pal, IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc)) { Device.setBrightness(svc, it) }
-        val maxVol = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        val vol = BigSlider(svc, pal, IconView.Kind.SPEAKER, "Lautstärke", maxVol, audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
-            audio.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
-        }
-        col.addView(bright, lp(MATCH, 50 * d).apply { bottomMargin = 10 * d })
-        col.addView(vol, lp(MATCH, 50 * d))
-        sliderItems += Item(bright, null) { dir -> bright.step(5 * dir) }
-        sliderItems += Item(vol, null) { dir -> vol.step(5 * dir) }
-        fillPage()
-        return col
+        return tilesCard
     }
 
     /** Builds the tiles of the current page (4 per row, 2 rows) and the item list for the D-pad. */
     private fun fillPage() {
-        val grid = tileGrid ?: return
-        grid.removeAllViews()
         refreshers.clear()
         val tileItems = mutableListOf<Item>()
-        val shown = tiles.drop(page * perPage).take(perPage)
-        shown.chunked(4).forEach { chunk ->
-            val row = LinearLayout(svc)
-            chunk.forEach { t ->
-                val (view, focusView) = tileView(t)
-                row.addView(view, lp(0, MATCH, 1f))
-                tileItems += Item(focusView, t.act)
+        tileGrid?.let { grid ->
+            grid.removeAllViews()
+            val shown = tiles.drop(page * perPage).take(perPage)
+            shown.chunked(4).forEach { chunk ->
+                val row = LinearLayout(svc)
+                chunk.forEach { t ->
+                    val (view, focusView) = tileView(t)
+                    row.addView(view, lp(0, MATCH, 1f))
+                    tileItems += Item(focusView, t.act)
+                }
+                repeat(4 - chunk.size) { row.addView(View(svc), lp(0, 1, 1f)) }
+                grid.addView(row, lp(MATCH, 0, 1f))
             }
-            repeat(4 - chunk.size) { row.addView(View(svc), lp(0, 1, 1f)) }
-            grid.addView(row, lp(MATCH, 0, 1f))
+            if (shown.size <= 4) grid.addView(View(svc), lp(MATCH, 0, 1f))
+            if (shown.isEmpty()) grid.addView(text("Keine Kacheln – mit Y auswählen", 14f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
         }
-        if (shown.size <= 4) grid.addView(View(svc), lp(MATCH, 0, 1f))
         dots?.let { dr ->
             dr.removeAllViews()
             if (pageCount() > 1) repeat(pageCount()) { i ->
-                dr.addView(View(svc).apply { background = rounded(if (i == page) pal.primary else pal.outline, 4f * d) },
+                dr.addView(View(svc).apply { background = shape(if (i == page) pal.primary else pal.outline, 4f * d) },
                     lp(if (i == page) 16 * d else 7 * d, 7 * d).apply { marginStart = 3 * d; marginEnd = 3 * d })
             }
         }
         items.clear()
         items += tileItems
         items += sliderItems
+        gearItem?.let { items += it }
         focus = 0
         showFocus()
     }
 
-    /** One tile: round (or rounded square) icon button with the full name below (two lines, shrinks to fit). */
+    /** One tile: round (or square) icon button with the full name below (two lines, shrinks to fit). */
     private fun tileView(t: Tile): Pair<View, View> {
         val size = 54 * d
-        val round = svc.prefs.tileShape == TileShape.ROUND
+        val round = svc.prefs.tileShape == TileShape.ROUND && !pixel
         val icon = IconView(svc, t.icon, 24)
         val button = FrameLayout(svc).apply {
             addView(icon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
@@ -454,7 +518,7 @@ class ControlCenter(private val svc: HugminnService) {
             gravity = Gravity.CENTER
             maxLines = 2
             setTextColor(pal.onSurface)
-            setTypeface(typeface, Typeface.BOLD)
+            typeface = Look.font(svc, pixel, true)
             setAutoSizeTextTypeUniformWithConfiguration(9, 13, 1, TypedValue.COMPLEX_UNIT_SP)
         }
         val state = text("", 11f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER }
@@ -468,8 +532,9 @@ class ControlCenter(private val svc: HugminnService) {
         }
         val refresh = {
             val on = t.on()
-            button.background = rounded(if (on) pal.primary else pal.surfaceHighest, if (round) size / 2f else 16f * d)
-            icon.setColor(if (on) pal.onPrimary else pal.onSurface)
+            button.background = if (round) rounded(if (on) tileOn() else pal.surfaceHighest, size / 2f)
+            else shape(if (on) tileOn() else pal.surfaceHighest, 16f * d)
+            icon.setColor(if (on) tileOnFg() else pal.onSurface)
             val st = t.state()
             state.text = st ?: ""
             state.visibility = if (st == null) View.GONE else View.VISIBLE
@@ -539,7 +604,7 @@ class ControlCenter(private val svc: HugminnService) {
         menuSel = entries.indexOfFirst { it.run != null }.coerceAtLeast(0)
         val box = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
+            background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
             setPadding(10 * d, 16 * d, 10 * d, 12 * d)
             elevation = 12f * d
             isClickable = true
@@ -557,6 +622,8 @@ class ControlCenter(private val svc: HugminnService) {
                 setPadding(0, 0, 12 * d, 0)
                 visibility = if (e.run == null && !e.checked) View.INVISIBLE else View.VISIBLE
             })
+            if (e.swatch != 0) row.addView(View(svc).apply { background = shape(e.swatch, 12f * d, 1 * d, pal.outline) },
+                lp(24 * d, 24 * d).apply { marginEnd = 12 * d })
             val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
             col.addView(text(e.label, 15f, if (e.run == null) pal.onSurfaceVariant else pal.onSurface, bold = e.checked))
             e.hint?.let { col.addView(text(it, 12f, pal.onSurfaceVariant)) }
@@ -564,9 +631,12 @@ class ControlCenter(private val svc: HugminnService) {
             list.addView(row, lp(MATCH, WRAP))
             menuRows += row
         }
-        box.addView(android.widget.ScrollView(svc).apply { addView(list) }, lp(MATCH, WRAP))
+        val tall = entries.size > 6
+        val sc = android.widget.ScrollView(svc).apply { addView(list) }
+        menuScroll = sc
+        box.addView(sc, if (tall) lp(MATCH, 0, 1f) else lp(MATCH, WRAP))
         val w = (r.width * 0.42f).toInt().coerceAtLeast(320 * d)
-        r.addView(box, FrameLayout.LayoutParams(w, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        r.addView(box, FrameLayout.LayoutParams(w, if (tall) (r.height * 0.86f).toInt() else FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
         box.scaleX = 0.96f
         box.scaleY = 0.96f
@@ -575,9 +645,16 @@ class ControlCenter(private val svc: HugminnService) {
         showMenuSel()
     }
 
+    private var menuScroll: android.widget.ScrollView? = null
+
     private fun showMenuSel() {
         menuRows.forEachIndexed { i, v ->
-            v.background = if (i == menuSel) rounded(pal.secondaryContainer, 16f * d) else null
+            v.background = if (i == menuSel) shape(pal.secondaryContainer, 16f * d) else null
+        }
+        val v = menuRows.getOrNull(menuSel) ?: return
+        menuScroll?.post {
+            val sc = menuScroll ?: return@post
+            if (v.top < sc.scrollY) sc.scrollTo(0, v.top) else if (v.bottom > sc.scrollY + sc.height) sc.scrollTo(0, v.bottom - sc.height)
         }
     }
 
@@ -608,10 +685,10 @@ class ControlCenter(private val svc: HugminnService) {
     // ---------- controller focus ----------
 
     private fun showFocus() {
-        val round = svc.prefs.tileShape == TileShape.ROUND
+        val round = svc.prefs.tileShape == TileShape.ROUND && !pixel
         items.forEachIndexed { i, it ->
             val r = if (it.onAdjust != null) it.view.height / 2f else if (round) it.view.width / 2f else 16f * d
-            it.view.foreground = if (i == focus) rounded(0, r.coerceAtLeast(12f * d), 3 * d, pal.onSurface) else null
+            it.view.foreground = if (i == focus) shape(0, r.coerceAtLeast(12f * d), 3 * d, pal.onSurface) else null
         }
     }
 
@@ -644,33 +721,85 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
-    // ---------- tile editor (Y): choose tiles and their order ----------
+    // ---------- editing (Y): layout, tiles, colours, style ----------
+
+    private fun reopen() {
+        close()
+        svc.ui.postDelayed({ open() }, 60)
+    }
+
+    private fun editMenu() {
+        showMenu("Bearbeiten", listOf(
+            MenuEntry("Layout anpassen", hint = "Bereiche ein-/ausblenden, Reihenfolge, Spalte") { layoutEditor() },
+            MenuEntry("Kacheln auswählen", hint = "Welche Kacheln, in welcher Reihenfolge") { tileEditor() },
+            MenuEntry("Kachelfarbe", hint = TILE_COLORS[svc.prefs.tileColor] ?: "") { colorMenu() },
+            MenuEntry("Form der Kacheln", hint = svc.prefs.tileShape.label) {
+                showMenu("Form der Kacheln", TileShape.values().map { t ->
+                    MenuEntry(t.label, checked = svc.prefs.tileShape == t) { svc.prefs.tileShape = t; reopen() }
+                })
+            },
+            MenuEntry("Stil", hint = svc.prefs.uiStyle.label) {
+                showMenu("Stil", UiStyle.values().map { st ->
+                    MenuEntry(if (st == UiStyle.PIXEL) "Pixel (Retroid-Pocket-Classic-Look)" else "Modern (Material You)", checked = svc.prefs.uiStyle == st) {
+                        svc.prefs.uiStyle = st
+                        reopen()
+                    }
+                })
+            },
+            MenuEntry("Farben der Anzeigen", hint = svc.prefs.gaugePalette.label) {
+                showMenu("Farben der Anzeigen", GaugePalette.values().map { g ->
+                    MenuEntry(g.label, checked = svc.prefs.gaugePalette == g) { svc.prefs.gaugePalette = g; reopen() }
+                })
+            },
+            MenuEntry("Farbschema", hint = svc.prefs.theme.label) {
+                showMenu("Farbschema", Theme.values().map { t ->
+                    MenuEntry(t.label, checked = svc.prefs.theme == t) { svc.prefs.theme = t; reopen() }
+                })
+            },
+        ))
+    }
+
+    private fun colorMenu() {
+        showMenu("Kachelfarbe", TILE_COLORS.map { (c, name) ->
+            MenuEntry(name, checked = svc.prefs.tileColor == c, swatch = if (c == 0) pal.primary else c) {
+                svc.prefs.tileColor = c
+                reopen()
+            }
+        })
+    }
+
+    /** A list split into sections (e.g. left column / right column / hidden); items move across sections. */
+    private class EditSection(val title: String, val ids: MutableList<String>)
 
     private var editView: View? = null
     private var editScroll: android.widget.ScrollView? = null
-    private val editIds = mutableListOf<String>()
-    private val editOn = mutableSetOf<String>()
-    private var editSel = 0
     private var editListView: LinearLayout? = null
+    private var editSections: List<EditSection> = emptyList()
+    private var editLabel: (String) -> String = { it }
+    private var editNote: (String) -> String = { "" }
+    private var editEnableTo = 0
+    private var editDone: () -> Unit = {}
+    private var editSel = 0
 
-    private fun openEditor() {
+    private fun flat() = editSections.flatMapIndexed { si, sec -> sec.ids.indices.map { si to it } }
+
+    private fun openEditor(title: String, sections: List<EditSection>, enableTo: Int, label: (String) -> String, note: (String) -> String, done: () -> Unit) {
         val r = root ?: return
         closeMenu()
-        val chosen = svc.prefs.ccTiles
-        editIds.clear()
-        editIds += chosen
-        editIds += TileCatalog.all.keys.filter { it !in chosen }
-        editOn.clear()
-        editOn += chosen
+        editSections = sections
+        editLabel = label
+        editNote = note
+        editEnableTo = enableTo
+        editDone = done
         editSel = 0
         val box = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
+            background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
             setPadding(12 * d, 16 * d, 12 * d, 12 * d)
             elevation = 12f * d
             isClickable = true
         }
-        box.addView(text("Kacheln bearbeiten", 18f, pal.onSurface, bold = true).apply { setPadding(12 * d, 0, 12 * d, 4 * d) })
+        box.addView(text(title, 18f, pal.onSurface, bold = true).apply { setPadding(12 * d, 0, 12 * d, 4 * d) })
         val help = LinearLayout(svc).apply {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(12 * d, 0, 12 * d, 10 * d)
@@ -679,7 +808,7 @@ class ControlCenter(private val svc: HugminnService) {
             help.addView(Glyphs.chip(svc, svc.prefs, pal, k, 20))
             help.addView(text(t, 12f, pal.onSurfaceVariant).apply { setPadding(5 * d, 0, 12 * d, 0) })
         }
-        h(KeyEvent.KEYCODE_BUTTON_A, "an/aus")
+        h(KeyEvent.KEYCODE_BUTTON_A, "ein/aus")
         h(KeyEvent.KEYCODE_BUTTON_L1, "nach oben")
         h(KeyEvent.KEYCODE_BUTTON_R1, "nach unten")
         h(KeyEvent.KEYCODE_BUTTON_B, "fertig")
@@ -689,9 +818,8 @@ class ControlCenter(private val svc: HugminnService) {
         val sc = android.widget.ScrollView(svc).apply { addView(list) }
         editScroll = sc
         box.addView(sc, lp(MATCH, 0, 1f))
-        val w = (r.width * 0.46f).toInt().coerceAtLeast(340 * d)
-        val hgt = (r.height * 0.86f).toInt()
-        r.addView(box, FrameLayout.LayoutParams(w, hgt, Gravity.CENTER))
+        val w = (r.width * 0.5f).toInt().coerceAtLeast(360 * d)
+        r.addView(box, FrameLayout.LayoutParams(w, (r.height * 0.88f).toInt(), Gravity.CENTER))
         editView = box
         renderEditor()
     }
@@ -699,69 +827,91 @@ class ControlCenter(private val svc: HugminnService) {
     private fun renderEditor() {
         val list = editListView ?: return
         list.removeAllViews()
-        val rootOk = Root.available()
-        var pos = 0
-        editIds.forEachIndexed { i, id ->
-            val on = id in editOn
-            if (on) pos++
-            val available = tileFor(id, rootOk) != null
-            val row = LinearLayout(svc).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(12 * d, 0, 12 * d, 0)
-                minimumHeight = 44 * d
-                background = if (i == editSel) rounded(pal.secondaryContainer, 16f * d) else null
-                setOnClickListener { editSel = i; toggleEdit() }
+        var flatIndex = 0
+        var selView: View? = null
+        editSections.forEachIndexed { si, sec ->
+            list.addView(text(sec.title, 13f, pal.primary, bold = true).apply { setPadding(12 * d, if (si == 0) 0 else 12 * d, 0, 4 * d) })
+            if (sec.ids.isEmpty()) list.addView(text("—", 13f, pal.outline).apply { setPadding(36 * d, 4 * d, 0, 4 * d) })
+            sec.ids.forEachIndexed { i, id ->
+                val hidden = si == editSections.lastIndex
+                val idx = flatIndex++
+                val row = LinearLayout(svc).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(12 * d, 0, 12 * d, 0)
+                    minimumHeight = 42 * d
+                    background = if (idx == editSel) shape(pal.secondaryContainer, 16f * d) else null
+                    setOnClickListener { editSel = idx; toggleEdit() }
+                }
+                row.addView(text(if (hidden) "○" else "●", 15f, if (hidden) pal.outline else pal.primary).apply { setPadding(0, 0, 12 * d, 0) })
+                row.addView(text(editLabel(id), 15f, pal.onSurface, bold = !hidden), lp(0, WRAP, 1f))
+                row.addView(text(editNote(id).ifEmpty { if (hidden) "" else "${i + 1}" }, 12f, pal.onSurfaceVariant))
+                list.addView(row, lp(MATCH, WRAP))
+                if (idx == editSel) selView = row
             }
-            row.addView(text(if (on) "●" else "○", 15f, if (on) pal.primary else pal.outline).apply { setPadding(0, 0, 12 * d, 0) })
-            row.addView(text(TileCatalog.all[id] ?: id, 15f, if (available) pal.onSurface else pal.outline, bold = on), lp(0, WRAP, 1f))
-            row.addView(text(if (!available) "nicht verfügbar" else if (on) "$pos" else "", 12f, pal.onSurfaceVariant))
-            list.addView(row, lp(MATCH, WRAP))
         }
         list.post {
-            val v = list.getChildAt(editSel) ?: return@post
+            val v = selView ?: return@post
             editScroll?.let { sc ->
-                if (v.top < sc.scrollY) sc.scrollTo(0, v.top)
+                if (v.top < sc.scrollY) sc.scrollTo(0, v.top - 30 * d)
                 else if (v.bottom > sc.scrollY + sc.height) sc.scrollTo(0, v.bottom - sc.height)
             }
         }
     }
 
     private fun toggleEdit() {
-        val id = editIds.getOrNull(editSel) ?: return
-        if (id in editOn) {
-            editOn -= id
-            // move behind the chosen ones
-            editIds.removeAt(editSel)
-            val insert = editIds.count { it in editOn }
-            editIds.add(insert, id)
-            editSel = insert
-        } else {
-            editOn += id
-            editIds.removeAt(editSel)
-            val insert = editIds.count { it in editOn } - 1
-            editIds.add(insert.coerceAtLeast(0), id)
-            editSel = insert.coerceAtLeast(0)
-        }
+        val (si, i) = flat().getOrNull(editSel) ?: return
+        val id = editSections[si].ids.removeAt(i)
+        val last = editSections.lastIndex
+        if (si == last) editSections[editEnableTo].ids.add(id) else editSections[last].ids.add(0, id)
+        editSel = flat().indexOfFirst { (s2, j) -> editSections[s2].ids[j] == id }.coerceAtLeast(0)
         renderEditor()
     }
 
+    /** Moves the selected item up/down; past the end of a section it moves into the next one. */
     private fun moveEdit(dir: Int) {
-        val id = editIds.getOrNull(editSel) ?: return
-        if (id !in editOn) return
-        val to = editSel + dir
-        if (to < 0 || to >= editIds.size || editIds[to] !in editOn) return
-        editIds[editSel] = editIds[to]
-        editIds[to] = id
-        editSel = to
+        val (si, i) = flat().getOrNull(editSel) ?: return
+        val sec = editSections[si].ids
+        val id = sec[i]
+        if (dir < 0) {
+            if (i > 0) { sec[i] = sec[i - 1]; sec[i - 1] = id }
+            else if (si > 0) { sec.removeAt(i); editSections[si - 1].ids.add(id) } else return
+        } else {
+            if (i < sec.lastIndex) { sec[i] = sec[i + 1]; sec[i + 1] = id }
+            else if (si < editSections.lastIndex) { sec.removeAt(i); editSections[si + 1].ids.add(0, id) } else return
+        }
+        editSel = flat().indexOfFirst { (s2, j) -> editSections[s2].ids[j] == id }.coerceAtLeast(0)
         renderEditor()
     }
 
     private fun closeEditor() {
-        svc.prefs.ccTiles = editIds.filter { it in editOn }
         editView?.let { v -> (v.parent as? ViewGroup)?.removeView(v) }
         editView = null
-        loadTiles()
-        fillPage()
+        editDone()
+    }
+
+    private fun layoutEditor() {
+        val (left, right) = svc.prefs.ccLayout
+        val hidden = CcBlock.values().map { it.id }.filter { it !in left && it !in right }
+        openEditor("Layout anpassen", listOf(
+            EditSection("Linke Spalte", left.toMutableList()),
+            EditSection("Rechte Spalte", right.toMutableList()),
+            EditSection("Ausgeblendet", hidden.toMutableList()),
+        ), enableTo = 1, label = { CcBlock.of(it)?.label ?: it }, note = { "" }) {
+            svc.prefs.ccLayout = editSections[0].ids.toList() to editSections[1].ids.toList()
+            reopen()
+        }
+    }
+
+    private fun tileEditor() {
+        val chosen = svc.prefs.ccTiles
+        val rootOk = Root.available()
+        openEditor("Kacheln auswählen", listOf(
+            EditSection("Angezeigt", chosen.toMutableList()),
+            EditSection("Ausgeblendet", TileCatalog.all.keys.filter { it !in chosen }.toMutableList()),
+        ), enableTo = 0, label = { TileCatalog.all[it] ?: it }, note = { if (tileFor(it, rootOk) == null) "nicht verfügbar" else "" }) {
+            svc.prefs.ccTiles = editSections[0].ids.toList()
+            reopen()
+        }
     }
 
     fun onKey(e: KeyEvent): Boolean {
@@ -769,7 +919,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (editView != null) {
             when (e.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> { editSel = (editSel - 1).coerceAtLeast(0); renderEditor() }
-                KeyEvent.KEYCODE_DPAD_DOWN -> { editSel = (editSel + 1).coerceAtMost(editIds.lastIndex); renderEditor() }
+                KeyEvent.KEYCODE_DPAD_DOWN -> { editSel = (editSel + 1).coerceAtMost((flat().size - 1).coerceAtLeast(0)); renderEditor() }
                 KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> toggleEdit()
                 KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_DPAD_LEFT -> moveEdit(-1)
                 KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_DPAD_RIGHT -> moveEdit(1)
@@ -795,7 +945,7 @@ class ControlCenter(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()
-            KeyEvent.KEYCODE_BUTTON_Y -> openEditor()
+            KeyEvent.KEYCODE_BUTTON_Y -> editMenu()
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close()
         }
         return true

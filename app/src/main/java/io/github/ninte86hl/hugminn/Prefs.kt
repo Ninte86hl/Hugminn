@@ -84,6 +84,25 @@ class Prefs(ctx: Context) {
         get() = p.getString("ccTiles", null)?.split(',')?.filter { it in TileCatalog.all } ?: TileCatalog.defaults
         set(v) = p.edit().putString("ccTiles", v.filter { it in TileCatalog.all }.distinct().joinToString(",")).apply()
 
+    var uiStyle: UiStyle
+        get() = enumOr(p.getString("uiStyle", null), UiStyle.MODERN)
+        set(v) = p.edit().putString("uiStyle", v.name).apply()
+
+    /** Colour of active tiles (0 = Material You accent). */
+    var tileColor: Int
+        get() = p.getInt("tileColor", 0)
+        set(v) = p.edit().putInt("tileColor", v).apply()
+
+    /** Control Center layout: "left blocks|right blocks", comma separated ids; missing blocks are hidden. */
+    var ccLayout: Pair<List<String>, List<String>>
+        get() {
+            val raw = p.getString("ccLayout", null) ?: return CcBlock.defaultLeft to CcBlock.defaultRight
+            val parts = raw.split('|')
+            fun list(i: Int) = parts.getOrNull(i)?.split(',')?.filter { id -> CcBlock.values().any { it.id == id } } ?: emptyList()
+            return list(0) to list(1)
+        }
+        set(v) = p.edit().putString("ccLayout", v.first.joinToString(",") + "|" + v.second.joinToString(",")).apply()
+
     var gaugePalette: GaugePalette
         get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)
         set(v) = p.edit().putString("gaugePalette", v.name).apply()

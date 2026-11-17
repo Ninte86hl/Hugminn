@@ -110,6 +110,10 @@ These projects showed what is possible on AYN and Retroid handhelds and inspired
 
 Hugminn is an independent project and is not affiliated with Retroid, AYN or any of the projects above.
 
+## Third-party assets
+
+- [Pixelify Sans](https://github.com/eifetx/Pixelify-Sans) font by Stefie Justprince, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/PixelifySans-OFL.txt`)
+
 ## Author
 
 Created by [Ninte86hl](https://github.com/Ninte86hl).
