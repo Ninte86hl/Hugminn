@@ -140,6 +140,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("gaugeBars", true)
         set(v) = p.edit().putBoolean("gaugeBars", v).apply()
 
+    /** Volume as Hugminn shows it (0-100 % in 5 % steps), -1 = not set. */
+    var volumePct: Int
+        get() = p.getInt("volumePct", -1)
+        set(v) = p.edit().putInt("volumePct", v).apply()
+
     var gaugePalette: GaugePalette
         get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)
         set(v) = p.edit().putString("gaugePalette", v.name).apply()

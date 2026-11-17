@@ -150,7 +150,7 @@ class GlyphView(ctx: Context, private val g: Glyphs.Glyph, pal: Palette, private
     }
     private val textPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = Look.font(ctx, Prefs(ctx).uiStyle == UiStyle.PIXEL, true)
         textAlign = android.graphics.Paint.Align.CENTER
     }
 

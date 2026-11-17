@@ -322,13 +322,97 @@ class ControlCenter(private val svc: HugminnService) {
         if (!editing && placed.isEmpty()) body.addView(text("Leer – Y drücken und „Anordnen“ wählen", 15f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER },
             FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         gearItem?.let { if (!editing) items += it }
-        if (!editing) focus = focus.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        if (!editing) {
+            focus = focus.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+            if (focus == 0) placed.withIndex().filter { it.value.page == gridPage }.minByOrNull { it.value.y * 100 + it.value.x }?.let { f ->
+                itemEntry.indexOf(f.index).takeIf { it >= 0 }?.let { focus = it; navX = f.value.x; navY = f.value.y }
+            }
+        }
         renderFooter()
         body.post { showFocus() }
     }
 
     private var cursorX = 0
     private var cursorY = 0
+    private var navX = 0
+    private var navY = 0
+
+    /** Focus the element covering a cell (normal mode). */
+    private fun focusCell(x: Int, y: Int) {
+        val el = elementAt(x, y)
+        val i = itemEntry.indexOf(el)
+        if (i < 0) return
+        navX = x
+        navY = y
+        focus = i
+        showFocus()
+    }
+
+    /**
+     * D-pad in the grid: always to the neighbouring cell in that direction, staying on the same row
+     * (or column) where possible; empty cells are skipped; past the edge: next page, above the top row:
+     * the settings button.
+     */
+    private fun gridNav(dx: Int, dy: Int) {
+        val gearIdx = gearItem?.let { items.indexOf(it) } ?: -1
+        if (focus == gearIdx && gearIdx >= 0) {
+            if (dy > 0 || dx < 0) focusCell(navX.coerceAtMost(gridCols - 1), 0).also { if (items.getOrNull(focus) == gearItem) gridNavFirst() }
+            return
+        }
+        val cur = itemEntry.getOrNull(focus)?.let { placed.getOrNull(it) }
+        if (cur == null) { gridNavFirst(); return }
+        // keep the remembered row/column if it lies inside the current element
+        val rx = navX.coerceIn(cur.x, cur.x + cur.entry.w - 1)
+        val ry = navY.coerceIn(cur.y, cur.y + cur.entry.h - 1)
+        val rows = GridLayout.ROWS
+        if (dx != 0) {
+            var x = if (dx > 0) cur.x + cur.entry.w else cur.x - 1
+            while (x in 0 until gridCols) {
+                // same row first, then the nearest rows
+                val order = (0 until rows).sortedBy { abs(it - ry) }
+                for (y in order) {
+                    val el = elementAt(x, y)
+                    if (el >= 0 && itemEntry.contains(el)) {
+                        navX = x; navY = ry
+                        focus = itemEntry.indexOf(el)
+                        showFocus()
+                        return
+                    }
+                }
+                x += dx
+            }
+            if (pages() > 1) {
+                changePage(dx)
+                val target = placed.withIndex().filter { it.value.page == gridPage }
+                    .minByOrNull { (if (dx > 0) it.value.x else gridCols - it.value.x) * 10 + abs(it.value.y - ry) }
+                target?.let { focusCell(it.value.x, it.value.y) }
+            }
+        } else {
+            var y = if (dy > 0) cur.y + cur.entry.h else cur.y - 1
+            while (y in 0 until rows) {
+                val order = (0 until gridCols).sortedBy { abs(it - rx) }
+                for (x in order) {
+                    val el = elementAt(x, y)
+                    if (el >= 0 && itemEntry.contains(el)) {
+                        navX = rx; navY = y
+                        focus = itemEntry.indexOf(el)
+                        showFocus()
+                        return
+                    }
+                }
+                y += dy
+            }
+            if (dy < 0 && gearIdx >= 0) {
+                focus = gearIdx
+                showFocus()
+            }
+        }
+    }
+
+    private fun gridNavFirst() {
+        val first = placed.withIndex().filter { it.value.page == gridPage }.minByOrNull { it.value.y * 100 + it.value.x } ?: return
+        focusCell(first.value.x, first.value.y)
+    }
 
     /** Index of the element covering a cell on the current page, or -1. */
     private fun elementAt(x: Int, y: Int): Int = placed.indexOfFirst {
@@ -385,9 +469,14 @@ class ControlCenter(private val svc: HugminnService) {
             val vertical = e.h > e.w
             val v = if (id == "brightness") BigSlider(svc, pal, IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
             else {
-                val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                BigSlider(svc, pal, IconView.Kind.SPEAKER, "Lautstärke", max, audio.getStreamVolume(AudioManager.STREAM_MUSIC), pixel, vertical) {
-                    audio.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
+                // Android has only 16 media steps: Hugminn keeps its own 0-100 % (5 % steps) and sets the nearest one
+                val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                val idx = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val saved = svc.prefs.volumePct
+                val pct = if (saved >= 0 && Math.round(saved * max / 100f) == idx) saved else Math.round(idx * 100f / max)
+                BigSlider(svc, pal, IconView.Kind.SPEAKER, "Lautstärke", 100, pct, pixel, vertical) { p ->
+                    svc.prefs.volumePct = p
+                    audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(p * max / 100f), 0)
                 }
             }
             v.setAccent(tileOn(), tileOnFg())
@@ -397,7 +486,7 @@ class ControlCenter(private val svc: HugminnService) {
             return wrap to Item(v, null, { dir -> v.step(5 * dir) }, vertical)
         }
         if (GridLayout.isInfo(id)) return infoElement(e)
-        val t = tileFor(id, rootOk) ?: return View(svc) to null
+        val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
         val v = toggleElement(t, e)
         return v to Item(v, t.act)
     }
@@ -528,7 +617,7 @@ class ControlCenter(private val svc: HugminnService) {
             graph?.let { g -> s.frameTimesMs.takeLast(20).forEach { g.push(it) } }
         }
         sp.onA?.let { a -> c.setOnClickListener { if (!editing) a() } }
-        return c to (sp.onA?.let { Item(c, it) })
+        return c to Item(c, sp.onA)
     }
 
 
@@ -1742,10 +1831,10 @@ class ControlCenter(private val svc: HugminnService) {
         }
         val item = items.getOrNull(focus)
         when (e.keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> if (item?.vertical == true) item.onAdjust?.invoke(1) else move(0, -1)
-            KeyEvent.KEYCODE_DPAD_DOWN -> if (item?.vertical == true) item.onAdjust?.invoke(-1) else move(0, 1)
-            KeyEvent.KEYCODE_DPAD_LEFT -> if (item?.vertical == false && item.onAdjust != null) item.onAdjust.invoke(-1) else move(-1, 0)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> if (item?.vertical == false && item.onAdjust != null) item.onAdjust.invoke(1) else move(1, 0)
+            KeyEvent.KEYCODE_DPAD_UP -> if (item?.vertical == true) item.onAdjust?.invoke(1) else gridNav(0, -1)
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (item?.vertical == true) item.onAdjust?.invoke(-1) else gridNav(0, 1)
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (item?.vertical == false && item.onAdjust != null) item.onAdjust.invoke(-1) else gridNav(-1, 0)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (item?.vertical == false && item.onAdjust != null) item.onAdjust.invoke(1) else gridNav(1, 0)
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()

@@ -528,7 +528,7 @@ class Switcher(private val svc: HugminnService) {
                 val on = i == menuSel
                 items.addView(text(it.label, 14f, if (on) pal.onPrimaryContainer else pal.onSurfaceVariant, bold = on).apply {
                     setPadding(svc.dp(16), svc.dp(9), svc.dp(16), svc.dp(9))
-                    background = rounded(if (on) pal.primaryContainer else pal.surfaceHigh, svc.dp(20).toFloat())
+                    background = Look.shape(svc, svc.prefs.uiStyle == UiStyle.PIXEL, if (on) pal.primaryContainer else pal.surfaceHigh, svc.dp(20).toFloat())
                     setOnClickListener { runMenu(i) }
                 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                     marginEnd = svc.dp(8)
@@ -745,8 +745,12 @@ class ShellView(
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surface }
     private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = ctx.dp(1).toFloat()
-        color = (pal.outline and 0x00FFFFFF) or 0x80000000.toInt()
+        strokeWidth = ctx.dp(if (pal.dots) 3 else 1).toFloat()
+        color = if (pal.dots) pal.outline else (pal.outline and 0x00FFFFFF) or 0x80000000.toInt()
+        if (pal.dots) {
+            strokeCap = Paint.Cap.ROUND
+            pathEffect = android.graphics.DashPathEffect(floatArrayOf(0.1f, ctx.dp(9).toFloat()), 0f)
+        }
     }
     private val sel = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -769,10 +773,11 @@ class ShellView(
                 format12Hour = "h:mm"
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
                 setTextColor(pal.onSurface)
-                setTypeface(typeface, Typeface.BOLD)
+                typeface = Look.font(ctx, Prefs(ctx).uiStyle == UiStyle.PIXEL, true)
             })
             band.addView(TextView(ctx).apply {
                 text = "Muninn · Game Switcher"
+                typeface = Look.font(ctx, Prefs(ctx).uiStyle == UiStyle.PIXEL, false)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                 setTextColor(pal.onSurfaceVariant)
                 gravity = Gravity.CENTER
@@ -783,7 +788,7 @@ class ShellView(
                 text = "$pct %" + if (bm?.isCharging == true) " ⚡" else ""
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
                 setTextColor(pal.onSurface)
-                setTypeface(typeface, Typeface.BOLD)
+                typeface = Look.font(ctx, Prefs(ctx).uiStyle == UiStyle.PIXEL, true)
             })
             addView(band, LayoutParams(LayoutParams.MATCH_PARENT, statusH))
         }

@@ -55,14 +55,14 @@ class MainActivity : Activity() {
         text = s
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
         setTextColor(color)
-        if (bold) setTypeface(typeface, Typeface.BOLD)
+        typeface = Look.font(this@MainActivity, pixel, bold)
     }
 
     private fun section(title: String): LinearLayout {
         content.addView(text(title, 14f, pal.primary, bold = true).apply { setPadding(d(4), d(18), 0, d(6)) })
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(pal.surfaceHigh, d(20).toFloat())
+            background = Look.shape(this@MainActivity, pixel, pal.surfaceHigh, d(20).toFloat())
             setPadding(d(16), d(8), d(16), d(8))
             content.addView(this)
         }
@@ -72,11 +72,12 @@ class MainActivity : Activity() {
         text = label
         isAllCaps = false
         setTextColor(pal.onPrimaryContainer)
-        background = rounded(pal.primaryContainer, d(20).toFloat())
+        background = Look.shape(this@MainActivity, pixel, pal.primaryContainer, d(20).toFloat())
+        typeface = Look.font(this@MainActivity, pixel, true)
         setPadding(d(16), 0, d(16), 0)
         stateListAnimator = null
         setOnClickListener { click() }
-        setOnFocusChangeListener { v, f -> v.foreground = if (f) rounded(0, d(20).toFloat(), d(3), pal.primary) else null }
+        setOnFocusChangeListener { v, f -> v.foreground = if (f) Look.shape(this@MainActivity, pixel, 0, d(20).toFloat(), d(3), pal.primary) else null }
         buttons += this
     }
 
@@ -102,6 +103,8 @@ class MainActivity : Activity() {
     }
 
     private fun <T> cycle(list: List<T>, cur: T): T = list[(list.indexOf(cur) + 1).mod(list.size)]
+
+    private val pixel get() = prefs.uiStyle == UiStyle.PIXEL
 
     private fun build() {
         // Structural changes rebuild the page; keep the scroll position and the focused button.
@@ -189,8 +192,9 @@ class MainActivity : Activity() {
         }
 
         val look = section("Darstellung")
-        row(look, "Stil", "Pixel: Pixelschrift und Pixelecken passend zum Retroid Pocket Classic/Dual", { prefs.uiStyle.label }) {
+        row(look, "Stil", "Gilt überall: Control Center, Game Switcher, Overlay und diese Einstellungen", { prefs.uiStyle.label }) {
             prefs.uiStyle = cycle(UiStyle.values().toList(), prefs.uiStyle)
+            content.post { build() }
         }
         row(look, "Kachelfarbe", "Farbe aktiver Kacheln im Control Center", { TILE_COLORS[prefs.tileColor] ?: "" }) {
             prefs.tileColor = cycle(TILE_COLORS.keys.toList(), prefs.tileColor)
