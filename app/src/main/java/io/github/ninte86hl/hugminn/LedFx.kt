@@ -10,7 +10,7 @@ import kotlin.math.sin
 enum class LedEffect(val label: String) {
     NONE("Statisch"),
     RAINBOW("Farbwechsel"),
-    RING("Regenbogenring"),
+    RING("Regenbogen versetzt"),
     BREATHE("Atmen"),
     PULSE("Pulsieren"),
 }
