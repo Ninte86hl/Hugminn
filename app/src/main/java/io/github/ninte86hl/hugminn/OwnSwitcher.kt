@@ -206,7 +206,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         root = null
         carousel = null
         bar = null
-        r?.animate()?.alpha(0f)?.setDuration(120)?.withEndAction { runCatching { wm.removeView(r) } }?.start()
+        // removed at once: a fade-out left a ghost of the cards over the home screen
+        r?.let { runCatching { wm.removeViewImmediate(it) } }
         if (back && fromSwipe) {
             // Android's recents view is still underneath: back into the app, or home
             val f = fromPkg
