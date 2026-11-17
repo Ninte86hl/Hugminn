@@ -5,7 +5,7 @@
 <h1 align="center">Hugminn</h1>
 
 <p align="center">
-  <b>A game switcher and control center for the Retroid Pocket 6</b><br>
+  <b>A game switcher and control center for Retroid handhelds</b><br>
   Android 13 · controller-first · Material Design
 </p>
 
@@ -15,7 +15,7 @@
 
 ## What is Hugminn?
 
-Hugminn adds two console-style overlays to the Retroid Pocket 6 without replacing your launcher. You keep your favourite frontend (such as Cocoon) for your library; Hugminn sits on top and is always one button press away.
+Hugminn adds two console-style overlays to the Retroid Pocket 6, Pocket Nova and Pocket 5 without replacing your launcher. You keep your favourite frontend (such as Cocoon) for your library; Hugminn sits on top and is always one button press away.
 
 ### The name
 
@@ -71,11 +71,21 @@ Every gesture can be reassigned. The Back button is left alone, so it keeps work
 
 - Material 3 with Material You colours
 - Follows the system's light or dark theme
-- Built for 16:9 at 1080p and full controller navigation
+- Layouts for 16:9 and 4:3 screens, full controller navigation
+
+## Supported devices
+
+| Device | Chip | Display | Status |
+| --- | --- | --- | --- |
+| Retroid Pocket 6 | Snapdragon 8 Gen 2 (QCS8550) | 5.5" 16:9, 1080p, 120 Hz | primary target |
+| Retroid Pocket Nova | QCS8550 | 4.5" 4:3, 1280×960, 120 Hz | planned |
+| Retroid Pocket 5 | Snapdragon 865 | 5.5" 16:9, 1080p, 60 Hz | planned |
+
+Hugminn detects the device and only shows what it supports, for example no 120 Hz toggle on the Pocket 5. On the Pocket Nova, the Control Center uses a 4:3 layout.
 
 ## Requirements
 
-- Retroid Pocket 6 on stock firmware (Android 13)
+- One of the devices above on stock firmware
 - Some features use the firmware's built-in system service (`PServerBinder`), so no root is needed. If it is missing, Hugminn falls back to [Shizuku](https://shizuku.rikka.app/) or opens the matching system settings.
 
 ## Installation
