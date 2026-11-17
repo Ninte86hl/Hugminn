@@ -17,13 +17,31 @@ import android.widget.TextView
  * short description or error message before everything is uploaded.
  */
 class FeedbackActivity : Activity() {
+    private var keyboard: PadKeyboard? = null
+    private val hat by lazy { HatInput(android.os.Handler(mainLooper)) { code -> keyboard?.onKey(code) } }
+
+    override fun dispatchGenericMotionEvent(ev: android.view.MotionEvent): Boolean =
+        hat.onMotion(ev) || super.dispatchGenericMotionEvent(ev)
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        val code = event.keyCode
+        if (code == android.view.KeyEvent.KEYCODE_BUTTON_B || code == android.view.KeyEvent.KEYCODE_BACK) {
+            if (event.action == android.view.KeyEvent.ACTION_UP) onBackKey()
+            return true
+        }
+        if (code == android.view.KeyEvent.KEYCODE_VOLUME_UP || code == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) return super.dispatchKeyEvent(event)
+        val kb = keyboard ?: return super.dispatchKeyEvent(event)
+        if (event.action == android.view.KeyEvent.ACTION_DOWN && kb.onKey(code)) return true
+        return if (event.action == android.view.KeyEvent.ACTION_UP) true else super.dispatchKeyEvent(event)
+    }
+
     private var handled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val pal = Palette(this)
         val pixel = Look.pixel(this)
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         setFinishOnTouchOutside(false)
 
         fun label(s: String, size: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
@@ -92,14 +110,22 @@ class FeedbackActivity : Activity() {
         buttons.addView(button("Senden", true) { send(input.text.toString()) })
         box.addView(buttons, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
+        // Hugminn's own keyboard in the chosen style (the system keyboard stays hidden)
+        input.showSoftInputOnFocus = false
+        keyboard = PadKeyboard(this, pal, input) { send(input.text.toString()) }
         val root = LinearLayout(this).apply {
-            gravity = Gravity.CENTER
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
             setBackgroundColor(0x99000000.toInt())
+            setPadding(0, dp(16), 0, 0)
             addView(box, LinearLayout.LayoutParams(dp(560), LinearLayout.LayoutParams.WRAP_CONTENT))
+            addView(View(this@FeedbackActivity), LinearLayout.LayoutParams(1, 0, 1f))
+            addView(keyboard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(dp(12), 0, dp(12), dp(10))
+            })
         }
         setContentView(root)
         input.requestFocus()
-        input.post { getSystemService(InputMethodManager::class.java)?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT) }
     }
 
     private fun send(text: String) {
@@ -124,4 +150,6 @@ class FeedbackActivity : Activity() {
         if (!handled) Feedback.cancelPending()
         super.onDestroy()
     }
+
+    private fun onBackKey() { cancel() }
 }
