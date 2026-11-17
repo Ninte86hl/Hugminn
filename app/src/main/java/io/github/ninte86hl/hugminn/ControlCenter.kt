@@ -830,9 +830,7 @@ class ControlCenter(private val svc: HugminnService) {
                     Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
                 } else null
         }
-        "leds" -> if (rootOk && Device.sys(svc, "joystick_light_enabled") != null) Tile("Stick-LEDs", IconView.Kind.LED, { if (Device.stickLeds(svc)) "An" else "Aus" }, { Device.stickLeds(svc) }) {
-            Device.setStickLeds(!Device.stickLeds(svc)) { refreshAll() }
-        } else null
+        "leds" -> if (rootOk && Device.sys(svc, "joystick_light_enabled") != null) Tile("Stick-LEDs", IconView.Kind.LED, { if (Device.stickLeds(svc)) "An" else "Aus" }, { Device.stickLeds(svc) }) { ledMenu() } else null
         "dnd" -> if (rootOk) Tile("Nicht stören", IconView.Kind.MOON, { if (Device.dnd(svc)) "An" else "Aus" }, { Device.dnd(svc) }) {
             Device.setDnd(!Device.dnd(svc)) { refreshAll() }
         } else null
@@ -1041,6 +1039,25 @@ class ControlCenter(private val svc: HugminnService) {
             entries += MenuEntry("Neues Gerät koppeln …") { openSystem("android.settings.BLUETOOTH_PAIRING_SETTINGS") }
         }
         showMenu("Bluetooth", entries)
+    }
+
+    /** Stick LEDs: switch, or hand the colours over to an LED app that is installed (Bifrost, AmbiLuma …). */
+    private fun ledMenu() {
+        val on = Device.stickLeds(svc)
+        val entries = mutableListOf<MenuEntry>()
+        entries += MenuEntry(if (on) "LEDs ausschalten" else "LEDs einschalten") { Device.setStickLeds(!on) { refreshAll() } }
+        val labels = Apps.labels(svc)
+        val apps = labels.entries.filter { (label, pkg) ->
+            pkg == "com.moonbench.bifrost" || Regex("bifrost|ambiluma|ambi ?luma|\\bled\\b", RegexOption.IGNORE_CASE).containsMatchIn(label)
+        }.sortedBy { it.key.lowercase() }
+        if (apps.isNotEmpty()) entries += MenuEntry("Farben & Effekte", header = true, run = null)
+        apps.forEach { (label, pkg) ->
+            entries += MenuEntry("In $label öffnen", hint = pkg) {
+                close()
+                svc.packageManager.getLaunchIntentForPackage(pkg)?.let { svc.startApp(it) }
+            }
+        }
+        showMenu("Stick-LEDs", entries)
     }
 
     private fun openSystem(action: String) {
