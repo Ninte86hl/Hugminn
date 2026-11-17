@@ -102,8 +102,18 @@ class BigSlider(
 ) : View(ctx) {
     var value = initial.coerceIn(0, max)
         private set
-    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHighest }
+    // Same look as the cards: card colour as track, tile colour as fill
+    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.primary }
+    private var onFill = pal.onPrimary
+    private val dim = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHighest }
+
+    /** Colour of the filled part (the Control Center passes its tile colour) and of icon/text on it. */
+    fun setAccent(color: Int, on: Int) {
+        fill.color = color
+        onFill = on
+        invalidate()
+    }
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.DEFAULT_BOLD }
     private val iconView = IconView(ctx, icon, 22)
 
@@ -150,11 +160,11 @@ class BigSlider(
             val n = 24
             val step = (w - h) / n
             val lit = Math.round(value.toFloat() / max.coerceAtLeast(1) * n)
-            for (i in 0 until n) c.drawCircle(h / 2 + i * step + step / 2, h / 2, h * 0.11f, if (i < lit) fill else track)
+            for (i in 0 until n) c.drawCircle(h / 2 + i * step + step / 2, h / 2, h * 0.11f, if (i < lit) fill else dim)
             drawLabel(c, w, h, 0f)
             return
         } else if (pixel) {
-            Look.shape(context, true, pal.surfaceHighest, 0f).apply { setBounds(0, 0, w.toInt(), h.toInt()) }.draw(c)
+            Look.shape(context, true, pal.surfaceHigh, 0f).apply { setBounds(0, 0, w.toInt(), h.toInt()) }.draw(c)
             // filled part as square blocks
             val n = 20
             val gap = h * 0.08f
@@ -178,7 +188,7 @@ class BigSlider(
         c.translate(h * 0.25f + (h - isz) / 4f, (h - isz) / 2f)
         val scale = isz / context.dp(22)
         c.scale(scale, scale)
-        iconView.setColor(pal.onPrimary)
+        iconView.setColor(onFill)
         iconView.layout(0, 0, context.dp(22), context.dp(22))
         iconView.draw(c)
         c.restore()
@@ -200,10 +210,10 @@ class BigSlider(
             val cols = 3
             for (i in 0 until n) for (k in 0 until cols) {
                 val x = w / 2 + (k - 1) * w * 0.18f
-                c.drawCircle(x, bottom - i * step - step / 2, w * 0.05f, if (i < lit) fill else track)
+                c.drawCircle(x, bottom - i * step - step / 2, w * 0.05f, if (i < lit) fill else dim)
             }
         } else if (pixel) {
-            Look.shape(context, true, pal.surfaceHighest, 0f).apply { setBounds(0, 0, w.toInt(), h.toInt()) }.draw(c)
+            Look.shape(context, true, pal.surfaceHigh, 0f).apply { setBounds(0, 0, w.toInt(), h.toInt()) }.draw(c)
             val n = 14
             val gap = w * 0.06f
             val bh = (h - w * 0.2f) / n
@@ -223,7 +233,7 @@ class BigSlider(
         // icon at the bottom, percent at the top
         val isz = context.dp(22)
         val on = !pixel && !pal.dots && f > 0.12f
-        iconView.setColor(if (on) pal.onPrimary else pal.onSurface)
+        iconView.setColor(if (on) onFill else pal.onSurface)
         iconView.layout(0, 0, isz, isz)
         c.save()
         c.translate((w - isz) / 2f, h - isz - w * 0.22f)
@@ -232,7 +242,7 @@ class BigSlider(
         text.textSize = minOf(w * 0.24f, context.dp(16).toFloat())
         text.typeface = Look.font(context, pixel, true)
         text.textAlign = Paint.Align.CENTER
-        text.color = if (!pixel && !pal.dots && f > 0.85f) pal.onPrimary else pal.onSurface
+        text.color = if (!pixel && !pal.dots && f > 0.85f) onFill else pal.onSurface
         c.drawText("${Math.round(f * 100)} %", w / 2f, w * 0.32f + text.textSize * 0.4f, text)
     }
 
@@ -244,7 +254,7 @@ class BigSlider(
         val pct = Math.round(value * 100f / max.coerceAtLeast(1))
         val fm = text.fontMetrics
         val baseline = h / 2f - (fm.ascent + fm.descent) / 2f
-        text.color = if (!pixel && fw > w - h * 0.4f) pal.onPrimary else pal.onSurface
+        text.color = if (!pixel && !pal.dots && fw > w - h * 0.4f) onFill else pal.onSurface
         c.drawText("$label  $pct %", w - h * 0.45f, baseline, text)
     }
 }

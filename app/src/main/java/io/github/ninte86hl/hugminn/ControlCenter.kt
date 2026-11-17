@@ -390,6 +390,7 @@ class ControlCenter(private val svc: HugminnService) {
                     audio.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
                 }
             }
+            v.setAccent(tileOn(), tileOnFg())
             val wrap = FrameLayout(svc)
             wrap.addView(v, if (vertical) FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             else FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 56 * d, Gravity.CENTER_VERTICAL))
