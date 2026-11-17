@@ -136,17 +136,20 @@ class Switcher(private val svc: HugminnService) {
     }
 
     /** Waits until the recents view has settled (same card bounds twice), then builds the model. */
-    private fun scan(gen: Int, attempt: Int, last: List<Rect>?) {
+    private fun scan(gen: Int, attempt: Int, last: List<Rect>?, emptyStreak: Int = 0) {
         if (gen != generation) return
         val h = work ?: return
         val nodes = try { cardNodes() } catch (t: Throwable) { emptyList() }
         val now = nodes.map { bounds(it) }
-        val settled = nodes.isNotEmpty() && last != null && last == now
+        // No open apps: the recents view is shown but has no cards. Wait a moment to be sure.
+        val panelShown = nodes.isEmpty() && (try { findPanel()?.isVisibleToUser == true } catch (t: Throwable) { false })
+        val streak = if (panelShown) emptyStreak + 1 else 0
+        val settled = (nodes.isNotEmpty() && last != null && last == now) || streak >= 5
         if (!settled) {
             if (attempt > 60) svc.ui.post {
-                if (nodes.isEmpty()) Toast.makeText(svc, "Hugminn: Android-Übersicht nicht gefunden", Toast.LENGTH_SHORT).show()
+                Toast.makeText(svc, "Hugminn: Android-Übersicht nicht gefunden", Toast.LENGTH_SHORT).show()
                 close(goBack = false)
-            } else h.postDelayed({ scan(gen, attempt + 1, now) }, 60)
+            } else h.postDelayed({ scan(gen, attempt + 1, now, streak) }, 60)
             return
         }
         val newCards = resolve(nodes)
@@ -185,7 +188,7 @@ class Switcher(private val svc: HugminnService) {
         if (now - closedAt < 1200 || now - lastAutoCheck < 200) return
         lastAutoCheck = now
         val p = try { findPanel() } catch (t: Throwable) { null } ?: return
-        if (p.isVisibleToUser && p.childCount > 0) open()
+        if (p.isVisibleToUser) open()
     }
 
     private fun buildModel(nodes: List<AccessibilityNodeInfo>): Model? {
@@ -266,12 +269,8 @@ class Switcher(private val svc: HugminnService) {
             svc.ui.post {
                 if (gen != generation) return@post
                 cards = newCards
-                if (cards.isEmpty()) {
-                    close(goBack = false)
-                    svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
-                    return@post
-                }
-                jumpTo(if (focused >= 0) focused else target.coerceIn(0, cards.lastIndex))
+                sel = -1
+                jumpTo(if (focused >= 0) focused else target.coerceIn(0, (cards.size - 1).coerceAtLeast(0)))
             }
         }
     }
@@ -408,7 +407,18 @@ class Switcher(private val svc: HugminnService) {
                     addView(text("${c.type.label} · ${sel + 1} von ${cards.size}", 12f, pal.onSurfaceVariant))
                 }
                 row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            } else row.addView(View(svc), LinearLayout.LayoutParams(0, 1, 1f))
+            } else {
+                val col = LinearLayout(svc).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(text("Keine offenen Apps", 17f, pal.onSurface, bold = true))
+                    addView(text("Starte ein Spiel, dann taucht es hier auf", 12f, pal.onSurfaceVariant))
+                }
+                row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                if (!svc.prefs.githubToken.isNullOrBlank()) row.addView(hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback"))
+                row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+                b.addView(row, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                return
+            }
             if (!svc.prefs.githubToken.isNullOrBlank()) row.addView(hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback"))
             row.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, "Wechseln"))
             row.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Öffnen"))
@@ -631,6 +641,12 @@ class ShellView(
         }
     }
 
+    private val emptyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = pal.onSurfaceVariant
+        textAlign = Paint.Align.CENTER
+        textSize = ctx.resources.displayMetrics.scaledDensity * 20f
+    }
+
     private fun draw(c: Canvas, f: Switcher.Frame?) {
         val path = Path().apply {
             fillType = Path.FillType.EVEN_ODD
@@ -653,6 +669,10 @@ class ShellView(
         path.op(clip, Path.Op.DIFFERENCE)
         c.drawPath(path, fill)
         if (f == null) return
+        if (f.snaps.isEmpty()) {
+            c.drawText("Keine offenen Apps", width / 2f, (statusH + barTop) / 2f, emptyPaint)
+            return
+        }
         for (i in f.snaps.indices) {
             val s = f.snaps[i]
             if (s.isEmpty) continue
