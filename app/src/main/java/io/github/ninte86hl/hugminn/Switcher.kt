@@ -101,6 +101,7 @@ class Switcher(private val svc: HugminnService) {
     fun open() {
         if (isOpen) return
         isOpen = true
+        lingering?.let { l -> lingering = null; runCatching { wm.removeView(l) } }
         // Opened from the home screen: B leads back there, not into the last game.
         val front = runCatching { svc.rootInActiveWindow?.packageName?.toString() }.getOrNull()
         fromPkg = if (front != null && front.contains("launcher", true)) null else svc.foregroundPkg
@@ -134,10 +135,30 @@ class Switcher(private val svc: HugminnService) {
         worker?.quitSafely()
         worker = null
         work = null
-        listOf(shell, bar).forEach { v -> v?.let { runCatching { wm.removeView(it) } } }
+        bar?.let { runCatching { wm.removeView(it) } }
         bar = null
+        val s = shell
         shell = null
-        if (goBack) leaveRecents()
+        if (goBack && s != null) {
+            // Keep covering the screen (window closed) while Android's overview animates away, so it
+            // never shows in full size; then fade out.
+            s.frame = Frame(listOf(RectF()), emptyList(), emptyList(), -1)
+            lingering = s
+            leaveRecents()
+            dropLingering(1600) // safety net: never leave the screen covered
+        } else s?.let { runCatching { wm.removeView(it) } }
+    }
+
+    /** Frame that stays over the closing overview for a moment (see [close]). */
+    private var lingering: ShellView? = null
+
+    private fun dropLingering(delay: Long) {
+        val s = lingering ?: return
+        svc.ui.postDelayed({
+            if (lingering !== s) return@postDelayed
+            lingering = null
+            s.animate().alpha(0f).setDuration(140).withEndAction { runCatching { wm.removeView(s) } }.start()
+        }, delay)
     }
 
     /**
@@ -152,11 +173,12 @@ class Switcher(private val svc: HugminnService) {
             if (isOpen) return@postDelayed
             svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
             svc.ui.postDelayed({
-                if (isOpen || findPanel() == null) return@postDelayed
+                if (isOpen || findPanel() == null) { dropLingering(150); return@postDelayed }
                 val back = known.firstOrNull { from != null && it.pkg == from }
                 if (back == null || !back.node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
                     svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
                 }
+                dropLingering(450)
             }, 450)
         }, 160)
     }
