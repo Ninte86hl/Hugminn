@@ -90,6 +90,12 @@ object Device {
     }
 
     /** Nine clear, fully saturated colours (the LEDs show pastel tones washed out). */
+    /** Brightness of the stick LEDs as Retroid's LED window stores it (0.0–1.0). */
+    fun ledBrightness(ctx: Context): Float = sys(ctx, "led_light_brightness_percent")?.toFloatOrNull()?.coerceIn(0f, 1f) ?: 1f
+
+    fun setLedBrightness(percent: Int, then: () -> Unit) =
+        Root.run(Root.putSetting("system", "led_light_brightness_percent", "%.2f".format(java.util.Locale.US, percent / 100f)), then = then)
+
     val ledPresets = listOf(
         "Weiß" to 0xFFFFFFFF.toInt(),
         "Rot" to 0xFFFF0000.toInt(),

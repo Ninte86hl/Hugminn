@@ -155,11 +155,6 @@ class Prefs(ctx: Context) {
         get() = p.getFloat("ledSpeed", 1f)
         set(v) = p.edit().putFloat("ledSpeed", v).apply()
 
-    /** Brightness of the stick LEDs in percent (below 100 Hugminn dims the colours itself). */
-    var ledBrightness: Int
-        get() = p.getInt("ledBrightness", 100)
-        set(v) = p.edit().putInt("ledBrightness", v).apply()
-
     var ledEffect: LedEffect
         get() = enumOr(p.getString("ledEffect", null), LedEffect.NONE)
         set(v) = p.edit().putString("ledEffect", v.name).apply()

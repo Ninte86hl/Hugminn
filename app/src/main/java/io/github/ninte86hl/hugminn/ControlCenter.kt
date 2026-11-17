@@ -22,6 +22,7 @@ import android.widget.SeekBar
 import android.widget.TextClock
 import android.widget.TextView
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Huginn, the Control Center: a full window over the running game with quick tiles (most open a
@@ -1210,13 +1211,13 @@ class ControlCenter(private val svc: HugminnService) {
             tuneCells += m to minus
             tuneCells += p to plus
         }
-        val bright = svc.prefs.ledBrightness
+        val bright = (Device.ledBrightness(svc) * 100).roundToInt()
         val sp = svc.prefs.ledSpeed
         val si = LedFx.speeds.indexOfFirst { it >= sp }.coerceAtLeast(0)
         fun again(col: Int) { ledRow = rows.size; ledCol = col; ledPicker() }
         stepper("Helligkeit", "$bright %",
-            { LedFx.setBrightness(svc, (bright - 10).coerceAtLeast(10)); again(0) },
-            { LedFx.setBrightness(svc, (bright + 10).coerceAtMost(100)); again(1) })
+            { LedFx.setBrightness(svc, ((bright + 9) / 10 * 10 - 10).coerceAtLeast(10)) { svc.ui.post { again(0) } } },
+            { LedFx.setBrightness(svc, (bright / 10 * 10 + 10).coerceAtMost(100)) { svc.ui.post { again(1) } } })
         tune.addView(View(svc), lp(16 * d, 1))
         stepper("Tempo", "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
             { LedFx.setSpeed(svc, LedFx.speeds[(si - 1).coerceAtLeast(0)]); again(2) },
@@ -1997,6 +1998,7 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     private var aDownAt = 0L
+    private var aArmed = false
     private var aLong = false
     private val aLongPress = Runnable {
         if (!isOpen || editing || menuView != null || !focusVisible) return@Runnable
@@ -2013,10 +2015,15 @@ class ControlCenter(private val svc: HugminnService) {
             if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {
                 aDownAt = SystemClock.uptimeMillis()
                 aLong = false
+                aArmed = true
                 svc.ui.postDelayed(aLongPress, 500)
             } else if (e.action == KeyEvent.ACTION_UP) {
                 svc.ui.removeCallbacks(aLongPress)
-                if (!aLong) {
+                // Only a press that started here counts: the release of an A that chose something in a
+                // menu (which closed the menu) must not switch the tile below as well.
+                val armed = aArmed
+                aArmed = false
+                if (!aLong && armed) {
                     val it = items.getOrNull(focus)
                     when {
                         // first press only shows where the cursor is
