@@ -268,6 +268,10 @@ object Look {
     /** Background shape: rounded (modern) or with stepped pixel corners. */
     fun shape(ctx: Context, pixel: Boolean, color: Int, radius: Float, stroke: Int = 0, strokeColor: Int = 0): android.graphics.drawable.Drawable =
         if (pixel) PixelShape(color, ctx.dp(3).toFloat(), if (radius > ctx.dp(20)) 3 else 2, stroke.toFloat(), strokeColor)
+        else if (stroke > 0 && Prefs(ctx).uiStyle == UiStyle.DOTS) rounded(color, radius).apply {
+            // dot-matrix: outlines made of dots
+            setStroke(stroke, strokeColor, stroke.toFloat(), stroke * 1.4f)
+        }
         else rounded(color, radius, stroke, strokeColor)
 }
 

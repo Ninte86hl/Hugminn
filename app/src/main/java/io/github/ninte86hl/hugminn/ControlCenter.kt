@@ -493,7 +493,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** Quick toggle: 1×1 only the icon, larger with name and state. */
     private fun toggleElement(t: Tile, e: GridEntry): View {
-        val round = svc.prefs.tileShape == TileShape.ROUND && !pixel
+        val round = pal.dots
         val icon = IconView(svc, t.icon, if (e.w == 1) 30 else 24)
         val v: ViewGroup
         var title: TextView? = null
@@ -947,7 +947,7 @@ class ControlCenter(private val svc: HugminnService) {
     /** One tile: round (or square) icon button with the full name below (two lines, shrinks to fit). */
     private fun tileView(t: Tile): Pair<View, View> {
         val size = 54 * d
-        val round = svc.prefs.tileShape == TileShape.ROUND && !pixel
+        val round = pal.dots
         val icon = IconView(svc, t.icon, 24)
         val button = FrameLayout(svc).apply {
             addView(icon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
@@ -1133,7 +1133,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun showFocus() {
         if (editing) return
-        val round = svc.prefs.tileShape == TileShape.ROUND && !pixel
+        val round = pal.dots
         items.forEachIndexed { i, it ->
             val r = if (it.onAdjust != null) it.view.height / 2f else if (round) it.view.width / 2f else 16f * d
             it.view.foreground = if (i == focus) shape(0, r.coerceAtLeast(12f * d), 3 * d, pal.onSurface) else null
@@ -1342,11 +1342,6 @@ class ControlCenter(private val svc: HugminnService) {
             MenuEntry("Anordnen & Größe", hint = "Elemente verschieben, vergrößern, entfernen") { startEdit() },
             MenuEntry("Element hinzufügen", hint = "Schalter, Anzeigen und Regler") { addMenu() },
             MenuEntry("Kachelfarbe", hint = TILE_COLORS[svc.prefs.tileColor] ?: "") { colorMenu() },
-            MenuEntry("Form der Schalter (1×1)", hint = svc.prefs.tileShape.label) {
-                showMenu("Form der Kacheln", TileShape.values().map { t ->
-                    MenuEntry(t.label, checked = svc.prefs.tileShape == t) { svc.prefs.tileShape = t; reopen() }
-                })
-            },
             MenuEntry("Stil", hint = svc.prefs.uiStyle.label) {
                 showMenu("Stil", UiStyle.values().map { st ->
                     MenuEntry(when (st) {
@@ -1666,9 +1661,9 @@ class ControlCenter(private val svc: HugminnService) {
                     val moving = selected && geMoving
                     val icon = IconView(svc, t.icon, 24).apply { setColor(if (moving) tileOnFg() else pal.onSurface) }
                     val circle = FrameLayout(svc).apply {
-                        background = if (svc.prefs.tileShape == TileShape.ROUND && !pixel) rounded(if (moving) tileOn() else pal.surfaceHighest, 26f * d)
+                        background = if (pal.dots) rounded(if (moving) tileOn() else pal.surfaceHighest, 26f * d)
                         else shape(if (moving) tileOn() else pal.surfaceHighest, 14f * d)
-                        foreground = if (selected) shape(0, if (svc.prefs.tileShape == TileShape.ROUND && !pixel) 26f * d else 14f * d, 3 * d, pal.onSurface) else null
+                        foreground = if (selected) shape(0, if (pal.dots) 26f * d else 14f * d, 3 * d, pal.onSurface) else null
                         addView(icon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
                     }
                     val cell = LinearLayout(svc).apply {

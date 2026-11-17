@@ -220,9 +220,6 @@ class MainActivity : Activity() {
         row(ccs, "Farben der Anzeigen", "Färbt CPU, GPU, Leistung, RAM und Temperatur nach Auslastung", { prefs.gaugePalette.label }) {
             prefs.gaugePalette = cycle(GaugePalette.values().toList(), prefs.gaugePalette)
         }
-        row(ccs, "Form der Kacheln", null, { prefs.tileShape.label }) {
-            prefs.tileShape = cycle(TileShape.values().toList(), prefs.tileShape)
-        }
         ccs.addView(text("Angezeigte Kacheln. Layout, Reihenfolge und Farben: im Control Center Y drücken. Mehr als 8 werden auf Seiten verteilt (LB/RB).", 13f, pal.onSurfaceVariant).apply {
             setPadding(0, d(10), 0, d(2))
         })
