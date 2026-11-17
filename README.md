@@ -94,7 +94,7 @@ Hugminn is in early testing. Every build is published under **Releases**, built 
 
 - **Direct download:** [hugminn.apk](https://github.com/Ninte86hl/Hugminn/releases/download/latest/hugminn.apk) (always the newest test build)
 - **With [Obtainium](https://github.com/ImranR98/Obtainium) (recommended, keeps Hugminn up to date):** download [obtainium.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium.json) (also attached to every release) and import it in Obtainium under *Import/Export → Obtainium Import*.
-  Manual setup works too: source `https://github.com/Ninte86hl/Hugminn`, enable *Include prereleases*, APK filter `^hugminn\.apk$`.
+  Manual setup works too: just add `https://github.com/Ninte86hl/Hugminn` as source.
 
 After installing, open Hugminn and tap **Aktivieren** to turn on its accessibility service.
 
