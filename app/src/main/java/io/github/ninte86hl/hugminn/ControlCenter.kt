@@ -1178,9 +1178,12 @@ class ControlCenter(private val svc: HugminnService) {
                 setPadding(12 * d, 0, 12 * d, 0)
                 background = shape(if (sel) pal.primaryContainer else pal.surfaceHighest, 16f * d)
             }
-            val act = {
-                closeMenu()
-                if (!on && ef != LedEffect.NONE) Device.setStickLeds(true) { LedFx.set(svc, ef); refreshAll() } else LedFx.set(svc, ef)
+            val col = fx.size
+            val act: () -> Unit = {
+                // the window stays open for further adjustments
+                val again = { svc.ui.post { if (root != null) { ledRow = 4; ledCol = col; ledPicker() } } }
+                if (!on && ef != LedEffect.NONE) Device.setStickLeds(true) { LedFx.set(svc, ef); refreshAll(); again() }
+                else { LedFx.set(svc, ef); again() }
             }
             chip.setOnClickListener { act() }
             fxRow.addView(chip, lp(WRAP, 36 * d).apply { marginStart = 3 * d; marginEnd = 3 * d })

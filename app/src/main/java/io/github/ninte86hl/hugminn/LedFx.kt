@@ -31,7 +31,23 @@ object LedFx {
     @Volatile var speed = 1f
     @Volatile var brightness = 100
 
-    fun current() = if (running) effect else LedEffect.NONE
+    fun current() = if (running && !lowBattery) effect else LedEffect.NONE
+
+    /** Battery at or below 10 % and not charging: the sticks pulse red, whatever is set otherwise. */
+    @Volatile var lowBattery = false
+        private set
+
+    fun battery(ctx: Context, pct: Int, charging: Boolean) {
+        val low = if (lowBattery) pct <= 12 && !charging else pct in 0..10 && !charging
+        if (low == lowBattery) return
+        lowBattery = low
+        if (low) {
+            if (Device.stickLeds(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED)
+        } else resume(ctx)
+    }
+
+    /** What the last effect start found out (for feedback reports). */
+    @Volatile var diag: String = ""
 
     private fun load(ctx: Context) {
         val p = Prefs(ctx)
@@ -42,6 +58,7 @@ object LedFx {
     /** Starts the remembered effect (service start, LEDs switched on). */
     fun resume(ctx: Context) {
         load(ctx)
+        if (lowBattery) { if (Device.stickLeds(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
         val e = Prefs(ctx).ledEffect
         if (Device.stickLeds(ctx) && (e != LedEffect.NONE || brightness < 100)) start(ctx, e) else stop()
     }
@@ -49,6 +66,7 @@ object LedFx {
     fun set(ctx: Context, e: LedEffect) {
         Prefs(ctx).ledEffect = e
         load(ctx)
+        if (lowBattery) return
         if (e == LedEffect.NONE && brightness >= 100) {
             stop()
             // hand the LEDs back to the firmware with the stored colours
@@ -73,13 +91,17 @@ object LedFx {
         thread = null
     }
 
-    private fun start(ctx: Context, e: LedEffect) {
+    private fun start(ctx: Context, e: LedEffect, colors: Pair<Int, Int>? = null) {
         stop()
         effect = e
         running = true
         val app = ctx.applicationContext
-        val (left, right) = Device.ledColors(app) ?: (Color.WHITE to Color.WHITE)
+        val (left, right) = colors ?: Device.ledColors(app) ?: (Color.WHITE to Color.WHITE)
         val t = Thread {
+            if (diag.isEmpty()) diag = runCatching {
+                Root.execLong("ls -l /sys/class/ | grep -i -E 'sn3|led'; echo ---; ls /sys/class/sn3112l/led/ /sys/class/sn3112r/led/ 2>&1; echo ---; " +
+                    "cat /sys/class/sn3112l/led/brightness 2>&1; echo ---; getprop ro.product.device")
+            }.getOrNull() ?: "keine Antwort"
             var phase = 0f
             var last = System.currentTimeMillis()
             try {
@@ -90,7 +112,8 @@ object LedFx {
                     last = now
                     val k = brightness / 100f
                     val zones = frame(e, phase, left, right).map { scale(it, k) }.toIntArray()
-                    Root.exec(command(zones), 1_000)
+                    val out = Root.exec(command(zones) + " 2>&1", 1_000)
+                    if (!out.isNullOrBlank() && !diag.contains("Schreibfehler")) diag += "\nSchreibfehler: $out"
                     // static colour (only dimmed): refresh now and then in case the firmware rewrites it
                     Thread.sleep(if (e == LedEffect.NONE) 1_500 else FRAME_MS)
                 }

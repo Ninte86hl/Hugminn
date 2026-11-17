@@ -55,6 +55,16 @@ class HugminnService : AccessibilityService() {
             }
         }.start()
         SettingsWatch.start(this)
+        // Low battery: the sticks pulse red
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context, i: Intent) {
+                val level = i.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1)
+                val scale = i.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
+                val st = i.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1)
+                val charging = st == android.os.BatteryManager.BATTERY_STATUS_CHARGING || st == android.os.BatteryManager.BATTERY_STATUS_FULL
+                if (level >= 0) Thread { runCatching { LedFx.battery(this@HugminnService, level * 100 / scale, charging) } }.start()
+            }
+        }, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         // LED effect chosen last time keeps running
         Thread { runCatching { LedFx.resume(this) } }.start()
         // A crash last time? Send the report with the system log (if feedback is set up).
