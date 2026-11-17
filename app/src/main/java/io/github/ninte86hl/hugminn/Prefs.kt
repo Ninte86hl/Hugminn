@@ -49,6 +49,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("autoSwitcher", true)
         set(v) = p.edit().putBoolean("autoSwitcher", v).apply()
 
+    /** Control Center covers the status bar (true) or leaves Android's status bar visible. */
+    var ccHideStatus: Boolean
+        get() = p.getBoolean("ccHideStatus", true)
+        set(v) = p.edit().putBoolean("ccHideStatus", v).apply()
+
     var glyphStyle: GlyphStyle
         get() = enumOr(p.getString("glyphs", null), GlyphStyle.AUTO)
         set(v) = p.edit().putString("glyphs", v.name).apply()

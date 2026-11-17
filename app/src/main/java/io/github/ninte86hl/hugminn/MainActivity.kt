@@ -23,6 +23,8 @@ class MainActivity : Activity() {
     private lateinit var pal: Palette
     private lateinit var content: LinearLayout
     private val buttons = mutableListOf<Button>()
+    private val afterChange = mutableListOf<() -> Unit>()
+    private var scroll: ScrollView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,7 +81,7 @@ class MainActivity : Activity() {
     }
 
     /** One settings row: label on the left, a button showing the value on the right (A cycles it). */
-    private fun row(parent: LinearLayout, label: String, sub: String?, value: String, click: () -> Unit) {
+    private fun row(parent: LinearLayout, label: String, sub: String?, value: () -> String, click: () -> Unit) {
         val r = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, d(6), 0, d(6))
@@ -88,12 +90,12 @@ class MainActivity : Activity() {
         col.addView(text(label, 16f, pal.onSurface))
         sub?.let { col.addView(text(it, 12f, pal.onSurfaceVariant)) }
         r.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        // Changes apply in place: no rebuild, focus and scroll position stay where they are.
         var self: Button? = null
-        self = button(value) {
-            val idx = buttons.indexOf(self)
+        self = button(value()) {
             click()
-            build()
-            buttons.getOrNull(idx)?.requestFocus()
+            self?.text = value()
+            afterChange.forEach { it() }
         }
         r.addView(self)
         parent.addView(r)
@@ -102,6 +104,10 @@ class MainActivity : Activity() {
     private fun <T> cycle(list: List<T>, cur: T): T = list[(list.indexOf(cur) + 1).mod(list.size)]
 
     private fun build() {
+        // Structural changes rebuild the page; keep the scroll position and the focused button.
+        val oldScroll = scroll?.scrollY ?: 0
+        val oldFocus = buttons.indexOfFirst { it.isFocused }
+        afterChange.clear()
         pal = Palette(this)
         window.statusBarColor = pal.surface
         window.navigationBarColor = pal.surface
@@ -172,40 +178,50 @@ class MainActivity : Activity() {
         // Gestures
         val g = section("Home-Taste")
         val actions = Action.values().toList()
-        row(g, "Einmal drücken", null, prefs.single.label) { prefs.single = cycle(actions, prefs.single) }
-        row(g, "Zweimal drücken", null, prefs.double.label) { prefs.double = cycle(actions, prefs.double) }
-        row(g, "Lange drücken", null, prefs.long.label) { prefs.long = cycle(actions, prefs.long) }
-        row(g, "Zeit für Doppeldruck", "Kürzer = einfacher Druck reagiert schneller", "${prefs.doubleMs} ms") {
+        row(g, "Einmal drücken", null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
+        row(g, "Zweimal drücken", null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
+        row(g, "Lange drücken", null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
+        row(g, "Zeit für Doppeldruck", "Kürzer = einfacher Druck reagiert schneller", { "${prefs.doubleMs} ms" }) {
             prefs.doubleMs = cycle(listOf(220, 260, 300, 350, 400), prefs.doubleMs)
         }
-        row(g, "Zeit für langen Druck", null, "${prefs.longMs} ms") {
+        row(g, "Zeit für langen Druck", null, { "${prefs.longMs} ms" }) {
             prefs.longMs = cycle(listOf(350, 450, 600, 800), prefs.longMs)
         }
 
         // Switcher look
         val sw = section("Game Switcher")
-        row(sw, "Auch bei Wischgeste", "Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird", if (prefs.autoSwitcher) "An" else "Aus") {
+        row(sw, "Auch bei Wischgeste", "Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird", { if (prefs.autoSwitcher) "An" else "Aus" }) {
             prefs.autoSwitcher = !prefs.autoSwitcher
         }
-        row(sw, "Statusleiste", "Was der Rahmen oben zeigt: Uhrzeit und Akku im Hugminn-Stil, nichts, oder die normale Android-Leiste", prefs.statusBar.label) {
+        row(sw, "Statusleiste", "Was der Rahmen oben zeigt: Uhrzeit und Akku im Hugminn-Stil, nichts, oder die normale Android-Leiste", { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
+        }
+
+        val ccs = section("Control Center")
+        row(ccs, "Statusleiste ausblenden", "Das Control Center füllt den ganzen Bildschirm; aus = Android-Statusleiste bleibt sichtbar", { if (prefs.ccHideStatus) "An" else "Aus" }) {
+            prefs.ccHideStatus = !prefs.ccHideStatus
         }
 
         // Glyphs
         val gl = section("Tastensymbole")
-        row(gl, "Stil", "Automatisch folgt dem Layout in den Retroid-Einstellungen", prefs.glyphStyle.label) {
+        row(gl, "Stil", "Automatisch folgt dem Layout in den Retroid-Einstellungen", { prefs.glyphStyle.label }) {
             prefs.glyphStyle = cycle(GlyphStyle.values().toList(), prefs.glyphStyle)
         }
-        row(gl, "Farbig", null, if (prefs.glyphColored) "An" else "Aus") { prefs.glyphColored = !prefs.glyphColored }
+        row(gl, "Farbig", null, { if (prefs.glyphColored) "An" else "Aus" }) { prefs.glyphColored = !prefs.glyphColored }
         val preview = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, d(6), 0, d(8))
         }
-        preview.addView(text("Vorschau:  ", 13f, pal.onSurfaceVariant))
-        listOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y).forEach { k ->
-            preview.addView(Glyphs.chip(this, prefs, pal, k), LinearLayout.LayoutParams(d(26), d(26)).apply { marginEnd = d(8) })
+        val fillPreview = {
+            preview.removeAllViews()
+            preview.addView(text("Vorschau:  ", 13f, pal.onSurfaceVariant))
+            listOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y).forEach { k ->
+                preview.addView(Glyphs.chip(this, prefs, pal, k), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = d(8) })
+            }
+            preview.addView(text(if (Glyphs.nintendoLayout()) "  (Gerät im Retroid-/Nintendo-Layout)" else "  (Gerät im Xbox-Layout)", 12f, pal.onSurfaceVariant))
         }
-        preview.addView(text(if (Glyphs.nintendoLayout()) "  (Gerät im Retroid-/Nintendo-Layout)" else "  (Gerät im Xbox-Layout)", 12f, pal.onSurfaceVariant))
+        fillPreview()
+        afterChange += fillPreview
         gl.addView(preview)
 
         // Try it
@@ -227,16 +243,21 @@ class MainActivity : Activity() {
                 "Hugminn schreibt hier mit, welche Werte sich ändern. Schick davon einfach ein Foto.",
             12f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(6), 0, d(6)) })
-        val log = synchronized(SettingsWatch.log) { SettingsWatch.log.toList() }
-        pr.addView(text(if (log.isEmpty()) "Noch keine Änderungen erkannt." else log.take(20).joinToString("\n"), 13f, pal.onSurface).apply {
+        val logView = text("", 13f, pal.onSurface).apply {
             maxLines = 20
             typeface = android.graphics.Typeface.MONOSPACE
             setPadding(0, 0, 0, d(6))
-        })
+        }
+        val fillLog = {
+            val log = synchronized(SettingsWatch.log) { SettingsWatch.log.toList() }
+            logView.text = if (log.isEmpty()) "Noch keine Änderungen erkannt." else log.take(20).joinToString("\n")
+        }
+        fillLog()
+        pr.addView(logView)
         val prb = LinearLayout(this).apply { setPadding(0, 0, 0, d(6)) }
-        prb.addView(button("Aktualisieren") { build() })
+        prb.addView(button("Aktualisieren") { fillLog() })
         prb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
-        prb.addView(button("Liste leeren") { SettingsWatch.log.clear(); build() })
+        prb.addView(button("Liste leeren") { SettingsWatch.log.clear(); fillLog() })
         pr.addView(prb)
 
         // Feedback upload
@@ -288,12 +309,17 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, d(6))
         })
 
-        val scroll = ScrollView(this).apply {
+        val sv = ScrollView(this).apply {
             setBackgroundColor(pal.surface)
             addView(content)
         }
-        setContentView(scroll)
-        buttons.firstOrNull()?.requestFocus()
+        scroll = sv
+        setContentView(sv)
+        sv.post {
+            sv.scrollTo(0, oldScroll)
+            (buttons.getOrNull(oldFocus) ?: buttons.firstOrNull())?.requestFocus()
+            sv.scrollTo(0, oldScroll)
+        }
     }
 
     private fun notRunning() = Toast.makeText(this, "Bitte zuerst Hugminn aktivieren", Toast.LENGTH_SHORT).show()

@@ -71,20 +71,28 @@ class ControlCenter(private val svc: HugminnService) {
         graphUpdates.clear()
         focus = 0
         metrics = Metrics(svc)
-        val bounds = wm.currentWindowMetrics.bounds
+        // Full window over everything; the status bar is covered unless the user wants to keep it.
+        val metrics = wm.currentWindowMetrics
+        val bounds = metrics.bounds
+        val statusH = metrics.windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top
         val r = FrameLayout(svc).apply {
-            setBackgroundColor(pal.scrim)
-            setOnClickListener { if (menuView != null) closeMenu() else close() }
+            setBackgroundColor(pal.surface)
+            setOnClickListener { if (menuView != null) closeMenu() }
         }
-        val pw = (bounds.width() * 0.94f).toInt()
-        val ph = (bounds.height() * 0.90f).toInt()
-        r.addView(build(), FrameLayout.LayoutParams(pw, ph, Gravity.CENTER))
+        val panel = build()
+        if (!svc.prefs.ccHideStatus) panel.setPadding(panel.paddingLeft, panel.paddingTop + statusH, panel.paddingRight, panel.paddingBottom)
+        r.addView(panel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            bounds.width(), bounds.height(),
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
-        )
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            fitInsetsTypes = 0
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
         r.alpha = 0f
         wm.addView(r, lp)
         r.animate().alpha(1f).setDuration(120).start()
@@ -122,8 +130,8 @@ class ControlCenter(private val svc: HugminnService) {
     private fun build(): View {
         val panel = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(pal.surface, 28f * d)
-            setPadding(22 * d, 16 * d, 22 * d, 12 * d)
+            setBackgroundColor(pal.surface)
+            setPadding(28 * d, 18 * d, 28 * d, 14 * d)
             isClickable = true
         }
 
