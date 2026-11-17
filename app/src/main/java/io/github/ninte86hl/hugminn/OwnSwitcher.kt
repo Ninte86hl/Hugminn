@@ -163,11 +163,14 @@ class OwnSwitcher(private val svc: HugminnService) {
                 ?: Regex("""A=\d+:([\w.]+)""").find(head)?.groupValues?.get(1)
                 ?: return@forEachIndexed
             if (pkg == svc.packageName || pkg.contains("launcher", true)) return@forEachIndexed
-            if (pkg !in launchable) { skipped += pkg; return@forEachIndexed }
+            // apps without their own launcher icon (e.g. a gallery opened from elsewhere) count too;
+            // only system parts without a window of their own are left out
+            if (pkg !in launchable && (pkg == "com.android.systemui" || pkg.startsWith("com.android.permissioncontroller") ||
+                    runCatching { svc.packageManager.getApplicationInfo(pkg, 0) }.isFailure)) { skipped += pkg; return@forEachIndexed }
             if (res.none { it.pkg == pkg }) res += RecentApp(pkg, id)
         }
         diag = "Taskliste: ${starts.size} Tasks, ${res.size} Apps: ${res.joinToString { it.pkg }}" +
-            (if (skipped.isNotEmpty()) "\nOhne Startsymbol übergangen: ${skipped.distinct().joinToString()}" else "")
+            (if (skipped.isNotEmpty()) "\nÜbergangen: ${skipped.distinct().joinToString()}" else "")
         return res
     }
 
