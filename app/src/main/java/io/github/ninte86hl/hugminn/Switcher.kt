@@ -361,31 +361,19 @@ class Switcher(private val svc: HugminnService) {
         redraw()
     }
 
+    /**
+     * One wide window over the row of cards (from the top of the app windows to their bottom). It does
+     * not move with the cards, so it can never lag behind Android's animation; icon and lock above the
+     * windows stay covered.
+     */
     private fun computeFrame(): Frame {
-        val m = model
-        val snaps = mutableListOf<RectF>()
-        val labels = mutableListOf<String>()
-        val icons = mutableListOf<android.graphics.drawable.Drawable?>()
-        if (!scanned && m != null) {
-            val snap = m.snap?.let { RectF(it.left + m.card.left, it.top + m.card.top, it.right + m.card.left, it.bottom + m.card.top) } ?: RectF(m.card)
-            return Frame(listOf(snap), listOf(""), listOf(null), 0)
-        }
-        for (i in cards.indices) {
-            if (m == null) {
-                snaps += RectF(); labels += ""; icons += null
-                continue
-            }
-            // Mirrored: a higher index (older app) sits further left on screen.
-            val dx = dir * (i - pos) * m.pitch
-            val left = m.card.left + dx
-            val top = m.card.top
-            fun off(x: RectF?) = x?.let { RectF(it.left + left, it.top + top, it.right + left, it.bottom + top) } ?: RectF()
-            snaps += m.snap?.let { off(it) } ?: RectF(m.card).also { it.offset(dx, 0f) }
-            val c = cards[i]
-            labels += c.label ?: "Unbekannte App"
-            icons += c.pkg?.let { p -> iconCache.getOrPut(p) { Apps.icon(svc, p) } }
-        }
-        return Frame(snaps, labels, icons, target)
+        val m = model ?: return Frame(emptyList(), emptyList(), emptyList(), target)
+        if (scanned && cards.isEmpty()) return Frame(emptyList(), emptyList(), emptyList(), 0)
+        val w = wm.currentWindowMetrics.bounds.width().toFloat()
+        val top = m.card.top + (m.snap?.top ?: 0f)
+        val bottom = m.card.top + (m.snap?.bottom ?: m.card.height())
+        val side = svc.dp(10).toFloat()
+        return Frame(listOf(RectF(side, top, w - side, bottom)), listOf(""), listOf(null), -1)
     }
 
     private fun redraw() {

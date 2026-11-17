@@ -16,13 +16,20 @@ import android.view.View
 
 /** Material You colours taken from the system palette (falls back to Hugminn red on older Android). */
 class Palette(private val ctx: Context) {
-    val dark: Boolean = run {
-        // Services keep an old configuration, so ask the system for the current night mode first.
-        val um = ctx.getSystemService(android.app.UiModeManager::class.java)
-        when (um?.nightMode) {
-            android.app.UiModeManager.MODE_NIGHT_YES -> true
-            android.app.UiModeManager.MODE_NIGHT_NO -> false
-            else -> (ctx.applicationContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    private val theme = Prefs(ctx).theme
+    /** OLED: dark with pure black backgrounds. */
+    val oled = theme == Theme.OLED
+    val dark: Boolean = when (theme) {
+        Theme.LIGHT -> false
+        Theme.DARK, Theme.OLED -> true
+        Theme.SYSTEM -> {
+            // Services keep an old configuration, so ask the system for the current night mode first.
+            val um = ctx.getSystemService(android.app.UiModeManager::class.java)
+            when (um?.nightMode) {
+                android.app.UiModeManager.MODE_NIGHT_YES -> true
+                android.app.UiModeManager.MODE_NIGHT_NO -> false
+                else -> (ctx.applicationContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            }
         }
     }
     private fun sys(name: String, fallback: Int): Int {
@@ -37,9 +44,9 @@ class Palette(private val ctx: Context) {
     val onPrimaryContainer = if (dark) sys("system_accent1_100", 0xFFFFDAD6.toInt()) else sys("system_accent1_900", 0xFF410002.toInt())
     val secondaryContainer = if (dark) sys("system_accent2_700", 0xFF5D3F3C.toInt()) else sys("system_accent2_100", 0xFFFFDAD6.toInt())
     val onSecondaryContainer = if (dark) sys("system_accent2_100", 0xFFFFDAD6.toInt()) else sys("system_accent2_900", 0xFF2C1513.toInt())
-    val surface = if (dark) sys("system_neutral1_900", 0xFF201A19.toInt()) else sys("system_neutral1_10", 0xFFFFFBFF.toInt())
-    val surfaceHigh = if (dark) sys("system_neutral1_800", 0xFF362F2E.toInt()) else sys("system_neutral1_50", 0xFFFBEEEC.toInt())
-    val surfaceHighest = if (dark) sys("system_neutral2_700", 0xFF534341.toInt()) else sys("system_neutral2_100", 0xFFF5DDDA.toInt())
+    val surface = if (oled) Color.BLACK else if (dark) sys("system_neutral1_900", 0xFF201A19.toInt()) else sys("system_neutral1_10", 0xFFFFFBFF.toInt())
+    val surfaceHigh = if (oled) 0xFF111111.toInt() else if (dark) sys("system_neutral1_800", 0xFF362F2E.toInt()) else sys("system_neutral1_50", 0xFFFBEEEC.toInt())
+    val surfaceHighest = if (oled) 0xFF1F1F1F.toInt() else if (dark) sys("system_neutral2_700", 0xFF534341.toInt()) else sys("system_neutral2_100", 0xFFF5DDDA.toInt())
     val onSurface = if (dark) sys("system_neutral1_100", 0xFFEDE0DE.toInt()) else sys("system_neutral1_900", 0xFF201A19.toInt())
     val onSurfaceVariant = if (dark) sys("system_neutral2_200", 0xFFD8C2BF.toInt()) else sys("system_neutral2_700", 0xFF534341.toInt())
     val outline = if (dark) sys("system_neutral2_400", 0xFFA08C8A.toInt()) else sys("system_neutral2_500", 0xFF857371.toInt())

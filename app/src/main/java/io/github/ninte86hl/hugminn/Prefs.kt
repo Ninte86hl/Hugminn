@@ -20,6 +20,13 @@ enum class StatusBar(val label: String) {
     SYSTEM("Android-Statusleiste"),
 }
 
+enum class Theme(val label: String) {
+    SYSTEM("System"),
+    LIGHT("Hell"),
+    DARK("Dunkel"),
+    OLED("OLED-Schwarz"),
+}
+
 enum class GlyphStyle(val label: String) {
     AUTO("Automatisch"),
     XBOX("Xbox"),
@@ -58,6 +65,10 @@ class Prefs(ctx: Context) {
     var switcherGeometry: String?
         get() = p.getString("switcherGeometry", null)
         set(v) = p.edit().putString("switcherGeometry", v).apply()
+
+    var theme: Theme
+        get() = enumOr(p.getString("theme", null), Theme.SYSTEM)
+        set(v) = p.edit().putString("theme", v.name).apply()
 
     var glyphStyle: GlyphStyle
         get() = enumOr(p.getString("glyphs", null), GlyphStyle.AUTO)

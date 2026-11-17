@@ -188,6 +188,12 @@ class MainActivity : Activity() {
             prefs.longMs = cycle(listOf(350, 450, 600, 800), prefs.longMs)
         }
 
+        val look = section("Darstellung")
+        row(look, "Farbschema", "OLED-Schwarz: echtes Schwarz als Hintergrund, spart auf OLED-Bildschirmen Strom", { prefs.theme.label }) {
+            prefs.theme = cycle(Theme.values().toList(), prefs.theme)
+            content.post { build() } // all colours change
+        }
+
         // Switcher look
         val sw = section("Game Switcher")
         row(sw, "Auch bei Wischgeste", "Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird", { if (prefs.autoSwitcher) "An" else "Aus" }) {
