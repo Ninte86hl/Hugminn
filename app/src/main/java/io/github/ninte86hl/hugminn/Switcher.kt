@@ -851,8 +851,8 @@ class ShellView(
         }
         val clip = Path()
         // A little inside the snapshot so no launcher edge or rounded card corner shows through.
-        val inset = context.dp(3).toFloat()
-        val hole = f?.snaps?.firstOrNull()?.takeIf { !it.isEmpty }?.let { RectF(it.left + inset, it.top + inset, it.right - inset, it.bottom - inset) }
+        val holeInset = context.dp(3).toFloat()
+        val hole = f?.snaps?.firstOrNull()?.takeIf { !it.isEmpty }?.let { RectF(it.left + holeInset, it.top + holeInset, it.right - holeInset, it.bottom - holeInset) }
         if (hole != null) shape(hole, clip)
         if (mode == StatusBar.SYSTEM) clip.addRect(0f, 0f, width.toFloat(), statusH.toFloat(), Path.Direction.CW)
         val area = Path().apply { addRect(0f, top, width.toFloat(), barTop.toFloat(), Path.Direction.CW) }
