@@ -13,6 +13,8 @@ class ProbeAccessibilityService : AccessibilityService() {
 
     companion object {
         @Volatile var instance: ProbeAccessibilityService? = null
+        /** While true, Home (KEYCODE_MOVE_HOME / HOME) is swallowed: tests whether Hugminn can take over the key. */
+        @Volatile var consumeHome = false
         val keyLog: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val windowLog: MutableList<String> = Collections.synchronizedList(mutableListOf())
 
@@ -34,6 +36,7 @@ class ProbeAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        consumeHome = false
         instance = null
         super.onDestroy()
     }
@@ -47,8 +50,10 @@ class ProbeAccessibilityService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
-        add(keyLog, Probe.describeKey("A11Y", event))
-        return false
+        val home = event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME
+        val swallow = consumeHome && home
+        add(keyLog, Probe.describeKey(if (swallow) "A11Y(abgefangen)" else "A11Y", event))
+        return swallow
     }
 
     fun openRecents(): Boolean = performGlobalAction(GLOBAL_ACTION_RECENTS)

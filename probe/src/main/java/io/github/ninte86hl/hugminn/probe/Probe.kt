@@ -183,8 +183,13 @@ object Probe {
         }
     }
 
-    fun hardware(ctx: Context): String =
-        Root.runAsset(ctx, "hardware.sh", timeoutMs = 45_000)?.let { redact(it) } ?: "Nur mit Root-Dienst möglich."
+    fun hardware(ctx: Context): String {
+        if (!Root.available()) return "Nur mit Root-Dienst möglich."
+        val sections = listOf("leds", "cpu", "gpu", "thermal", "cooling", "fan", "power", "backlight", "input", "packages", "services", "surfaceflinger")
+        return sections.joinToString("\n\n") { sec ->
+            "## $sec\n" + (Root.runAsset(ctx, "hardware.sh", sec, timeoutMs = 15_000)?.let { redact(it) } ?: "keine Antwort")
+        }
+    }
 
     fun packages(ctx: Context): String = buildString {
         val pm = ctx.packageManager

@@ -85,8 +85,10 @@ class MainActivity : Activity() {
     private val homeTasks = listOf(
         "Home einmal kurz drücken",
         "Home lange gedrückt halten (ca. 1 Sekunde)",
-        "Home zweimal schnell hintereinander drücken"
+        "Home zweimal schnell hintereinander drücken",
+        "Abfang-Test: Home einmal kurz drücken. Die App versucht jetzt, die Taste abzufangen – bleibt sie offen?"
     )
+    private val consumeTask = 3
     private var homeIndex = 0
     private var homeLeft = false
     private var homeRecorded = -1
@@ -406,6 +408,8 @@ class MainActivity : Activity() {
         }
         homeLeft = false
         ProbeAccessibilityService.keyLog.clear()
+        ProbeAccessibilityService.consumeHome = homeIndex == consumeTask
+        if (homeIndex == consumeTask) ui.postDelayed({ ProbeAccessibilityService.consumeHome = false }, 20_000)
         page(
             "Home-Taste ${homeIndex + 1} von ${homeTasks.size}",
             "${homeTasks[homeIndex]}.\n\n" +
@@ -422,6 +426,10 @@ class MainActivity : Activity() {
         val lines = synchronized(ProbeAccessibilityService.keyLog) { ProbeAccessibilityService.keyLog.toList() }
         homeResults.append("— ").append(homeTasks[homeIndex]).append(" —\n")
         homeResults.append("App verlassen: ").append(if (homeLeft) "ja" else "nein").append('\n')
+        if (homeIndex == consumeTask) {
+            homeResults.append(if (homeLeft) "→ Abfangen hat NICHT gereicht, das System ging trotzdem zum Startbildschirm\n"
+            else "→ Abfangen hat funktioniert, die App blieb offen\n")
+        }
         if (lines.isEmpty()) homeResults.append("Bedienungshilfe hat keine Taste gesehen\n")
         else lines.forEach { homeResults.append(it).append('\n') }
         homeResults.append('\n')
@@ -430,6 +438,7 @@ class MainActivity : Activity() {
     }
 
     private fun finishHome() {
+        ProbeAccessibilityService.consumeHome = false
         report["Home-Taste"] = homeResults.toString()
         val f = rawFile
         if (f == null) {
@@ -752,6 +761,11 @@ class MainActivity : Activity() {
 
     // ---------- Lifecycle ----------
 
+    override fun onDestroy() {
+        ProbeAccessibilityService.consumeHome = false
+        super.onDestroy()
+    }
+
     override fun onStop() {
         super.onStop()
         if (step == Step.HOME && !expert && homeRecorded != homeIndex) {
@@ -776,7 +790,7 @@ class MainActivity : Activity() {
     // ---------- Report ----------
 
     private fun fullReport(): String = buildString {
-        appendLine("Hugminn Probe 0.3.2 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+        appendLine("Hugminn Probe 0.4.0 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         appendLine("Gerät: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE}), Android ${Build.VERSION.RELEASE}")
         appendLine("Persönliche Werte (Seriennummer, Konten, WLAN, MAC usw.) wurden entfernt.")
         appendLine()
