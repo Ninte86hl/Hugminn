@@ -105,18 +105,24 @@ class ControlCenter(private val svc: HugminnService) {
             isFocusable = true
             isFocusableInTouchMode = true
         }
-        topInset = if (svc.prefs.ccHideStatus) 0 else statusH
+        statusMode = svc.prefs.ccStatusBar
+        val bandH = statusH.takeIf { it > 0 } ?: svc.dp(24)
+        // OVERLAY: own bar in the chosen style; SYSTEM: the window starts below Android's status bar.
+        topInset = if (statusMode == StatusBar.HIDDEN) 0 else bandH
         val panel = build()
-        panel.setPadding(panel.paddingLeft, panel.paddingTop + topInset, panel.paddingRight, panel.paddingBottom)
+        panel.setPadding(panel.paddingLeft, panel.paddingTop + padTop(), panel.paddingRight, panel.paddingBottom)
         r.addView(panel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         panelView = panel
+        if (statusMode == StatusBar.OVERLAY) r.addView(StatusBand(svc, pal, ""), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, bandH))
+        val sysTop = if (statusMode == StatusBar.SYSTEM) topInset else 0
         val lp = WindowManager.LayoutParams(
-            bounds.width(), bounds.height(),
+            bounds.width(), bounds.height() - sysTop,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
+            y = sysTop
             fitInsetsTypes = 0
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
@@ -176,6 +182,9 @@ class ControlCenter(private val svc: HugminnService) {
     private val cardItems = mutableListOf<Item>()
     private var panelView: View? = null
     private var topInset = 0
+    private var statusMode = StatusBar.OVERLAY
+    /** Extra top padding of the panel: room for Hugminn's own status bar. */
+    private fun padTop() = if (statusMode == StatusBar.OVERLAY) topInset else 0
 
     /** Rebuilds the Control Center in place (live preview while editing). */
     private fun rebuildPanel() {
@@ -184,7 +193,7 @@ class ControlCenter(private val svc: HugminnService) {
         refreshers.clear()
         items.clear()
         val p = build()
-        p.setPadding(p.paddingLeft, p.paddingTop + topInset, p.paddingRight, p.paddingBottom)
+        p.setPadding(p.paddingLeft, p.paddingTop + padTop(), p.paddingRight, p.paddingBottom)
         panelView?.let { r.removeView(it) }
         r.addView(p, 0, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         panelView = p
@@ -207,14 +216,17 @@ class ControlCenter(private val svc: HugminnService) {
         header.addView(text("Huginn", 20f, pal.primary, bold = true))
         header.addView(text("  ·  Control Center", 15f, pal.onSurfaceVariant), lp(0, WRAP, 1f))
         val battery = text("", 14f, pal.onSurfaceVariant).apply { setPadding(0, 0, 14 * d, 0) }
-        header.addView(battery)
-        header.addView(TextClock(svc).apply {
-            format24Hour = "HH:mm"
-            format12Hour = "h:mm"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            setTextColor(pal.onSurface)
-            typeface = Look.font(svc, pixel, true)
-        })
+        // With Hugminn's own status bar, clock and battery live up there instead.
+        if (statusMode != StatusBar.OVERLAY) {
+            header.addView(battery)
+            header.addView(TextClock(svc).apply {
+                format24Hour = "HH:mm"
+                format12Hour = "h:mm"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                setTextColor(pal.onSurface)
+                typeface = Look.font(svc, pixel, true)
+            })
+        }
         val gear = FrameLayout(svc).apply {
             background = shape(pal.surfaceHighest, 20f * d)
             addView(IconView(svc, IconView.Kind.GEAR, 22).apply { setColor(pal.onSurface) },

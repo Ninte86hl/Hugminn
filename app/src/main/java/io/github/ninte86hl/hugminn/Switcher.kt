@@ -59,7 +59,12 @@ class Switcher(private val svc: HugminnService) {
         val labels: List<String>,
         val icons: List<android.graphics.drawable.Drawable?>,
         val selected: Int,
+        /** Neighbouring apps, drawn as calm placeholders left/right of the window instead of the live cards. */
+        val left: Peek? = null,
+        val right: Peek? = null,
     )
+
+    class Peek(val label: String, val icon: android.graphics.drawable.Drawable?)
 
     var isOpen = false
         private set
@@ -90,9 +95,15 @@ class Switcher(private val svc: HugminnService) {
     private var worker: HandlerThread? = null
     private var work: Handler? = null
 
+    /** App that was in front when the switcher opened (B returns there). */
+    private var fromPkg: String? = null
+
     fun open() {
         if (isOpen) return
         isOpen = true
+        // Opened from the home screen: B leads back there, not into the last game.
+        val front = runCatching { svc.rootInActiveWindow?.packageName?.toString() }.getOrNull()
+        fromPkg = if (front != null && front.contains("launcher", true)) null else svc.foregroundPkg
         pal = Palette(svc)
         generation++
         cards = emptyList()
@@ -126,7 +137,28 @@ class Switcher(private val svc: HugminnService) {
         listOf(shell, bar).forEach { v -> v?.let { runCatching { wm.removeView(it) } } }
         bar = null
         shell = null
-        if (goBack) svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+        if (goBack) leaveRecents()
+    }
+
+    /**
+     * Closes Android's own recents view too. "Back" only works once Hugminn's window has given up the
+     * input focus, so it is sent a moment later; if the overview is still there after that, Hugminn
+     * returns to the app that was open before (or to the home screen).
+     */
+    private fun leaveRecents() {
+        val known = cards
+        val from = fromPkg
+        svc.ui.postDelayed({
+            if (isOpen) return@postDelayed
+            svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+            svc.ui.postDelayed({
+                if (isOpen || findPanel() == null) return@postDelayed
+                val back = known.firstOrNull { from != null && it.pkg == from }
+                if (back == null || !back.node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+                }
+            }, 450)
+        }, 160)
     }
 
     // ---------- reading the recents view (worker thread) ----------
@@ -381,20 +413,19 @@ class Switcher(private val svc: HugminnService) {
         val m = model ?: return Frame(emptyList(), emptyList(), emptyList(), target)
         if (scanned && cards.isEmpty()) return Frame(emptyList(), emptyList(), emptyList(), 0)
         val snap = m.snap?.let { RectF(it.left + m.card.left, it.top + m.card.top, it.right + m.card.left, it.bottom + m.card.top) } ?: RectF(m.card)
-        // Let neighbouring cards peek in, but only on the sides where there really is one.
+        // Neighbours are not shown live (half-cut cards, gaps and launcher parts made it look restless);
+        // instead a calm placeholder with icon and name shows which app lies in which direction.
+        var left: Peek? = null
+        var right: Peek? = null
         if (scanned && cards.size > 1) {
-            val w = wm.currentWindowMetrics.bounds.width().toFloat()
-            val side = svc.dp(10).toFloat()
-            val n = cards.size
             val olderLeft = dir < 0 // dir < 0: higher index = further left
-            val hasLower = target > 0
-            val hasHigher = target < n - 1
-            val leftExists = if (olderLeft) hasHigher else hasLower
-            val rightExists = if (olderLeft) hasLower else hasHigher
-            if (leftExists) snap.left = side
-            if (rightExists) snap.right = w - side
+            fun peek(i: Int) = cards.getOrNull(i)?.let { c ->
+                Peek(c.label ?: "App", c.pkg?.let { p -> iconCache.getOrPut(p) { Apps.icon(svc, p) } })
+            }
+            left = peek(if (olderLeft) target + 1 else target - 1)
+            right = peek(if (olderLeft) target - 1 else target + 1)
         }
-        return Frame(listOf(snap), listOf(""), listOf(null), -1)
+        return Frame(listOf(snap), listOf(""), listOf(null), -1, left, right)
     }
 
     private fun redraw() {
@@ -726,8 +757,9 @@ class Switcher(private val svc: HugminnService) {
 }
 
 /**
- * Full-screen frame (does not take touches): fills the screen in the theme's surface colour and cuts
- * out every visible window, app icon and lock symbol of the recents view; the centred card is outlined.
+ * Full-screen frame (does not take touches): fills the screen in the theme's surface colour and leaves
+ * one calm window over the selected app. Neighbouring apps appear as quiet placeholders at the sides.
+ * Corners, outlines and fonts follow the chosen style (modern, pixel, dot matrix).
  */
 class ShellView(
     ctx: android.content.Context,
@@ -742,59 +774,66 @@ class ShellView(
             invalidate()
         }
 
+    private val style = Prefs(ctx).uiStyle
+    private val pixel = style == UiStyle.PIXEL
+    private val dots = style == UiStyle.DOTS
+    private val unit = ctx.dp(3).toFloat()
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surface }
     private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = ctx.dp(if (pal.dots) 3 else 1).toFloat()
-        color = if (pal.dots) pal.outline else (pal.outline and 0x00FFFFFF) or 0x80000000.toInt()
-        if (pal.dots) {
-            strokeCap = Paint.Cap.ROUND
-            pathEffect = android.graphics.DashPathEffect(floatArrayOf(0.1f, ctx.dp(9).toFloat()), 0f)
+        when {
+            dots -> {
+                strokeWidth = ctx.dp(3).toFloat()
+                color = pal.outline
+                strokeCap = Paint.Cap.ROUND
+                pathEffect = android.graphics.DashPathEffect(floatArrayOf(0.1f, ctx.dp(8).toFloat()), 0f)
+            }
+            pixel -> {
+                isAntiAlias = false
+                strokeWidth = unit
+                color = pal.surfaceHighest
+            }
+            else -> {
+                strokeWidth = ctx.dp(1).toFloat()
+                color = (pal.outline and 0x00FFFFFF) or 0x55000000
+            }
         }
     }
-    private val sel = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = ctx.dp(3).toFloat()
-        color = pal.primary
+    private val peekFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh }
+    private val peekText = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = pal.onSurfaceVariant
+        textAlign = Paint.Align.CENTER
+        textSize = ctx.resources.displayMetrics.scaledDensity * 13f
+        typeface = Look.font(ctx, pixel, false)
     }
-    private val snapR = ctx.dp(16).toFloat()
-    private val lockR = ctx.dp(10).toFloat()
-    private val gap = ctx.dp(3).toFloat()
+    private val chevron = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = ctx.dp(if (pixel) 3 else 2).toFloat()
+        strokeCap = if (pixel) Paint.Cap.SQUARE else Paint.Cap.ROUND
+        strokeJoin = if (pixel) Paint.Join.MITER else Paint.Join.ROUND
+        color = pal.onSurfaceVariant
+        if (dots) {
+            strokeWidth = ctx.dp(3).toFloat()
+            strokeCap = Paint.Cap.ROUND
+            pathEffect = android.graphics.DashPathEffect(floatArrayOf(0.1f, ctx.dp(5).toFloat()), 0f)
+        }
+    }
+    private val radius = ctx.dp(if (dots) 10 else 16).toFloat()
+    private val emptyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = pal.onSurfaceVariant
+        textAlign = Paint.Align.CENTER
+        textSize = ctx.resources.displayMetrics.scaledDensity * 20f
+        typeface = Look.font(ctx, pixel, false)
+    }
 
     init {
         setWillNotDraw(false)
-        if (mode == StatusBar.OVERLAY) {
-            val band = LinearLayout(ctx).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(ctx.dp(22), 0, ctx.dp(22), 0)
-            }
-            band.addView(android.widget.TextClock(ctx).apply {
-                format24Hour = "HH:mm"
-                format12Hour = "h:mm"
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                setTextColor(pal.onSurface)
-                typeface = Look.font(ctx, Prefs(ctx).uiStyle == UiStyle.PIXEL, true)
-            })
-            band.addView(TextView(ctx).apply {
-                text = "Muninn · Game Switcher"
-                typeface = Look.font(ctx, Prefs(ctx).uiStyle == UiStyle.PIXEL, false)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                setTextColor(pal.onSurfaceVariant)
-                gravity = Gravity.CENTER
-            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            val bm = ctx.getSystemService(android.os.BatteryManager::class.java)
-            val pct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
-            if (pct >= 0) band.addView(TextView(ctx).apply {
-                text = "$pct %" + if (bm?.isCharging == true) " ⚡" else ""
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                setTextColor(pal.onSurface)
-                typeface = Look.font(ctx, Prefs(ctx).uiStyle == UiStyle.PIXEL, true)
-            })
-            addView(band, LayoutParams(LayoutParams.MATCH_PARENT, statusH))
-        }
+        if (mode == StatusBar.OVERLAY) addView(StatusBand(ctx, pal, "Muninn · Game Switcher"), LayoutParams(LayoutParams.MATCH_PARENT, statusH))
     }
 
-    private fun grow(r: RectF, by: Float) = RectF(r.left - by, r.top - by, r.right + by, r.bottom + by)
+    /** Window/placeholder outline in the chosen style. */
+    private fun shape(r: RectF, into: Path = Path()): Path =
+        if (pixel) pixelPath(r, unit, 3, into) else into.apply { addRoundRect(r, radius, radius, Path.Direction.CW) }
 
     override fun onDraw(c: Canvas) {
         try {
@@ -804,53 +843,69 @@ class ShellView(
         }
     }
 
-    private val iconSize = ctx.dp(34).toFloat()
-    private val iconGap = ctx.dp(10).toFloat()
-    private val titleGap = ctx.dp(14).toFloat()
-    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = ctx.resources.displayMetrics.scaledDensity * 16f
-    }
-    private val chipFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.secondaryContainer }
-
-    private val emptyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = pal.onSurfaceVariant
-        textAlign = Paint.Align.CENTER
-        textSize = ctx.resources.displayMetrics.scaledDensity * 20f
-    }
-
     private fun draw(c: Canvas, f: Switcher.Frame?) {
+        val top = if (mode == StatusBar.SYSTEM) 0f else statusH.toFloat()
         val path = Path().apply {
             fillType = Path.FillType.EVEN_ODD
             addRect(0f, 0f, width.toFloat(), height.toFloat(), Path.Direction.CW)
         }
         val clip = Path()
-        if (f != null) {
-            for (i in f.snaps.indices) {
-                val s = f.snaps[i]
-                if (s.isEmpty) continue
-                clip.addRoundRect(s, snapR, snapR, Path.Direction.CW)
-            }
-        }
+        // 1 px inside the snapshot so no launcher edge or card corner shows through.
+        val hole = f?.snaps?.firstOrNull()?.takeIf { !it.isEmpty }?.let { RectF(it.left + 1, it.top + 1, it.right - 1, it.bottom - 1) }
+        if (hole != null) shape(hole, clip)
         if (mode == StatusBar.SYSTEM) clip.addRect(0f, 0f, width.toFloat(), statusH.toFloat(), Path.Direction.CW)
-        // Only cut holes inside the area between status band and controller bar.
-        val area = Path().apply { addRect(0f, if (mode == StatusBar.SYSTEM) 0f else statusH.toFloat(), width.toFloat(), barTop.toFloat(), Path.Direction.CW) }
+        val area = Path().apply { addRect(0f, top, width.toFloat(), barTop.toFloat(), Path.Direction.CW) }
         clip.op(area, Path.Op.INTERSECT)
         path.op(clip, Path.Op.DIFFERENCE)
         c.drawPath(path, fill)
         if (f == null) return
-        if (f.snaps.isEmpty()) {
-            c.drawText("Keine offenen Apps", width / 2f, (statusH + barTop) / 2f, emptyPaint)
+        if (hole == null) {
+            if (f.snaps.isEmpty()) c.drawText("Keine offenen Apps", width / 2f, (statusH + barTop) / 2f, emptyPaint)
             return
         }
-        for (i in f.snaps.indices) {
-            val s = f.snaps[i]
-            if (s.isEmpty) continue
-            val p = if (i == f.selected) sel else edge
-            c.save()
-            c.clipRect(0f, statusH.toFloat(), width.toFloat(), barTop.toFloat())
-            c.drawRoundRect(s, snapR, snapR, p)
-            c.restore()
+        c.save()
+        c.clipRect(0f, top, width.toFloat(), barTop.toFloat())
+        c.drawPath(shape(hole), edge)
+        c.restore()
+        val gap = context.dp(18).toFloat()
+        val side = context.dp(18).toFloat()
+        val inset = hole.height() * 0.12f
+        f.left?.let { drawPeek(c, RectF(side, hole.top + inset, hole.left - gap, hole.bottom - inset), it, true) }
+        f.right?.let { drawPeek(c, RectF(hole.right + gap, hole.top + inset, width - side, hole.bottom - inset), it, false) }
+    }
+
+    /** Quiet placeholder for the app in that direction: icon, name and an arrow pointing outwards. */
+    private fun drawPeek(c: Canvas, r: RectF, p: Switcher.Peek, left: Boolean) {
+        if (r.width() < context.dp(56) || r.height() < context.dp(80)) return
+        val bg = shape(r)
+        c.drawPath(bg, peekFill)
+        if (dots) c.drawPath(bg, edge)
+        val icon = minOf(context.dp(48).toFloat(), r.width() * 0.5f)
+        val cx = r.centerX()
+        val label = android.text.TextUtils.ellipsize(p.label, peekText, r.width() - context.dp(20), android.text.TextUtils.TruncateAt.END).toString()
+        val block = icon + context.dp(12) + peekText.textSize
+        var y = r.centerY() - block / 2
+        p.icon?.let { d ->
+            d.setBounds((cx - icon / 2).toInt(), y.toInt(), (cx + icon / 2).toInt(), (y + icon).toInt())
+            if (dots || pixel) {
+                // Monochrome look stays calm: icons are drawn slightly dimmed.
+                d.alpha = 200
+            }
+            d.draw(c)
+            d.alpha = 255
         }
+        y += icon + context.dp(12) + peekText.textSize * 0.8f
+        c.drawText(label, cx, y, peekText)
+        // Arrow at the outer edge
+        val a = context.dp(7).toFloat()
+        val ax = if (left) r.left + context.dp(18) else r.right - context.dp(18)
+        val ay = r.centerY()
+        val d = if (left) a else -a
+        c.drawPath(Path().apply {
+            moveTo(ax + d, ay - a * 1.6f)
+            lineTo(ax, ay)
+            lineTo(ax + d, ay + a * 1.6f)
+        }, chevron)
     }
 }
 

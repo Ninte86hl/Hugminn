@@ -285,22 +285,7 @@ class PixelShape(private val color: Int, private val unit: Float, private val st
         this.color = strokeColor
     }
 
-    private fun path(r: android.graphics.RectF): android.graphics.Path {
-        val p = android.graphics.Path()
-        val u = unit
-        val n = steps
-        p.moveTo(r.left + u * n, r.top)
-        p.lineTo(r.right - u * n, r.top)
-        for (i in n - 1 downTo 0) { p.lineTo(r.right - u * i, r.top + u * (n - 1 - i)); p.lineTo(r.right - u * i, r.top + u * (n - i)) }
-        p.lineTo(r.right, r.bottom - u * n)
-        for (i in 1..n) { p.lineTo(r.right - u * (i - 1), r.bottom - u * (n - i)); p.lineTo(r.right - u * i, r.bottom - u * (n - i)) }
-        p.lineTo(r.left + u * n, r.bottom)
-        for (i in n - 1 downTo 0) { p.lineTo(r.left + u * i, r.bottom - u * (n - 1 - i)); p.lineTo(r.left + u * i, r.bottom - u * (n - i)) }
-        p.lineTo(r.left, r.top + u * n)
-        for (i in 1..n) { p.lineTo(r.left + u * (i - 1), r.top + u * (n - i)); p.lineTo(r.left + u * i, r.top + u * (n - i)) }
-        p.close()
-        return p
-    }
+    private fun path(r: android.graphics.RectF) = pixelPath(r, unit, steps)
 
     override fun draw(c: android.graphics.Canvas) {
         val b = android.graphics.RectF(bounds)
@@ -321,4 +306,77 @@ class PixelShape(private val color: Int, private val unit: Float, private val st
 fun onColor(bg: Int): Int {
     val l = (0.299 * Color.red(bg) + 0.587 * Color.green(bg) + 0.114 * Color.blue(bg)) / 255
     return if (l > 0.6) 0xFF1B1B1F.toInt() else Color.WHITE
+}
+
+/** Rectangle outline with [n] stepped pixel corners of [u] size each. */
+fun pixelPath(r: android.graphics.RectF, u: Float, n: Int, into: android.graphics.Path = android.graphics.Path()): android.graphics.Path {
+    val p = into
+    p.moveTo(r.left + u * n, r.top)
+    p.lineTo(r.right - u * n, r.top)
+    for (i in n - 1 downTo 0) { p.lineTo(r.right - u * i, r.top + u * (n - 1 - i)); p.lineTo(r.right - u * i, r.top + u * (n - i)) }
+    p.lineTo(r.right, r.bottom - u * n)
+    for (i in 1..n) { p.lineTo(r.right - u * (i - 1), r.bottom - u * (n - i)); p.lineTo(r.right - u * i, r.bottom - u * (n - i)) }
+    p.lineTo(r.left + u * n, r.bottom)
+    for (i in n - 1 downTo 0) { p.lineTo(r.left + u * i, r.bottom - u * (n - 1 - i)); p.lineTo(r.left + u * i, r.bottom - u * (n - i)) }
+    p.lineTo(r.left, r.top + u * n)
+    for (i in 1..n) { p.lineTo(r.left + u * (i - 1), r.top + u * (n - i)); p.lineTo(r.left + u * i, r.top + u * (n - i)) }
+    p.close()
+    return p
+}
+
+/**
+ * Hugminn's own status bar (clock, title, battery) in the chosen style; used by the Game Switcher and
+ * the Control Center so both look the same. Keeps the battery value current by itself.
+ */
+class StatusBand(ctx: Context, pal: Palette, title: String) : android.widget.LinearLayout(ctx) {
+    private val battery = TextView(ctx)
+    private val receiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(c: Context, i: android.content.Intent) = update(i)
+    }
+
+    init {
+        val pixel = Look.pixel(ctx)
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(ctx.dp(22), 0, ctx.dp(22), 0)
+        addView(android.widget.TextClock(ctx).apply {
+            format24Hour = "HH:mm"
+            format12Hour = "h:mm"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextColor(pal.onSurface)
+            typeface = Look.font(ctx, pixel, true)
+        })
+        addView(TextView(ctx).apply {
+            text = title
+            typeface = Look.font(ctx, pixel, false)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setTextColor(pal.onSurfaceVariant)
+            gravity = Gravity.CENTER
+            maxLines = 1
+        }, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+        battery.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        battery.setTextColor(pal.onSurface)
+        battery.typeface = Look.font(ctx, pixel, true)
+        addView(battery)
+        update(null)
+    }
+
+    private fun update(i: android.content.Intent?) {
+        val bm = context.getSystemService(android.os.BatteryManager::class.java)
+        val pct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+        val charging = i?.let {
+            val st = it.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1)
+            st == android.os.BatteryManager.BATTERY_STATUS_CHARGING || st == android.os.BatteryManager.BATTERY_STATUS_FULL
+        } ?: (bm?.isCharging == true)
+        battery.text = if (pct >= 0) "$pct %" + if (charging) " ⚡" else "" else ""
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        runCatching { context.registerReceiver(receiver, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)) }
+    }
+
+    override fun onDetachedFromWindow() {
+        runCatching { context.unregisterReceiver(receiver) }
+        super.onDetachedFromWindow()
+    }
 }

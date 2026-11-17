@@ -203,6 +203,10 @@ object Feedback {
         appendLine("Dunkelmodus: ${pal.dark} · Tastensymbole: ${svc.prefs.glyphStyle} farbig=${svc.prefs.glyphColored} · Nintendo-Layout: ${Glyphs.nintendoLayout()}")
         appendLine("Statusleiste: ${svc.prefs.statusBar}")
         Crash.last(svc)?.let { appendLine(); appendLine("Letzter Fehler:"); appendLine(it) }
+        val changes = synchronized(SettingsWatch.log) { SettingsWatch.log.toList() }
+        if (changes.isNotEmpty()) { appendLine(); appendLine("Geänderte Systemeinstellungen:"); changes.forEach { appendLine("  $it") } }
+        val opened = synchronized(svc.windowLog) { svc.windowLog.toList() }
+        if (opened.isNotEmpty()) { appendLine(); appendLine("Zuletzt geöffnete Fenster:"); opened.forEach { appendLine("  $it") } }
         appendLine()
         val ws = runCatching { svc.windows }.getOrDefault(emptyList())
         appendLine("${ws.size} Fenster")

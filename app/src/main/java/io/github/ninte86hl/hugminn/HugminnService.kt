@@ -77,11 +77,23 @@ class HugminnService : AccessibilityService() {
     /** Package of the app in the foreground (game), for frame rate and overlay. */
     @Volatile var foregroundPkg: String? = null
         private set
+    /** Last opened windows (package/class), for finding firmware dialogs in feedback reports. */
+    val windowLog: MutableList<String> = mutableListOf()
     private val notApps = setOf("com.android.systemui", "com.android.launcher3", "com.google.android.inputmethod.latin")
 
         override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val pkg = event.packageName?.toString()
+            if (pkg != null && pkg != packageName) {
+                val entry = "$pkg/${event.className}"
+                synchronized(windowLog) {
+                    if (windowLog.firstOrNull()?.endsWith(entry) != true) {
+                        val t = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.GERMANY).format(java.util.Date())
+                        windowLog.add(0, "$t  $entry")
+                        while (windowLog.size > 25) windowLog.removeAt(windowLog.lastIndex)
+                    }
+                }
+            }
             if (pkg != null && pkg != packageName && pkg !in notApps && !pkg.contains("launcher", true) && !pkg.contains("inputmethod", true)) {
                 foregroundPkg = pkg
             }

@@ -70,9 +70,10 @@ class Prefs(ctx: Context) {
         set(v) = p.edit().putBoolean("autoSwitcher", v).apply()
 
     /** Control Center covers the status bar (true) or leaves Android's status bar visible. */
-    var ccHideStatus: Boolean
-        get() = p.getBoolean("ccHideStatus", true)
-        set(v) = p.edit().putBoolean("ccHideStatus", v).apply()
+    /** Control Center's top bar: own bar in the Hugminn style (default), none, or Android's status bar. */
+    var ccStatusBar: StatusBar
+        get() = enumOr(p.getString("ccStatusBar", null), StatusBar.OVERLAY)
+        set(v) = p.edit().putString("ccStatusBar", v.name).apply()
 
     /** Last measured switcher geometry ("screenW,screenH|card l,t,r,b|snap l,t,r,b|pitch"). */
     var switcherGeometry: String?

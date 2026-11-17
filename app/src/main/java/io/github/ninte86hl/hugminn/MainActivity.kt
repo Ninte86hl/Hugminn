@@ -209,13 +209,13 @@ class MainActivity : Activity() {
         row(sw, "Auch bei Wischgeste", "Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird", { if (prefs.autoSwitcher) "An" else "Aus" }) {
             prefs.autoSwitcher = !prefs.autoSwitcher
         }
-        row(sw, "Statusleiste", "Was der Rahmen oben zeigt: Uhrzeit und Akku im Hugminn-Stil, nichts, oder die normale Android-Leiste", { prefs.statusBar.label }) {
+        row(sw, "Statusleiste", "Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste", { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
         }
 
         val ccs = section("Control Center")
-        row(ccs, "Statusleiste ausblenden", "Das Control Center füllt den ganzen Bildschirm; aus = Android-Statusleiste bleibt sichtbar", { if (prefs.ccHideStatus) "An" else "Aus" }) {
-            prefs.ccHideStatus = !prefs.ccHideStatus
+        row(ccs, "Statusleiste", "Oben im Control Center: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste", { prefs.ccStatusBar.label }) {
+            prefs.ccStatusBar = cycle(StatusBar.values().toList(), prefs.ccStatusBar)
         }
         row(ccs, "Farben der Anzeigen", "Färbt CPU, GPU, Leistung, RAM und Temperatur nach Auslastung", { prefs.gaugePalette.label }) {
             prefs.gaugePalette = cycle(GaugePalette.values().toList(), prefs.gaugePalette)
