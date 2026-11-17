@@ -243,6 +243,7 @@ object Feedback {
                 if (lines.isNotEmpty()) { appendLine(); appendLine("LED-Einstellungen:"); lines.forEach { appendLine(it) } }
             }
         }
+        runCatching { svc.own.diag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
         if (LedFx.diag.isNotEmpty()) { appendLine(); appendLine("LED-Effekte (${LedFx.current()}, Akku-Warnung=${LedFx.lowBattery}):"); appendLine(LedFx.diag) }
         val opened = synchronized(svc.windowLog) { svc.windowLog.toList() }
         if (opened.isNotEmpty()) { appendLine(); appendLine("Zuletzt geöffnete Fenster:"); opened.forEach { appendLine("  $it") } }

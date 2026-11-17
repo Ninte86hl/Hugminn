@@ -112,6 +112,9 @@ class OwnSwitcher(private val svc: HugminnService) {
     private var menu: List<Pair<String, () -> Unit>>? = null
     private var menuSel = 0
 
+    /** What reading Android's task list found (for feedback reports). */
+    @Volatile var diag = ""
+
     /** Recently used apps, newest first; updated as apps come to the front and from Android's task list. */
     private var known: MutableList<RecentApp> = mutableListOf()
 
@@ -130,23 +133,31 @@ class OwnSwitcher(private val svc: HugminnService) {
     fun refresh(then: (() -> Unit)? = null) {
         thread {
             val list = loadTasks()
-            if (list != null) synchronized(this) { known = list.toMutableList() }
+            // only trust Android's list if it could be read (otherwise keep what Hugminn has seen)
+            if (!list.isNullOrEmpty()) synchronized(this) { known = list.toMutableList() }
             then?.let { svc.ui.post(it) }
         }
     }
 
     private fun loadTasks(): List<RecentApp>? {
-        val out = Root.execLong("dumpsys activity recents") ?: return null
-        val rx = Regex("""Recent #\d+: Task\{\S+ #(\d+) type=(\w+) (?:A=\d+:([^\s}]+)|I=([^/\s}]+))""")
+        val out = Root.execLong("dumpsys activity recents | grep 'Recent #'")
+        if (out == null) { diag = "Taskliste: keine Antwort"; return null }
         val launchable = Apps.labels(svc).values.toSet()
         val res = mutableListOf<RecentApp>()
-        for (m in rx.findAll(out)) {
-            if (m.groupValues[2] != "standard") continue
-            val pkg = m.groupValues[3].ifEmpty { m.groupValues[4] }
-            if (pkg.isEmpty() || pkg == svc.packageName || pkg.contains("launcher", true)) continue
+        val lines = out.lines().filter { it.contains("Recent #") }
+        for (line in lines) {
+            val type = Regex("""type=(\w+)""").find(line)?.groupValues?.get(1)
+            if (type != null && type != "standard") continue
+            val id = Regex("""Task\{\S+ #(\d+)""").find(line)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+            val pkg = Regex("""A=\d+:([\w.]+)""").find(line)?.groupValues?.get(1)
+                ?: Regex("""I=([\w.]+)/""").find(line)?.groupValues?.get(1)
+                ?: Regex("""([a-z][\w]*(?:\.[\w]+)+)/""").find(line)?.groupValues?.get(1)
+                ?: continue
+            if (pkg == svc.packageName || pkg.contains("launcher", true)) continue
             if (pkg !in launchable || res.any { it.pkg == pkg }) continue
-            res += RecentApp(pkg, m.groupValues[1].toIntOrNull() ?: -1)
+            res += RecentApp(pkg, id)
         }
+        diag = "Taskliste: ${lines.size} Zeilen, ${res.size} Apps" + (lines.firstOrNull()?.let { "\nBeispiel: ${it.trim().take(220)}" } ?: "")
         return res
     }
 
