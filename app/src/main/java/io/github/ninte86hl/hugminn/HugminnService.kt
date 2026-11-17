@@ -78,8 +78,13 @@ class HugminnService : AccessibilityService() {
         // Keep the firmware from killing Hugminn in the background.
         Thread {
             Device.ensureWhitelist(this)
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                Root.exec("pm grant $packageName android.permission.POST_NOTIFICATIONS")
+            listOf(
+                android.Manifest.permission.POST_NOTIFICATIONS,
+                android.Manifest.permission.BLUETOOTH_CONNECT,
+                android.Manifest.permission.BLUETOOTH_SCAN,
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+            ).forEach { perm ->
+                if (checkSelfPermission(perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) Root.exec("pm grant $packageName $perm")
             }
         }.start()
         SettingsWatch.start(this)

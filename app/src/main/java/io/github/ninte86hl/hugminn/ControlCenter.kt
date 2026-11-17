@@ -2,6 +2,7 @@ package io.github.ninte86hl.hugminn
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.widget.Toast
 import android.content.res.ColorStateList
 import android.graphics.PixelFormat
 import android.graphics.Typeface
@@ -146,6 +147,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (!isOpen) return
         isOpen = false
         hat.stop()
+        stopBtScan()
         if (editing) {
             svc.prefs.ccGrid = entries.toList()
             editing = false
@@ -1026,34 +1028,117 @@ class ControlCenter(private val svc: HugminnService) {
         showMenu(title, entries)
     }
 
-    private fun wifiMenu(rootOk: Boolean) {
+    /** Title of the menu on screen (lists that refresh themselves check it). */
+    private var menuTitle = ""
+    private var btScan: Bt.Scan? = null
+
+    /** WLAN: switch, networks in range (saved ones connect at once, others ask for the password). */
+    private fun wifiMenu(rootOk: Boolean, nets: List<Wifi.Net>? = null, saved: Map<String, String?>? = null, scanning: Boolean = true) {
+        if (!rootOk) { openSystem(Settings.Panel.ACTION_WIFI); return }
         val on = Device.wifiOn(svc)
+        val cur = Device.wifiName(svc)
         val entries = mutableListOf<MenuEntry>()
-        entries += MenuEntry(if (on) "WLAN ausschalten" else "WLAN einschalten") {
-            if (rootOk) Device.setWifi(!on) { refreshAll() } else openSystem(Settings.Panel.ACTION_WIFI)
-        }
+        entries += MenuEntry(if (on) "WLAN ausschalten" else "WLAN einschalten") { Device.setWifi(!on) { refreshAll() } }
         if (on) {
-            Device.wifiName(svc)?.let { entries += MenuEntry(it, checked = true, hint = "Verbunden", run = null) }
-            entries += MenuEntry("Netzwerke & neue Verbindung …") { openSystem(Settings.Panel.ACTION_WIFI) }
+            entries += MenuEntry(if (scanning) "Netzwerke – suche …" else "Netzwerke", header = true, run = null)
+            val list = nets.orEmpty()
+            if (nets == null) entries += MenuEntry("Wird geladen …", run = null)
+            else if (list.isEmpty()) entries += MenuEntry("Keine Netzwerke gefunden", run = null)
+            list.take(14).forEach { n ->
+                val connected = n.ssid == cur
+                val known = saved?.containsKey(n.ssid) == true
+                val lock = if (n.security == "open") "offen" else "gesichert"
+                val hint = "${Wifi.bars(n.level)}  " + when {
+                    connected -> "Verbunden"
+                    known -> "Gespeichert · $lock"
+                    else -> lock
+                }
+                entries += MenuEntry(n.ssid, checked = connected, hint = hint) {
+                    when {
+                        connected -> {}
+                        n.security == "eap" || n.security == "wep" -> openSystem(Settings.Panel.ACTION_WIFI)
+                        known || n.security == "open" || n.security == "owe" -> {
+                            val pw = saved?.get(n.ssid)
+                            Toast.makeText(svc, "Verbinde mit ${n.ssid} …", Toast.LENGTH_SHORT).show()
+                            Thread { Wifi.connect(n.ssid, n.security, pw); svc.ui.postDelayed({ refreshAll() }, 2500) }.start()
+                        }
+                        else -> {
+                            close()
+                            svc.startApp(Intent(svc, WifiPasswordActivity::class.java).putExtra("ssid", n.ssid).putExtra("sec", n.security))
+                        }
+                    }
+                }
+            }
+            entries += MenuEntry("Weitere Einstellungen …") { openSystem(Settings.Panel.ACTION_WIFI) }
         }
-        showMenu("WLAN", entries)
+        val again = menuView != null && menuTitle == "WLAN"
+        showMenu("WLAN", entries, if (again) menuSel else -1)
+        menuTitle = "WLAN"
+        if (on && nets == null) {
+            // results we have now, then a fresh scan
+            Thread {
+                val sv = Wifi.saved()
+                val first = Wifi.scanResults()
+                svc.ui.post { if (menuView != null && menuTitle == "WLAN") wifiMenu(true, first, sv, scanning = true) }
+                Wifi.startScan()
+                Thread.sleep(3500)
+                val fresh = Wifi.scanResults()
+                svc.ui.post { if (menuView != null && menuTitle == "WLAN") wifiMenu(true, fresh, sv, scanning = false) }
+            }.start()
+        }
     }
 
-    private fun btMenu(rootOk: Boolean) {
+    /** Bluetooth: switch, paired devices (connect/disconnect), search and pair new ones. */
+    private fun btMenu(rootOk: Boolean, found: List<android.bluetooth.BluetoothDevice>? = null) {
         val on = Device.btOn(svc)
         val entries = mutableListOf<MenuEntry>()
         entries += MenuEntry(if (on) "Bluetooth ausschalten" else "Bluetooth einschalten") {
             if (rootOk) Device.setBt(!on) { refreshAll() } else openSystem(Settings.ACTION_BLUETOOTH_SETTINGS)
         }
         if (on) {
-            Device.pairedDevices(svc).forEach { (name, connected) ->
-                entries += MenuEntry(name, checked = connected, hint = if (connected) "Verbunden" else "Gekoppelt") {
-                    openSystem(Settings.ACTION_BLUETOOTH_SETTINGS)
+            val paired = Bt.paired(svc).sortedByDescending { Bt.isConnected(it) }
+            entries += MenuEntry("Gekoppelte Geräte", header = true, run = null)
+            if (paired.isEmpty()) entries += MenuEntry("Noch keine", run = null)
+            paired.forEach { d ->
+                val connected = Bt.isConnected(d)
+                entries += MenuEntry(Bt.name(d), checked = connected, hint = if (connected) "Verbunden · A trennt" else "Gekoppelt · A verbindet") {
+                    stopBtScan()
+                    Toast.makeText(svc, if (connected) "Trenne ${Bt.name(d)} …" else "Verbinde ${Bt.name(d)} …", Toast.LENGTH_SHORT).show()
+                    Bt.toggle(svc, d, !connected) { svc.ui.postDelayed({ refreshAll() }, 1500) }
                 }
             }
-            entries += MenuEntry("Neues Gerät koppeln …") { openSystem("android.settings.BLUETOOTH_PAIRING_SETTINGS") }
+            entries += MenuEntry(if (found == null) "Neue Geräte" else "Neue Geräte – suche …", header = true, run = null)
+            if (found == null) entries += MenuEntry("Suchen …", hint = "Gerät in den Kopplungsmodus versetzen") {
+                svc.ui.post { startBtScan(rootOk) }
+            } else {
+                if (found.isEmpty()) entries += MenuEntry("Noch nichts gefunden", run = null)
+                found.forEach { d ->
+                    entries += MenuEntry(Bt.name(d), hint = "A koppelt") {
+                        stopBtScan()
+                        Toast.makeText(svc, "Kopple ${Bt.name(d)} …", Toast.LENGTH_SHORT).show()
+                        Bt.pair(svc, d)
+                    }
+                }
+            }
         }
-        showMenu("Bluetooth", entries)
+        val again = menuView != null && menuTitle == "Bluetooth"
+        showMenu("Bluetooth", entries, if (again) menuSel else -1)
+        menuTitle = "Bluetooth"
+    }
+
+    private fun startBtScan(rootOk: Boolean) {
+        stopBtScan()
+        val scan = Bt.Scan(svc) { list -> svc.ui.post { if (menuView != null && menuTitle == "Bluetooth") btMenu(rootOk, list) } }
+        btScan = scan
+        scan.start()
+        btMenu(rootOk, emptyList())
+        // stop searching after a while
+        svc.ui.postDelayed({ if (btScan === scan) stopBtScan() }, 20_000)
+    }
+
+    private fun stopBtScan() {
+        btScan?.stop()
+        btScan = null
     }
 
     /** Which stick the LED colour menu changes: 0 both, 1 left, 2 right. */
@@ -1353,7 +1438,8 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun showMenu(title: String, entries: List<MenuEntry>, select: Int = -1) {
         val r = root ?: return
-        closeMenu()
+        if (title != menuTitle) { menuTitle = ""; stopBtScan() }
+        removeMenuView()
         menuEntries = entries
         menuRows.clear()
         menuSel = select.takeIf { it in entries.indices && entries[it].run != null } ?: entries.indexOfFirst { it.run != null }.coerceAtLeast(0)
@@ -1420,11 +1506,18 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
-    private fun closeMenu() {
+    /** Takes the menu off the screen (a new menu follows right away). */
+    private fun removeMenuView() {
         menuView?.let { v -> (v.parent as? ViewGroup)?.removeView(v) }
         menuView = null
         ledCells = null
         activeWheel = null
+    }
+
+    private fun closeMenu() {
+        removeMenuView()
+        menuTitle = ""
+        stopBtScan()
     }
 
     private fun runMenu(i: Int) {

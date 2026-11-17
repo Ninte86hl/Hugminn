@@ -1,0 +1,152 @@
+package io.github.ninte86hl.hugminn
+
+import android.accessibilityservice.AccessibilityService
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.provider.Settings
+import android.view.accessibility.AccessibilityNodeInfo
+
+/** WLAN through the system shell (root): scan, saved networks, connect. */
+object Wifi {
+    /** A network in range. [security]: open, owe, wpa2 or wpa3 (as `cmd wifi connect-network` takes it). */
+    data class Net(val ssid: String, val level: Int, val security: String)
+
+    fun startScan() = Root.run("cmd wifi start-scan")
+
+    /** Networks in range, strongest first, one entry per name. */
+    fun scanResults(): List<Net> {
+        val out = Root.execLong("cmd wifi list-scan-results") ?: return emptyList()
+        val res = LinkedHashMap<String, Net>()
+        for (line in out.lines()) {
+            val t = line.trim().split(Regex("\\s+"))
+            if (t.size < 5 || !Regex("^[0-9a-fA-F:]{17}$").matches(t[0])) continue
+            val rssi = t[2].toIntOrNull() ?: continue
+            val flagsAt = t.indexOfFirst { it.startsWith("[") }.let { if (it < 0) t.size else it }
+            val ssid = t.subList(4, flagsAt).joinToString(" ").trim()
+            if (ssid.isEmpty()) continue
+            val flags = t.drop(flagsAt).joinToString("")
+            val sec = when {
+                flags.contains("PSK") -> "wpa2"
+                flags.contains("SAE") -> "wpa3"
+                flags.contains("OWE") -> "owe"
+                flags.contains("EAP") -> "eap"
+                flags.contains("WEP") -> "wep"
+                else -> "open"
+            }
+            val old = res[ssid]
+            if (old == null || old.level < rssi) res[ssid] = Net(ssid, rssi, sec)
+        }
+        return res.values.sortedByDescending { it.level }
+    }
+
+    /** Saved networks with their passwords (from the WLAN store, root). */
+    fun saved(): Map<String, String?> {
+        val xml = Root.execLong("cat /data/misc/apexdata/com.android.wifi/WifiConfigStore.xml 2>/dev/null || cat /data/misc/wifi/WifiConfigStore.xml")
+            ?: return emptyMap()
+        fun unescape(s: String) = s.replace("&quot;", "\"").replace("&apos;", "'").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+        val res = LinkedHashMap<String, String?>()
+        for (block in Regex("<WifiConfiguration>(.*?)</WifiConfiguration>", RegexOption.DOT_MATCHES_ALL).findAll(xml)) {
+            val b = block.groupValues[1]
+            val ssid = Regex("""<string name="SSID">(.*?)</string>""").find(b)?.groupValues?.get(1)?.let(::unescape)?.trim('"') ?: continue
+            val psk = Regex("""<string name="PreSharedKey">(.*?)</string>""").find(b)?.groupValues?.get(1)?.let(::unescape)?.trim('"')
+            res[ssid] = psk
+        }
+        return res
+    }
+
+    /** Connects; returns the shell's answer (null: no answer). */
+    fun connect(ssid: String, security: String, password: String?): String? {
+        val sec = if (security == "wpa3" && password != null) "wpa3" else if (password != null) "wpa2" else security
+        val cmd = "cmd wifi connect-network ${Root.quote(ssid)} $sec" + (password?.let { " " + Root.quote(it) } ?: "")
+        return Root.exec(cmd, 8_000)
+    }
+
+    /** Signal as bars for a menu line. */
+    fun bars(level: Int) = when {
+        level >= -55 -> "▂▄▆█"
+        level >= -66 -> "▂▄▆"
+        level >= -77 -> "▂▄"
+        else -> "▂"
+    }
+}
+
+/** Bluetooth: paired devices, connecting them, finding and pairing new ones. */
+@SuppressLint("MissingPermission")
+object Bt {
+    private fun adapter(ctx: Context): BluetoothAdapter? = ctx.getSystemService(BluetoothManager::class.java)?.adapter
+
+    fun paired(ctx: Context): List<BluetoothDevice> = runCatching { adapter(ctx)?.bondedDevices?.toList() }.getOrNull().orEmpty()
+
+    fun isConnected(d: BluetoothDevice) = runCatching { d.javaClass.getMethod("isConnected").invoke(d) as Boolean }.getOrDefault(false)
+
+    fun name(d: BluetoothDevice) = runCatching { d.name }.getOrNull() ?: d.address
+
+    /**
+     * Connects (or disconnects) a paired device. Android allows this only to system apps; if it is
+     * refused, Hugminn opens the Bluetooth settings and taps the device there itself.
+     */
+    fun toggle(svc: HugminnService, d: BluetoothDevice, connect: Boolean, done: (Boolean) -> Unit) {
+        val ok = runCatching {
+            val r = d.javaClass.getMethod(if (connect) "connect" else "disconnect").invoke(d)
+            r == null || r == 0 || r == true
+        }.getOrDefault(false)
+        if (ok) { done(true); return }
+        tapInSettings(svc, name(d), done)
+    }
+
+    /** Opens Android's Bluetooth settings, taps the device's row and comes back. */
+    private fun tapInSettings(svc: HugminnService, name: String, done: (Boolean) -> Unit) {
+        svc.startApp(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+        var tries = 0
+        val look = object : Runnable {
+            override fun run() {
+                val node = svc.roots().firstNotNullOfOrNull { r -> r.findAccessibilityNodeInfosByText(name).firstOrNull { it.text?.toString() == name } }
+                var target: AccessibilityNodeInfo? = node
+                while (target != null && !target.isClickable) target = target.parent
+                if (target != null) {
+                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    svc.ui.postDelayed({
+                        svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+                        done(true)
+                    }, 900)
+                } else if (++tries < 25) svc.ui.postDelayed(this, 120) else done(false)
+            }
+        }
+        svc.ui.postDelayed(look, 300)
+    }
+
+    /** Device search: [found] gets every new device (also the ones already listed again with a name). */
+    class Scan(private val ctx: Context, private val found: (List<BluetoothDevice>) -> Unit) {
+        private val list = LinkedHashMap<String, BluetoothDevice>()
+        private val rx = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) {
+                @Suppress("DEPRECATION")
+                val d = i.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE) ?: return
+                if (d.bondState == BluetoothDevice.BOND_BONDED) return
+                val known = list[d.address]
+                if (known == null || (runCatching { known.name }.getOrNull() == null && runCatching { d.name }.getOrNull() != null)) {
+                    list[d.address] = d
+                    found(list.values.filter { runCatching { it.name }.getOrNull() != null })
+                }
+            }
+        }
+
+        fun start() {
+            runCatching { ctx.registerReceiver(rx, IntentFilter(BluetoothDevice.ACTION_FOUND)) }
+            runCatching { adapter(ctx)?.startDiscovery() }
+        }
+
+        fun stop() {
+            runCatching { adapter(ctx)?.cancelDiscovery() }
+            runCatching { ctx.unregisterReceiver(rx) }
+        }
+    }
+
+    fun pair(ctx: Context, d: BluetoothDevice) = runCatching { adapter(ctx)?.cancelDiscovery(); d.createBond() }.getOrDefault(false)
+}
