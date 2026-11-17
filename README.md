@@ -11,7 +11,7 @@
 
 ---
 
-> **Status:** early development. Nothing is ready to install yet. The first build will be a small test app that checks what the device allows.
+> **Status:** in active testing on the Retroid Pocket 6 (current version: see Releases). Features marked *(testing)* are built but not yet confirmed on the device.
 
 ## What is Hugminn?
 
@@ -24,33 +24,51 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 - **Huginn** ("thought") is the **Control Center**. It keeps an eye on performance, temperature, fan and LEDs.
 - **Muninn** ("memory") is the **Game Switcher**. It remembers what you played last and takes you straight back to it.
 
-## Features (planned)
+## Features
 
 ### Muninn – Game Switcher
 
-- Opens the Android recent-apps view and adds its own bar along the bottom; the app cards stay uncovered
-- Browse with the D-pad or the left stick
-- Actions adapt to what is selected:
+- Its own switcher: Android's recent-apps view is not opened at all, so nothing flickers or shows through
+- Large card for the selected app, smaller cards beside it, with Hugminn's own preview pictures (taken when you press Home and every few seconds while you play)
+- D-pad, left stick or L1/R1 to browse; touch: swipe sideways to browse, swipe a card up to close it, tap to open
+- Follows Android's current task list; apps closed elsewhere disappear
+- Actions:
 
-| Selected | Actions |
+| Button | Action |
 | --- | --- |
-| App | Open, Close, App info |
-| RetroArch | Open, Restart game, Save state, Load state, Close |
-| Other emulator | Open, Restart game, Close |
+| A | Open the app (its running task comes back to the front) |
+| □ / X | Close the app, also removing it from Android's recent apps *(testing)* |
+| △ / Y | Options: App info, close all others; for RetroArch: save state, load state, RetroArch menu |
+| ○ / B | Back to where you were |
+| Select | Send feedback |
 
-- Shows the real game title and system for RetroArch
-- Jump straight back to the previous game
+- The system's swipe-up gesture is covered by the switcher as soon as Android's view settles *(testing)*
+- Classic mode (a frame over Android's own recent-apps view) remains available in the settings
 
 ### Huginn – Control Center
 
-- Quick toggles: performance mode, fan mode, refresh rate (60/120 Hz), vibration, controller style, bypass charging, free RAM, screenshot
-- Sliders for brightness and volume
-- Live graphs for FPS (average and 1 % low), CPU, GPU, RAM, power draw, temperature and fan speed
-- Optional in-game performance overlay
-- Simplified performance profiles per game: Stock, Efficient, Balanced, Performance, plus a target-FPS mode
-- Stick LEDs: colour per stick, brightness and effects, through [Bifrost](https://github.com/Pollux-MoonBench/Bifrost) when it is installed, otherwise through the device's own LED settings
+- Full-screen grid of square tiles with several pages; free cells open a picker sorted by type (displays, sliders, switches)
+- Edit mode: hold A (or long-press) to move, resize and remove tiles by drag & drop or D-pad; tile colour; reset to default
+- D-pad navigation follows the grid; nothing is preselected until you press a direction
+- Switches (A toggles, □ opens the tile's submenu): WLAN, Bluetooth, stick LEDs, 60/120 Hz, Do not disturb, airplane mode, rotation lock, screen always on and more
+- WLAN submenu: networks in range with signal, saved networks connect directly, password window for new ones *(testing)*
+- Bluetooth submenu: paired devices (connect / disconnect), search and pair new devices *(testing)*
+- Sliders for volume and brightness in 5 % steps, vertical or horizontal; confirm with A before the D-pad changes them
+- Cards for performance and fan profiles (open the profile menu), CPU, GPU, RAM, temperatures, battery and FPS
+- Gauges coloured by load (traffic light, cool → warm, accent colour, monochrome)
+- Steam-like performance overlay in games (FPS, CPU, GPU, RAM, temperatures; position and items selectable)
+- Button for Android's settings; own status bar (clock, battery) in the chosen style
 
-### Controls
+### Stick LEDs
+
+- On/off, colour wheel with live preview, 12 quick colours, left / right / both sticks
+- Effects: colour cycle, offset rainbow, breathing, pulse; adjustable speed
+- Brightness uses the firmware's own value (same as Retroid's LED window)
+- Sticks pulse red when the battery drops to 10 %
+- Optional link to an LED app such as [Bifrost](https://github.com/Pollux-MoonBench/Bifrost) or AmbiLuma instead of the built-in colours
+- Note: the Pocket 6 lights each stick in one colour; a rainbow running around a single stick is not possible
+
+### Home button
 
 | Button | Default action |
 | --- | --- |
@@ -58,20 +76,20 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 | Home (double press) | Game Switcher |
 | Home (hold) | Control Center |
 
-Every gesture can be reassigned. The Back button is left alone, so it keeps working in RetroArch and other emulators.
+Every gesture can be reassigned (home, switcher, control center, recent apps, last app). The Back button is left alone, so it keeps working in RetroArch and other emulators.
 
-### Your buttons, your symbols
+### Styles and colours
 
-- Follows the device's controller setting automatically (Xbox or Retroid/Nintendo layout)
-- Optional PlayStation-style symbols (✕ ○ □ △)
-- Coloured or monochrome symbols
-- Actions are tied to the button's position, so "confirm" is always the same physical button
+- Three styles across the whole app: **Modern** (Material 3), **Pixel** (pixel font, stepped corners) and **Dot matrix** (Nothing-like dots)
+- Themes: system, light, dark, OLED black
+- Tile colour from presets or a colour wheel; it becomes the accent colour in every style
+- PlayStation, Xbox or Nintendo button symbols, coloured or monochrome, following the device's controller layout
 
-### Design
+### Feedback and diagnostics
 
-- Material 3 with Material You colours
-- Follows the system's light or dark theme
-- Layouts for 16:9 and 4:3 screens, full controller navigation
+- Press Select in the switcher or the control center: screenshot plus your own short description are uploaded to the project (needs a GitHub token in the settings)
+- Errors are reported automatically with the system log; upload progress as a notification
+- Input test, guided LED zone test, log upload
 
 ## Supported devices
 
@@ -86,11 +104,12 @@ Hugminn detects the device and only shows what it supports, for example no 120 H
 ## Requirements
 
 - One of the devices above on stock firmware
-- Some features use the firmware's built-in system service (`PServerBinder`), so no root is needed. If it is missing, Hugminn falls back to [Shizuku](https://shizuku.rikka.app/) or opens the matching system settings.
+- Most system features use the firmware's built-in privileged service (`PServerBinder`), so no separate root setup is needed. Without it, Hugminn opens the matching system settings instead.
+- Hugminn runs as an accessibility service (for the Home button, the overlays and screenshots).
 
 ## Installation
 
-Hugminn is in early testing. Every build is published under **Releases**, built automatically by GitHub Actions.
+Every build is published under **Releases**, built automatically by GitHub Actions.
 
 - **Direct download:** [hugminn.apk](https://github.com/Ninte86hl/Hugminn/releases/download/latest/hugminn.apk) (always the newest test build)
 - **With [Obtainium](https://github.com/ImranR98/Obtainium) (recommended, keeps Hugminn up to date):** download [obtainium.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium.json) (also attached to every release) and import it in Obtainium under *Import/Export → Obtainium Import*.
