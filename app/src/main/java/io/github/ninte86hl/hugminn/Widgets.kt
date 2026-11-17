@@ -166,13 +166,18 @@ class BigSlider(
         } else if (pixel) {
             Look.shape(context, true, pal.surfaceHigh, 0f).apply { setBounds(0, 0, w.toInt(), h.toInt()) }.draw(c)
             // filled part as square blocks
-            val n = 20
+            // blocks end before the label, so the text never sits on top of them
+            text.textSize = h * 0.36f
+            text.typeface = Look.font(context, true, true)
+            val labelW = text.measureText("$label  100 %") + h * 0.9f
+            val avail = (w - labelW - h * 0.1f).coerceAtLeast(w * 0.3f)
+            val n = (avail / (h * 0.45f)).toInt().coerceIn(6, 20)
             val gap = h * 0.08f
-            val bw = (w - h * 0.2f) / n
+            val bw = avail / n
             val lit = Math.round(value.toFloat() / max.coerceAtLeast(1) * n)
-            for (i in 0 until lit) {
+            for (i in 0 until n) {
                 val x = h * 0.1f + i * bw
-                c.drawRect(x + gap / 2, h * 0.14f, x + bw - gap / 2, h * 0.86f, fill)
+                c.drawRect(x + gap / 2, h * 0.14f, x + bw - gap / 2, h * 0.86f, if (i < lit) fill else dim)
             }
         } else {
             c.drawRoundRect(0f, 0f, w, h, r, r, track)
@@ -214,13 +219,16 @@ class BigSlider(
             }
         } else if (pixel) {
             Look.shape(context, true, pal.surfaceHigh, 0f).apply { setBounds(0, 0, w.toInt(), h.toInt()) }.draw(c)
-            val n = 14
+            // blocks only between the percent (top) and the icon (bottom), so both stay readable
+            val top = w * 0.62f
+            val bottom = h - context.dp(22) - w * 0.4f
+            val n = ((bottom - top) / (w * 0.2f)).toInt().coerceIn(5, 14)
             val gap = w * 0.06f
-            val bh = (h - w * 0.2f) / n
+            val bh = (bottom - top) / n
             val lit = Math.round(f * n)
-            for (i in 0 until lit) {
-                val y = h - w * 0.1f - (i + 1) * bh
-                c.drawRect(w * 0.14f, y + gap / 2, w * 0.86f, y + bh - gap / 2, fill)
+            for (i in 0 until n) {
+                val y = bottom - (i + 1) * bh
+                c.drawRect(w * 0.14f, y + gap / 2, w * 0.86f, y + bh - gap / 2, if (i < lit) fill else dim)
             }
         } else {
             c.drawRoundRect(0f, 0f, w, h, r, r, track)
