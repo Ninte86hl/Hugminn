@@ -48,7 +48,17 @@ class RingView(ctx: Context, private val pal: Palette, private val label: String
         val cy = height / 2f
         val r = size / 2f - stroke
         val box = RectF(cx - r, cy - r, cx + r, cy + r)
-        if (pixel) {
+        if (pal.dots) {
+            // ring of dots
+            val n = 30
+            val dot = Paint(Paint.ANTI_ALIAS_FLAG)
+            val lit = Math.round(fraction * n)
+            for (i in 0 until n) {
+                val a = Math.toRadians((135.0 + 270.0 * i / (n - 1)))
+                dot.color = if (i < lit) arc.color else pal.surfaceHighest
+                c.drawCircle(cx + (r * Math.cos(a)).toFloat(), cy + (r * Math.sin(a)).toFloat(), stroke * 0.42f, dot)
+            }
+        } else if (pixel) {
             // 18 square segments instead of a smooth arc
             track.strokeCap = Paint.Cap.BUTT
             arc.strokeCap = Paint.Cap.BUTT
@@ -135,7 +145,15 @@ class BigSlider(
         val w = width.toFloat()
         val r = h / 2f
         val fw = (h + (w - h) * value / max.coerceAtLeast(1).toFloat())
-        if (pixel) {
+        if (pal.dots) {
+            c.drawRoundRect(0f, 0f, w, h, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh })
+            val n = 24
+            val step = (w - h) / n
+            val lit = Math.round(value.toFloat() / max.coerceAtLeast(1) * n)
+            for (i in 0 until n) c.drawCircle(h / 2 + i * step + step / 2, h / 2, h * 0.11f, if (i < lit) fill else track)
+            drawLabel(c, w, h, 0f)
+            return
+        } else if (pixel) {
             Look.shape(context, true, pal.surfaceHighest, 0f).apply { setBounds(0, 0, w.toInt(), h.toInt()) }.draw(c)
             // filled part as square blocks
             val n = 20
@@ -172,7 +190,19 @@ class BigSlider(
         val h = height.toFloat()
         val r = minOf(w, h) * 0.28f
         val f = value / max.coerceAtLeast(1).toFloat()
-        if (pixel) {
+        if (pal.dots) {
+            c.drawRoundRect(0f, 0f, w, h, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh })
+            val top = w * 0.55f
+            val bottom = h - w * 0.55f
+            val n = ((bottom - top) / (w * 0.16f)).toInt().coerceAtLeast(6)
+            val step = (bottom - top) / n
+            val lit = Math.round(f * n)
+            val cols = 3
+            for (i in 0 until n) for (k in 0 until cols) {
+                val x = w / 2 + (k - 1) * w * 0.18f
+                c.drawCircle(x, bottom - i * step - step / 2, w * 0.05f, if (i < lit) fill else track)
+            }
+        } else if (pixel) {
             Look.shape(context, true, pal.surfaceHighest, 0f).apply { setBounds(0, 0, w.toInt(), h.toInt()) }.draw(c)
             val n = 14
             val gap = w * 0.06f
@@ -192,7 +222,7 @@ class BigSlider(
         }
         // icon at the bottom, percent at the top
         val isz = context.dp(22)
-        val on = !pixel && f > 0.12f
+        val on = !pixel && !pal.dots && f > 0.12f
         iconView.setColor(if (on) pal.onPrimary else pal.onSurface)
         iconView.layout(0, 0, isz, isz)
         c.save()
@@ -202,7 +232,7 @@ class BigSlider(
         text.textSize = minOf(w * 0.24f, context.dp(16).toFloat())
         text.typeface = Look.font(context, pixel, true)
         text.textAlign = Paint.Align.CENTER
-        text.color = if (!pixel && f > 0.85f) pal.onPrimary else pal.onSurface
+        text.color = if (!pixel && !pal.dots && f > 0.85f) pal.onPrimary else pal.onSurface
         c.drawText("${Math.round(f * 100)} %", w / 2f, w * 0.32f + text.textSize * 0.4f, text)
     }
 
@@ -232,7 +262,10 @@ object GaugeColors {
         return stops.last().second
     }
 
-    fun of(pal: Palette, palette: GaugePalette, fraction: Float): Int = when (palette) {
+    fun of(pal: Palette, palette: GaugePalette, fraction: Float): Int = if (pal.dots) {
+        // dot-matrix: white, red only when it gets high
+        if (fraction >= 0.8f) pal.primary else pal.onSurface
+    } else when (palette) {
         GaugePalette.TRAFFIC -> blend(listOf(0f to 0xFF4CAF50.toInt(), 0.5f to 0xFF8BC34A.toInt(), 0.7f to 0xFFFFC107.toInt(), 0.85f to 0xFFFF9800.toInt(), 1f to 0xFFF44336.toInt()), fraction)
         GaugePalette.COOL_WARM -> blend(listOf(0f to 0xFF42A5F5.toInt(), 0.5f to 0xFF7E57C2.toInt(), 0.8f to 0xFFEC407A.toInt(), 1f to 0xFFEF5350.toInt()), fraction)
         GaugePalette.ACCENT -> pal.primary
@@ -255,7 +288,12 @@ class GaugeBar(ctx: Context, private val pal: Palette, private val pixel: Boolea
     override fun onDraw(c: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
-        if (pixel) {
+        if (pal.dots) {
+            val n = (w / (h * 1.7f)).toInt().coerceAtLeast(6)
+            val step = w / n
+            val lit = Math.round(fraction * n)
+            for (i in 0 until n) c.drawCircle(i * step + step / 2, h / 2, h / 2, if (i < lit) fill else track)
+        } else if (pixel) {
             val n = 12
             val bw = w / n
             val lit = Math.round(fraction * n)

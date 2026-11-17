@@ -17,6 +17,8 @@ import android.view.View
 /** Material You colours taken from the system palette (falls back to Hugminn red on older Android). */
 class Palette(private val ctx: Context) {
     private val theme = Prefs(ctx).theme
+    /** Dot-matrix style: monochrome with one red accent (Nothing-Phone-like). */
+    val dots = Prefs(ctx).uiStyle == UiStyle.DOTS
     /** OLED: dark with pure black backgrounds. */
     val oled = theme == Theme.OLED
     val dark: Boolean = when (theme) {
@@ -38,19 +40,23 @@ class Palette(private val ctx: Context) {
         return if (id != 0) ctx.getColor(id) else fallback
     }
 
-    val primary = if (dark) sys("system_accent1_200", 0xFFFFB3AC.toInt()) else sys("system_accent1_600", 0xFFB3261E.toInt())
-    val onPrimary = if (dark) sys("system_accent1_800", 0xFF680003.toInt()) else sys("system_accent1_0", Color.WHITE)
-    val primaryContainer = if (dark) sys("system_accent1_700", 0xFF8C1D18.toInt()) else sys("system_accent1_100", 0xFFFFDAD6.toInt())
-    val onPrimaryContainer = if (dark) sys("system_accent1_100", 0xFFFFDAD6.toInt()) else sys("system_accent1_900", 0xFF410002.toInt())
-    val secondaryContainer = if (dark) sys("system_accent2_700", 0xFF5D3F3C.toInt()) else sys("system_accent2_100", 0xFFFFDAD6.toInt())
-    val onSecondaryContainer = if (dark) sys("system_accent2_100", 0xFFFFDAD6.toInt()) else sys("system_accent2_900", 0xFF2C1513.toInt())
-    val surface = if (oled) Color.BLACK else if (dark) sys("system_neutral1_900", 0xFF201A19.toInt()) else sys("system_neutral1_10", 0xFFFFFBFF.toInt())
-    val surfaceHigh = if (oled) 0xFF111111.toInt() else if (dark) sys("system_neutral1_800", 0xFF362F2E.toInt()) else sys("system_neutral1_50", 0xFFFBEEEC.toInt())
-    val surfaceHighest = if (oled) 0xFF1F1F1F.toInt() else if (dark) sys("system_neutral2_700", 0xFF534341.toInt()) else sys("system_neutral2_100", 0xFFF5DDDA.toInt())
-    val onSurface = if (dark) sys("system_neutral1_100", 0xFFEDE0DE.toInt()) else sys("system_neutral1_900", 0xFF201A19.toInt())
-    val onSurfaceVariant = if (dark) sys("system_neutral2_200", 0xFFD8C2BF.toInt()) else sys("system_neutral2_700", 0xFF534341.toInt())
-    val outline = if (dark) sys("system_neutral2_400", 0xFFA08C8A.toInt()) else sys("system_neutral2_500", 0xFF857371.toInt())
+    val primary = if (dots) (if (dark) 0xFFE5262E.toInt() else 0xFFD71920.toInt()) else if (dark) sys("system_accent1_200", 0xFFFFB3AC.toInt()) else sys("system_accent1_600", 0xFFB3261E.toInt())
+    val onPrimary = if (dots) (if (dark) Color.WHITE else Color.WHITE) else if (dark) sys("system_accent1_800", 0xFF680003.toInt()) else sys("system_accent1_0", Color.WHITE)
+    val primaryContainer = if (dots) (if (dark) 0xFF2A0D0E.toInt() else 0xFFFFE3E3.toInt()) else if (dark) sys("system_accent1_700", 0xFF8C1D18.toInt()) else sys("system_accent1_100", 0xFFFFDAD6.toInt())
+    val onPrimaryContainer = if (dots) (if (dark) 0xFFFFB4B4.toInt() else 0xFF5A0A0D.toInt()) else if (dark) sys("system_accent1_100", 0xFFFFDAD6.toInt()) else sys("system_accent1_900", 0xFF410002.toInt())
+    val secondaryContainer = if (dots) (if (dark) 0xFF262626.toInt() else 0xFFE4E4E4.toInt()) else if (dark) sys("system_accent2_700", 0xFF5D3F3C.toInt()) else sys("system_accent2_100", 0xFFFFDAD6.toInt())
+    val onSecondaryContainer = if (dots) (if (dark) Color.WHITE else Color.BLACK) else if (dark) sys("system_accent2_100", 0xFFFFDAD6.toInt()) else sys("system_accent2_900", 0xFF2C1513.toInt())
+    val surface = if (dots) (if (dark) Color.BLACK else 0xFFF3F3F3.toInt()) else if (oled) Color.BLACK else if (dark) sys("system_neutral1_900", 0xFF201A19.toInt()) else sys("system_neutral1_10", 0xFFFFFBFF.toInt())
+    val surfaceHigh = if (dots) (if (dark) 0xFF101010.toInt() else Color.WHITE) else if (oled) 0xFF111111.toInt() else if (dark) sys("system_neutral1_800", 0xFF362F2E.toInt()) else sys("system_neutral1_50", 0xFFFBEEEC.toInt())
+    val surfaceHighest = if (dots) (if (dark) 0xFF242424.toInt() else 0xFFE2E2E2.toInt()) else if (oled) 0xFF1F1F1F.toInt() else if (dark) sys("system_neutral2_700", 0xFF534341.toInt()) else sys("system_neutral2_100", 0xFFF5DDDA.toInt())
+    val onSurface = if (dots) (if (dark) Color.WHITE else Color.BLACK) else if (dark) sys("system_neutral1_100", 0xFFEDE0DE.toInt()) else sys("system_neutral1_900", 0xFF201A19.toInt())
+    val onSurfaceVariant = if (dots) (if (dark) 0xFF8C8C8C.toInt() else 0xFF6B6B6B.toInt()) else if (dark) sys("system_neutral2_200", 0xFFD8C2BF.toInt()) else sys("system_neutral2_700", 0xFF534341.toInt())
+    val outline = if (dots) (if (dark) 0xFF3C3C3C.toInt() else 0xFFBDBDBD.toInt()) else if (dark) sys("system_neutral2_400", 0xFFA08C8A.toInt()) else sys("system_neutral2_500", 0xFF857371.toInt())
     val scrim = 0x99000000.toInt()
+
+    // Dot-matrix style overrides: black/white/grey, red as the only colour
+    private val red = 0xFFE5262E.toInt()
+    val dotsPrimary get() = red
 }
 
 fun Context.dp(v: Float): Int = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics).toInt()
@@ -215,7 +221,7 @@ class DpadView(ctx: Context, pal: Palette, private val sizeDp: Int) : View(ctx) 
 }
 
 /** Visual style of Hugminn's own screens. */
-enum class UiStyle(val label: String) { MODERN("Modern"), PIXEL("Pixel") }
+enum class UiStyle(val label: String) { MODERN("Modern"), PIXEL("Pixel"), DOTS("Punktmatrix") }
 
 /**
  * Shapes and fonts for the chosen style. "Pixel" (matching the Retroid Pocket Classic/Dual design
@@ -224,6 +230,20 @@ enum class UiStyle(val label: String) { MODERN("Modern"), PIXEL("Pixel") }
 object Look {
     @Volatile private var regular: Typeface? = null
     @Volatile private var bold: Typeface? = null
+    @Volatile private var dotRegular: Typeface? = null
+    @Volatile private var dotBold: Typeface? = null
+
+    private fun dotFont(ctx: Context, b: Boolean): Typeface {
+        val cached = if (b) dotBold else dotRegular
+        if (cached != null) return cached
+        val tf = try {
+            Typeface.Builder(ctx.assets, "fonts/Doto.ttf").setFontVariationSettings("'ROND' 100, 'wght' ${if (b) 900 else 700}").build()
+        } catch (t: Throwable) {
+            Typeface.MONOSPACE
+        }
+        if (b) dotBold = tf else dotRegular = tf
+        return tf
+    }
 
     fun pixel(ctx: Context) = Prefs(ctx).uiStyle == UiStyle.PIXEL
 
@@ -239,8 +259,11 @@ object Look {
         return tf
     }
 
-    fun font(ctx: Context, pixel: Boolean, b: Boolean): Typeface =
-        if (pixel) pixelFont(ctx, b) else Typeface.create(Typeface.DEFAULT, if (b) Typeface.BOLD else Typeface.NORMAL)
+    fun font(ctx: Context, pixel: Boolean, b: Boolean): Typeface = when {
+        pixel -> pixelFont(ctx, b)
+        Prefs(ctx).uiStyle == UiStyle.DOTS -> dotFont(ctx, b)
+        else -> Typeface.create(Typeface.DEFAULT, if (b) Typeface.BOLD else Typeface.NORMAL)
+    }
 
     /** Background shape: rounded (modern) or with stepped pixel corners. */
     fun shape(ctx: Context, pixel: Boolean, color: Int, radius: Float, stroke: Int = 0, strokeColor: Int = 0): android.graphics.drawable.Drawable =

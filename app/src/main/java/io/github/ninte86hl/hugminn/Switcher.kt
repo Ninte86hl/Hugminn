@@ -465,7 +465,7 @@ class Switcher(private val svc: HugminnService) {
         text = s
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
         setTextColor(color)
-        if (bold) setTypeface(typeface, Typeface.BOLD)
+        typeface = Look.font(svc, svc.prefs.uiStyle == UiStyle.PIXEL, bold)
         maxLines = 1
         ellipsize = TextUtils.TruncateAt.END
     }

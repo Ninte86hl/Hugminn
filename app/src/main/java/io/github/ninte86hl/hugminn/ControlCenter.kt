@@ -168,8 +168,8 @@ class ControlCenter(private val svc: HugminnService) {
     private fun refreshAll() = svc.ui.postDelayed({ refreshers.forEach { it() } }, 300)
 
     /** Colour of active tiles: chosen in the editor, or the Material You accent. */
-    private fun tileOn() = svc.prefs.tileColor.takeIf { it != 0 } ?: pal.primary
-    private fun tileOnFg() = if (svc.prefs.tileColor == 0) pal.onPrimary else onColor(svc.prefs.tileColor)
+    private fun tileOn() = svc.prefs.tileColor.takeIf { it != 0 } ?: if (pal.dots) pal.onSurface else pal.primary
+    private fun tileOnFg() = if (svc.prefs.tileColor == 0) (if (pal.dots) pal.surface else pal.onPrimary) else onColor(svc.prefs.tileColor)
 
     private var gearItem: Item? = null
     /** Cards that open something when chosen (frame rate, performance, fan). */
@@ -1259,7 +1259,11 @@ class ControlCenter(private val svc: HugminnService) {
             },
             MenuEntry("Stil", hint = svc.prefs.uiStyle.label) {
                 showMenu("Stil", UiStyle.values().map { st ->
-                    MenuEntry(if (st == UiStyle.PIXEL) "Pixel (Retroid-Pocket-Classic-Look)" else "Modern (Material You)", checked = svc.prefs.uiStyle == st) {
+                    MenuEntry(when (st) {
+                        UiStyle.PIXEL -> "Pixel (Retroid-Pocket-Classic-Look)"
+                        UiStyle.DOTS -> "Punktmatrix (schwarz-weiß, rot als Akzent)"
+                        else -> "Modern (Material You)"
+                    }, checked = svc.prefs.uiStyle == st) {
                         svc.prefs.uiStyle = st
                         reopen()
                     }
