@@ -144,12 +144,27 @@ object Root {
         return if (finished) text else "$text\n[Zeitüberschreitung nach ${timeoutMs / 1000} s]"
     }
 
-    /** Runs a script from the app's assets as root; the script travels inline, so root needs no access to app files. */
+    private val copied = HashSet<String>()
+
+    /**
+     * Runs a script from the app's assets as root. The service only accepts short commands, so the
+     * script is copied once into the scratch folder in small base64 pieces and then started from there.
+     */
     fun runAsset(ctx: Context, asset: String, args: String = "", timeoutMs: Long = 30_000): String? {
         if (binder() == null) return null
-        val script = ctx.assets.open(asset).use { it.readBytes() }
-        val b64 = Base64.encodeToString(script, Base64.NO_WRAP)
-        return exec(ctx, "echo $b64 | base64 -d | sh -s -- $args", timeoutMs)
+        detect()
+        val dir = scratchDir ?: return "kein Arbeitsordner für Root"
+        val target = "$dir/hugminn_$asset"
+        synchronized(copied) {
+            if (asset !in copied) {
+                val b64 = Base64.encodeToString(ctx.assets.open(asset).use { it.readBytes() }, Base64.NO_WRAP)
+                rawExec("rm -f $target.b64 $target")
+                b64.chunked(400).forEach { part -> rawExec("printf '%s' '$part' >> $target.b64") }
+                rawExec("base64 -d $target.b64 > $target; rm -f $target.b64")
+                copied.add(asset)
+            }
+        }
+        return exec(ctx, "sh $target $args", timeoutMs)
     }
 
     /** Stops a long-running command (e.g. getevent) by process name. */
