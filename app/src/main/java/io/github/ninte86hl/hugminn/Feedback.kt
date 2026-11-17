@@ -172,6 +172,7 @@ object Feedback {
                     appendLine("${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}")
                     appendLine()
                     appendLine(Crash.last(ctx) ?: "Kein Fehler gespeichert.")
+                    if (LedFx.diag.isNotEmpty()) { appendLine(); appendLine("LED-Test:"); appendLine(LedFx.diag) }
                 }.toByteArray()
                 val log = (Root.execLong("logcat -d -b main,system,crash -v time -t 3000", 30_000)
                     ?: "Systemprotokoll nicht lesbar (kein Root-Dienst).").toByteArray()

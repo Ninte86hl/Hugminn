@@ -84,6 +84,27 @@ object LedFx {
         Device.setLedBrightness(v, then)
     }
 
+    private val previewLock = Object()
+    @Volatile private var previewNext: IntArray? = null
+    @Volatile private var previewBusy = false
+
+    /** Shows a colour on the sticks right away (colour wheel), without storing it; only the newest is sent. */
+    fun preview(left: Int, right: Int, k: Float) {
+        previewNext = intArrayOf(scale(left, k), scale(right, k))
+        synchronized(previewLock) {
+            if (previewBusy) return
+            previewBusy = true
+        }
+        Thread {
+            while (true) {
+                val z = previewNext ?: break
+                previewNext = null
+                Root.exec(command(z), 1_000)
+            }
+            synchronized(previewLock) { previewBusy = false }
+        }.start()
+    }
+
     /** Writes the stored static colours (at the stored brightness) to the sticks. */
     fun restoreStatic(ctx: Context) {
         val (l, r) = Device.ledColors(ctx) ?: return
