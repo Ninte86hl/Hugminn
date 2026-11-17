@@ -162,7 +162,7 @@ class OwnSwitcher(private val svc: HugminnService) {
                 ?: Regex("""I=([\w.]+)/""").find(head)?.groupValues?.get(1)
                 ?: Regex("""A=\d+:([\w.]+)""").find(head)?.groupValues?.get(1)
                 ?: return@forEachIndexed
-            if (pkg == svc.packageName || pkg.contains("launcher", true)) return@forEachIndexed
+            if (pkg.contains("launcher", true)) return@forEachIndexed
             // apps without their own launcher icon (e.g. a gallery opened from elsewhere) count too;
             // only system parts without a window of their own are left out
             if (pkg !in launchable && (pkg == "com.android.systemui" || pkg.startsWith("com.android.permissioncontroller") ||
