@@ -56,6 +56,35 @@ object Root {
         }
     }
 
+    private val counter = java.util.concurrent.atomic.AtomicInteger()
+
+    /**
+     * Runs [cmd] as root and returns its whole output. The service only answers with one line, so the
+     * output goes to a scratch file and is read back in base64 chunks.
+     */
+    fun execLong(cmd: String, timeoutMs: Long = 20_000): String? {
+        if (!available()) return null
+        val f = "/data/local/tmp/hugminn_${android.os.Process.myPid()}_${counter.incrementAndGet()}"
+        val mark = "@@HUGMINN_END@@"
+        exec("sh -c " + quote("($cmd)>$f 2>&1;echo $mark>>$f"), timeoutMs)
+        val until = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < until) {
+            if (exec("tail -c 40 $f 2>/dev/null | tr -d '\\n'")?.contains(mark) == true) break
+            Thread.sleep(80)
+        }
+        val size = exec("wc -c < $f 2>/dev/null")?.trim()?.toLongOrNull() ?: 0L
+        val out = java.io.ByteArrayOutputStream()
+        val chunk = 48_000
+        var off = 0L
+        while (off < size) {
+            val b64 = exec("tail -c +${off + 1} $f | head -c $chunk | base64 -w 0", 10_000) ?: break
+            out.write(android.util.Base64.decode(b64.trim(), android.util.Base64.DEFAULT))
+            off += chunk
+        }
+        exec("rm -f $f")
+        return out.toString("UTF-8").substringBefore(mark).trimEnd()
+    }
+
     fun putSetting(table: String, key: String, value: String) = "settings put $table $key ${quote(value)}"
 
     fun quote(s: String): String = "'" + s.replace("'", "'\\''") + "'"

@@ -51,6 +51,8 @@ class HugminnService : AccessibilityService() {
             }
         }.start()
         SettingsWatch.start(this)
+        // A crash last time? Send the report with the system log (if feedback is set up).
+        ui.postDelayed({ Feedback.sendErrorLogIfPending(this) }, 3000)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {

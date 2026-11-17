@@ -264,6 +264,18 @@ class MainActivity : Activity() {
             fbb.addView(button("Token entfernen") { prefs.githubToken = null; build() })
         }
         fb.addView(fbb)
+        if (hasToken) {
+            fb.addView(text(
+                "Fehler werden automatisch mit dem Systemprotokoll hochgeladen, nach einem Absturz beim nächsten Start.",
+                12f, pal.onSurfaceVariant,
+            ))
+            val lb = LinearLayout(this).apply { setPadding(0, d(8), 0, d(6)) }
+            lb.addView(button("Protokoll jetzt hochladen") {
+                Feedback.sendLog(this, "protokoll")
+                Toast.makeText(this, "Wird hochgeladen – siehe Benachrichtigung", Toast.LENGTH_SHORT).show()
+            })
+            fb.addView(lb)
+        }
 
         // About
         val a = section("Über")

@@ -1,6 +1,7 @@
 package io.github.ninte86hl.hugminn
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Build
@@ -117,6 +118,53 @@ object Feedback {
         val code = c.responseCode
         c.disconnect()
         return code in 200..299
+    }
+
+    /**
+     * Uploads the last error together with the system log (needs root for the log). Runs once per
+     * error: after a crash it is sent when Hugminn starts again.
+     */
+    fun sendErrorLogIfPending(ctx: Context) {
+        if (!Crash.pending(ctx)) return
+        sendLog(ctx, "fehler")
+    }
+
+    /** Uploads device info, the last error and the recent system log. */
+    fun sendLog(ctx: Context, where: String) {
+        val token = Prefs(ctx).githubToken
+        if (token.isNullOrBlank() || busy) return
+        busy = true
+        val note = UploadNotification(ctx)
+        note.progress("Protokoll wird gesammelt …", -1)
+        thread {
+            try {
+                val stamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.GERMANY).format(Date())
+                val base = "feedback/${stamp}_$where"
+                val info = buildString {
+                    appendLine("Hugminn ${ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName} · $where")
+                    appendLine("${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}")
+                    appendLine()
+                    appendLine(Crash.last(ctx) ?: "Kein Fehler gespeichert.")
+                }.toByteArray()
+                val log = (Root.execLong("logcat -d -b main,system,crash -v time -t 3000", 30_000)
+                    ?: "Systemprotokoll nicht lesbar (kein Root-Dienst).").toByteArray()
+                val total = info.size + log.size
+                var ok = put(token, "$base.txt", info, "Error report ($where)") { sent ->
+                    note.progress("Fehlerbericht wird hochgeladen …", (sent * 100L / total).toInt())
+                }
+                ok = put(token, "${base}_logcat.txt", log, "System log ($where)") { sent ->
+                    note.progress("Systemprotokoll wird hochgeladen …", ((info.size + sent) * 100L / total).toInt())
+                } && ok
+                if (ok) {
+                    Crash.markSent(ctx)
+                    note.done("Fehlerbericht hochgeladen ✓", "$stamp · Systemprotokoll ${log.size / 1024} KB")
+                } else note.failed("Hochladen fehlgeschlagen", "GitHub hat abgelehnt – Token prüfen (Contents: Read and write)")
+            } catch (t: Throwable) {
+                note.failed("Hochladen fehlgeschlagen", "${t.javaClass.simpleName}: ${t.message}")
+            } finally {
+                busy = false
+            }
+        }
     }
 
     private fun toast(svc: HugminnService, s: String) = svc.ui.post { Toast.makeText(svc, s, Toast.LENGTH_SHORT).show() }

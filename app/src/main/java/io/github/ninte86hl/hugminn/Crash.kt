@@ -25,7 +25,11 @@ object Crash {
         }
     }
 
-    fun note(ctx: Context, e: Throwable) = save(ctx, "Fehler (abgefangen)", e)
+    /** A caught error: remembered and, if feedback is set up, sent with the system log right away. */
+    fun note(ctx: Context, e: Throwable) {
+        save(ctx, "Fehler (abgefangen)", e)
+        Feedback.sendErrorLogIfPending(ctx)
+    }
 
     private fun save(ctx: Context, what: String, e: Throwable) {
         val sw = StringWriter()
@@ -36,6 +40,17 @@ object Crash {
     }
 
     fun last(ctx: Context): String? = ctx.getSharedPreferences("hugminn", Context.MODE_PRIVATE).getString(KEY, null)
+
+    /** True if the last error has not been sent yet. */
+    fun pending(ctx: Context): Boolean {
+        val last = last(ctx) ?: return false
+        return ctx.getSharedPreferences("hugminn", Context.MODE_PRIVATE).getInt("crashSent", 0) != last.hashCode()
+    }
+
+    fun markSent(ctx: Context) {
+        val last = last(ctx) ?: return
+        ctx.getSharedPreferences("hugminn", Context.MODE_PRIVATE).edit().putInt("crashSent", last.hashCode()).apply()
+    }
 
     fun clear(ctx: Context) = ctx.getSharedPreferences("hugminn", Context.MODE_PRIVATE).edit().remove(KEY).apply()
 }
