@@ -54,6 +54,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("ccHideStatus", true)
         set(v) = p.edit().putBoolean("ccHideStatus", v).apply()
 
+    /** Last measured switcher geometry ("screenW,screenH|card l,t,r,b|snap l,t,r,b|pitch"). */
+    var switcherGeometry: String?
+        get() = p.getString("switcherGeometry", null)
+        set(v) = p.edit().putString("switcherGeometry", v).apply()
+
     var glyphStyle: GlyphStyle
         get() = enumOr(p.getString("glyphs", null), GlyphStyle.AUTO)
         set(v) = p.edit().putString("glyphs", v.name).apply()

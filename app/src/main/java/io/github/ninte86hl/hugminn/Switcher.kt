@@ -68,6 +68,9 @@ class Switcher(private val svc: HugminnService) {
     private var shell: ShellView? = null
     private var cards: List<Card> = emptyList()
     private var model: Model? = null
+    /** False until the cards have been read; the frame is already shown from the remembered geometry. */
+    private var scanned = false
+    private var pendingKey = 0
     private var pos = 0f // continuous index of the card in the middle
     /** +1: higher index = further right on screen, -1: further left (depends on how the launcher lists cards). */
     private var dir = 1f
@@ -92,11 +95,15 @@ class Switcher(private val svc: HugminnService) {
         pal = Palette(svc)
         generation++
         cards = emptyList()
-        model = null
+        model = loadGeometry()
+        scanned = false
+        pendingKey = 0
         sel = -1
         menu = null
         busyUntil = System.currentTimeMillis() + 1500
         if (findPanel() == null) svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
+        // Show the frame right away with the geometry from last time; it is refined once the cards are read.
+        if (model != null) svc.ui.post { if (isOpen && !scanned) redraw() }
         worker = HandlerThread("hugminn-switcher").also { it.start() }
         work = Handler(worker!!.looper)
         val gen = generation
@@ -171,7 +178,11 @@ class Switcher(private val svc: HugminnService) {
         svc.ui.post {
             if (gen != generation) return@post
             cards = newCards
-            if (m != null) model = m
+            if (m != null) {
+                model = m
+                saveGeometry(m)
+            }
+            scanned = true
             val mid = wm.currentWindowMetrics.bounds.width() / 2f
             val centred = focused.takeIf { it >= 0 }
                 ?: now.indices.minByOrNull { abs(now[it].exactCenterX() - mid) } ?: 0
@@ -183,9 +194,31 @@ class Switcher(private val svc: HugminnService) {
                 centred == cards.lastIndex -> 1f
                 else -> dir
             }
+            sel = -1
             jumpTo(centred)
             watch(gen, 0)
+            // A button pressed while the cards were still being read is carried out now.
+            val k = pendingKey
+            pendingKey = 0
+            if (k != 0) handleKey(k)
         }
+    }
+
+    private fun loadGeometry(): Model? = try {
+        val b = wm.currentWindowMetrics.bounds
+        val parts = svc.prefs.switcherGeometry?.split('|') ?: emptyList()
+        if (parts.size != 4 || parts[0] != "${b.width()},${b.height()}") null else {
+            fun rect(s: String) = s.split(',').map { it.toFloat() }.let { RectF(it[0], it[1], it[2], it[3]) }
+            Model(rect(parts[1]), parts[2].takeIf { it != "-" }?.let(::rect), null, null, parts[3].toFloat())
+        }
+    } catch (t: Throwable) {
+        null
+    }
+
+    private fun saveGeometry(m: Model) {
+        val b = wm.currentWindowMetrics.bounds
+        fun str(r: RectF) = "${r.left},${r.top},${r.right},${r.bottom}"
+        svc.prefs.switcherGeometry = "${b.width()},${b.height()}|${str(m.card)}|${m.snap?.let(::str) ?: "-"}|${m.pitch}"
     }
 
     /** Closes the frame as soon as the recents view is gone (app opened, swiped home, ...). */
@@ -333,6 +366,10 @@ class Switcher(private val svc: HugminnService) {
         val snaps = mutableListOf<RectF>()
         val labels = mutableListOf<String>()
         val icons = mutableListOf<android.graphics.drawable.Drawable?>()
+        if (!scanned && m != null) {
+            val snap = m.snap?.let { RectF(it.left + m.card.left, it.top + m.card.top, it.right + m.card.left, it.bottom + m.card.top) } ?: RectF(m.card)
+            return Frame(listOf(snap), listOf(""), listOf(null), 0)
+        }
         for (i in cards.indices) {
             if (m == null) {
                 snaps += RectF(); labels += ""; icons += null
@@ -380,10 +417,18 @@ class Switcher(private val svc: HugminnService) {
         }
         s.alpha = 0f
         wm.addView(s, lp)
-        s.animate().alpha(1f).setDuration(140).start()
+        s.animate().alpha(1f).setDuration(70).start()
         shell = s
 
-        val b = FrameLayout(svc)
+        val b = object : FrameLayout(svc) {
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                if (event.action == KeyEvent.ACTION_DOWN) try { handleKey(event.keyCode) } catch (t: Throwable) { Crash.note(svc, t) }
+                return true
+            }
+        }.apply {
+            isFocusable = true
+            isFocusableInTouchMode = true
+        }
         val blp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT, m.bounds.height() - barTop,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
@@ -421,6 +466,14 @@ class Switcher(private val svc: HugminnService) {
         }
         val m = menu
         val c = cards.getOrNull(sel)
+        if (!scanned) {
+            row.addView(View(svc), LinearLayout.LayoutParams(0, 1, 1f))
+            row.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, "Wechseln"))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Öffnen"))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+            b.addView(row, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            return
+        }
         if (m == null) {
             if (c != null) {
                 row.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, c.pkg)) }, LinearLayout.LayoutParams(svc.dp(40), svc.dp(40)))
@@ -481,7 +534,17 @@ class Switcher(private val svc: HugminnService) {
             return false
         }
         if (e.action != KeyEvent.ACTION_DOWN) return true
-        when (e.keyCode) {
+        if (!scanned && e.keyCode in listOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)) {
+            pendingKey = e.keyCode
+            return true
+        }
+        handleKey(e.keyCode)
+        return true
+    }
+
+    private fun handleKey(keyCode: Int) {
+        val m = menu
+        when (keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BUTTON_L1 -> if (m != null) { menuSel = (menuSel - 1).coerceAtLeast(0); render() }
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BUTTON_R1 -> if (m != null) { menuSel = (menuSel + 1).coerceAtMost(m.lastIndex); render() }
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER ->
@@ -491,7 +554,19 @@ class Switcher(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_X -> if (m == null) closeApp()
             KeyEvent.KEYCODE_BUTTON_Y -> if (m == null) openMenu()
         }
-        return true
+        // While the option menu is open the bar takes input focus, so the D-pad (a joystick hat) reaches it.
+        setBarFocus(menu != null)
+    }
+
+    private fun setBarFocus(on: Boolean) {
+        val b = bar ?: return
+        val lp = b.layoutParams as? WindowManager.LayoutParams ?: return
+        val notFocusable = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        val want = if (on) lp.flags and notFocusable.inv() else lp.flags or notFocusable
+        if (want == lp.flags) return
+        lp.flags = want
+        runCatching { wm.updateViewLayout(b, lp) }
+        if (on) b.requestFocus()
     }
 
     fun onEvent(e: AccessibilityEvent) {
@@ -588,6 +663,7 @@ class Switcher(private val svc: HugminnService) {
     private fun runMenu(i: Int) {
         val item = menu?.getOrNull(i) ?: return
         menu = null
+        setBarFocus(false)
         item.run()
         if (isOpen) render()
     }
