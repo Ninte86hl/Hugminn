@@ -144,27 +144,23 @@ object Root {
         return if (finished) text else "$text\n[Zeitüberschreitung nach ${timeoutMs / 1000} s]"
     }
 
-    private val copied = HashSet<String>()
-
     /**
-     * Runs a script from the app's assets as root. The service only accepts short commands, so the
-     * script is copied once into the scratch folder in small base64 pieces and then started from there.
+     * Runs a script from the app's assets as root. The service only accepts short commands and may run
+     * several at once, so the script text is sent inline in one call (keep such scripts short).
      */
     fun runAsset(ctx: Context, asset: String, args: String = "", timeoutMs: Long = 30_000): String? {
         if (binder() == null) return null
-        detect()
-        val dir = scratchDir ?: return "kein Arbeitsordner für Root"
-        val target = "$dir/hugminn_$asset"
-        synchronized(copied) {
-            if (asset !in copied) {
-                val b64 = Base64.encodeToString(ctx.assets.open(asset).use { it.readBytes() }, Base64.NO_WRAP)
-                rawExec("rm -f $target.b64 $target")
-                b64.chunked(400).forEach { part -> rawExec("printf '%s' '$part' >> $target.b64") }
-                rawExec("base64 -d $target.b64 > $target; rm -f $target.b64")
-                copied.add(asset)
-            }
-        }
-        return exec(ctx, "sh $target $args", timeoutMs)
+        val text = ctx.assets.open(asset).use { it.readBytes() }.toString(Charsets.UTF_8)
+        return exec(ctx, "set -- $args\n$text", timeoutMs)
+    }
+
+    /** Runs one `name)` section of a case-style asset script as its own short root command. */
+    fun runSection(ctx: Context, asset: String, section: String, timeoutMs: Long = 8_000): String? {
+        if (binder() == null) return null
+        val text = ctx.assets.open(asset).use { it.readBytes() }.toString(Charsets.UTF_8)
+        val body = Regex("(?m)^" + Regex.escape(section) + "\\)\\n([\\s\\S]*?)\\n\\s*;;").find(text)?.groupValues?.get(1)
+            ?: return "Abschnitt $section nicht gefunden"
+        return exec(ctx, body.trimIndent(), timeoutMs)
     }
 
     /** Stops a long-running command (e.g. getevent) by process name. */

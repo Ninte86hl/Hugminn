@@ -196,7 +196,7 @@ object Probe {
         val sections = listOf("leds", "cpu", "gpu", "thermal", "cooling", "fan", "power", "backlight", "input", "packages", "services", "surfaceflinger")
         return sections.mapIndexed { i, sec ->
             progress("8/9 · Hardware: $sec (${i + 1}/${sections.size})")
-            "## $sec\n" + (Root.runAsset(ctx, "hardware.sh", sec, timeoutMs = 8_000)?.let { redact(it) } ?: "keine Antwort")
+            "## $sec\n" + (Root.runSection(ctx, "hardware.sh", sec, timeoutMs = 8_000)?.let { redact(it) } ?: "keine Antwort")
         }.joinToString("\n\n")
     }
 
