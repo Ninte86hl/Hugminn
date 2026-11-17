@@ -111,9 +111,14 @@ class Prefs(ctx: Context) {
         }?.toMap() ?: emptyMap()
         set(v) = p.edit().putString("ccSizes", v.entries.joinToString(",") { "${it.key}:${it.value}" }).apply()
 
+    /** Control Center grid: elements in order with their size in cells. */
+    var ccGrid: List<GridEntry>
+        get() = GridLayout.parse(p.getString("ccGrid", null)) ?: GridLayout.defaults
+        set(v) = p.edit().putString("ccGrid", GridLayout.format(v)).apply()
+
     /** Back to the default Control Center (layout, tiles, sizes, colours). */
     fun resetControlCenter() = p.edit()
-        .remove("ccLayout").remove("ccTiles").remove("ccSizes").remove("tileColor").remove("tileShape").remove("gaugePalette")
+        .remove("ccGrid").remove("ccLayout").remove("ccTiles").remove("ccSizes").remove("tileColor").remove("tileShape").remove("gaugePalette")
         .apply()
 
     var overlayOn: Boolean
