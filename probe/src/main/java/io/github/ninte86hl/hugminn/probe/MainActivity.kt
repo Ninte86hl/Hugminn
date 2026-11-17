@@ -388,6 +388,7 @@ class MainActivity : Activity() {
         homeRecorded = -1
         homeResults.setLength(0)
         rawFile = null
+        page("Home-Taste", "Bereite den Home-Test vor …")
         if (Root.available()) {
             background({ Root.startBackground("timeout 150 getevent -lt") ?: "" }) {
                 rawFile = it.ifEmpty { null }
@@ -775,7 +776,7 @@ class MainActivity : Activity() {
     // ---------- Report ----------
 
     private fun fullReport(): String = buildString {
-        appendLine("Hugminn Probe 0.3.0 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+        appendLine("Hugminn Probe 0.3.1 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         appendLine("Gerät: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE}), Android ${Build.VERSION.RELEASE}")
         appendLine("Persönliche Werte (Seriennummer, Konten, WLAN, MAC usw.) wurden entfernt.")
         appendLine()

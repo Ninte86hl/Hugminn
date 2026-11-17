@@ -5,6 +5,9 @@ import android.os.IBinder
 import android.os.Parcel
 import android.util.Base64
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Client for the firmware's root service "PServerBinder" found on AYN and Retroid handhelds.
@@ -35,7 +38,23 @@ object Root {
 
     fun available(): Boolean = binder() != null
 
-    fun rawExec(cmd: String, wait: Boolean = true): String? {
+    private val pool = Executors.newCachedThreadPool()
+
+    /** One call to the service; gives up waiting after [timeoutMs] so a stuck call never blocks the app. */
+    fun rawExec(cmd: String, wait: Boolean = true, timeoutMs: Long = 15_000): String? {
+        val future = pool.submit<String?> { rawExecDirect(cmd, wait) }
+        return try {
+            future.get(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (t: TimeoutException) {
+            lastError = "Zeitüberschreitung bei: " + cmd.take(80)
+            null
+        } catch (t: Throwable) {
+            lastError = "${t.javaClass.simpleName}: ${t.message}"
+            null
+        }
+    }
+
+    private fun rawExecDirect(cmd: String, wait: Boolean): String? {
         val b = binder() ?: return null
         val data = Parcel.obtain()
         val reply = Parcel.obtain()
@@ -85,7 +104,7 @@ object Root {
                 "\n[ohne Arbeitsordner gelesen, evtl. gekürzt]"
         }
         val f = "$dir/hugminn_${System.nanoTime()}.out"
-        rawExec("sh -c " + quote("( $cmd ) > $f 2>&1; echo $DONE >> $f"), wait = true)
+        rawExec("sh -c " + quote("( $cmd ) > $f 2>&1; echo $DONE >> $f"), wait = true, timeoutMs = timeoutMs)
         return collect(f, timeoutMs)
     }
 
@@ -95,7 +114,8 @@ object Root {
         detect()
         val dir = scratchDir ?: return null
         val f = "$dir/hugminn_${System.nanoTime()}.out"
-        rawExec("sh -c " + quote("( ( $cmd ) > $f 2>&1; echo $DONE >> $f ) > /dev/null 2>&1 &"), wait = false)
+        val inner = "( $cmd ) > $f 2>&1; echo $DONE >> $f"
+        rawExec("setsid sh -c " + quote(inner) + " < /dev/null > /dev/null 2>&1 &", wait = true, timeoutMs = 3_000)
         return f
     }
 
