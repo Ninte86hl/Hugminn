@@ -40,18 +40,22 @@ class Palette(private val ctx: Context) {
         return if (id != 0) ctx.getColor(id) else fallback
     }
 
+    /** Chosen tile colour (0 = style default); it becomes the accent of every style. */
+    private val chosen = Prefs(ctx).tileColor.takeIf { it != 0 }
     /** Dot-matrix accent: the chosen tile colour, otherwise Nothing-like red. */
-    private val dotAccent = Prefs(ctx).tileColor.takeIf { it != 0 } ?: if (dark) 0xFFE5262E.toInt() else 0xFFD71920.toInt()
+    private val dotAccent = chosen ?: if (dark) 0xFFE5262E.toInt() else 0xFFD71920.toInt()
+    /** Styles other than dot matrix use the chosen colour like the dot matrix does, else Material You. */
+    private val useDot = dots || chosen != null
     private fun mix(a: Int, b: Int, t: Float) = Color.rgb(
         (Color.red(a) + (Color.red(b) - Color.red(a)) * t).toInt(),
         (Color.green(a) + (Color.green(b) - Color.green(a)) * t).toInt(),
         (Color.blue(a) + (Color.blue(b) - Color.blue(a)) * t).toInt(),
     )
 
-    val primary = if (dots) dotAccent else if (dark) sys("system_accent1_200", 0xFFFFB3AC.toInt()) else sys("system_accent1_600", 0xFFB3261E.toInt())
-    val onPrimary = if (dots) onColor(dotAccent) else if (dark) sys("system_accent1_800", 0xFF680003.toInt()) else sys("system_accent1_0", Color.WHITE)
-    val primaryContainer = if (dots) (if (dark) mix(Color.BLACK, dotAccent, 0.18f) else mix(Color.WHITE, dotAccent, 0.14f)) else if (dark) sys("system_accent1_700", 0xFF8C1D18.toInt()) else sys("system_accent1_100", 0xFFFFDAD6.toInt())
-    val onPrimaryContainer = if (dots) (if (dark) mix(Color.WHITE, dotAccent, 0.35f) else mix(Color.BLACK, dotAccent, 0.45f)) else if (dark) sys("system_accent1_100", 0xFFFFDAD6.toInt()) else sys("system_accent1_900", 0xFF410002.toInt())
+    val primary = if (useDot) dotAccent else if (dark) sys("system_accent1_200", 0xFFFFB3AC.toInt()) else sys("system_accent1_600", 0xFFB3261E.toInt())
+    val onPrimary = if (useDot) onColor(dotAccent) else if (dark) sys("system_accent1_800", 0xFF680003.toInt()) else sys("system_accent1_0", Color.WHITE)
+    val primaryContainer = if (useDot) (if (dark) mix(Color.BLACK, dotAccent, 0.18f) else mix(Color.WHITE, dotAccent, 0.14f)) else if (dark) sys("system_accent1_700", 0xFF8C1D18.toInt()) else sys("system_accent1_100", 0xFFFFDAD6.toInt())
+    val onPrimaryContainer = if (useDot) (if (dark) mix(Color.WHITE, dotAccent, 0.35f) else mix(Color.BLACK, dotAccent, 0.45f)) else if (dark) sys("system_accent1_100", 0xFFFFDAD6.toInt()) else sys("system_accent1_900", 0xFF410002.toInt())
     val secondaryContainer = if (dots) (if (dark) 0xFF262626.toInt() else 0xFFE4E4E4.toInt()) else if (dark) sys("system_accent2_700", 0xFF5D3F3C.toInt()) else sys("system_accent2_100", 0xFFFFDAD6.toInt())
     val onSecondaryContainer = if (dots) (if (dark) Color.WHITE else Color.BLACK) else if (dark) sys("system_accent2_100", 0xFFFFDAD6.toInt()) else sys("system_accent2_900", 0xFF2C1513.toInt())
     val surface = if (dots) (if (dark) Color.BLACK else 0xFFF3F3F3.toInt()) else if (oled) Color.BLACK else if (dark) sys("system_neutral1_900", 0xFF201A19.toInt()) else sys("system_neutral1_10", 0xFFFFFBFF.toInt())
