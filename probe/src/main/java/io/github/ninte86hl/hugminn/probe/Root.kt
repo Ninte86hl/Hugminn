@@ -19,13 +19,16 @@ import java.util.concurrent.TimeoutException
  */
 object Root {
     private const val SERVICE = "PServerBinder"
-    private const val DONE = "__HUGMINN_DONE__"
+    private const val DONE = "@@E@@"
+    private val counter = java.util.concurrent.atomic.AtomicInteger()
 
     @Volatile var lastError: String? = null
     @Volatile private var detected = false
     @Volatile var scratchDir: String? = null
         private set
     @Volatile var lineLimit: Int = 0
+        private set
+    @Volatile var cmdLimit: Int = 0
         private set
 
     fun binder(): IBinder? = try {
@@ -80,9 +83,13 @@ object Root {
             val dirCmd = "for d in /data/local/tmp /dev /data/local /cache /mnt; do " +
                 "if touch \$d/.hugminn 2>/dev/null; then rm -f \$d/.hugminn; echo \$d; break; fi; done"
             scratchDir = rawExec(dirCmd)?.trim()?.takeIf { it.startsWith("/") }
+            cmdLimit = intArrayOf(4000, 2000, 1000, 700, 500, 350, 250, 150).firstOrNull { n ->
+                val body = "a".repeat(n - 5)
+                rawExec("echo $body", timeoutMs = 3_000)?.trim() == body
+            } ?: 0
             detected = true
         }
-        return "Zeilenlänge pro Antwort: $lineLimit Zeichen, Arbeitsordner für Root: ${scratchDir ?: "keiner gefunden"}"
+        return "Zeilenlänge pro Antwort: $lineLimit Zeichen, längster Befehl: ca. $cmdLimit Zeichen, Arbeitsordner für Root: ${scratchDir ?: "keiner gefunden"}"
     }
 
     private fun chunkBytes(): Int {
@@ -103,8 +110,8 @@ object Root {
             return decode(rawExec("( $cmd ) 2>&1 | base64 -w 0")).toString(Charsets.UTF_8) +
                 "\n[ohne Arbeitsordner gelesen, evtl. gekürzt]"
         }
-        val f = "$dir/hugminn_${System.nanoTime()}.out"
-        rawExec("sh -c " + quote("( $cmd ) > $f 2>&1; echo $DONE >> $f"), wait = true, timeoutMs = timeoutMs)
+        val f = "$dir/h${counter.incrementAndGet()}"
+        rawExec("sh -c " + quote("($cmd)>$f 2>&1;echo $DONE>>$f"), wait = true, timeoutMs = timeoutMs)
         return collect(f, timeoutMs)
     }
 
@@ -113,8 +120,8 @@ object Root {
         if (binder() == null) return null
         detect()
         val dir = scratchDir ?: return null
-        val f = "$dir/hugminn_${System.nanoTime()}.out"
-        val inner = "( $cmd ) > $f 2>&1; echo $DONE >> $f"
+        val f = "$dir/h${counter.incrementAndGet()}"
+        val inner = "($cmd)>$f 2>&1;echo $DONE>>$f"
         rawExec("setsid sh -c " + quote(inner) + " < /dev/null > /dev/null 2>&1 &", wait = true, timeoutMs = 3_000)
         return f
     }

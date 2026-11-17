@@ -191,12 +191,50 @@ object Probe {
         }
     }
 
+    /** Short read-only commands (the firmware service rejects long ones), grouped by topic. */
+    private val HW = linkedMapOf(
+        "leds" to listOf(
+            "ls /sys/class/leds",
+            "ls /sys/class | grep -iE 'sn3112|aw|rgb|joy|led|light'",
+            "ls -l /sys/class/sn3112l/led /sys/class/sn3112r/led",
+            "head -c 300 /sys/class/sn3112l/led/brightness"
+        ),
+        "cpu" to listOf(
+            "cd /sys/devices/system/cpu/cpufreq;grep . policy*/related_cpus policy*/cpuinfo_m*_freq",
+            "cd /sys/devices/system/cpu/cpufreq;grep . policy*/scaling_m*_freq policy*/scaling_cur_freq policy*/scaling_governor",
+            "cd /sys/devices/system/cpu/cpufreq;grep . policy*/scaling_available_frequencies"
+        ),
+        "gpu" to listOf(
+            "cd /sys/class/kgsl/kgsl-3d0;grep . gpu_model gpuclk max_gpuclk gpu_busy_percentage num_pwrlevels",
+            "cd /sys/class/kgsl/kgsl-3d0;grep . default_pwrlevel min_pwrlevel max_pwrlevel thermal_pwrlevel",
+            "cd /sys/class/kgsl/kgsl-3d0/devfreq;grep . available_frequencies cur_freq min_freq max_freq governor"
+        ),
+        "thermal" to listOf("cd /sys/class/thermal;grep . thermal_zone*/type thermal_zone*/temp|head -400"),
+        "cooling" to listOf("cd /sys/class/thermal;grep . cooling_device*/type cooling_device*/cur_state cooling_device*/max_state"),
+        "fan" to listOf(
+            "ls /sys/class|grep -iE 'fan|pwm|hwmon|cool'",
+            "grep . /sys/class/hwmon/hwmon*/name",
+            "ls -d /sys/devices/platform/*fan* /sys/devices/platform/*pwm*"
+        ),
+        "power" to listOf(
+            "ls /sys/class/power_supply",
+            "cd /sys/class/power_supply/battery;grep . capacity status current_now voltage_now temp charge_type input_suspend"
+        ),
+        "backlight" to listOf("grep . /sys/class/backlight/*/brightness /sys/class/backlight/*/max_brightness"),
+        "input" to listOf("cat /proc/bus/input/devices"),
+        "packages" to listOf("timeout 5 pm list packages -f|grep -iE 'retroid|com.ro.|com.rp.|odin|ayn|moorechip'"),
+        "services" to listOf("timeout 5 service list"),
+        "surfaceflinger" to listOf("timeout 5 dumpsys SurfaceFlinger --list|head -40")
+    )
+
     fun hardware(ctx: Context, progress: (String) -> Unit = {}): String {
         if (!Root.available()) return "Nur mit Root-Dienst möglich."
-        val sections = listOf("leds", "cpu", "gpu", "thermal", "cooling", "fan", "power", "backlight", "input", "packages", "services", "surfaceflinger")
-        return sections.mapIndexed { i, sec ->
-            progress("8/9 · Hardware: $sec (${i + 1}/${sections.size})")
-            "## $sec\n" + (Root.runSection(ctx, "hardware.sh", sec, timeoutMs = 8_000)?.let { redact(it) } ?: "keine Antwort")
+        val names = HW.keys.toList()
+        return names.mapIndexed { i, sec ->
+            progress("8/9 · Hardware: $sec (${i + 1}/${names.size})")
+            "## $sec\n" + HW.getValue(sec).joinToString("\n") { cmd ->
+                "$ $cmd\n" + (Root.exec(ctx, "$cmd 2>&1", 8_000)?.let { redact(it) } ?: "keine Antwort")
+            }
         }.joinToString("\n\n")
     }
 

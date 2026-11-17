@@ -798,7 +798,7 @@ class MainActivity : Activity() {
     // ---------- Report ----------
 
     private fun fullReport(): String = buildString {
-        appendLine("Hugminn Probe 0.4.4 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+        appendLine("Hugminn Probe 0.4.5 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         appendLine("Gerät: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE}), Android ${Build.VERSION.RELEASE}")
         appendLine("Persönliche Werte (Seriennummer, Konten, WLAN, MAC usw.) wurden entfernt.")
         appendLine()
