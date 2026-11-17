@@ -132,6 +132,11 @@ class Prefs(ctx: Context) {
         get() = enumOr(p.getString("overlayPos", null), OverlayPos.TOP_LEFT)
         set(v) = p.edit().putString("overlayPos", v.name).apply()
     /** true: values side by side in one line, false: below each other. */
+    /** Size of the performance overlay (1 = normal). */
+    var overlayScale: Float
+        get() = p.getFloat("overlayScale", 1f)
+        set(v) = p.edit().putFloat("overlayScale", v).apply()
+
     var overlayRow: Boolean
         get() = p.getBoolean("overlayRow", true)
         set(v) = p.edit().putBoolean("overlayRow", v).apply()

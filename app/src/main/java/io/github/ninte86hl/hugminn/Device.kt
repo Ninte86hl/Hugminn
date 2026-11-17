@@ -111,6 +111,12 @@ object Device {
         "Pink" to 0xFFFF0077.toInt(),
     )
 
+    /** Installed memory: Android reports a bit less (reserved for the system), so round up to the module size. */
+    fun ramInstalledGb(totalMb: Long): Int {
+        val gb = totalMb / 1024f
+        return listOf(2, 3, 4, 6, 8, 12, 16, 24, 32).firstOrNull { it >= gb } ?: Math.round(gb)
+    }
+
     fun airplane(ctx: Context) = Settings.Global.getInt(ctx.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) != 0
     fun setAirplane(on: Boolean, then: () -> Unit) =
         Root.run("cmd connectivity airplane-mode ${if (on) "enable" else "disable"}", then = then)

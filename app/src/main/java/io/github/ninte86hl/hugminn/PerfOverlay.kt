@@ -63,23 +63,26 @@ class PerfOverlay(private val svc: HugminnService) {
         val p = svc.prefs
         val pixel = p.uiStyle == UiStyle.PIXEL
         val row = p.overlayRow
+        val k = p.overlayScale
         val d = svc.dp(1)
+        // all sizes follow the chosen overlay size
+        fun sz(v: Int) = (v * d * k).toInt()
         updates.clear()
         val box = LinearLayout(svc).apply {
             orientation = if (row) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
-            background = Look.shape(svc, pixel, 0xB0000000.toInt(), 10f * d)
-            setPadding(10 * d, 5 * d, 10 * d, 5 * d)
+            background = Look.shape(svc, pixel, 0xB0000000.toInt(), 10f * d * k)
+            setPadding(sz(10), sz(5), sz(10), sz(5))
         }
         fun label(color: Int = 0xFFFFFFFF.toInt(), bold: Boolean = true) = TextView(svc).apply {
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * k)
             setTextColor(color)
             typeface = Look.font(svc, pixel, bold)
             setShadowLayer(2f, 0f, 1f, 0xFF000000.toInt())
         }
         fun addItem(v: View) {
             box.addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                if (box.childCount > 0) { if (row) marginStart = 12 * d else topMargin = 2 * d }
+                if (box.childCount > 0) { if (row) marginStart = sz(12) else topMargin = sz(2) }
             })
         }
         val pal = Palette(svc)
@@ -89,7 +92,7 @@ class PerfOverlay(private val svc: HugminnService) {
                 OverlayItem.FPS -> label(0xFF7CFC9A.toInt()).also { t -> addItem(t); updates += { s -> t.text = if (s.fps >= 0) "${s.fps} FPS" else "– FPS" } }
                 OverlayItem.FRAMETIME -> {
                     val g = GraphView(svc, 0xFF7CFC9A.toInt(), 50f)
-                    box.addView(g, LinearLayout.LayoutParams(90 * d, 22 * d).apply { if (box.childCount > 0) { if (row) marginStart = 12 * d else topMargin = 2 * d } })
+                    box.addView(g, LinearLayout.LayoutParams(sz(90), sz(22)).apply { if (box.childCount > 0) { if (row) marginStart = sz(12) else topMargin = sz(2) } })
                     updates += { s -> s.frameTimesMs.takeLast(20).forEach { g.push(it) } }
                 }
                 OverlayItem.CPU -> label().also { t -> addItem(t); updates += { s -> t.text = "CPU ${s.cpuPct.toInt()} %"; t.setTextColor(GaugeColors.of(pal, gp, s.cpuPct / 100f)) } }
@@ -100,7 +103,7 @@ class PerfOverlay(private val svc: HugminnService) {
                 OverlayItem.BATTERY -> label().also { t -> addItem(t); updates += { s -> t.text = "${s.batPct} %" + if (s.charging) " ⚡" else "" } }
                 OverlayItem.CLOCK -> addItem(android.widget.TextClock(svc).apply {
                     format24Hour = "HH:mm"
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * k)
                     setTextColor(0xFFFFFFFF.toInt())
                     typeface = Look.font(svc, pixel, true)
                 })

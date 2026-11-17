@@ -580,7 +580,7 @@ class ControlCenter(private val svc: HugminnService) {
             "cpu" -> InfoSpec(IconView.Kind.BOLT, "CPU", { s -> "${s.cpuPct.toInt()} %" }, { s -> "%.2f GHz".format(s.cpuMhz / 1000f) }, { s -> s.cpuPct / 100f })
             "gpu" -> InfoSpec(IconView.Kind.REFRESH, "GPU", { s -> "${s.gpuPct.toInt()} %" }, { s -> "${s.gpuMhz} MHz" }, { s -> s.gpuPct / 100f })
             "ram" -> InfoSpec(IconView.Kind.SCREEN, "RAM", { s -> "%.1f GB".format(s.ramUsedMb / 1024f) },
-                { s -> "von ${Math.round(s.ramTotalMb / 1024f)} GB" }, { s -> if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f })
+                { s -> "von ${Device.ramInstalledGb(s.ramTotalMb)} GB" }, { s -> if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f })
             "power" -> InfoSpec(IconView.Kind.PLUG, "WATT", { s -> "%.1f W".format(s.watts) }, { s -> if (s.charging) "lädt" else "aus dem Akku" }, { s -> s.watts / 15f })
             else -> null
         }
@@ -1809,7 +1809,7 @@ class ControlCenter(private val svc: HugminnService) {
         ))
     }
 
-    private fun overlayMenu() {
+    private fun overlayMenu(select: Int = -1) {
         val p = svc.prefs
         showMenu("Leistungs-Overlay", listOf(
             MenuEntry(if (p.overlayOn) "Overlay ausschalten" else "Overlay einschalten", hint = "Kleine Anzeige über dem Spiel, wie bei Steam") {
@@ -1834,7 +1834,13 @@ class ControlCenter(private val svc: HugminnService) {
                 p.overlayRow = !p.overlayRow
                 if (p.overlayOn) svc.overlay.show()
             },
-        ))
+            MenuEntry("Größe", hint = "${Math.round(p.overlayScale * 100)} % · A wechselt") {
+                val sizes = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
+                p.overlayScale = sizes[(sizes.indexOfFirst { it >= p.overlayScale - 0.01f }.coerceAtLeast(0) + 1) % sizes.size]
+                if (p.overlayOn) svc.overlay.show()
+                svc.ui.post { overlayMenu(4) }
+            },
+        ), select)
     }
 
     private fun colorMenu() {
