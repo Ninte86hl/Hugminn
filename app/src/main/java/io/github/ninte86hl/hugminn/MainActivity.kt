@@ -141,6 +141,12 @@ class MainActivity : Activity() {
             prefs.longMs = cycle(listOf(350, 450, 600, 800), prefs.longMs)
         }
 
+        // Switcher look
+        val sw = section("Game Switcher")
+        row(sw, "Statusleiste", "Was der Rahmen oben zeigt: Uhrzeit und Akku im Hugminn-Stil, nichts, oder die normale Android-Leiste", prefs.statusBar.label) {
+            prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
+        }
+
         // Glyphs
         val gl = section("Tastensymbole")
         row(gl, "Stil", "Automatisch folgt dem Layout in den Retroid-Einstellungen", prefs.glyphStyle.label) {

@@ -40,6 +40,7 @@ class Switcher(private val svc: HugminnService) {
     private lateinit var pal: Palette
     private var bar: FrameLayout? = null
     private var frame: View? = null
+    private var shell: FrameLayout? = null
     private var cards: List<Card> = emptyList()
     private var sel = 0
     private var menu: List<Item>? = null
@@ -63,10 +64,10 @@ class Switcher(private val svc: HugminnService) {
         isOpen = false
         menu = null
         svc.ui.removeCallbacksAndMessages(TOKEN)
-        bar?.let { runCatching { wm.removeView(it) } }
-        frame?.let { runCatching { wm.removeView(it) } }
+        listOf(shell, frame, bar).forEach { v -> v?.let { runCatching { wm.removeView(it) } } }
         bar = null
         frame = null
+        shell = null
         if (goBack) svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
     }
 
@@ -132,6 +133,7 @@ class Switcher(private val svc: HugminnService) {
         val m = wm.currentWindowMetrics.bounds
         val actions = findIn(launcherPkg, "overview_actions_view")
         val top = actions?.let { Rect().also(it::getBoundsInScreen).top }?.takeIf { it > m.height() / 2 } ?: (m.height() * 0.8f).toInt()
+        addShell(top)
         bar = FrameLayout(svc).also { v ->
             val lp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT, m.height() - top,
@@ -142,7 +144,6 @@ class Switcher(private val svc: HugminnService) {
                 gravity = Gravity.TOP or Gravity.START
                 y = top
             }
-            v.background = rounded(pal.surface, svc.dp(24).toFloat())
             wm.addView(v, lp)
         }
         frame = View(svc).also { v ->
@@ -156,6 +157,73 @@ class Switcher(private val svc: HugminnService) {
             v.visibility = View.INVISIBLE
             wm.addView(v, lp)
         }
+    }
+
+    /**
+     * The Hugminn frame: covers the whole screen except a rounded window over the cards and app icons.
+     * The top band replaces (or hides) the status bar, the bottom band holds the controller bar.
+     */
+    private fun addShell(bottom: Int) {
+        val m = wm.currentWindowMetrics
+        val mode = svc.prefs.statusBar
+        val statusH = m.windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top.takeIf { it > 0 } ?: svc.dp(24)
+        val side = svc.dp(10)
+        val hole = android.graphics.RectF(side.toFloat(), if (mode == StatusBar.SYSTEM) 0f else statusH.toFloat(),
+            (m.bounds.width() - side).toFloat(), bottom.toFloat())
+        val radius = svc.dp(22).toFloat()
+        val fillColor = pal.surface
+        val edge = pal.outline
+        val v = object : FrameLayout(svc) {
+            private val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = fillColor }
+            private val line = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                style = android.graphics.Paint.Style.STROKE
+                strokeWidth = svc.dp(1).toFloat()
+                color = (edge and 0x00FFFFFF) or 0x66000000
+            }
+            init { setWillNotDraw(false) }
+            override fun onDraw(c: android.graphics.Canvas) {
+                val path = android.graphics.Path().apply {
+                    fillType = android.graphics.Path.FillType.EVEN_ODD
+                    addRect(0f, 0f, width.toFloat(), height.toFloat(), android.graphics.Path.Direction.CW)
+                    addRoundRect(hole, radius, radius, android.graphics.Path.Direction.CW)
+                }
+                c.drawPath(path, fill)
+                c.drawRoundRect(hole, radius, radius, line)
+            }
+        }
+        if (mode == StatusBar.OVERLAY) {
+            val band = LinearLayout(svc).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(svc.dp(20), 0, svc.dp(20), 0)
+            }
+            band.addView(android.widget.TextClock(svc).apply {
+                format24Hour = "HH:mm"
+                format12Hour = "h:mm"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextColor(pal.onSurface)
+                setTypeface(typeface, Typeface.BOLD)
+            })
+            band.addView(text("Muninn · Game Switcher", 12f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            val bm = svc.getSystemService(android.os.BatteryManager::class.java)
+            val pct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+            val charging = bm?.isCharging == true
+            if (pct >= 0) band.addView(text("$pct %" + if (charging) " ⚡" else "", 13f, pal.onSurface, bold = true))
+            v.addView(band, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, statusH))
+        }
+        val lp = WindowManager.LayoutParams(
+            m.bounds.width(), m.bounds.height(),
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            fitInsetsTypes = 0
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
+        wm.addView(v, lp)
+        shell = v
     }
 
     private fun text(s: String, sizeSp: Float, color: Int, bold: Boolean = false) = TextView(svc).apply {
@@ -224,8 +292,34 @@ class Switcher(private val svc: HugminnService) {
         sel = i.coerceIn(0, (cards.size - 1).coerceAtLeast(0))
         render()
         val c = cards.getOrNull(sel) ?: return
-        c.node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
-        svc.ui.postAtTime({ placeFrame() }, TOKEN, android.os.SystemClock.uptimeMillis() + 220)
+        svc.ui.removeCallbacksAndMessages(TOKEN)
+        centerCard(c)
+        pollFrame(0)
+    }
+
+    /** Drags the recents list so the selected card sits in the middle (the list snaps to cards). */
+    private fun centerCard(c: Card) {
+        c.node.refresh()
+        val r = Rect().also(c.node::getBoundsInScreen)
+        val w = wm.currentWindowMetrics.bounds.width()
+        val mid = w / 2f
+        val delta = (mid - r.exactCenterX()).coerceIn(-w * 0.8f, w * 0.8f)
+        if (r.width() < 10 || kotlin.math.abs(delta) < svc.dp(24)) return
+        val y = r.top + r.height() * 0.6f
+        val path = Path().apply {
+            moveTo(mid - delta / 2, y)
+            lineTo(mid + delta / 2, y)
+        }
+        busyUntil = System.currentTimeMillis() + 800
+        svc.dispatchGesture(GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0, 320)).build(), null, null)
+    }
+
+    /** Keeps the selection frame on its card while the list moves (fast at first, then slowly). */
+    private fun pollFrame(n: Int) {
+        if (!isOpen) return
+        placeFrame()
+        if (n == 6) cards.getOrNull(sel)?.let(::centerCard) // still off centre after the first drag
+        svc.ui.postAtTime({ pollFrame(n + 1) }, TOKEN, android.os.SystemClock.uptimeMillis() + if (n < 12) 80 else 400)
     }
 
     private fun placeFrame() {

@@ -13,6 +13,13 @@ enum class Action(val label: String) {
     LAST_APP("Letzte App"),
 }
 
+/** What the switcher frame shows where the status bar is. */
+enum class StatusBar(val label: String) {
+    OVERLAY("Eigene Anzeige"),
+    HIDDEN("Ausblenden"),
+    SYSTEM("Android-Statusleiste"),
+}
+
 enum class GlyphStyle(val label: String) {
     AUTO("Automatisch"),
     XBOX("Xbox"),
@@ -32,6 +39,10 @@ class Prefs(ctx: Context) {
     var long: Action
         get() = enumOr(p.getString("long", null), Action.CONTROL_CENTER)
         set(v) = p.edit().putString("long", v.name).apply()
+
+    var statusBar: StatusBar
+        get() = enumOr(p.getString("statusBar", null), StatusBar.OVERLAY)
+        set(v) = p.edit().putString("statusBar", v.name).apply()
 
     var glyphStyle: GlyphStyle
         get() = enumOr(p.getString("glyphs", null), GlyphStyle.AUTO)
