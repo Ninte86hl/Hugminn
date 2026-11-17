@@ -209,6 +209,10 @@ object Probe {
                 settingsViaApi(ctx, ns).forEach { (k, v) -> map["$ns:$k"] = v }
             }
         }
+        for (id in InputDevice.getDeviceIds()) {
+            val d = InputDevice.getDevice(id) ?: continue
+            map["input:${d.name}"] = "vendor=0x${Integer.toHexString(d.vendorId)} product=0x${Integer.toHexString(d.productId)}"
+        }
         val propLine = Regex("^\\[(.+?)]: \\[(.*)]$")
         getpropRaw().lineSequence().forEach { line ->
             propLine.find(line)?.let { map["prop:${it.groupValues[1]}"] = it.groupValues[2] }

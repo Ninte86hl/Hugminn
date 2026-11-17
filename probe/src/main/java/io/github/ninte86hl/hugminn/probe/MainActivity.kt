@@ -3,7 +3,11 @@ package io.github.ninte86hl.hugminn.probe
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -11,11 +15,13 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.provider.Settings
+import android.view.Gravity
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-import android.widget.Button
+import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -24,259 +30,729 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
+/**
+ * Guided, controller-friendly test. Every step explains what to do; results go into one report
+ * that is saved to Download/Hugminn and can be shared. Expert tools keep the manual functions.
+ */
 class MainActivity : Activity() {
 
-    private lateinit var out: TextView
-    private lateinit var status: TextView
+    private val bgColor = 0xFF141218.toInt()
+    private val surface = 0xFF211F26.toInt()
+    private val surface2 = 0xFF36343B.toInt()
+    private val onColor = 0xFFE6E0E9.toInt()
+    private val onVar = 0xFFCAC4D0.toInt()
+    private val accent = 0xFFE0262F.toInt()
+
+    private lateinit var statusLine: TextView
+    private lateinit var stepList: TextView
+    private lateinit var titleView: TextView
+    private lateinit var body: TextView
+    private lateinit var actions: GridLayout
+    private lateinit var detail: TextView
+
     private val ui = Handler(Looper.getMainLooper())
     private val report = LinkedHashMap<String, String>()
-    private val appKeys = ArrayDeque<String>()
-    private val lastAxis = HashMap<Int, Float>()
-    private var snapshotA: Map<String, String>? = null
-    private var keyTest = false
     @Volatile private var busy = false
+    private var lastUri: Uri? = null
+    private var lastName: String? = null
 
-    private val axes = intArrayOf(
+    private enum class Step(val label: String) {
+        INTRO("Start"), A11Y("Bedienungshilfe"), READ("Gerät einlesen"), KEYS("Tasten"),
+        HOME("Home-Taste"), COMPARE("Einstellungen"), RECENTS("Android-Übersicht"), DONE("Bericht")
+    }
+
+    private var step = Step.INTRO
+    private var expert = false
+
+    // Key prompts
+    private val prompts = listOf(
+        "A", "B", "X", "Y", "L1", "R1", "L2", "R2", "Start", "Select",
+        "Linken Stick drücken (L3)", "Rechten Stick drücken (R3)", "Steuerkreuz nach oben",
+        "Linken Stick nach rechts", "Rechten Stick nach rechts"
+    )
+    private var promptIndex = 0
+    private var keyRound = 1
+    private val keyResults = StringBuilder()
+    private var ignoreUntil = 0L
+    private val promptTimeout = Runnable { recordInput("nicht erkannt") }
+    private val keyAxes = intArrayOf(
         MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y, MotionEvent.AXIS_X, MotionEvent.AXIS_Y,
         MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ, MotionEvent.AXIS_LTRIGGER, MotionEvent.AXIS_RTRIGGER,
         MotionEvent.AXIS_BRAKE, MotionEvent.AXIS_GAS
     )
 
+    // Home test
+    private val homeTasks = listOf(
+        "Home einmal kurz drücken",
+        "Home lange gedrückt halten (ca. 1 Sekunde)",
+        "Home zweimal schnell hintereinander drücken"
+    )
+    private var homeIndex = 0
+    private var homeLeft = false
+    private var homeRecorded = -1
+    private val homeResults = StringBuilder()
+    @Volatile private var rawCapture: String? = null
+    private var rawThread: Thread? = null
+
+    // Setting comparisons
+    private val compareTasks = listOf(
+        "LED-Beleuchtung der Sticks ein- oder ausschalten (z. B. in den Schnelleinstellungen)",
+        "Leistungsmodus ändern (z. B. Standard → Performance)",
+        "Lüftermodus ändern",
+        "Controller-Stil wechseln (Xbox ↔ Nintendo/Retroid)",
+        "Eine App zur Hintergrund-Whitelist hinzufügen",
+        "Option „Home zweimal drücken“ (Schutz vor versehentlichem Drücken) umschalten",
+        "Bildwiederholrate ändern (z. B. 60 ↔ 120 Hz)"
+    )
+    private val controllerTask = 3
+    private var compareIndex = 0
+    private var snapA: Map<String, String>? = null
+    private var controllerSwitched = false
+
+    // Expert key test
+    private var expertKeyTest = false
+    private val expertKeys = ArrayDeque<String>()
+    private val lastAxis = HashMap<Int, Float>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val pad = dp(16)
+        window.decorView.setBackgroundColor(bgColor)
+        val pad = dp(20)
+        val screenW = resources.displayMetrics.widthPixels
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(bgColor)
             setPadding(pad, pad, pad, pad)
         }
+
         val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(ScrollView(this).apply { addView(left) }, LinearLayout.LayoutParams(dp(300), MATCH_PARENT))
+        left.addView(TextView(this).apply {
+            text = "Hugminn Probe"
+            textSize = 24f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(onColor)
+        })
+        statusLine = TextView(this).apply { textSize = 13f; setTextColor(onVar); setPadding(0, dp(6), 0, dp(18)) }
+        left.addView(statusLine)
+        stepList = TextView(this).apply { textSize = 16f; setTextColor(onColor); setLineSpacing(dp(6).toFloat(), 1f) }
+        left.addView(stepList)
+        root.addView(left, LinearLayout.LayoutParams(maxOf(dp(220), (screenW * 0.28f).toInt()), MATCH_PARENT))
 
-        left.addView(TextView(this).apply { text = "Hugminn Probe"; textSize = 22f })
-        status = TextView(this).apply { textSize = 13f; setPadding(0, dp(4), 0, dp(8)) }
-        left.addView(status)
-
-        fun button(label: String, action: () -> Unit) {
-            left.addView(Button(this).apply {
-                text = label
-                isAllCaps = false
-                setOnClickListener { action() }
-            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = rounded(surface, dp(28))
+            setPadding(dp(28), dp(24), dp(28), dp(20))
         }
-        button("1 · Alles einlesen") { collectAll() }
-        button("2 · Snapshot A (vorher)") { snapA() }
-        button("3 · Snapshot B + Vergleich") { snapB() }
-        button("4 · Tastentest an/aus") { toggleKeyTest() }
-        button("5 · Tasten-Rohdaten (8 s, Root)") { rawKeys() }
-        button("6 · Bedienungshilfe aktivieren") { enableA11y() }
-        button("7 · Android-Übersicht auslesen") { dumpRecents() }
-        button("8 · Bericht speichern & teilen") { saveAndShare() }
-
-        out = TextView(this).apply {
-            typeface = Typeface.MONOSPACE
-            textSize = 11f
-            text = INTRO
+        titleView = TextView(this).apply { textSize = 26f; setTextColor(onColor); setTypeface(typeface, Typeface.BOLD) }
+        body = TextView(this).apply { textSize = 17f; setTextColor(onColor); setPadding(0, dp(10), 0, dp(14)); setLineSpacing(dp(3).toFloat(), 1f) }
+        actions = GridLayout(this).apply { columnCount = 3 }
+        detail = TextView(this).apply { typeface = Typeface.MONOSPACE; textSize = 12f; setTextColor(onVar) }
+        val detailScroll = ScrollView(this).apply {
+            isFocusable = false
+            descendantFocusability = ScrollView.FOCUS_BLOCK_DESCENDANTS
+            addView(detail)
         }
-        val outScroll = ScrollView(this).apply { isFocusable = false; addView(out) }
-        root.addView(outScroll, LinearLayout.LayoutParams(0, MATCH_PARENT, 1f).apply { leftMargin = pad })
+        card.addView(titleView)
+        card.addView(body)
+        card.addView(actions)
+        card.addView(detailScroll, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f).apply { topMargin = dp(14) })
+        root.addView(card, LinearLayout.LayoutParams(0, MATCH_PARENT, 1f).apply { leftMargin = pad })
+
         setContentView(root)
-        refreshStatus()
+        goTo(Step.INTRO)
     }
 
-    override fun onResume() {
-        super.onResume()
-        refreshStatus()
-        if (keyTest) showKeys()
+    // ---------- UI helpers ----------
+
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
+    private fun rounded(fill: Int, radius: Int, stroke: Int = 0, strokeW: Int = 0) = GradientDrawable().apply {
+        cornerRadius = radius.toFloat()
+        setColor(fill)
+        if (strokeW > 0) setStroke(strokeW, stroke)
     }
 
-    private fun refreshStatus() {
+    private fun button(label: String, primary: Boolean, action: () -> Unit): TextView {
+        val fill = if (primary) accent else surface2
+        return TextView(this).apply {
+            text = label
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            minHeight = dp(52)
+            setPadding(dp(22), dp(10), dp(22), dp(10))
+            isFocusable = true
+            isClickable = true
+            background = StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_focused), rounded(fill, dp(26), Color.WHITE, dp(3)))
+                addState(intArrayOf(android.R.attr.state_pressed), rounded(fill, dp(26), Color.WHITE, dp(3)))
+                addState(intArrayOf(), rounded(fill, dp(26)))
+            }
+            setOnClickListener {
+                if (!busy) action()
+            }
+        }
+    }
+
+    private fun setActions(vararg items: Pair<String, () -> Unit>) {
+        actions.removeAllViews()
+        items.forEachIndexed { i, item ->
+            val b = button(item.first, i == 0, item.second)
+            val lp = GridLayout.LayoutParams()
+            lp.setMargins(0, dp(6), dp(12), dp(6))
+            lp.width = WRAP_CONTENT
+            lp.height = WRAP_CONTENT
+            actions.addView(b, lp)
+        }
+        if (actions.childCount > 0) actions.getChildAt(0).requestFocus()
+    }
+
+    private fun render() {
         val rootOk = Root.available()
         val a11y = ProbeAccessibilityService.instance != null
-        status.text = "Root-Dienst: ${if (rootOk) "ja" else "nein"}\n" +
-            "Bedienungshilfe: ${if (a11y) "aktiv" else "aus"}\n" +
-            "Tastentest: ${if (keyTest) "läuft" else "aus"}" +
-            (if (snapshotA != null) "\nSnapshot A: vorhanden" else "") +
-            (if (busy) "\n… arbeitet" else "")
+        statusLine.text = "Root-Dienst: ${if (rootOk) "gefunden" else "nicht gefunden"}\n" +
+            "Bedienungshilfe: ${if (a11y) "aktiv" else "aus"}"
+        stepList.text = if (expert) "Expertenmodus" else Step.values().filter { it != Step.INTRO }.joinToString("\n") {
+            when {
+                it.ordinal < step.ordinal -> "✓  ${it.label}"
+                it == step -> "▶  ${it.label}"
+                else -> "·   ${it.label}"
+            }
+        }
     }
 
-    private fun show(title: String, text: String) {
-        out.text = "== $title ==\n\n" + if (text.length > 80_000) text.take(80_000) + "\n[… gekürzt, vollständig im Bericht]" else text
+    private fun page(t: String, b: String, d: String = "") {
+        titleView.text = t
+        body.text = b
+        detail.text = d
+        render()
     }
 
-    private fun runBg(title: String, store: Boolean = true, block: () -> String) {
-        if (busy) return
+    private fun background(work: () -> String, done: (String) -> Unit) {
         busy = true
-        refreshStatus()
-        out.text = "$title …"
         Thread {
-            val result = Probe.safe(block)
+            val r = Probe.safe(work)
             ui.post {
                 busy = false
-                if (store) report[title] = result
-                show(title, result)
-                refreshStatus()
+                done(r)
             }
         }.start()
     }
 
-    private fun collectAll() {
-        if (busy) return
+    // ---------- Wizard ----------
+
+    private fun goTo(s: Step) {
+        expert = false
+        step = s
+        actions.removeAllViews()
+        when (s) {
+            Step.INTRO -> intro()
+            Step.A11Y -> a11yStep()
+            Step.READ -> readStep()
+            Step.KEYS -> keysStep()
+            Step.HOME -> homeStep()
+            Step.COMPARE -> compareStep()
+            Step.RECENTS -> recentsStep()
+            Step.DONE -> doneStep()
+        }
+    }
+
+    private fun intro() {
+        page(
+            "Willkommen",
+            "Dieser Test sammelt die Infos, die Hugminn für dein Gerät braucht. Er dauert etwa 5 Minuten " +
+                "und führt dich Schritt für Schritt. Alles lässt sich mit dem Controller bedienen.\n\n" +
+                "Die App liest nur und ändert nichts. Einzige Ausnahme: Sie schaltet ihre eigene Bedienungshilfe ein. " +
+                "Persönliche Daten wie Seriennummer, WLAN oder Konten werden aus dem Bericht entfernt."
+        )
+        setActions("Test starten" to { goTo(Step.A11Y) }, "Expertenwerkzeuge" to { showExpert() })
+    }
+
+    private fun a11yStep() {
+        if (ProbeAccessibilityService.instance != null) {
+            goTo(Step.READ)
+            return
+        }
+        if (Root.available()) {
+            page("Bedienungshilfe", "Schalte die Bedienungshilfe ein …")
+            val comp = "$packageName/${ProbeAccessibilityService::class.java.name}"
+            background({ Root.runAsset(this, "enable_a11y.sh", Root.quote(comp)) ?: "" }) {
+                ui.postDelayed({ afterA11yAttempt() }, 1500)
+            }
+        } else {
+            a11yManual()
+        }
+    }
+
+    private fun afterA11yAttempt() {
+        if (step != Step.A11Y) return
+        if (ProbeAccessibilityService.instance != null) goTo(Step.READ) else a11yManual()
+    }
+
+    private fun a11yManual() {
+        page(
+            "Bedienungshilfe einschalten",
+            "Damit der Test auch die Home-Taste sieht, bitte in den Bedienungshilfen „Hugminn Probe“ einschalten.\n\n" +
+                "Ist der Eintrag ausgegraut: Einstellungen › Apps › Hugminn Probe › ⋮ oben rechts › " +
+                "„Eingeschränkte Einstellungen zulassen“, danach erneut versuchen.\n\n" +
+                "Wenn du zurückkommst, geht es automatisch weiter."
+        )
+        setActions(
+            "Bedienungshilfen öffnen" to { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+            "Ohne weiter" to { goTo(Step.READ) }
+        )
+    }
+
+    private fun readStep() {
+        page("Gerät einlesen", "Lese alle Infos ein … das kann bis zu einer Minute dauern.")
         busy = true
-        refreshStatus()
-        out.text = "Lese alles ein … (bis zu einer Minute)"
         Thread {
             val sections = Probe.all(this)
-            ui.post {
-                busy = false
-                report.putAll(sections)
-                show("Alles eingelesen", sections.entries.joinToString("\n\n") { "### ${it.key}\n${it.value}" })
-                refreshStatus()
-            }
+            ui.post { onReadDone(sections) }
         }.start()
     }
 
-    private fun snapA() {
-        if (busy) return
-        busy = true
-        refreshStatus()
-        out.text = "Snapshot A …"
-        Thread {
-            val snap = Probe.snapshot(this)
-            ui.post {
-                busy = false
-                snapshotA = snap
-                out.text = "Snapshot A gespeichert (${snap.size} Werte).\n\n" +
-                    "Jetzt genau EINE Sache ändern, z. B.:\n" +
-                    "• LED-Kachel in den Schnelleinstellungen\n" +
-                    "• Leistungsmodus oder Lüfter in den Retroid/AYN-Einstellungen\n" +
-                    "• Controller-Stil Xbox ↔ Nintendo\n" +
-                    "• eine App zur Hintergrund-Whitelist hinzufügen\n\n" +
-                    "Dann zurück hierher und „Snapshot B + Vergleich“ drücken."
-                refreshStatus()
-            }
-        }.start()
+    private fun onReadDone(sections: LinkedHashMap<String, String>) {
+        busy = false
+        report.putAll(sections)
+        if (step != Step.READ) return
+        val pads = InputDevice.getDeviceIds().mapNotNull { InputDevice.getDevice(it) }
+            .filter { it.sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD }
+            .map { it.name }.distinct()
+        val m = resources.displayMetrics
+        page(
+            "Gerät eingelesen ✓",
+            "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}\n" +
+                "Root-Dienst: ${if (Root.available()) "gefunden ✓" else "nicht gefunden"}\n" +
+                "Controller: ${pads.joinToString().ifEmpty { "keiner erkannt" }}\n" +
+                "Display: ${m.widthPixels} × ${m.heightPixels}",
+            sections.entries.joinToString("\n\n") { "### ${it.key}\n${it.value}" }.take(40_000)
+        )
+        setActions("Weiter zu den Tasten" to { goTo(Step.KEYS) })
     }
 
-    private fun snapB() {
-        val a = snapshotA
-        if (a == null) {
-            out.text = "Erst „Snapshot A“ machen."
+    // Keys
+
+    private fun keysStep() {
+        promptIndex = 0
+        keyResults.setLength(0)
+        ignoreUntil = System.currentTimeMillis() + 600
+        startPrompt()
+    }
+
+    private fun startPrompt() {
+        ui.removeCallbacks(promptTimeout)
+        if (promptIndex >= prompts.size) {
+            finishKeys()
             return
         }
-        runBg("Vergleich ${Probe.now()}") { Probe.diff(a, Probe.snapshot(this)) }
+        val round = if (keyRound > 1) " (2. Durchgang)" else ""
+        page(
+            "Drücke: ${prompts[promptIndex]}",
+            "Taste ${promptIndex + 1} von ${prompts.size}$round · wird nach 10 Sekunden übersprungen.\n" +
+                "Gemeint ist die Beschriftung auf dem Gerät.",
+            keyResults.toString()
+        )
+        ui.postDelayed(promptTimeout, 10_000)
     }
 
-    private fun toggleKeyTest() {
-        keyTest = !keyTest
-        if (keyTest) {
-            appKeys.clear()
-            ProbeAccessibilityService.keyLog.clear()
-            showKeys()
-        } else {
-            report["Tastentest (App) ${Probe.now()}"] = appKeys.joinToString("\n")
-            out.text = "Tastentest beendet, ${appKeys.size} Einträge im Bericht."
-        }
-        refreshStatus()
+    private fun recordInput(desc: String) {
+        if (step != Step.KEYS || promptIndex >= prompts.size) return
+        ui.removeCallbacks(promptTimeout)
+        keyResults.append(prompts[promptIndex]).append("  →  ").append(desc).append('\n')
+        promptIndex++
+        ignoreUntil = System.currentTimeMillis() + 500
+        detail.text = keyResults.toString()
+        ui.postDelayed({ if (step == Step.KEYS) startPrompt() }, 500)
     }
 
-    private fun logKey(line: String) {
-        appKeys.addLast(line)
-        while (appKeys.size > 600) appKeys.removeFirst()
-        showKeys()
+    private fun finishKeys() {
+        report["Tastenbelegung (Durchgang $keyRound)"] = keyResults.toString()
+        if (keyRound == 1) goTo(Step.HOME) else goTo(Step.RECENTS)
     }
 
-    private fun showKeys() {
-        val a11y = synchronized(ProbeAccessibilityService.keyLog) { ProbeAccessibilityService.keyLog.takeLast(25) }
-        out.text = "Tastentest läuft. Alle Tasten nacheinander drücken, auch Home kurz, lang und doppelt.\n" +
-            "Home verlässt die App: einfach zurückkommen, die Einträge bleiben erhalten.\n\n" +
-            "— App sieht —\n" + appKeys.toList().takeLast(30).joinToString("\n") +
-            "\n\n— Bedienungshilfe sieht —\n" +
-            (if (ProbeAccessibilityService.instance == null) "(Bedienungshilfe aus)" else a11y.joinToString("\n"))
-    }
+    // Home
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (keyTest) logKey(Probe.describeKey("APP ", event))
-        return super.dispatchKeyEvent(event)
-    }
-
-    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        if (keyTest) {
-            for (axis in axes) {
-                val v = event.getAxisValue(axis)
-                val last = lastAxis[axis] ?: 0f
-                if (abs(v - last) >= 0.5f || (v == 0f && last != 0f)) {
-                    lastAxis[axis] = v
-                    logKey("${Probe.now()} APP  ACHSE ${MotionEvent.axisToString(axis)}=${"%.2f".format(Locale.US, v)} dev=\"${event.device?.name}\"")
-                }
-            }
-        }
-        return super.dispatchGenericMotionEvent(event)
-    }
-
-    private fun rawKeys() {
-        if (!Root.available()) {
-            out.text = "Tasten-Rohdaten brauchen den Root-Dienst, der hier nicht gefunden wurde."
-            return
-        }
-        runBg("Tasten-Rohdaten ${Probe.now()}") { Root.exec(this, "timeout 8 getevent -lt", 15_000) ?: "keine Antwort" }
-        out.text = "Jetzt 8 Sekunden lang Tasten drücken (Home kurz, lang, doppelt; danach A, B, X, Y) …"
-    }
-
-    private fun enableA11y() {
-        val comp = "$packageName/${ProbeAccessibilityService::class.java.name}"
+    private fun homeStep() {
+        homeIndex = 0
+        homeRecorded = -1
+        homeResults.setLength(0)
+        rawCapture = null
         if (Root.available()) {
-            runBg("Bedienungshilfe aktivieren", store = false) {
-                (Root.runAsset(this, "enable_a11y.sh", Root.quote(comp)) ?: "keine Antwort") +
-                    "\n\nFalls weiter „aus“: in den Bedienungshilfen „Hugminn Probe“ selbst einschalten."
-            }
-        } else {
-            out.text = "Kein Root-Dienst: Bitte in den Bedienungshilfen „Hugminn Probe“ einschalten.\n" +
-                "Falls ausgegraut: Einstellungen › Apps › Hugminn Probe › ⋮ › „Eingeschränkte Einstellungen zulassen“."
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            val t = Thread { rawCapture = Root.exec(this, "timeout 150 getevent -lt", 160_000) }
+            rawThread = t
+            t.start()
+        }
+        startHomeTask()
+    }
+
+    private fun startHomeTask() {
+        if (homeIndex >= homeTasks.size) {
+            finishHome()
+            return
+        }
+        homeLeft = false
+        ProbeAccessibilityService.keyLog.clear()
+        page(
+            "Home-Taste ${homeIndex + 1} von ${homeTasks.size}",
+            "${homeTasks[homeIndex]}.\n\n" +
+                "Die App kommt danach von selbst zurück (falls nicht: über die Übersicht wieder öffnen).\n" +
+                "Passiert beim Drücken gar nichts, wähle hier „Weiter“.",
+            homeResults.toString()
+        )
+        setActions("Weiter" to { recordHome() })
+    }
+
+    private fun recordHome() {
+        if (step != Step.HOME || homeRecorded == homeIndex || homeIndex >= homeTasks.size) return
+        homeRecorded = homeIndex
+        val lines = synchronized(ProbeAccessibilityService.keyLog) { ProbeAccessibilityService.keyLog.toList() }
+        homeResults.append("— ").append(homeTasks[homeIndex]).append(" —\n")
+        homeResults.append("App verlassen: ").append(if (homeLeft) "ja" else "nein").append('\n')
+        if (lines.isEmpty()) homeResults.append("Bedienungshilfe hat keine Taste gesehen\n")
+        else lines.forEach { homeResults.append(it).append('\n') }
+        homeResults.append('\n')
+        homeIndex++
+        startHomeTask()
+    }
+
+    private fun finishHome() {
+        report["Home-Taste"] = homeResults.toString()
+        val t = rawThread
+        if (t == null) {
+            goTo(Step.COMPARE)
+            return
+        }
+        page("Home-Taste", "Werte die Rohdaten aus …")
+        background({
+            Root.exec(this, "pkill -x getevent; true", 5_000)
+            t.join(8_000)
+            rawCapture ?: "keine Rohdaten"
+        }) { raw ->
+            report["Tasten-Rohdaten (Home-Test)"] = raw
+            rawThread = null
+            goTo(Step.COMPARE)
         }
     }
 
-    private fun dumpRecents() {
-        val svc = ProbeAccessibilityService.instance
-        if (svc == null) {
-            out.text = "Dafür muss die Bedienungshilfe aktiv sein (Knopf 6)."
+    // Compare
+
+    private fun compareStep() {
+        compareIndex = 0
+        startCompare()
+    }
+
+    private fun startCompare() {
+        if (compareIndex >= compareTasks.size) {
+            finishCompare()
             return
         }
-        out.text = "Öffne die Übersicht … bitte nichts drücken."
+        page(
+            "Einstellung ${compareIndex + 1} von ${compareTasks.size}",
+            "${compareTasks[compareIndex]}\n\n" +
+                "1. „Los“ drücken – die App merkt sich den jetzigen Zustand.\n" +
+                "2. Die Einstellung ändern.\n" +
+                "3. Zurückkommen und „Fertig“ drücken.\n\n" +
+                "Gibt es die Einstellung auf deinem Gerät nicht: „Überspringen“."
+        )
+        setActions(
+            "Los" to { snapshotThenWait() },
+            "Überspringen" to { skipCompare() },
+            "Alle überspringen" to { finishCompare() }
+        )
+    }
+
+    private fun skipCompare() {
+        compareIndex++
+        startCompare()
+    }
+
+    private fun snapshotThenWait() {
+        val heading = titleView.text.toString()
+        page(heading, "Merke mir den Zustand …")
+        actions.removeAllViews()
+        background({
+            val s = Probe.snapshot(this)
+            snapA = s
+            s.size.toString()
+        }) {
+            page(heading, "Jetzt ändern: ${compareTasks[compareIndex]}\n\nDanach hierher zurück und „Fertig“ drücken.")
+            setActions("Fertig – vergleichen" to { compareNow() }, "Abbrechen" to { skipCompare() })
+        }
+    }
+
+    private fun compareNow() {
+        val a = snapA ?: return
+        val task = compareTasks[compareIndex]
+        val heading = titleView.text.toString()
+        page(heading, "Vergleiche …")
+        actions.removeAllViews()
+        background({ Probe.diff(a, Probe.snapshot(this)) }) { diff ->
+            report["Vergleich: $task"] = diff
+            val changed = !diff.startsWith("Keine")
+            if (compareIndex == controllerTask && changed) controllerSwitched = true
+            val msg = if (changed) "Gespeichert ✓  Die Änderungen stehen unten."
+            else "Es wurde keine Änderung gefunden. Auch das wird gespeichert."
+            page(heading, msg, diff)
+            compareIndex++
+            setActions("Weiter" to { startCompare() })
+        }
+    }
+
+    private fun finishCompare() {
+        if (controllerSwitched && keyRound == 1) {
+            keyRound = 2
+            page(
+                "Tasten im anderen Modus",
+                "Du hast den Controller-Stil gewechselt. Bitte die Tasten noch einmal drücken, damit wir beide Modi kennen."
+            )
+            setActions("Starten" to { goTo(Step.KEYS) }, "Überspringen" to { goTo(Step.RECENTS) })
+        } else {
+            goTo(Step.RECENTS)
+        }
+    }
+
+    // Recents
+
+    private fun recentsStep() {
+        if (ProbeAccessibilityService.instance == null) {
+            page("Android-Übersicht", "Übersprungen, weil die Bedienungshilfe aus ist.")
+            setActions("Weiter" to { goTo(Step.DONE) })
+            return
+        }
+        page(
+            "Android-Übersicht",
+            "Öffne vorher bitte 2–3 andere Apps (z. B. RetroArch, Einstellungen) und komm über die Übersicht hierher zurück, " +
+                "damit dort Karten zu sehen sind.\n\nDann „Übersicht auslesen“ und währenddessen nichts drücken."
+        )
+        setActions("Übersicht auslesen" to { dumpRecents { goTo(Step.DONE) } }, "Überspringen" to { goTo(Step.DONE) })
+    }
+
+    private fun dumpRecents(after: () -> Unit) {
+        val svc = ProbeAccessibilityService.instance ?: return
+        busy = true
         svc.openRecents()
         ui.postDelayed({
             Thread {
                 val dump = svc.dumpWindows()
                 ui.post {
+                    busy = false
                     report["Android-Übersicht ${Probe.now()}"] = dump
                     svc.backToProbe()
-                    show("Android-Übersicht", dump)
+                    after()
+                    detail.text = dump
                 }
             }.start()
         }, 1500)
     }
 
+    // Done
+
+    private fun doneStep() {
+        page("Fertig!", "Speichere den Bericht …")
+        background({ save() }) { msg ->
+            page("Fertig! ✓", "$msg\n\nBitte die Datei an den Entwickler schicken, z. B. über „Teilen“.")
+            setActions(
+                "Teilen" to { share() },
+                "Neu beginnen" to { restart() },
+                "Expertenwerkzeuge" to { showExpert() }
+            )
+        }
+    }
+
+    private fun restart() {
+        report.clear()
+        keyRound = 1
+        controllerSwitched = false
+        goTo(Step.INTRO)
+    }
+
+    // ---------- Expert tools ----------
+
+    private fun showExpert() {
+        expert = true
+        page("Expertenwerkzeuge", "Einzelne Funktionen für gezielte Tests. Ergebnisse landen ebenfalls im Bericht.")
+        setActions(
+            "Alles einlesen" to { expertReadAll() },
+            "Snapshot A" to { expertSnapA() },
+            "Snapshot B + Vergleich" to { expertSnapB() },
+            "Tastentest an/aus" to { expertToggleKeys() },
+            "Tasten-Rohdaten (8 s)" to { expertRawKeys() },
+            "Übersicht auslesen" to { expertRecents() },
+            "Bericht speichern" to { background({ save() }) { body.text = it } },
+            "Teilen" to { share() },
+            "Zum Assistenten" to { goTo(Step.INTRO) }
+        )
+    }
+
+    private fun expertReadAll() {
+        body.text = "Lese alles ein …"
+        background({
+            val s = Probe.all(this)
+            report.putAll(s)
+            s.entries.joinToString("\n\n") { "### ${it.key}\n${it.value}" }
+        }) {
+            body.text = "Eingelesen."
+            detail.text = it.take(80_000)
+        }
+    }
+
+    private fun expertSnapA() {
+        body.text = "Snapshot A …"
+        background({
+            val s = Probe.snapshot(this)
+            snapA = s
+            s.size.toString()
+        }) { body.text = "Snapshot A gespeichert ($it Werte). Jetzt etwas ändern, dann „Snapshot B“." }
+    }
+
+    private fun expertSnapB() {
+        val a = snapA
+        if (a == null) {
+            body.text = "Erst Snapshot A."
+            return
+        }
+        background({ Probe.diff(a, Probe.snapshot(this)) }) {
+            report["Vergleich ${Probe.now()}"] = it
+            detail.text = it
+            body.text = "Vergleich gespeichert."
+        }
+    }
+
+    private fun expertToggleKeys() {
+        expertKeyTest = !expertKeyTest
+        if (expertKeyTest) {
+            expertKeys.clear()
+            ProbeAccessibilityService.keyLog.clear()
+            body.text = "Tastentest läuft – alle Tasten drücken."
+        } else {
+            report["Freier Tastentest ${Probe.now()}"] = expertKeys.joinToString("\n")
+            body.text = "Tastentest beendet und gespeichert."
+        }
+        showExpertKeys()
+    }
+
+    private fun expertRawKeys() {
+        if (!Root.available()) {
+            body.text = "Braucht den Root-Dienst."
+            return
+        }
+        body.text = "Jetzt 8 Sekunden lang Tasten drücken …"
+        background({ Root.exec(this, "timeout 8 getevent -lt", 15_000) ?: "keine Antwort" }) {
+            report["Tasten-Rohdaten ${Probe.now()}"] = it
+            detail.text = it
+            body.text = "Rohdaten gespeichert."
+        }
+    }
+
+    private fun expertRecents() {
+        if (ProbeAccessibilityService.instance == null) {
+            body.text = "Bedienungshilfe ist aus."
+            return
+        }
+        dumpRecents { showExpert() }
+    }
+
+    private fun showExpertKeys() {
+        if (!expert) return
+        val a11y = synchronized(ProbeAccessibilityService.keyLog) { ProbeAccessibilityService.keyLog.takeLast(20) }
+        val a11yText = if (ProbeAccessibilityService.instance == null) "(aus)" else a11y.joinToString("\n")
+        detail.text = "— App sieht —\n" + expertKeys.toList().takeLast(25).joinToString("\n") +
+            "\n\n— Bedienungshilfe sieht —\n" + a11yText
+    }
+
+    // ---------- Input ----------
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (step == Step.KEYS && !expert) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && System.currentTimeMillis() > ignoreUntil) {
+                recordInput("${KeyEvent.keyCodeToString(event.keyCode)} (${event.keyCode}), Scancode ${event.scanCode}, Gerät \"${event.device?.name}\"")
+            }
+            return true
+        }
+        if (expert && expertKeyTest) {
+            expertKeys.addLast(Probe.describeKey("APP ", event))
+            while (expertKeys.size > 500) expertKeys.removeFirst()
+            showExpertKeys()
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (step == Step.KEYS && !expert) {
+            if (System.currentTimeMillis() > ignoreUntil) {
+                for (axis in keyAxes) {
+                    val v = event.getAxisValue(axis)
+                    if (abs(v) > 0.6f) {
+                        recordInput("Achse ${MotionEvent.axisToString(axis)} = ${"%.2f".format(Locale.US, v)}, Gerät \"${event.device?.name}\"")
+                        break
+                    }
+                }
+            }
+            return true
+        }
+        if (expert && expertKeyTest) {
+            for (axis in keyAxes) {
+                val v = event.getAxisValue(axis)
+                val last = lastAxis[axis] ?: 0f
+                if (abs(v - last) >= 0.5f || (v == 0f && last != 0f)) {
+                    lastAxis[axis] = v
+                    expertKeys.addLast("${Probe.now()} APP  ACHSE ${MotionEvent.axisToString(axis)}=${"%.2f".format(Locale.US, v)} dev=\"${event.device?.name}\"")
+                }
+            }
+            showExpertKeys()
+        }
+        return super.dispatchGenericMotionEvent(event)
+    }
+
+    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (expert) {
+            goTo(Step.INTRO)
+        } else if (step == Step.INTRO || step == Step.DONE) {
+            super.onBackPressed()
+        } else {
+            val base = body.text.toString().substringBefore("\n\n(Zurück")
+            body.text = "$base\n\n(Zurück ist während des Tests gesperrt.)"
+        }
+    }
+
+    // ---------- Lifecycle ----------
+
+    override fun onStop() {
+        super.onStop()
+        if (step == Step.HOME && !expert && homeRecorded != homeIndex) {
+            homeLeft = true
+            val svc = ProbeAccessibilityService.instance
+            if (svc != null) ui.postDelayed({ svc.backToProbe() }, 2500)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        render()
+        if (expert) {
+            showExpertKeys()
+        } else if (step == Step.A11Y && ProbeAccessibilityService.instance != null) {
+            goTo(Step.READ)
+        } else if (step == Step.HOME && homeLeft) {
+            ui.postDelayed({ recordHome() }, 700)
+        }
+    }
+
+    // ---------- Report ----------
+
     private fun fullReport(): String = buildString {
-        appendLine("Hugminn Probe 0.1.0 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+        appendLine("Hugminn Probe 0.2.0 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         appendLine("Gerät: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE}), Android ${Build.VERSION.RELEASE}")
-        appendLine("Persönliche Werte (Seriennummer, Kontonamen, WLAN, MAC usw.) wurden entfernt.")
+        appendLine("Persönliche Werte (Seriennummer, Konten, WLAN, MAC usw.) wurden entfernt.")
         appendLine()
         for ((k, v) in report) {
             appendLine("################ $k")
             appendLine(v)
             appendLine()
-        }
-        if (appKeys.isNotEmpty()) {
-            appendLine("################ Tastentest (App, zuletzt)")
-            appKeys.forEach { appendLine(it) }
-            appendLine()
-        }
-        synchronized(ProbeAccessibilityService.keyLog) {
-            if (ProbeAccessibilityService.keyLog.isNotEmpty()) {
-                appendLine("################ Tastentest (Bedienungshilfe)")
-                ProbeAccessibilityService.keyLog.forEach { appendLine(it) }
-                appendLine()
-            }
         }
         synchronized(ProbeAccessibilityService.windowLog) {
             if (ProbeAccessibilityService.windowLog.isNotEmpty()) {
@@ -286,46 +762,34 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun saveAndShare() {
-        if (report.isEmpty() && appKeys.isEmpty()) {
-            out.text = "Noch nichts eingelesen – zuerst „Alles einlesen“."
-            return
-        }
+    private fun save(): String {
         val text = fullReport()
-        runBg("Bericht", store = false) {
-            val model = Build.MODEL.replace(Regex("[^A-Za-z0-9]+"), "-")
-            val name = "hugminn-probe-$model-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())}.txt"
-            val cv = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-                put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Hugminn")
-            }
-            val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv)
-                ?: return@runBg "Speichern fehlgeschlagen."
-            contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
-            ui.post {
-                val send = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    putExtra(Intent.EXTRA_SUBJECT, name)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                runCatching { startActivity(Intent.createChooser(send, "Bericht teilen")) }
-            }
-            "Gespeichert unter Download/Hugminn/$name (${text.length / 1024} KB).\nZum Teilen öffnet sich gleich die Auswahl."
+        val model = Build.MODEL.replace(Regex("[^A-Za-z0-9]+"), "-")
+        val name = "hugminn-probe-$model-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())}.txt"
+        val cv = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Hugminn")
         }
+        val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv) ?: return "Speichern fehlgeschlagen."
+        contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
+        lastUri = uri
+        lastName = name
+        return "Gespeichert unter Download/Hugminn/$name (${text.length / 1024} KB)."
     }
 
-    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
-
-    companion object {
-        private const val INTRO = "So geht's:\n\n" +
-            "1. „Alles einlesen“ drücken.\n" +
-            "2. Für jede Einstellung, die uns interessiert: Snapshot A, Einstellung ändern, Snapshot B.\n" +
-            "3. „Bedienungshilfe aktivieren“, dann „Tastentest“ und alle Tasten drücken.\n" +
-            "4. Mit Root zusätzlich „Tasten-Rohdaten“ (8 s lang Tasten drücken).\n" +
-            "5. „Android-Übersicht auslesen“ (vorher ein paar Apps öffnen).\n" +
-            "6. „Bericht speichern & teilen“ und die Datei schicken.\n\n" +
-            "Die App liest nur. Einzige Änderung: Knopf 6 schaltet ihre eigene Bedienungshilfe ein."
+    private fun share() {
+        val uri = lastUri
+        if (uri == null) {
+            body.text = "Erst den Bericht speichern."
+            return
+        }
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, lastName ?: "Hugminn Probe")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        runCatching { startActivity(Intent.createChooser(send, "Bericht teilen")) }
     }
 }
