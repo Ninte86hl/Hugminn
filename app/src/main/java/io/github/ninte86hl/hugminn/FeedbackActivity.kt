@@ -26,12 +26,12 @@ class FeedbackActivity : Activity() {
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         val code = event.keyCode
         if (code == android.view.KeyEvent.KEYCODE_BUTTON_B || code == android.view.KeyEvent.KEYCODE_BACK) {
-            if (event.action == android.view.KeyEvent.ACTION_UP) onBackKey()
+            if (event.action == android.view.KeyEvent.ACTION_UP && keyboard?.back() != true) onBackKey()
             return true
         }
         if (code == android.view.KeyEvent.KEYCODE_VOLUME_UP || code == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) return super.dispatchKeyEvent(event)
         val kb = keyboard ?: return super.dispatchKeyEvent(event)
-        if (event.action == android.view.KeyEvent.ACTION_DOWN && kb.onKey(code)) return true
+        if (kb.onKeyEvent(event)) return true
         return if (event.action == android.view.KeyEvent.ACTION_UP) true else super.dispatchKeyEvent(event)
     }
 
