@@ -750,11 +750,6 @@ class Switcher(private val svc: HugminnService) {
     private fun openMenu() {
         val c = cards.getOrNull(sel) ?: return
         val items = mutableListOf<Item>()
-        if (c.type == AppType.RETROARCH) {
-            items += Item("Speichern & zurück") { launchThen(c, "SAVE_STATE") }
-            items += Item("Laden & zurück") { launchThen(c, "LOAD_STATE") }
-            items += Item("RetroArch-Menü") { launchThen(c, "MENU_TOGGLE") }
-        }
         c.pkg?.let { pkg ->
             items += Item("App-Info") {
                 close(goBack = false)

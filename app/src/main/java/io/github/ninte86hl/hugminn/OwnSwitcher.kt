@@ -140,27 +140,34 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
     }
 
+    /**
+     * Android's recent tasks, newest first. Each task is read as a whole block of the dump, and its app
+     * is taken from the activity it really runs (realActivity / the start intent), not its affinity.
+     */
     private fun loadTasks(): List<RecentApp>? {
-        val out = Root.execLong("dumpsys activity recents | grep 'Recent #'")
-        if (out == null) { diag = "Taskliste: keine Antwort"; return null }
+        val out = Root.execLong("dumpsys activity recents") ?: run { diag = "Taskliste: keine Antwort"; return null }
+        val starts = Regex("""\* Recent #\d+: Task\{\S+ #(\d+)[^\n]*""").findAll(out).toList()
+        if (starts.isEmpty()) { diag = "Taskliste: nicht lesbar"; return null }
         val launchable = Apps.labels(svc).values.toSet()
         val res = mutableListOf<RecentApp>()
-        val lines = out.lines().filter { it.contains("Recent #") }
-        // not even the home screen's entry: the list could not be read
-        if (lines.isEmpty()) { diag = "Taskliste: nicht lesbar"; return null }
-        for (line in lines) {
-            val type = Regex("""type=(\w+)""").find(line)?.groupValues?.get(1)
-            if (type != null && type != "standard") continue
-            val id = Regex("""Task\{\S+ #(\d+)""").find(line)?.groupValues?.get(1)?.toIntOrNull() ?: -1
-            val pkg = Regex("""A=\d+:([\w.]+)""").find(line)?.groupValues?.get(1)
-                ?: Regex("""I=([\w.]+)/""").find(line)?.groupValues?.get(1)
-                ?: Regex("""([a-z][\w]*(?:\.[\w]+)+)/""").find(line)?.groupValues?.get(1)
-                ?: continue
-            if (pkg == svc.packageName || pkg.contains("launcher", true)) continue
-            if (pkg !in launchable || res.any { it.pkg == pkg }) continue
-            res += RecentApp(pkg, id)
+        val skipped = mutableListOf<String>()
+        starts.forEachIndexed { i, m ->
+            val block = out.substring(m.range.first, if (i + 1 < starts.size) starts[i + 1].range.first else out.length)
+            val head = m.value
+            val type = Regex("""type=(\w+)""").find(head)?.groupValues?.get(1)
+            if (type != null && type != "standard" && type != "undefined") return@forEachIndexed
+            val id = m.groupValues[1].toIntOrNull() ?: -1
+            val pkg = Regex("""realActivity=\{?([\w.]+)/""").find(block)?.groupValues?.get(1)
+                ?: Regex("""cmp=([\w.]+)/""").find(block)?.groupValues?.get(1)
+                ?: Regex("""I=([\w.]+)/""").find(head)?.groupValues?.get(1)
+                ?: Regex("""A=\d+:([\w.]+)""").find(head)?.groupValues?.get(1)
+                ?: return@forEachIndexed
+            if (pkg == svc.packageName || pkg.contains("launcher", true)) return@forEachIndexed
+            if (pkg !in launchable) { skipped += pkg; return@forEachIndexed }
+            if (res.none { it.pkg == pkg }) res += RecentApp(pkg, id)
         }
-        diag = "Taskliste: ${lines.size} Zeilen, ${res.size} Apps" + (lines.firstOrNull()?.let { "\nBeispiel: ${it.trim().take(220)}" } ?: "")
+        diag = "Taskliste: ${starts.size} Tasks, ${res.size} Apps: ${res.joinToString { it.pkg }}" +
+            (if (skipped.isNotEmpty()) "\nOhne Startsymbol übergangen: ${skipped.distinct().joinToString()}" else "")
         return res
     }
 
@@ -350,12 +357,6 @@ class OwnSwitcher(private val svc: HugminnService) {
     private fun openMenu() {
         val a = apps.getOrNull(sel) ?: return
         val items = mutableListOf<Pair<String, () -> Unit>>()
-        if (Apps.typeOf(a.pkg) == AppType.RETROARCH) {
-            fun ra(label: String, cmd: String) { items += label to { openSelected(); svc.ui.postDelayed({ RetroArch.send(cmd) }, 700) } }
-            ra("Speichern & zurück", "SAVE_STATE")
-            ra("Laden & zurück", "LOAD_STATE")
-            ra("RetroArch-Menü", "MENU_TOGGLE")
-        }
         items += "App-Info" to {
             close(back = false)
             svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
