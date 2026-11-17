@@ -51,6 +51,11 @@ object Apps {
             .sortedBy { it.first.lowercase() }
     }
 
+    /** Name of an app as the launcher shows it. */
+    fun label(ctx: Context, pkg: String): String =
+        labels(ctx).entries.firstOrNull { it.value == pkg }?.key
+            ?: runCatching { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+
     fun icon(ctx: Context, pkg: String?): Drawable? = pkg?.let {
         try {
             ctx.packageManager.getApplicationIcon(it)

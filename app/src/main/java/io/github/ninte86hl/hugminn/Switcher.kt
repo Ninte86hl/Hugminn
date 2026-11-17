@@ -289,11 +289,25 @@ class Switcher(private val svc: HugminnService) {
         val known = launcherPkg
         if (known != null) { if (pkg != known) return } else if (!pkg.contains("launcher", true) && !pkg.contains("quickstep", true)) return
         val now = SystemClock.uptimeMillis()
+        if (svc.prefs.ownSwitcher) {
+            // Own switcher: cover Android's view as soon as it has settled (checked every 40 ms).
+            if (svc.own.isOpen || now - svc.own.closedAt < 1200 || now - lastAutoCheck < 150) return
+            lastAutoCheck = now
+            pollRecents(0)
+            return
+        }
         if (now - closedAt < 1200 || now - lastAutoCheck < 200) return
         lastAutoCheck = now
         // The recents view also flashes up while swiping home; only open once it has settled
         // (still visible a moment later, with its action buttons shown).
         svc.ui.postDelayed({ if (!isOpen && settledRecents()) open() }, 380)
+    }
+
+    private fun pollRecents(n: Int) {
+        svc.ui.postDelayed({
+            if (svc.own.isOpen) return@postDelayed
+            if (settledRecents()) svc.openOwnFromSwipe() else if (n < 20) pollRecents(n + 1)
+        }, 40)
     }
 
     private fun settledRecents(): Boolean = try {

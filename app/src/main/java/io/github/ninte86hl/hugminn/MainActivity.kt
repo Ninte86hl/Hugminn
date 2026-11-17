@@ -206,6 +206,9 @@ class MainActivity : Activity() {
 
         // Switcher look
         val sw = section("Game Switcher")
+        row(sw, "Eigene Übersicht", "An: Hugminn zeigt die letzten Apps selbst (mit eigenen Vorschaubildern), Androids Übersicht bleibt zu. Aus: Rahmen über Androids Übersicht", { if (prefs.ownSwitcher) "An" else "Aus" }) {
+            prefs.ownSwitcher = !prefs.ownSwitcher
+        }
         row(sw, "Auch bei Wischgeste", "Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird", { if (prefs.autoSwitcher) "An" else "Aus" }) {
             prefs.autoSwitcher = !prefs.autoSwitcher
         }

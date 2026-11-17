@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.ninte86hl.hugminn"
         minSdk = 30
         targetSdk = 34
-        versionCode = 55
-        versionName = "0.9.15"
+        versionCode = 56
+        versionName = "0.10.0"
     }
 
     // Fixed key for test builds so new versions install over old ones. Not a release key.

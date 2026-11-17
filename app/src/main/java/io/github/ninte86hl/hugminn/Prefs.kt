@@ -151,6 +151,11 @@ class Prefs(ctx: Context) {
         get() = p.getString("ledApp", "") ?: ""
         set(v) = p.edit().putString("ledApp", v).apply()
 
+    /** Hugminn's own switcher instead of an overlay on Android's recents view. */
+    var ownSwitcher: Boolean
+        get() = p.getBoolean("ownSwitcher", true)
+        set(v) = p.edit().putBoolean("ownSwitcher", v).apply()
+
     var ledSpeed: Float
         get() = p.getFloat("ledSpeed", 1f)
         set(v) = p.edit().putFloat("ledSpeed", v).apply()

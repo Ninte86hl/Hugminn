@@ -1,0 +1,570 @@
+package io.github.ninte86hl.hugminn
+
+import android.accessibilityservice.AccessibilityService
+import android.app.ActivityManager
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.PixelFormat
+import android.graphics.Rect
+import android.graphics.RectF
+import android.net.Uri
+import android.os.SystemClock
+import android.provider.Settings
+import android.text.TextUtils
+import android.util.TypedValue
+import android.view.Display
+import android.view.Gravity
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import java.io.File
+import kotlin.concurrent.thread
+import kotlin.math.abs
+import kotlin.math.min
+
+/** An app in Hugminn's own switcher: package and (if known) Android's task id. */
+data class RecentApp(val pkg: String, val taskId: Int)
+
+/**
+ * Pictures of the apps as they looked when last seen, taken by Hugminn itself (Android does not hand
+ * out its own task snapshots). Kept in memory and as small JPEGs in the cache folder.
+ */
+object Snapshots {
+    private val mem = HashMap<String, Bitmap>()
+    @Volatile private var lastShot = 0L
+
+    private fun file(ctx: Context, pkg: String) = File(File(ctx.cacheDir, "snaps").apply { mkdirs() }, "$pkg.jpg")
+
+    fun get(ctx: Context, pkg: String): Bitmap? = synchronized(mem) {
+        mem[pkg] ?: runCatching { BitmapFactory.decodeFile(file(ctx, pkg).path) }.getOrNull()?.also { mem[pkg] = it }
+    }
+
+    fun remove(ctx: Context, pkg: String) {
+        synchronized(mem) { mem.remove(pkg) }
+        runCatching { file(ctx, pkg).delete() }
+    }
+
+    /** Screenshot of the screen as it is now, stored for [pkg]; [then] runs on the main thread in any case. */
+    fun capture(svc: HugminnService, pkg: String, then: (() -> Unit)? = null) {
+        val now = SystemClock.uptimeMillis()
+        // Android allows about one screenshot per second
+        if (now - lastShot < 1050) { then?.invoke(); return }
+        lastShot = now
+        var done = false
+        val finish = { if (!done) { done = true; then?.invoke() } }
+        // never keep the user waiting for long
+        svc.ui.postDelayed({ finish() }, 260)
+        try {
+            svc.takeScreenshot(Display.DEFAULT_DISPLAY, svc.mainExecutor, object : AccessibilityService.TakeScreenshotCallback {
+                override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
+                    val hw = runCatching { Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace) }.getOrNull()
+                    val small = hw?.let { b ->
+                        val w = 640
+                        val h = (b.height * w / b.width.toFloat()).toInt().coerceAtLeast(1)
+                        runCatching { Bitmap.createScaledBitmap(b.copy(Bitmap.Config.ARGB_8888, false), w, h, true) }.getOrNull()
+                    }
+                    result.hardwareBuffer.close()
+                    if (small != null) {
+                        synchronized(mem) { mem[pkg] = small }
+                        thread { runCatching { file(svc, pkg).outputStream().use { small.compress(Bitmap.CompressFormat.JPEG, 80, it) } } }
+                    }
+                    finish()
+                }
+
+                override fun onFailure(errorCode: Int) = finish()
+            })
+        } catch (t: Throwable) {
+            finish()
+        }
+    }
+}
+
+/**
+ * Hugminn's own game switcher (Muninn): a carousel of the recently used apps with their last picture.
+ * Android's recents view is not involved at all, so nothing of it can show through.
+ */
+class OwnSwitcher(private val svc: HugminnService) {
+    var isOpen = false
+        private set
+    var closedAt = 0L
+        private set
+    private val wm = svc.getSystemService(WindowManager::class.java)
+    private var root: FrameLayout? = null
+    private var carousel: Carousel? = null
+    private var bar: LinearLayout? = null
+    private lateinit var pal: Palette
+    private var apps: List<RecentApp> = emptyList()
+    private var sel = 0
+    /** Opened by the swipe gesture: Android's recents view lies underneath and must be left properly. */
+    private var fromSwipe = false
+    /** App that was in front when the switcher opened (null: home screen). */
+    private var fromPkg: String? = null
+    private var menu: List<Pair<String, () -> Unit>>? = null
+    private var menuSel = 0
+
+    /** Recently used apps, newest first; updated as apps come to the front and from Android's task list. */
+    private var known: MutableList<RecentApp> = mutableListOf()
+
+    private val hat = HatInput(svc.ui) { code -> runCatching { key(code) }.onFailure { Crash.note(svc, it) } }
+
+    /** An app came to the front: it moves to the start of the list. */
+    fun touch(pkg: String) {
+        synchronized(this) {
+            val id = known.firstOrNull { it.pkg == pkg }?.taskId ?: -1
+            known.removeAll { it.pkg == pkg }
+            known.add(0, RecentApp(pkg, id))
+        }
+    }
+
+    /** Reads Android's task list (root) in the background. */
+    fun refresh(then: (() -> Unit)? = null) {
+        thread {
+            val list = loadTasks()
+            if (list != null) synchronized(this) { known = list.toMutableList() }
+            then?.let { svc.ui.post(it) }
+        }
+    }
+
+    private fun loadTasks(): List<RecentApp>? {
+        val out = Root.execLong("dumpsys activity recents") ?: return null
+        val rx = Regex("""Recent #\d+: Task\{\S+ #(\d+) type=(\w+) (?:A=\d+:([^\s}]+)|I=([^/\s}]+))""")
+        val launchable = Apps.labels(svc).values.toSet()
+        val res = mutableListOf<RecentApp>()
+        for (m in rx.findAll(out)) {
+            if (m.groupValues[2] != "standard") continue
+            val pkg = m.groupValues[3].ifEmpty { m.groupValues[4] }
+            if (pkg.isEmpty() || pkg == svc.packageName || pkg.contains("launcher", true)) continue
+            if (pkg !in launchable || res.any { it.pkg == pkg }) continue
+            res += RecentApp(pkg, m.groupValues[1].toIntOrNull() ?: -1)
+        }
+        return res
+    }
+
+    fun open(swipe: Boolean) {
+        if (isOpen) return
+        isOpen = true
+        fromSwipe = swipe
+        val front = runCatching { svc.rootInActiveWindow?.packageName?.toString() }.getOrNull()
+        fromPkg = if (swipe) svc.foregroundPkg?.takeIf { svc.appRecentlyInFront() }
+            else if (front == null || front.contains("launcher", true)) null else svc.foregroundPkg
+        if (known.isEmpty()) Apps.recentPackages(svc).filter { it != svc.packageName && !it.contains("launcher", true) && it in Apps.labels(svc).values }
+            .take(12).forEach { p -> known += RecentApp(p, -1) }
+        fromPkg?.let { touch(it) }
+        val show = {
+            if (isOpen) {
+                apps = synchronized(this) { known.toList() }
+                sel = 0
+                build()
+                // complete the list with Android's tasks (ids for switching, apps opened elsewhere)
+                refresh {
+                    if (!isOpen) return@refresh
+                    val cur = apps.getOrNull(sel)?.pkg
+                    apps = synchronized(this) { known.toList() }.let { l ->
+                        // keep the app in front first even if Android lists it differently
+                        val f = fromPkg
+                        if (f != null && l.firstOrNull()?.pkg != f && l.any { it.pkg == f }) listOf(l.first { it.pkg == f }) + l.filter { it.pkg != f } else l
+                    }
+                    sel = apps.indexOfFirst { it.pkg == cur }.takeIf { it >= 0 } ?: 0
+                    carousel?.set(apps, sel, animate = false)
+                    renderBar()
+                }
+            }
+        }
+        // the picture of the current app first (before Hugminn covers it)
+        val f = fromPkg
+        if (f != null && !swipe) Snapshots.capture(svc, f) { show() } else show()
+    }
+
+    fun close(back: Boolean) {
+        if (!isOpen) return
+        isOpen = false
+        closedAt = SystemClock.uptimeMillis()
+        hat.stop()
+        menu = null
+        val r = root
+        root = null
+        carousel = null
+        bar = null
+        r?.animate()?.alpha(0f)?.setDuration(120)?.withEndAction { runCatching { wm.removeView(r) } }?.start()
+        if (back && fromSwipe) {
+            // Android's recents view is still underneath: back into the app, or home
+            val f = fromPkg
+            if (f != null) bring(apps.firstOrNull { it.pkg == f } ?: RecentApp(f, -1)) else svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+        }
+    }
+
+    /** Brings an app (its existing task) to the front. */
+    private fun bring(a: RecentApp) {
+        var moved = false
+        if (a.taskId > 0) moved = runCatching {
+            svc.getSystemService(ActivityManager::class.java).moveTaskToFront(a.taskId, 0)
+            true
+        }.getOrDefault(false)
+        val launch = svc.packageManager.getLaunchIntentForPackage(a.pkg)
+        if (!moved) launch?.let { svc.startApp(it.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)) }
+        // check: if the app did not come up, ask the system shell (root) to start it
+        svc.ui.postDelayed({
+            if (svc.foregroundPkg != a.pkg && launch?.component != null && Root.available()) {
+                Root.run("am start -n ${launch.component!!.flattenToShortString()} -f 0x10200000")
+            }
+        }, 450)
+    }
+
+    private fun openSelected() {
+        val a = apps.getOrNull(sel) ?: return
+        val same = !fromSwipe && a.pkg == fromPkg
+        close(back = false)
+        // the app is already underneath: just uncover it
+        if (!same) bring(a)
+    }
+
+    private fun closeSelected() {
+        val a = apps.getOrNull(sel) ?: return
+        if (!Root.available()) {
+            svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
+            close(back = false)
+            return
+        }
+        Root.run("am force-stop ${a.pkg}")
+        Snapshots.remove(svc, a.pkg)
+        synchronized(this) { known.removeAll { it.pkg == a.pkg } }
+        if (a.pkg == fromPkg) fromPkg = null
+        apps = apps.filter { it.pkg != a.pkg }
+        sel = sel.coerceAtMost((apps.size - 1).coerceAtLeast(0))
+        carousel?.set(apps, sel, animate = true)
+        renderBar()
+    }
+
+    private fun openMenu() {
+        val a = apps.getOrNull(sel) ?: return
+        val items = mutableListOf<Pair<String, () -> Unit>>()
+        if (Apps.typeOf(a.pkg) == AppType.RETROARCH) {
+            fun ra(label: String, cmd: String) { items += label to { openSelected(); svc.ui.postDelayed({ RetroArch.send(cmd) }, 700) } }
+            ra("Speichern & zurück", "SAVE_STATE")
+            ra("Laden & zurück", "LOAD_STATE")
+            ra("RetroArch-Menü", "MENU_TOGGLE")
+        }
+        items += "App-Info" to {
+            close(back = false)
+            svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
+        }
+        if (Root.available() && apps.size > 1) items += "Alle anderen schließen" to {
+            apps.filter { it.pkg != a.pkg }.forEach { o ->
+                Root.run("am force-stop ${o.pkg}")
+                Snapshots.remove(svc, o.pkg)
+                synchronized(this) { known.removeAll { it.pkg == o.pkg } }
+            }
+            apps = listOf(a)
+            sel = 0
+            carousel?.set(apps, sel, animate = true)
+        }
+        menu = items
+        menuSel = 0
+        renderBar()
+    }
+
+    // ---------- input ----------
+
+    fun onKey(e: KeyEvent): Boolean {
+        if (e.action == KeyEvent.ACTION_DOWN) key(e.keyCode)
+        return true
+    }
+
+    private fun key(code: Int) {
+        val m = menu
+        if (m != null) {
+            when (code) {
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BUTTON_L1 -> menuSel = (menuSel - 1).coerceAtLeast(0)
+                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BUTTON_R1 -> menuSel = (menuSel + 1).coerceAtMost(m.lastIndex)
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    val run = m.getOrNull(menuSel)?.second
+                    menu = null
+                    renderBar()
+                    run?.invoke()
+                    return
+                }
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_Y -> menu = null
+            }
+            renderBar()
+            return
+        }
+        when (code) {
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BUTTON_L1 -> move(-1)
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BUTTON_R1 -> move(1)
+            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> openSelected()
+            KeyEvent.KEYCODE_BUTTON_X -> closeSelected()
+            KeyEvent.KEYCODE_BUTTON_Y -> openMenu()
+            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close(back = true)
+        }
+    }
+
+    private fun move(d: Int) {
+        val n = (sel + d).coerceIn(0, (apps.size - 1).coerceAtLeast(0))
+        if (n == sel) return
+        sel = n
+        carousel?.set(apps, sel, animate = true)
+        renderBar()
+    }
+
+    // ---------- views ----------
+
+    private fun build() {
+        pal = Palette(svc)
+        val m = wm.currentWindowMetrics
+        val statusH = m.windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top.takeIf { it > 0 } ?: svc.dp(24)
+        val mode = svc.prefs.statusBar
+        val r = object : FrameLayout(svc) {
+            override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean = hat.onMotion(event) || super.dispatchGenericMotionEvent(event)
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT) return false
+                if (event.action == KeyEvent.ACTION_DOWN) runCatching { key(event.keyCode) }.onFailure { Crash.note(svc, it) }
+                return true
+            }
+        }.apply {
+            setBackgroundColor(pal.surface)
+            isFocusable = true
+            isFocusableInTouchMode = true
+        }
+        val top = if (mode == StatusBar.HIDDEN) 0 else statusH
+        if (mode == StatusBar.OVERLAY) r.addView(StatusBand(svc, pal, "Muninn · Game Switcher"), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, statusH))
+        val barH = svc.dp(76)
+        val c = Carousel(svc, pal) { i -> if (i == sel) openSelected() else { sel = i; carousel?.set(apps, sel, true); renderBar() } }
+        r.addView(c, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
+            topMargin = top
+            bottomMargin = barH
+        })
+        val b = LinearLayout(svc).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(svc.dp(24), 0, svc.dp(10), 0)
+        }
+        r.addView(b, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, barH, Gravity.BOTTOM))
+        val sysTop = if (mode == StatusBar.SYSTEM) statusH else 0
+        val lp = WindowManager.LayoutParams(
+            m.bounds.width(), m.bounds.height() - sysTop,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            y = sysTop
+            fitInsetsTypes = 0
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
+        // opened by swipe: appear at once (Android's view is underneath); otherwise a very short fade
+        r.alpha = if (fromSwipe) 1f else 0f
+        wm.addView(r, lp)
+        if (!fromSwipe) r.animate().alpha(1f).setDuration(90).start()
+        r.requestFocus()
+        root = r
+        carousel = c
+        bar = b
+        c.set(apps, sel, animate = false)
+        renderBar()
+    }
+
+    private fun text(s: String, sizeSp: Float, color: Int, bold: Boolean = false) = TextView(svc).apply {
+        text = s
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
+        setTextColor(color)
+        typeface = Look.font(svc, Look.pixel(svc), bold)
+        maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
+    }
+
+    private fun hint(key: Int, label: String) = LinearLayout(svc).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        addView(Glyphs.chip(svc, svc.prefs, pal, key, 24))
+        addView(text(label, 13f, pal.onSurfaceVariant).apply { setPadding(svc.dp(7), 0, svc.dp(16), 0) })
+    }
+
+    private fun renderBar() {
+        val b = bar ?: return
+        b.removeAllViews()
+        val feedback = !svc.prefs.githubToken.isNullOrBlank()
+        val m = menu
+        val a = apps.getOrNull(sel)
+        if (m != null) {
+            b.addView(text(a?.let { Apps.label(svc, it.pkg) } ?: "Optionen", 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, svc.dp(16), 0) })
+            val items = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+            m.forEachIndexed { i, (label, _) ->
+                val on = i == menuSel
+                items.addView(text(label, 14f, if (on) pal.onPrimaryContainer else pal.onSurfaceVariant, bold = on).apply {
+                    setPadding(svc.dp(16), svc.dp(9), svc.dp(16), svc.dp(9))
+                    background = Look.shape(svc, Look.pixel(svc), if (on) pal.primaryContainer else pal.surfaceHigh, svc.dp(20).toFloat())
+                    setOnClickListener { menuSel = i; key(KeyEvent.KEYCODE_BUTTON_A) }
+                }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = svc.dp(8) })
+            }
+            b.addView(android.widget.HorizontalScrollView(svc).apply { isHorizontalScrollBarEnabled = false; addView(items) },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Ausführen"))
+            b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+            return
+        }
+        if (a == null) {
+            b.addView(LinearLayout(svc).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(text("Keine offenen Apps", 17f, pal.onSurface, bold = true))
+                addView(text("Starte ein Spiel, dann taucht es hier auf", 12f, pal.onSurfaceVariant))
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            if (feedback) b.addView(hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback"))
+            b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+            return
+        }
+        b.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, a.pkg)) }, LinearLayout.LayoutParams(svc.dp(40), svc.dp(40)))
+        b.addView(LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(svc.dp(12), 0, 0, 0)
+            addView(text(Apps.label(svc, a.pkg), 17f, pal.onSurface, bold = true))
+            addView(text("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", 12f, pal.onSurfaceVariant))
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        if (feedback) b.addView(hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback"))
+        if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, "Wechseln"))
+        b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Öffnen"))
+        b.addView(hint(KeyEvent.KEYCODE_BUTTON_X, "Schließen"))
+        b.addView(hint(KeyEvent.KEYCODE_BUTTON_Y, "Optionen"))
+        b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+    }
+
+    /** The cards: the selected one large in the middle, the others smaller to the sides. */
+    private class Carousel(ctx: Context, private val pal: Palette, private val onTap: (Int) -> Unit) : View(ctx) {
+        private var apps: List<RecentApp> = emptyList()
+        private var pos = 0f
+        private var anim: android.animation.ValueAnimator? = null
+        private val style = Prefs(ctx).uiStyle
+        private val pixel = style == UiStyle.PIXEL
+        private val dots = style == UiStyle.DOTS
+        private val radius = ctx.dp(if (dots) 10 else 18).toFloat()
+        private val unit = ctx.dp(3).toFloat()
+        private val bmpPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        private val cardFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh }
+        private val dim = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            when {
+                dots -> {
+                    strokeWidth = ctx.dp(3).toFloat()
+                    color = pal.onSurface
+                    strokeCap = Paint.Cap.ROUND
+                    pathEffect = android.graphics.DashPathEffect(floatArrayOf(0.1f, ctx.dp(8).toFloat()), 0f)
+                }
+                pixel -> { isAntiAlias = false; strokeWidth = unit; color = pal.onSurface }
+                else -> { strokeWidth = ctx.dp(2).toFloat(); color = (pal.onSurface and 0x00FFFFFF) or 0xAA000000.toInt() }
+            }
+        }
+        private val labelPaint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = pal.onSurfaceVariant
+            textAlign = Paint.Align.CENTER
+            textSize = ctx.resources.displayMetrics.scaledDensity * 13f
+            typeface = Look.font(ctx, pixel, false)
+        }
+        private val emptyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = pal.onSurfaceVariant
+            textAlign = Paint.Align.CENTER
+            textSize = ctx.resources.displayMetrics.scaledDensity * 20f
+            typeface = Look.font(ctx, pixel, false)
+        }
+        private val icons = HashMap<String, android.graphics.drawable.Drawable?>()
+
+        fun set(list: List<RecentApp>, selected: Int, animate: Boolean) {
+            apps = list
+            anim?.cancel()
+            if (!animate) {
+                pos = selected.toFloat()
+                invalidate()
+                return
+            }
+            anim = android.animation.ValueAnimator.ofFloat(pos, selected.toFloat()).apply {
+                duration = 220
+                interpolator = android.view.animation.DecelerateInterpolator(2f)
+                addUpdateListener { pos = it.animatedValue as Float; invalidate() }
+                start()
+            }
+        }
+
+        private fun shape(r: RectF): Path = if (pixel) pixelPath(r, unit, 3) else Path().apply { addRoundRect(r, radius, radius, Path.Direction.CW) }
+
+        /** Card frame of item [i] for the current scroll position. */
+        private fun frame(i: Int): Pair<RectF, Float> {
+            val h = height * 0.70f
+            val w = min(h * 16f / 9f, width * 0.56f)
+            val ch = w * 9f / 16f
+            val gap = context.dp(22).toFloat()
+            val d = i - pos
+            val ad = abs(d)
+            val small = 0.66f
+            val scale = if (ad <= 1f) 1f - (1f - small) * ad else small
+            // distance of the centres: selected to neighbour, then neighbour to neighbour
+            val first = w / 2f + gap + w * small / 2f
+            val next = w * small + gap
+            val off = if (ad <= 1f) ad * first else first + (ad - 1f) * next
+            val cx = width / 2f + Math.signum(d) * off
+            val cy = height * 0.47f
+            return RectF(cx - w * scale / 2f, cy - ch * scale / 2f, cx + w * scale / 2f, cy + ch * scale / 2f) to scale
+        }
+
+        override fun onDraw(c: Canvas) {
+            if (apps.isEmpty()) {
+                c.drawText("Keine offenen Apps", width / 2f, height / 2f, emptyPaint)
+                return
+            }
+            val order = apps.indices.sortedByDescending { abs(it - pos) }
+            for (i in order) {
+                val (r, scale) = frame(i)
+                if (r.right < 0 || r.left > width) continue
+                val path = shape(r)
+                val shot = Snapshots.get(context, apps[i].pkg)
+                c.save()
+                c.clipPath(path)
+                if (shot != null) {
+                    // centre crop into the card
+                    val sr = shot.width / shot.height.toFloat()
+                    val rr = r.width() / r.height()
+                    val src = if (sr > rr) {
+                        val w = shot.height * rr
+                        Rect(((shot.width - w) / 2).toInt(), 0, ((shot.width + w) / 2).toInt(), shot.height)
+                    } else {
+                        val h = shot.width / rr
+                        Rect(0, ((shot.height - h) / 2).toInt(), shot.width, ((shot.height + h) / 2).toInt())
+                    }
+                    c.drawBitmap(shot, src, r, bmpPaint)
+                } else {
+                    c.drawRect(r, cardFill)
+                    val icon = icons.getOrPut(apps[i].pkg) { Apps.icon(context, apps[i].pkg) }
+                    val s = r.height() * 0.36f
+                    icon?.setBounds((r.centerX() - s / 2).toInt(), (r.centerY() - s / 2).toInt(), (r.centerX() + s / 2).toInt(), (r.centerY() + s / 2).toInt())
+                    icon?.draw(c)
+                }
+                // the cards at the side are dimmed
+                val k = ((1f - scale) / (1f - 0.66f)).coerceIn(0f, 1f)
+                if (k > 0f) {
+                    dim.color = (pal.surface and 0x00FFFFFF) or ((k * 120).toInt() shl 24)
+                    c.drawRect(r, dim)
+                }
+                c.restore()
+                if (abs(i - pos) < 0.5f) c.drawPath(shape(r), edge)
+                else {
+                    val label = TextUtils.ellipsize(Apps.label(context, apps[i].pkg), labelPaint, r.width(), TextUtils.TruncateAt.END).toString()
+                    c.drawText(label, r.centerX(), r.bottom + labelPaint.textSize * 1.5f, labelPaint)
+                }
+            }
+        }
+
+        override fun onTouchEvent(e: MotionEvent): Boolean {
+            if (e.actionMasked == MotionEvent.ACTION_UP) {
+                val hit = apps.indices.firstOrNull { frame(it).first.contains(e.x, e.y) }
+                if (hit != null) onTap(hit)
+            }
+            return true
+        }
+    }
+}

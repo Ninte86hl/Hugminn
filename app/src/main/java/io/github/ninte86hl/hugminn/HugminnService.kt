@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -23,6 +24,30 @@ class HugminnService : AccessibilityService() {
     lateinit var prefs: Prefs
         private set
     private lateinit var switcher: Switcher
+    lateinit var own: OwnSwitcher
+    /** Last time the app in front showed any window activity (tells a swipe from an app apart). */
+    @Volatile private var appEventAt = 0L
+    fun appRecentlyInFront() = SystemClock.uptimeMillis() - appEventAt < 2500
+    val anySwitcherOpen get() = (::switcher.isInitialized && switcher.isOpen) || (::own.isInitialized && own.isOpen)
+
+    /** Opens Hugminn's own switcher for the swipe gesture (Android's recents view is underneath). */
+    fun openOwnFromSwipe() {
+        if (own.isOpen || controlCenter.isOpen) return
+        own.open(swipe = true)
+    }
+
+    /** Keeps pictures of the app in front up to date (for the own switcher). */
+    private val snapshotTick = object : Runnable {
+        override fun run() {
+            ui.postDelayed(this, 7000)
+            if (!prefs.ownSwitcher || anySwitcherOpen || controlCenter.isOpen) return
+            val pkg = foregroundPkg ?: return
+            val pm = getSystemService(android.os.PowerManager::class.java)
+            if (pm?.isInteractive != true) return
+            val front = runCatching { rootInActiveWindow?.packageName?.toString() }.getOrNull()
+            if (front == pkg) Snapshots.capture(this@HugminnService, pkg)
+        }
+    }
     private lateinit var controlCenter: ControlCenter
     lateinit var overlay: PerfOverlay
         private set
@@ -43,6 +68,9 @@ class HugminnService : AccessibilityService() {
         Crash.install(this)
         prefs = Prefs(this)
         switcher = Switcher(this)
+        own = OwnSwitcher(this)
+        own.refresh()
+        ui.postDelayed(snapshotTick, 7000)
         controlCenter = ControlCenter(this)
         overlay = PerfOverlay(this)
         instance = this
@@ -108,9 +136,11 @@ class HugminnService : AccessibilityService() {
                 }
             }
             if (pkg != null && pkg != packageName && pkg !in notApps && !pkg.contains("launcher", true) && !pkg.contains("inputmethod", true)) {
+                if (foregroundPkg != pkg && ::own.isInitialized) own.touch(pkg)
                 foregroundPkg = pkg
             }
         }
+        if (event.packageName?.toString() == foregroundPkg) appEventAt = SystemClock.uptimeMillis()
         if (::switcher.isInitialized) try {
             switcher.onEvent(event)
         } catch (t: Throwable) {
@@ -126,7 +156,7 @@ class HugminnService : AccessibilityService() {
             if (event.keyCode != KeyEvent.KEYCODE_MOVE_HOME && event.keyCode != KeyEvent.KEYCODE_HOME) return false
         }
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
-        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || switcher.isOpen)) {
+        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || anySwitcherOpen)) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
                 Feedback.capture(this, if (controlCenter.isOpen) "controlcenter" else "switcher")
             }
@@ -135,6 +165,7 @@ class HugminnService : AccessibilityService() {
         return try {
             when {
                 controlCenter.isOpen -> controlCenter.onKey(event)
+                own.isOpen -> own.onKey(event)
                 switcher.isOpen -> switcher.onKey(event)
                 else -> false
             }
@@ -147,7 +178,7 @@ class HugminnService : AccessibilityService() {
 
     private fun onHome(e: KeyEvent): Boolean {
         val p = prefs
-        val overlayOpen = controlCenter.isOpen || switcher.isOpen
+        val overlayOpen = controlCenter.isOpen || anySwitcherOpen
         // Untouched setup and nothing open: let Android handle Home itself.
         if (!overlayOpen && p.single == Action.HOME && p.double == Action.NONE && p.long == Action.NONE) return false
         when (e.action) {
@@ -196,9 +227,13 @@ class HugminnService : AccessibilityService() {
                 closeOverlays()
                 performGlobalAction(GLOBAL_ACTION_HOME)
             }
-            Action.SWITCHER -> if (switcher.isOpen) switcher.close(goBack = true) else {
-                controlCenter.close()
-                switcher.open()
+            Action.SWITCHER -> when {
+                own.isOpen -> own.close(back = true)
+                switcher.isOpen -> switcher.close(goBack = true)
+                else -> {
+                    controlCenter.close()
+                    if (prefs.ownSwitcher) own.open(swipe = false) else switcher.open()
+                }
             }
             Action.CONTROL_CENTER -> if (controlCenter.isOpen) controlCenter.close() else controlCenter.open()
             Action.RECENTS -> {
@@ -216,6 +251,7 @@ class HugminnService : AccessibilityService() {
     fun closeOverlays() {
         if (::controlCenter.isInitialized) controlCenter.close()
         if (::switcher.isInitialized && switcher.isOpen) switcher.close(goBack = false)
+        if (::own.isInitialized && own.isOpen) own.close(back = false)
     }
 
     /** Roots of all windows on screen (the recents view lives in the launcher's window). */
