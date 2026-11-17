@@ -241,8 +241,17 @@ class Switcher(private val svc: HugminnService) {
         val now = SystemClock.uptimeMillis()
         if (now - closedAt < 1200 || now - lastAutoCheck < 200) return
         lastAutoCheck = now
-        val p = try { findPanel() } catch (t: Throwable) { null } ?: return
-        if (p.isVisibleToUser) open()
+        // The recents view also flashes up while swiping home; only open once it has settled
+        // (still visible a moment later, with its action buttons shown).
+        svc.ui.postDelayed({ if (!isOpen && settledRecents()) open() }, 380)
+    }
+
+    private fun settledRecents(): Boolean = try {
+        val p = findPanel()
+        val actions = findIn("clear_all_button") ?: findIn("action_screenshot")
+        p != null && p.isVisibleToUser && actions != null && actions.isVisibleToUser
+    } catch (t: Throwable) {
+        false
     }
 
     private fun buildModel(nodes: List<AccessibilityNodeInfo>): Model? {
@@ -370,6 +379,19 @@ class Switcher(private val svc: HugminnService) {
         val m = model ?: return Frame(emptyList(), emptyList(), emptyList(), target)
         if (scanned && cards.isEmpty()) return Frame(emptyList(), emptyList(), emptyList(), 0)
         val snap = m.snap?.let { RectF(it.left + m.card.left, it.top + m.card.top, it.right + m.card.left, it.bottom + m.card.top) } ?: RectF(m.card)
+        // Let neighbouring cards peek in, but only on the sides where there really is one.
+        if (scanned && cards.size > 1) {
+            val w = wm.currentWindowMetrics.bounds.width().toFloat()
+            val side = svc.dp(10).toFloat()
+            val n = cards.size
+            val olderLeft = dir < 0 // dir < 0: higher index = further left
+            val hasLower = target > 0
+            val hasHigher = target < n - 1
+            val leftExists = if (olderLeft) hasHigher else hasLower
+            val rightExists = if (olderLeft) hasLower else hasHigher
+            if (leftExists) snap.left = side
+            if (rightExists) snap.right = w - side
+        }
         return Frame(listOf(snap), listOf(""), listOf(null), -1)
     }
 
