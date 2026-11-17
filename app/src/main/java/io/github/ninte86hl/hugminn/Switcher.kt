@@ -53,7 +53,12 @@ class Switcher(private val svc: HugminnService) {
     private class Model(val card: RectF, val snap: RectF?, val icon: RectF?, val lock: RectF?, val pitch: Float)
 
     /** What the frame draws in one frame. */
-    class Frame(val snaps: List<RectF>, val icons: List<RectF>, val locks: List<RectF>, val selected: Int)
+    class Frame(
+        val snaps: List<RectF>,
+        val labels: List<String>,
+        val icons: List<android.graphics.drawable.Drawable?>,
+        val selected: Int,
+    )
 
     var isOpen = false
         private set
@@ -64,6 +69,9 @@ class Switcher(private val svc: HugminnService) {
     private var cards: List<Card> = emptyList()
     private var model: Model? = null
     private var pos = 0f // continuous index of the card in the middle
+    /** +1: higher index = further right on screen, -1: further left (depends on how the launcher lists cards). */
+    private var dir = 1f
+    private val iconCache = HashMap<String, android.graphics.drawable.Drawable?>()
     private var target = 0
     private var anim: android.animation.ValueAnimator? = null
     private var lastKeyAt = 0L
@@ -167,6 +175,14 @@ class Switcher(private val svc: HugminnService) {
             val mid = wm.currentWindowMetrics.bounds.width() / 2f
             val centred = focused.takeIf { it >= 0 }
                 ?: now.indices.minByOrNull { abs(now[it].exactCenterX() - mid) } ?: 0
+            // Android always shows the newest app on the far right and centres it when recents opens.
+            // The card in the middle is therefore the newest; older ones go to its left.
+            dir = when {
+                cards.size < 2 -> 1f
+                centred == 0 -> -1f
+                centred == cards.lastIndex -> 1f
+                else -> dir
+            }
             jumpTo(centred)
             watch(gen, 0)
         }
@@ -315,23 +331,24 @@ class Switcher(private val svc: HugminnService) {
     private fun computeFrame(): Frame {
         val m = model
         val snaps = mutableListOf<RectF>()
-        val icons = mutableListOf<RectF>()
-        val locks = mutableListOf<RectF>()
+        val labels = mutableListOf<String>()
+        val icons = mutableListOf<android.graphics.drawable.Drawable?>()
         for (i in cards.indices) {
             if (m == null) {
-                snaps += RectF(); icons += RectF(); locks += RectF()
+                snaps += RectF(); labels += ""; icons += null
                 continue
             }
             // Mirrored: a higher index (older app) sits further left on screen.
-            val dx = -(i - pos) * m.pitch
+            val dx = dir * (i - pos) * m.pitch
             val left = m.card.left + dx
             val top = m.card.top
             fun off(x: RectF?) = x?.let { RectF(it.left + left, it.top + top, it.right + left, it.bottom + top) } ?: RectF()
             snaps += m.snap?.let { off(it) } ?: RectF(m.card).also { it.offset(dx, 0f) }
-            icons += off(m.icon)
-            locks += off(m.lock)
+            val c = cards[i]
+            labels += c.label ?: "Unbekannte App"
+            icons += c.pkg?.let { p -> iconCache.getOrPut(p) { Apps.icon(svc, p) } }
         }
-        return Frame(snaps, icons, locks, target)
+        return Frame(snaps, labels, icons, target)
     }
 
     private fun redraw() {
@@ -656,6 +673,14 @@ class ShellView(
         }
     }
 
+    private val iconSize = ctx.dp(34).toFloat()
+    private val iconGap = ctx.dp(10).toFloat()
+    private val titleGap = ctx.dp(14).toFloat()
+    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = ctx.resources.displayMetrics.scaledDensity * 16f
+    }
+    private val chipFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.secondaryContainer }
+
     private val emptyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = pal.onSurfaceVariant
         textAlign = Paint.Align.CENTER
@@ -673,8 +698,6 @@ class ShellView(
                 val s = f.snaps[i]
                 if (s.isEmpty) continue
                 clip.addRoundRect(s, snapR, snapR, Path.Direction.CW)
-                f.icons[i].takeIf { !it.isEmpty }?.let { clip.addOval(grow(it, gap), Path.Direction.CW) }
-                f.locks[i].takeIf { !it.isEmpty }?.let { clip.addRoundRect(grow(it, gap), lockR, lockR, Path.Direction.CW) }
             }
         }
         if (mode == StatusBar.SYSTEM) clip.addRect(0f, 0f, width.toFloat(), statusH.toFloat(), Path.Direction.CW)
@@ -695,9 +718,27 @@ class ShellView(
             c.save()
             c.clipRect(0f, statusH.toFloat(), width.toFloat(), barTop.toFloat())
             c.drawRoundRect(s, snapR, snapR, p)
-            f.icons[i].takeIf { !it.isEmpty }?.let { c.drawOval(grow(it, gap), p) }
-            f.locks[i].takeIf { !it.isEmpty }?.let { c.drawRoundRect(grow(it, gap), lockR, lockR, edge) }
             c.restore()
+            // Own title above each window (covers the launcher's icon and lock): app icon + name.
+            val on = i == f.selected
+            labelPaint.color = if (on) pal.onSurface else pal.onSurfaceVariant
+            labelPaint.isFakeBoldText = on
+            val name = android.text.TextUtils.ellipsize(f.labels[i], android.text.TextPaint(labelPaint), s.width() - iconSize * 2, android.text.TextUtils.TruncateAt.END).toString()
+            val tw = labelPaint.measureText(name)
+            val total = iconSize + iconGap + tw
+            val cy = s.top - titleGap - iconSize / 2f
+            var x = s.centerX() - total / 2f
+            if (on) {
+                val pad = iconGap
+                c.drawRoundRect(x - pad * 1.5f, cy - iconSize / 2f - pad, x + total + pad * 2f, cy + iconSize / 2f + pad, iconSize, iconSize, chipFill)
+            }
+            f.icons[i]?.let { d ->
+                d.setBounds(x.toInt(), (cy - iconSize / 2f).toInt(), (x + iconSize).toInt(), (cy + iconSize / 2f).toInt())
+                d.draw(c)
+            }
+            x += iconSize + iconGap
+            val fm = labelPaint.fontMetrics
+            c.drawText(name, x, cy - (fm.ascent + fm.descent) / 2f, labelPaint)
         }
     }
 }
