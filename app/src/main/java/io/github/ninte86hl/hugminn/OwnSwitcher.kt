@@ -586,8 +586,14 @@ class OwnSwitcher(private val svc: HugminnService) {
                 c.restore()
                 if (abs(i - pos) < 0.5f) c.drawPath(shape(r), edge)
                 else {
-                    val label = TextUtils.ellipsize(Apps.label(context, apps[i].pkg), labelPaint, r.width(), TextUtils.TruncateAt.END).toString()
-                    c.drawText(label, r.centerX(), r.bottom + labelPaint.textSize * 1.5f, labelPaint)
+                    // name under the card, only for the part of the card that is on screen
+                    val pad = context.dp(12).toFloat()
+                    val left = r.left.coerceAtLeast(pad)
+                    val right = r.right.coerceAtMost(width - pad)
+                    if (right - left > context.dp(40)) {
+                        val label = TextUtils.ellipsize(Apps.label(context, apps[i].pkg), labelPaint, right - left, TextUtils.TruncateAt.END).toString()
+                        c.drawText(label, (left + right) / 2f, r.bottom + labelPaint.textSize * 1.5f, labelPaint)
+                    }
                 }
             }
         }
