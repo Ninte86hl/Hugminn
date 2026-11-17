@@ -129,7 +129,7 @@ object Root {
                 finished = true
                 break
             }
-            Thread.sleep(150)
+            Thread.sleep(60)
         }
         val size = rawExec("wc -c < $f 2>/dev/null")?.trim()?.toLongOrNull() ?: 0L
         val out = ByteArrayOutputStream()

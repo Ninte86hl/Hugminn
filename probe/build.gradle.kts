@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.ninte86hl.hugminn.probe"
         minSdk = 30
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.3.1"
+        versionCode = 5
+        versionName = "0.3.2"
     }
 
     buildTypes {

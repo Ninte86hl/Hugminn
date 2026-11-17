@@ -284,7 +284,7 @@ class MainActivity : Activity() {
             page("Bedienungshilfe", "Schalte die Bedienungshilfe ein …")
             val comp = "$packageName/${ProbeAccessibilityService::class.java.name}"
             background({ Root.runAsset(this, "enable_a11y.sh", Root.quote(comp)) ?: "" }) {
-                ui.postDelayed({ afterA11yAttempt() }, 1500)
+                ui.postDelayed({ afterA11yAttempt() }, 800)
             }
         } else {
             a11yManual()
@@ -343,7 +343,7 @@ class MainActivity : Activity() {
     private fun keysStep() {
         promptIndex = 0
         keyResults.setLength(0)
-        ignoreUntil = System.currentTimeMillis() + 600
+        ignoreUntil = System.currentTimeMillis() + 300
         startPrompt()
     }
 
@@ -358,10 +358,10 @@ class MainActivity : Activity() {
             "Drücke: ${prompts[promptIndex]}",
             "Drücke die Taste, auf der „${prompts[promptIndex]}“ steht – egal wo sie sitzt.\n" +
                 "Taste ${promptIndex + 1} von ${prompts.size}$round · Controller: ${currentPad()}\n" +
-                "Wird nach 10 Sekunden übersprungen.",
+                "Wird nach 6 Sekunden übersprungen.",
             keyResults.toString()
         )
-        ui.postDelayed(promptTimeout, 10_000)
+        ui.postDelayed(promptTimeout, 6_000)
     }
 
     private fun recordInput(desc: String) {
@@ -369,9 +369,9 @@ class MainActivity : Activity() {
         ui.removeCallbacks(promptTimeout)
         keyResults.append(prompts[promptIndex]).append("  →  ").append(desc).append('\n')
         promptIndex++
-        ignoreUntil = System.currentTimeMillis() + 500
+        ignoreUntil = System.currentTimeMillis() + 250
         detail.text = keyResults.toString()
-        ui.postDelayed({ if (step == Step.KEYS) startPrompt() }, 500)
+        ui.postDelayed({ if (step == Step.KEYS) startPrompt() }, 200)
     }
 
     private fun finishKeys() {
@@ -575,7 +575,7 @@ class MainActivity : Activity() {
                     detail.text = dump
                 }
             }.start()
-        }, 1500)
+        }, 900)
     }
 
     // Done
@@ -715,7 +715,7 @@ class MainActivity : Activity() {
             if (System.currentTimeMillis() > ignoreUntil) {
                 for (axis in keyAxes) {
                     val v = event.getAxisValue(axis)
-                    if (abs(v) > 0.6f) {
+                    if (abs(v) > 0.5f) {
                         recordInput("Achse ${MotionEvent.axisToString(axis)} = ${"%.2f".format(Locale.US, v)}, Gerät \"${event.device?.name}\"")
                         break
                     }
@@ -757,7 +757,7 @@ class MainActivity : Activity() {
         if (step == Step.HOME && !expert && homeRecorded != homeIndex) {
             homeLeft = true
             val svc = ProbeAccessibilityService.instance
-            if (svc != null) ui.postDelayed({ svc.backToProbe() }, 2500)
+            if (svc != null) ui.postDelayed({ svc.backToProbe() }, 1500)
         }
     }
 
@@ -769,14 +769,14 @@ class MainActivity : Activity() {
         } else if (step == Step.A11Y && ProbeAccessibilityService.instance != null) {
             goTo(Step.READ)
         } else if (step == Step.HOME && homeLeft) {
-            ui.postDelayed({ recordHome() }, 700)
+            ui.postDelayed({ recordHome() }, 300)
         }
     }
 
     // ---------- Report ----------
 
     private fun fullReport(): String = buildString {
-        appendLine("Hugminn Probe 0.3.1 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+        appendLine("Hugminn Probe 0.3.2 – Bericht vom ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         appendLine("Gerät: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE}), Android ${Build.VERSION.RELEASE}")
         appendLine("Persönliche Werte (Seriennummer, Konten, WLAN, MAC usw.) wurden entfernt.")
         appendLine()
