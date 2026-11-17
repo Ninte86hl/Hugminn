@@ -140,13 +140,16 @@ class Switcher(private val svc: HugminnService) {
         val s = shell
         shell = null
         if (goBack && s != null) {
-            // Keep covering the screen (window closed) while Android's overview animates away, so it
-            // never shows in full size; then fade out.
-            s.frame = Frame(listOf(RectF()), emptyList(), emptyList(), -1)
+            // Leave the frame (with its window) in place and fade it out while Android switches back,
+            // so neither the full overview nor a black screen shows.
             lingering = s
             leaveRecents()
-            dropLingering(1600) // safety net: never leave the screen covered
-        } else s?.let { runCatching { wm.removeView(it) } }
+            dropLingering(120)
+        } else if (s != null) {
+            // also when an app is opened: fade instead of a hard cut
+            lingering = s
+            dropLingering(60)
+        }
     }
 
     /** Frame that stays over the closing overview for a moment (see [close]). */
@@ -157,30 +160,19 @@ class Switcher(private val svc: HugminnService) {
         svc.ui.postDelayed({
             if (lingering !== s) return@postDelayed
             lingering = null
-            s.animate().alpha(0f).setDuration(140).withEndAction { runCatching { wm.removeView(s) } }.start()
+            s.animate().alpha(0f).setDuration(180).withEndAction { runCatching { wm.removeView(s) } }.start()
         }, delay)
     }
 
     /**
-     * Closes Android's own recents view too. "Back" only works once Hugminn's window has given up the
-     * input focus, so it is sent a moment later; if the overview is still there after that, Hugminn
-     * returns to the app that was open before (or to the home screen).
+     * Closes Android's own recents view too: back into the app that was open before, or home.
      */
     private fun leaveRecents() {
-        val known = cards
-        val from = fromPkg
-        svc.ui.postDelayed({
-            if (isOpen) return@postDelayed
-            svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-            svc.ui.postDelayed({
-                if (isOpen || findPanel() == null) { dropLingering(150); return@postDelayed }
-                val back = known.firstOrNull { from != null && it.pkg == from }
-                if (back == null || !back.node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                    svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
-                }
-                dropLingering(450)
-            }, 450)
-        }, 160)
+        val back = cards.firstOrNull { fromPkg != null && it.pkg == fromPkg }
+        // Back into the app: its card grows out of the window, like Android's own switch.
+        if (back != null && back.node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return
+        // Opened from the home screen (or the app is gone): straight home.
+        svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
     }
 
     // ---------- reading the recents view (worker thread) ----------
@@ -483,7 +475,9 @@ class Switcher(private val svc: HugminnService) {
             fitInsetsTypes = 0
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
+        s.alpha = 0f
         wm.addView(s, lp)
+        s.animate().alpha(1f).setDuration(160).start()
         shell = s
 
         val b = object : FrameLayout(svc) {
