@@ -303,8 +303,13 @@ class MainActivity : Activity() {
         val dgb = LinearLayout(this).apply { setPadding(0, 0, 0, d(6)) }
         dgb.addView(button("Eingabetest starten") { startActivity(Intent(this, InputTestActivity::class.java)) })
         dgb.addView(button("LED-Zonen testen") {
-            Thread { LedFx.probeZones() }.start()
-            android.widget.Toast.makeText(this, "Linker Stick: Zone 1 rot, 2 grün, 3 blau, 4 weiß – welche Farben siehst du wo?", android.widget.Toast.LENGTH_LONG).show()
+            val ui = android.os.Handler(mainLooper)
+            Thread {
+                LedFx.probeZones { msg -> ui.post { android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show() } }
+                // restore the normal colours
+                LedFx.restoreStatic(this)
+                LedFx.resume(this)
+            }.start()
         })
         dg.addView(dgb)
 

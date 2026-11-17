@@ -68,8 +68,8 @@ object LedFx {
         if (lowBattery) return
         if (e == LedEffect.NONE) {
             stop()
-            // hand the LEDs back to the firmware with the stored colours
-            Device.ledColors(ctx)?.let { (l, r) -> Device.setLedColors(l, r, turnOn = false) {} }
+            // back to the stored static colours
+            restoreStatic(ctx)
         } else start(ctx, e)
     }
 
@@ -82,6 +82,13 @@ object LedFx {
     fun setBrightness(ctx: Context, v: Int, then: () -> Unit) {
         brightness = v
         Device.setLedBrightness(v, then)
+    }
+
+    /** Writes the stored static colours (at the stored brightness) to the sticks. */
+    fun restoreStatic(ctx: Context) {
+        val (l, r) = Device.ledColors(ctx) ?: return
+        val k = Device.ledBrightness(ctx)
+        Thread { Root.exec(command(intArrayOf(scale(l, k), scale(r, k)))) }.start()
     }
 
     fun stop() {
@@ -145,13 +152,26 @@ object LedFx {
         LedEffect.NONE -> intArrayOf(left, right)
     }
 
-    /** Lights the zones 1–4 of the left stick in red, green, blue, white: shows how many zones there are. */
-    fun probeZones() {
+    /**
+     * Zone test on the left stick: reads the driver's files, then lights indices 0–8 one after another
+     * (each 1.5 s, the others dark) and reports each step via [show]. Shows whether single LEDs exist.
+     */
+    fun probeZones(show: (String) -> Unit) {
         stop()
-        val cmd = listOf("1-255:0:0:255", "2-0:255:0:255", "3-0:0:255:255", "4-255:255:255:255")
-            .joinToString("; ") { "echo $it > /sys/class/sn3112l/led/brightness" }
-        Root.exec(cmd, 2_000)
+        val dir = "/sys/class/sn3112l/led"
+        val read = listOf("brightness", "breath", "enable").joinToString("; ") { "echo $it=\$(cat $dir/$it 2>&1 | head -c 200)" }
+        diag = "Treiber: " + (Root.execLong(read) ?: "keine Antwort").replace('\n', ' ')
+        fun w(v: String) = Root.exec("echo $v > $dir/brightness 2>&1")
+        for (i in 0..8) {
+            for (j in 0..8) if (j != i) w("$j-0:0:0:0")
+            val err = w("$i-255:255:255:255")
+            show("Zone $i" + if (!err.isNullOrBlank()) " – Fehler: $err" else "")
+            diag += "\nZone $i: " + (err?.takeIf { it.isNotBlank() } ?: "ok")
+            Thread.sleep(1_500)
+        }
+        show("Test fertig – Farben werden wiederhergestellt")
     }
+
     private fun beat(p: Float, at: Float): Float {
         val x = (p - at) / 0.18f
         return if (x < 0f || x > 1f) 0f else sin(PI * x).toFloat()
