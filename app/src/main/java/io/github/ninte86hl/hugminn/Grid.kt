@@ -4,8 +4,11 @@ import android.content.Context
 import android.view.View
 import android.view.ViewGroup
 
-/** One element of the Control Center grid: what it is and how many cells it covers. */
-data class GridEntry(val id: String, val w: Int, val h: Int)
+/**
+ * One element of the Control Center grid: what it is, how many cells it covers and where it sits
+ * (x/y in cells, page). x < 0 means "no fixed place yet" (placed into the first free spot).
+ */
+data class GridEntry(val id: String, val w: Int, val h: Int, val x: Int = -1, val y: Int = -1, val page: Int = 0)
 
 /** Placed element: position in cells on a page. */
 data class Placed(val entry: GridEntry, val page: Int, val x: Int, val y: Int)
@@ -36,25 +39,71 @@ object GridLayout {
 
     /** Sizes an element can have, smallest first. */
     fun sizes(id: String, cols: Int): List<Pair<Int, Int>> = when {
-        isSlider(id) -> (2..cols).map { it to 1 }
+        // vertical (1×2 … 1×4) or horizontal (2×1 … full width)
+        isSlider(id) -> (2..ROWS).map { 1 to it } + (2..cols).map { it to 1 }
         isInfo(id) -> listOf(1 to 1, 2 to 1, 2 to 2)
         else -> listOf(1 to 1, 2 to 1)
     }
 
+    /** Default for 8 columns (RP6); on narrower screens elements that do not fit are placed automatically. */
     val defaults = listOf(
-        GridEntry("fps", 2, 2), GridEntry("perf", 2, 1), GridEntry("fan", 2, 1), GridEntry("temp", 1, 1), GridEntry("battery", 1, 1),
-        GridEntry("cpu", 2, 1), GridEntry("gpu", 2, 1), GridEntry("ram", 2, 1),
-        GridEntry("wifi", 1, 1), GridEntry("bt", 1, 1), GridEntry("dnd", 1, 1), GridEntry("airplane", 1, 1),
-        GridEntry("refresh", 1, 1), GridEntry("leds", 1, 1), GridEntry("rotation", 1, 1), GridEntry("screenshot", 1, 1),
-        GridEntry("brightness", 4, 1), GridEntry("volume", 4, 1),
+        GridEntry("fps", 2, 2, 0, 0), GridEntry("perf", 2, 1, 2, 0), GridEntry("fan", 2, 1, 4, 0),
+        GridEntry("temp", 1, 1, 6, 0), GridEntry("battery", 1, 1, 7, 0),
+        GridEntry("cpu", 2, 1, 2, 1), GridEntry("gpu", 2, 1, 4, 1), GridEntry("ram", 2, 1, 6, 1),
+        GridEntry("wifi", 1, 1, 0, 2), GridEntry("bt", 1, 1, 1, 2), GridEntry("dnd", 1, 1, 2, 2), GridEntry("airplane", 1, 1, 3, 2),
+        GridEntry("refresh", 1, 1, 4, 2), GridEntry("leds", 1, 1, 5, 2),
+        GridEntry("rotation", 1, 1, 0, 3), GridEntry("screenshot", 1, 1, 1, 3), GridEntry("power", 2, 1, 2, 3), GridEntry("clean", 1, 1, 4, 3),
+        GridEntry("brightness", 1, 2, 6, 2), GridEntry("volume", 1, 2, 7, 2),
     )
 
     fun parse(s: String?): List<GridEntry>? = s?.split(',')?.mapNotNull { e ->
         val p = e.split(':')
-        if (p.size != 3) null else GridEntry(p[0], p[1].toIntOrNull() ?: 1, p[2].toIntOrNull() ?: 1)
+        when (p.size) {
+            3 -> GridEntry(p[0], p[1].toIntOrNull() ?: 1, p[2].toIntOrNull() ?: 1)
+            6 -> GridEntry(p[0], p[1].toIntOrNull() ?: 1, p[2].toIntOrNull() ?: 1, p[3].toIntOrNull() ?: -1, p[4].toIntOrNull() ?: -1, p[5].toIntOrNull() ?: 0)
+            else -> null
+        }
     }
 
-    fun format(list: List<GridEntry>) = list.joinToString(",") { "${it.id}:${it.w}:${it.h}" }
+    fun format(list: List<GridEntry>) = list.joinToString(",") { "${it.id}:${it.w}:${it.h}:${it.x}:${it.y}:${it.page}" }
+
+    /** Elements at their fixed places; those without a (valid, free) place go into the first free spot. */
+    fun place(list: List<GridEntry>, cols: Int): List<Placed> {
+        val used = HashMap<Int, Array<BooleanArray>>()
+        fun grid(p: Int) = used.getOrPut(p) { Array(ROWS) { BooleanArray(cols) } }
+        fun fits(e: GridEntry, x: Int, y: Int, p: Int): Boolean {
+            if (x < 0 || y < 0 || x + e.w > cols || y + e.h > ROWS) return false
+            val g = grid(p)
+            for (yy in y until y + e.h) for (xx in x until x + e.w) if (g[yy][xx]) return false
+            return true
+        }
+        fun mark(e: GridEntry, x: Int, y: Int, p: Int) {
+            val g = grid(p)
+            for (yy in y until y + e.h) for (xx in x until x + e.w) g[yy][xx] = true
+        }
+        val out = arrayOfNulls<Placed>(list.size)
+        val later = mutableListOf<Int>()
+        list.forEachIndexed { i, raw ->
+            val e = raw.copy(w = raw.w.coerceIn(1, cols), h = raw.h.coerceIn(1, ROWS))
+            if (fits(e, e.x, e.y, e.page)) {
+                mark(e, e.x, e.y, e.page)
+                out[i] = Placed(e, e.page, e.x, e.y)
+            } else later += i
+        }
+        for (i in later) {
+            val e = list[i].copy(w = list[i].w.coerceIn(1, cols), h = list[i].h.coerceIn(1, ROWS))
+            var p = 0
+            while (out[i] == null) {
+                loop@ for (y in 0..ROWS - e.h) for (x in 0..cols - e.w) if (fits(e, x, y, p)) {
+                    mark(e, x, y, p)
+                    out[i] = Placed(e.copy(x = x, y = y, page = p), p, x, y)
+                    break@loop
+                }
+                p++
+            }
+        }
+        return out.map { it!! }
+    }
 
     /** First-fit packing in reading order; elements that no longer fit start the next page. */
     fun pack(list: List<GridEntry>, cols: Int): List<Placed> {

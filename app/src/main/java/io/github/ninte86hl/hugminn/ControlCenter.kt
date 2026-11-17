@@ -28,8 +28,8 @@ import kotlin.math.abs
  * Controller: D-pad moves, A chooses, left/right change sliders, B goes back/closes.
  */
 class ControlCenter(private val svc: HugminnService) {
-    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null)
-    private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val swatch: Int = 0, val run: (() -> Unit)?)
+    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false)
+    private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val swatch: Int = 0, val header: Boolean = false, val run: (() -> Unit)?)
 
     var isOpen = false
         private set
@@ -263,11 +263,11 @@ class ControlCenter(private val svc: HugminnService) {
     /** (Re)builds the grid page and the footer, keeping the edit state. */
     private fun renderGrid() {
         val body = bodyView ?: return
-        if (!editing) entries = svc.prefs.ccGrid.toMutableList()
         gridCols = computeCols()
-        placed = GridLayout.pack(entries, gridCols)
-        if (editing) placed.getOrNull(editIndex)?.let { gridPage = it.page }
-        gridPage = gridPage.coerceIn(0, pages() - 1)
+        if (!editing) entries = svc.prefs.ccGrid.toMutableList()
+        placed = GridLayout.place(entries, gridCols)
+        val pageCount = pages() + if (editing) 1 else 0 // one empty page to add more while editing
+        gridPage = gridPage.coerceIn(0, pageCount - 1)
         graphUpdates.removeAll { it is GridUpdate }
         refreshers.clear()
         sliderItems.clear()
@@ -277,28 +277,63 @@ class ControlCenter(private val svc: HugminnService) {
         body.removeAllViews()
         val board = GridBoard(svc, gridCols, 10 * d)
         val rootOk = Root.available()
+        val covered = Array(GridLayout.ROWS) { BooleanArray(gridCols) }
+        val cursorEl = if (editing) elementAt(cursorX, cursorY) else -1
         placed.forEachIndexed { idx, pl ->
             if (pl.page != gridPage) return@forEachIndexed
+            for (yy in pl.y until pl.y + pl.entry.h) for (xx in pl.x until (pl.x + pl.entry.w).coerceAtMost(gridCols)) covered[yy][xx] = true
             val (view, item) = element(pl.entry, rootOk)
             if (editing) {
-                val sel = idx == editIndex
+                val sel = idx == cursorEl
                 view.foreground = if (sel) shape(0, 22f * d, (if (holding) 5 else 3) * d, if (holding) tileOn() else pal.onSurface) else null
                 if (sel && holding) { view.scaleX = 0.94f; view.scaleY = 0.94f }
-                items += Item(view, null)
-                itemEntry += idx
             } else if (item != null) {
                 items += item
                 itemEntry += idx
             }
             board.place(view, pl.x, pl.y, pl.entry.w.coerceAtMost(gridCols), pl.entry.h)
         }
+        if (editing) {
+            // Free cells as dashed squares; A on one adds something there
+            for (y in 0 until GridLayout.ROWS) for (x in 0 until gridCols) {
+                if (covered[y][x]) continue
+                val sel = cursorEl < 0 && x == cursorX && y == cursorY
+                val cell = View(svc).apply {
+                    background = android.graphics.drawable.GradientDrawable().apply {
+                        cornerRadius = 22f * d
+                        setStroke(2 * d, if (sel) pal.onSurface else pal.outline, 8f * d, 6f * d)
+                        setColor(if (sel) (pal.onSurface and 0x00FFFFFF) or 0x1A000000 else 0)
+                    }
+                    val cx = x
+                    val cy = y
+                    setOnClickListener { cursorX = cx; cursorY = cy; editKey(KeyEvent.KEYCODE_BUTTON_A) }
+                }
+                board.place(cell, x, y, 1, 1)
+            }
+        }
         body.addView(board, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-        if (placed.isEmpty()) body.addView(text("Leer – mit Y Elemente hinzufügen", 15f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER },
+        if (!editing && placed.isEmpty()) body.addView(text("Leer – Y drücken und „Anordnen“ wählen", 15f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER },
             FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         gearItem?.let { if (!editing) items += it }
-        focus = if (editing) itemEntry.indexOf(editIndex).coerceAtLeast(0) else 0
+        if (!editing) focus = focus.coerceIn(0, (items.size - 1).coerceAtLeast(0))
         renderFooter()
         body.post { showFocus() }
+    }
+
+    private var cursorX = 0
+    private var cursorY = 0
+
+    /** Index of the element covering a cell on the current page, or -1. */
+    private fun elementAt(x: Int, y: Int): Int = placed.indexOfFirst {
+        it.page == gridPage && x >= it.x && x < it.x + it.entry.w && y >= it.y && y < it.y + it.entry.h
+    }
+
+    /** True if [e] fits at x/y on [page] without overlapping others (except [ignore]). */
+    private fun fitsAt(e: GridEntry, x: Int, y: Int, page: Int, ignore: Int): Boolean {
+        if (x < 0 || y < 0 || x + e.w > gridCols || y + e.h > GridLayout.ROWS) return false
+        return placed.withIndex().none { (i, p) ->
+            i != ignore && p.page == page && x < p.x + p.entry.w && p.x < x + e.w && y < p.y + p.entry.h && p.y < y + e.h
+        }
     }
 
     private fun renderFooter() {
@@ -308,13 +343,15 @@ class ControlCenter(private val svc: HugminnService) {
             footer.addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
             footer.addView(text(s, 13f, pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
         }
-        if (pages() > 1) footer.addView(text("Seite ${gridPage + 1}/${pages()}", 13f, pal.onSurfaceVariant).apply { setPadding(0, 0, 16 * d, 0) })
+        val pc = pages() + if (editing) 1 else 0
+        if (pc > 1) footer.addView(text("Seite ${gridPage + 1}/$pc", 13f, pal.onSurfaceVariant).apply { setPadding(0, 0, 16 * d, 0) })
         if (editing) {
-            footer.addView(text("Bearbeiten", 13f, pal.primary, bold = true).apply { setPadding(0, 0, 16 * d, 0) }, lp(0, WRAP, 1f))
-            hint(KeyEvent.KEYCODE_BUTTON_A, if (holding) "Ablegen" else "Aufnehmen")
-            hint(KeyEvent.KEYCODE_BUTTON_L1, "Größe")
-            hint(KeyEvent.KEYCODE_BUTTON_X, "Entfernen")
-            hint(KeyEvent.KEYCODE_BUTTON_Y, "Hinzufügen")
+            footer.addView(text(if (holding) "Verschieben: Steuerkreuz" else "Bearbeiten", 13f, pal.primary, bold = true).apply { setPadding(0, 0, 16 * d, 0) }, lp(0, WRAP, 1f))
+            if (holding) hint(KeyEvent.KEYCODE_BUTTON_A, "Ablegen") else {
+                hint(KeyEvent.KEYCODE_BUTTON_A, if (elementAt(cursorX, cursorY) >= 0) "Optionen" else "Hinzufügen")
+                hint(KeyEvent.KEYCODE_BUTTON_X, "Entfernen")
+                hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
+            }
             hint(KeyEvent.KEYCODE_BUTTON_B, "Fertig")
         } else {
             if (!svc.prefs.githubToken.isNullOrBlank()) hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback")
@@ -338,16 +375,18 @@ class ControlCenter(private val svc: HugminnService) {
     private fun element(e: GridEntry, rootOk: Boolean): Pair<View, Item?> {
         val id = e.id
         if (GridLayout.isSlider(id)) {
-            val v = if (id == "brightness") BigSlider(svc, pal, IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc), pixel) { Device.setBrightness(svc, it) }
+            val vertical = e.h > e.w
+            val v = if (id == "brightness") BigSlider(svc, pal, IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
             else {
                 val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                BigSlider(svc, pal, IconView.Kind.SPEAKER, "Lautstärke", max, audio.getStreamVolume(AudioManager.STREAM_MUSIC), pixel) {
+                BigSlider(svc, pal, IconView.Kind.SPEAKER, "Lautstärke", max, audio.getStreamVolume(AudioManager.STREAM_MUSIC), pixel, vertical) {
                     audio.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
                 }
             }
             val wrap = FrameLayout(svc)
-            wrap.addView(v, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, (56 * d).coerceAtMost(9999), Gravity.CENTER_VERTICAL))
-            return wrap to Item(v, null) { dir -> v.step(5 * dir) }
+            wrap.addView(v, if (vertical) FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            else FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 56 * d, Gravity.CENTER_VERTICAL))
+            return wrap to Item(v, null, { dir -> v.step(5 * dir) }, vertical)
         }
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc) to null
@@ -849,10 +888,9 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     private fun changePage(dir: Int): Boolean {
-        val n = pages()
+        val n = pages() + if (editing) 1 else 0
         if (n < 2) return false
         gridPage = (gridPage + dir + n) % n
-        if (editing) placed.indexOfFirst { it.page == gridPage }.takeIf { it >= 0 }?.let { editIndex = it }
         renderGrid()
         return true
     }
@@ -929,6 +967,13 @@ class ControlCenter(private val svc: HugminnService) {
             })
             if (e.swatch != 0) row.addView(View(svc).apply { background = shape(e.swatch, 12f * d, 1 * d, pal.outline) },
                 lp(24 * d, 24 * d).apply { marginEnd = 12 * d })
+            if (e.header) {
+                row.minimumHeight = 34 * d
+                row.addView(text(e.label, 13f, pal.primary, bold = true))
+                list.addView(row, lp(MATCH, WRAP))
+                menuRows += row
+                return@forEachIndexed
+            }
             val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
             col.addView(text(e.label, 15f, if (e.run == null) pal.onSurfaceVariant else pal.onSurface, bold = e.checked))
             e.hint?.let { col.addView(text(it, 12f, pal.onSurfaceVariant)) }
@@ -1002,10 +1047,7 @@ class ControlCenter(private val svc: HugminnService) {
         val best = nearest(dx, dy)
         if (best >= 0) {
             focus = best
-            if (editing) {
-                editIndex = itemEntry.getOrNull(best) ?: editIndex
-                renderGrid()
-            } else showFocus()
+            showFocus()
         } else if (dx != 0 && items.getOrNull(focus)?.onAdjust == null) {
             // Past the last element of a page: next/previous page.
             changePage(dx)
@@ -1040,94 +1082,130 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun startEdit() {
         closeMenu()
-        entries = svc.prefs.ccGrid.toMutableList()
-        editIndex = itemEntry.getOrNull(focus)?.coerceIn(0, (entries.size - 1).coerceAtLeast(0)) ?: 0
+        // Freeze every element at the place it has now
+        placed = GridLayout.place(svc.prefs.ccGrid, computeCols())
+        entries = placed.map { it.entry.copy(x = it.x, y = it.y, page = it.page) }.toMutableList()
         editing = true
         holding = false
+        cursorX = 0
+        cursorY = 0
         renderGrid()
     }
 
     private fun finishEdit() {
-        svc.prefs.ccGrid = entries.toList()
+        svc.prefs.ccGrid = placed.map { it.entry.copy(x = it.x, y = it.y, page = it.page) }
         editing = false
         holding = false
         renderGrid()
     }
 
     private fun editKey(code: Int) {
+        val el = elementAt(cursorX, cursorY)
         when (code) {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
                 val dx = when (code) { KeyEvent.KEYCODE_DPAD_LEFT -> -1; KeyEvent.KEYCODE_DPAD_RIGHT -> 1; else -> 0 }
                 val dy = when (code) { KeyEvent.KEYCODE_DPAD_UP -> -1; KeyEvent.KEYCODE_DPAD_DOWN -> 1; else -> 0 }
-                if (!holding) {
-                    move(dx, dy)
+                if (holding && el >= 0) {
+                    // Move the held element one cell
+                    val p = placed[el]
+                    val nx = p.x + dx
+                    val ny = p.y + dy
+                    if (!fitsAt(p.entry, nx, ny, gridPage, el)) return
+                    entries[el] = p.entry.copy(x = nx, y = ny, page = gridPage)
+                    cursorX += dx
+                    cursorY += dy
+                    renderGrid()
                     return
                 }
-                // Holding: move the element to where its neighbour in that direction is
-                val to = if (dy == 0) editIndex + dx else nearest(dx, dy).let { if (it >= 0) itemEntry.getOrNull(it) ?: -1 else -1 }
-                if (to < 0 || to >= entries.size || to == editIndex) return
-                val e = entries.removeAt(editIndex)
-                entries.add(to, e)
-                editIndex = to
+                // Cursor: jump over the element it is on
+                var nx = cursorX + dx
+                var ny = cursorY + dy
+                if (el >= 0) {
+                    val p = placed[el]
+                    if (dx > 0) nx = p.x + p.entry.w
+                    if (dx < 0) nx = p.x - 1
+                    if (dy > 0) ny = p.y + p.entry.h
+                    if (dy < 0) ny = p.y - 1
+                }
+                if (nx < 0 || nx >= gridCols) { changePage(if (nx < 0) -1 else 1); cursorX = if (nx < 0) gridCols - 1 else 0; renderGrid(); return }
+                if (ny < 0 || ny >= GridLayout.ROWS) return
+                cursorX = nx
+                cursorY = ny
                 renderGrid()
             }
-            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                holding = !holding
-                renderGrid()
+            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> when {
+                holding -> { holding = false; renderGrid() }
+                el >= 0 -> elementMenu(el)
+                else -> addMenu()
             }
-            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> {
-                val e = entries.getOrNull(editIndex) ?: return
-                val sizes = GridLayout.sizes(e.id, gridCols)
-                val cur = sizes.indexOfFirst { it.first == e.w && it.second == e.h }.let { if (it < 0) 0 else it }
-                val next = (cur + if (code == KeyEvent.KEYCODE_BUTTON_R1) 1 else -1 + sizes.size) % sizes.size
-                entries[editIndex] = e.copy(w = sizes[next].first, h = sizes[next].second)
-                renderGrid()
-            }
-            KeyEvent.KEYCODE_BUTTON_X -> {
-                if (entries.isEmpty()) return
-                entries.removeAt(editIndex)
-                editIndex = editIndex.coerceAtMost((entries.size - 1).coerceAtLeast(0))
+            KeyEvent.KEYCODE_BUTTON_X -> if (el >= 0) {
+                entries.removeAt(el)
                 holding = false
                 renderGrid()
             }
-            KeyEvent.KEYCODE_BUTTON_Y -> addMenu()
+            KeyEvent.KEYCODE_BUTTON_Y -> if (el < 0) addMenu() else elementMenu(el)
+            KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
+            KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> if (holding) { holding = false; renderGrid() } else finishEdit()
         }
     }
 
-    /** Adds an element that is not on the grid yet (after the selected one). */
+    private fun sizeLabel(w: Int, h: Int) = "$w×$h" + when {
+        w == 1 && h == 1 -> " (klein)"
+        h > w -> " (hoch)"
+        w > h -> " (breit)"
+        else -> " (groß)"
+    }
+
+    /** A on an element: move, size, remove. */
+    private fun elementMenu(el: Int) {
+        val p = placed.getOrNull(el) ?: return
+        val e = p.entry
+        showMenu(GridLayout.name(e.id), listOf(
+            MenuEntry("Verschieben", hint = "Mit dem Steuerkreuz, A legt ab") { holding = true; cursorX = p.x; cursorY = p.y; renderGrid() },
+            MenuEntry("Größe", hint = sizeLabel(e.w, e.h)) {
+                val options = GridLayout.sizes(e.id, gridCols).filter { (w, h) -> fitsAt(e.copy(w = w, h = h), p.x, p.y, gridPage, el) }
+                showMenu("Größe", options.map { (w, h) ->
+                    MenuEntry(sizeLabel(w, h), checked = w == e.w && h == e.h) {
+                        entries[el] = e.copy(w = w, h = h, x = p.x, y = p.y, page = gridPage)
+                        renderGrid()
+                    }
+                })
+            },
+            MenuEntry("Entfernen") {
+                entries.removeAt(el)
+                renderGrid()
+            },
+        ))
+    }
+
+    /** A on a free cell: choose what goes there, sorted by type. */
     private fun addMenu() {
         val rootOk = Root.available()
         val present = entries.map { it.id }.toSet()
-        val ids = (GridLayout.widgetNames.keys + TileCatalog.all.keys).filter { it !in present }
-            .filter { GridLayout.isInfo(it) || GridLayout.isSlider(it) || tileFor(it, rootOk) != null }
-        if (ids.isEmpty()) {
-            showMenu("Hinzufügen", listOf(MenuEntry("Alles ist schon auf dem Raster", run = null)))
-            return
+        fun entryFor(id: String): MenuEntry = MenuEntry(GridLayout.name(id)) { placeAtCursor(id) }
+        val switches = TileCatalog.all.keys.filter { it !in present && tileFor(it, rootOk) != null }
+        val infos = GridLayout.widgetNames.keys.filter { GridLayout.isInfo(it) && it !in present }
+        val sliders = GridLayout.widgetNames.keys.filter { GridLayout.isSlider(it) && it !in present }
+        val list = mutableListOf<MenuEntry>()
+        if (infos.isNotEmpty()) { list += MenuEntry("Anzeigen", header = true, run = null); infos.forEach { list += entryFor(it) } }
+        if (sliders.isNotEmpty()) { list += MenuEntry("Regler", header = true, run = null); sliders.forEach { list += entryFor(it) } }
+        if (switches.isNotEmpty()) { list += MenuEntry("Schalter", header = true, run = null); switches.forEach { list += entryFor(it) } }
+        if (list.isEmpty()) list += MenuEntry("Alles ist schon im Raster", run = null)
+        showMenu("Hinzufügen", list)
+    }
+
+    /** Puts [id] at the cursor in the largest preferred size that fits there. */
+    private fun placeAtCursor(id: String) {
+        val preferred = when {
+            GridLayout.isSlider(id) -> listOf(1 to 2, 2 to 1, 1 to 3, 3 to 1)
+            id == "fps" -> listOf(2 to 2, 2 to 1, 1 to 1)
+            GridLayout.isInfo(id) -> listOf(2 to 1, 1 to 1, 2 to 2)
+            else -> listOf(1 to 1, 2 to 1)
         }
-        showMenu("Hinzufügen", ids.map { id ->
-            MenuEntry(GridLayout.name(id), hint = when {
-                GridLayout.isSlider(id) -> "Regler"
-                GridLayout.isInfo(id) -> "Anzeige"
-                else -> "Schalter"
-            }) {
-                val size = when {
-                    GridLayout.isSlider(id) -> 4 to 1
-                    id == "temp" || id == "battery" -> 1 to 1
-                    GridLayout.isInfo(id) -> 2 to 1
-                    else -> 1 to 1
-                }
-                if (!editing) {
-                    entries = svc.prefs.ccGrid.toMutableList()
-                    editing = true
-                }
-                val at = if (entries.isEmpty()) 0 else (editIndex + 1).coerceAtMost(entries.size)
-                entries.add(at, GridEntry(id, size.first, size.second))
-                editIndex = at
-                holding = false
-                renderGrid()
-            }
-        })
+        val size = preferred.firstOrNull { (w, h) -> fitsAt(GridEntry(id, w, h), cursorX, cursorY, gridPage, -1) } ?: return
+        entries.add(GridEntry(id, size.first, size.second, cursorX, cursorY, gridPage))
+        renderGrid()
     }
 
     // ---------- editing (Y): layout, tiles, colours, style ----------
@@ -1603,10 +1681,10 @@ class ControlCenter(private val svc: HugminnService) {
         }
         val item = items.getOrNull(focus)
         when (e.keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> move(0, -1)
-            KeyEvent.KEYCODE_DPAD_DOWN -> move(0, 1)
-            KeyEvent.KEYCODE_DPAD_LEFT -> item?.onAdjust?.invoke(-1) ?: move(-1, 0)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> item?.onAdjust?.invoke(1) ?: move(1, 0)
+            KeyEvent.KEYCODE_DPAD_UP -> if (item?.vertical == true) item.onAdjust?.invoke(1) else move(0, -1)
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (item?.vertical == true) item.onAdjust?.invoke(-1) else move(0, 1)
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (item?.vertical == false && item.onAdjust != null) item.onAdjust.invoke(-1) else move(-1, 0)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (item?.vertical == false && item.onAdjust != null) item.onAdjust.invoke(1) else move(1, 0)
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()
