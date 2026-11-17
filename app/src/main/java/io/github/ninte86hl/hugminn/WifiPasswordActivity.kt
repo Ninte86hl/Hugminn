@@ -53,7 +53,7 @@ class WifiPasswordActivity : Activity() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = Look.shape(this@WifiPasswordActivity, pixel, pal.surfaceHigh, dp(24).toFloat(), dp(1), pal.outline)
-            setPadding(dp(24), dp(20), dp(24), dp(18))
+            setPadding(dp(20), dp(14), dp(20), dp(12))
         }
         box.addView(label("WLAN verbinden", 20f, pal.onSurface, bold = true))
         box.addView(label(ssid, 14f, pal.onSurfaceVariant).apply { setPadding(0, dp(4), 0, dp(12)) })
@@ -114,8 +114,11 @@ class WifiPasswordActivity : Activity() {
                 v.setPadding(0, dp(16), 0, nav)
                 ins
             }
-            addView(box, LinearLayout.LayoutParams(dp(520), LinearLayout.LayoutParams.WRAP_CONTENT))
-            addView(View(this@WifiPasswordActivity), LinearLayout.LayoutParams(1, 0, 1f))
+            // the window takes the room the keyboard leaves and scrolls if needed: the keyboard is always whole
+            addView(android.widget.ScrollView(this@WifiPasswordActivity).apply {
+                isFillViewport = false
+                addView(box, android.widget.FrameLayout.LayoutParams(dp(520), android.widget.FrameLayout.LayoutParams.WRAP_CONTENT))
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 0, 1f).apply { bottomMargin = dp(8) })
             addView(keyboard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 setMargins(dp(12), 0, dp(12), dp(16))
             })

@@ -54,7 +54,7 @@ class FeedbackActivity : Activity() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = Look.shape(this@FeedbackActivity, pixel, pal.surfaceHigh, dp(24).toFloat(), dp(1), pal.outline)
-            setPadding(dp(24), dp(20), dp(24), dp(18))
+            setPadding(dp(20), dp(14), dp(20), dp(12))
         }
         box.addView(label("Feedback", 20f, pal.onSurface, bold = true))
         box.addView(label("Screenshot ist gemacht. Was ist dir aufgefallen? (optional)", 13f, pal.onSurfaceVariant).apply { setPadding(0, dp(4), 0, dp(12)) })
@@ -66,8 +66,8 @@ class FeedbackActivity : Activity() {
             typeface = Look.font(this@FeedbackActivity, pixel, false)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            minLines = 3
-            maxLines = 6
+            minLines = 2
+            maxLines = 3
             gravity = Gravity.TOP or Gravity.START
             background = Look.shape(this@FeedbackActivity, pixel, pal.surface, dp(14).toFloat())
             setPadding(dp(14), dp(12), dp(14), dp(12))
@@ -124,8 +124,11 @@ class FeedbackActivity : Activity() {
                 v.setPadding(0, dp(16), 0, nav)
                 ins
             }
-            addView(box, LinearLayout.LayoutParams(dp(560), LinearLayout.LayoutParams.WRAP_CONTENT))
-            addView(View(this@FeedbackActivity), LinearLayout.LayoutParams(1, 0, 1f))
+            // the window takes the room the keyboard leaves and scrolls if needed: the keyboard is always whole
+            addView(android.widget.ScrollView(this@FeedbackActivity).apply {
+                isFillViewport = false
+                addView(box, android.widget.FrameLayout.LayoutParams(dp(560), android.widget.FrameLayout.LayoutParams.WRAP_CONTENT))
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 0, 1f).apply { bottomMargin = dp(8) })
             addView(keyboard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 setMargins(dp(12), 0, dp(12), dp(16))
             })
