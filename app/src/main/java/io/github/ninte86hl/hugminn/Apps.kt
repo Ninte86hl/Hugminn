@@ -39,6 +39,18 @@ object Apps {
         return labelCache
     }
 
+    /** Installed apps that control the stick LEDs (Bifrost, AmbiLuma …): label to package, sorted by name. */
+    fun ledApps(ctx: Context): List<Pair<String, String>> {
+        val pm = ctx.packageManager
+        val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val rx = Regex("bifrost|ambi ?luma|\\bled\\b", RegexOption.IGNORE_CASE)
+        return pm.queryIntentActivities(i, 0)
+            .map { it.loadLabel(pm).toString() to it.activityInfo.packageName }
+            .filter { (label, pkg) -> pkg.startsWith("com.moonbench.bifrost") || rx.containsMatchIn(label) || rx.containsMatchIn(pkg) }
+            .distinctBy { it.second }
+            .sortedBy { it.first.lowercase() }
+    }
+
     fun icon(ctx: Context, pkg: String?): Drawable? = pkg?.let {
         try {
             ctx.packageManager.getApplicationIcon(it)

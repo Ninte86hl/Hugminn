@@ -146,6 +146,11 @@ class Prefs(ctx: Context) {
         get() = p.getInt("volumePct", -1)
         set(v) = p.edit().putInt("volumePct", v).apply()
 
+    /** Package of the app that sets the stick LED colours (empty: none, the tile only switches). */
+    var ledApp: String
+        get() = p.getString("ledApp", "") ?: ""
+        set(v) = p.edit().putString("ledApp", v).apply()
+
     var gaugePalette: GaugePalette
         get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)
         set(v) = p.edit().putString("gaugePalette", v.name).apply()

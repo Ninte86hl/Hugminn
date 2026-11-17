@@ -1041,23 +1041,23 @@ class ControlCenter(private val svc: HugminnService) {
         showMenu("Bluetooth", entries)
     }
 
-    /** Stick LEDs: switch, or hand the colours over to an LED app that is installed (Bifrost, AmbiLuma …). */
+    /** Stick LEDs: without an LED app chosen in the settings the tile only switches; with one it offers both. */
     private fun ledMenu() {
         val on = Device.stickLeds(svc)
-        val entries = mutableListOf<MenuEntry>()
-        entries += MenuEntry(if (on) "LEDs ausschalten" else "LEDs einschalten") { Device.setStickLeds(!on) { refreshAll() } }
-        val labels = Apps.labels(svc)
-        val apps = labels.entries.filter { (label, pkg) ->
-            pkg == "com.moonbench.bifrost" || Regex("bifrost|ambiluma|ambi ?luma|\\bled\\b", RegexOption.IGNORE_CASE).containsMatchIn(label)
-        }.sortedBy { it.key.lowercase() }
-        if (apps.isNotEmpty()) entries += MenuEntry("Farben & Effekte", header = true, run = null)
-        apps.forEach { (label, pkg) ->
-            entries += MenuEntry("In $label öffnen", hint = pkg) {
-                close()
-                svc.packageManager.getLaunchIntentForPackage(pkg)?.let { svc.startApp(it) }
-            }
+        val pkg = svc.prefs.ledApp.takeIf { it.isNotEmpty() }
+        val intent = pkg?.let { svc.packageManager.getLaunchIntentForPackage(it) }
+        if (intent == null) {
+            Device.setStickLeds(!on) { refreshAll() }
+            return
         }
-        showMenu("Stick-LEDs", entries)
+        val label = runCatching { svc.packageManager.getApplicationLabel(svc.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+        showMenu("Stick-LEDs", listOf(
+            MenuEntry(if (on) "LEDs ausschalten" else "LEDs einschalten") { Device.setStickLeds(!on) { refreshAll() } },
+            MenuEntry("Farben & Effekte in $label") {
+                close()
+                svc.startApp(intent)
+            },
+        ))
     }
 
     private fun openSystem(action: String) {
