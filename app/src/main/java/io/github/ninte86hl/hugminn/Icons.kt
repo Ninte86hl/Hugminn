@@ -9,7 +9,7 @@ import android.view.View
 
 /** Simple line icons drawn in code, so they look the same everywhere and follow the theme colour. */
 class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 22) : View(ctx) {
-    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO }
+    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE }
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -135,6 +135,31 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
             Kind.THERMO -> {
                 c.drawRoundRect(RectF(s * 0.4f, s * 0.08f, s * 0.6f, s * 0.66f), s * 0.1f, s * 0.1f, p)
                 c.drawCircle(m, s * 0.76f, s * 0.15f, p)
+            }
+            Kind.PLUG -> {
+                c.drawRoundRect(RectF(s * 0.28f, s * 0.3f, s * 0.72f, s * 0.62f), s * 0.08f, s * 0.08f, p)
+                c.drawLine(s * 0.4f, s * 0.12f, s * 0.4f, s * 0.3f, p)
+                c.drawLine(s * 0.6f, s * 0.12f, s * 0.6f, s * 0.3f, p)
+                c.drawLine(m, s * 0.62f, m, s * 0.9f, p)
+            }
+            Kind.VIBRATE -> {
+                c.drawRoundRect(RectF(s * 0.32f, s * 0.14f, s * 0.68f, s * 0.86f), s * 0.08f, s * 0.08f, p)
+                c.drawLine(s * 0.18f, s * 0.36f, s * 0.18f, s * 0.64f, p)
+                c.drawLine(s * 0.82f, s * 0.36f, s * 0.82f, s * 0.64f, p)
+            }
+            Kind.LOCK -> {
+                c.drawRoundRect(RectF(s * 0.2f, s * 0.44f, s * 0.8f, s * 0.88f), s * 0.08f, s * 0.08f, p)
+                c.drawArc(RectF(s * 0.32f, s * 0.12f, s * 0.68f, s * 0.6f), 180f, 180f, false, p)
+            }
+            Kind.PALETTE -> {
+                c.drawCircle(m, m, s * 0.36f, p)
+                p.style = Paint.Style.FILL
+                c.drawArc(RectF(s * 0.14f, s * 0.14f, s * 0.86f, s * 0.86f), 90f, 180f, true, p)
+                p.style = Paint.Style.STROKE
+            }
+            Kind.MOUSE -> {
+                c.drawRoundRect(RectF(s * 0.26f, s * 0.12f, s * 0.74f, s * 0.88f), s * 0.24f, s * 0.24f, p)
+                c.drawLine(m, s * 0.12f, m, s * 0.4f, p)
             }
             Kind.GEAR -> {
                 c.drawCircle(m, m, s * 0.14f, p)

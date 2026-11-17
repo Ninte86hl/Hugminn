@@ -315,6 +315,34 @@ class ControlCenter(private val svc: HugminnService) {
                 svc.ui.post { android.widget.Toast.makeText(svc, "$mb MB freigegeben", android.widget.Toast.LENGTH_SHORT).show() }
             }.start()
         } else null
+        "landscape" -> sysTile(rootOk, "Querformat erzwingen", IconView.Kind.SCREEN, "force_landscape")
+        "vibration" -> sysTile(rootOk, "Vibration", IconView.Kind.VIBRATE, "haptic_feedback_enabled")
+        "keymapper" -> sysTile(rootOk, "Tastenzuordnung", IconView.Kind.GAMEPAD, "key_adapter_enable")
+        "mouse" -> sysTile(rootOk, "Mausmodus", IconView.Kind.MOUSE, "global_gamepad_to_mouse_mode")
+        "homelock" -> sysTile(rootOk, "Home-Sperre", IconView.Kind.LOCK, "prevent_press_home_accidentally")
+        "chargesep" -> sysTile(rootOk, "Direkte Stromversorgung", IconView.Kind.PLUG, "is_charging_separation")
+        "trigger" -> if (rootOk && Device.sys(svc, "trigger_input_mode") != null) Tile("Trigger-Modus", IconView.Kind.GAMEPAD, {
+            Device.profileLabel(svc, "trigger_input_mode", Device.triggerModes)
+        }, { false }) {
+            profileMenu("Trigger-Modus", "trigger_input_mode", Device.triggerModes) { v -> Device.setSys("trigger_input_mode", v) { refreshAll() } }
+        } else null
+        "controller" -> if (rootOk && Device.sys(svc, "temp_abxy_layout_mode") != null) Tile("Tastenlayout", IconView.Kind.GAMEPAD, {
+            if (Glyphs.nintendoLayout()) "Retroid" else "Xbox"
+        }, { false }) {
+            showMenu("Tastenlayout", listOf(
+                MenuEntry("Xbox (A unten)", checked = !Glyphs.nintendoLayout()) { Device.setControllerLayout(false) { refreshAll() } },
+                MenuEntry("Retroid / Nintendo (A rechts)", checked = Glyphs.nintendoLayout()) { Device.setControllerLayout(true) { refreshAll() } },
+            ))
+        } else null
+        "theme" -> Tile("Farbschema", IconView.Kind.PALETTE, { svc.prefs.theme.label }, { false }) {
+            showMenu("Farbschema", Theme.values().map { t ->
+                MenuEntry(t.label, checked = svc.prefs.theme == t) {
+                    svc.prefs.theme = t
+                    close()
+                    svc.ui.postDelayed({ open() }, 60)
+                }
+            })
+        }
         "screenshot" -> Tile("Screenshot", IconView.Kind.CAMERA, { null }, { false }) {
             close()
             svc.ui.postDelayed({ svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) }, 300)
@@ -329,6 +357,13 @@ class ControlCenter(private val svc: HugminnService) {
         }
         else -> null
     }
+
+    /** On/off tile for a firmware system setting; hidden if this device does not have the setting. */
+    private fun sysTile(rootOk: Boolean, title: String, icon: IconView.Kind, key: String): Tile? =
+        if (!rootOk || Device.sys(svc, key) == null) null
+        else Tile(title, icon, { if (Device.sysOn(svc, key)) "An" else "Aus" }, { Device.sysOn(svc, key) }) {
+            Device.setSys(key, if (Device.sysOn(svc, key)) "0" else "1") { refreshAll() }
+        }
 
     private fun controls(): View {
         val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }

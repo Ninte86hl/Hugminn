@@ -12,8 +12,22 @@ object Device {
     fun performance(ctx: Context) = (sys(ctx, "performance_mode") ?: "0") != "0"
 
     /** Known profiles (value → name). Values not listed yet are shown raw and can still be picked. */
-    val perfProfiles = linkedMapOf("0" to "Normal", "1" to "Leistung")
-    val fanProfiles = linkedMapOf("1" to "Leise", "4" to "Smart")
+    // Values as used by the shared Retroid/AYN firmware (fan 6 = custom speed from fan_speed).
+    val perfProfiles = linkedMapOf("0" to "Normal", "1" to "Leistung", "2" to "Hohe Leistung")
+    val fanProfiles = linkedMapOf("0" to "Aus", "1" to "Leise", "4" to "Smart", "5" to "Sport", "6" to "Benutzerdefiniert")
+    val triggerModes = linkedMapOf("2" to "Analog + Digital", "1" to "Nur analog", "0" to "Nur digital")
+
+    /** Simple on/off system settings of the firmware (1 = on). */
+    fun sysOn(ctx: Context, key: String) = sys(ctx, key)?.trim() == "1"
+    fun setSys(key: String, value: String, then: () -> Unit) = Root.run(Root.putSetting("system", key, value), then = then)
+
+    /** Button layout: Xbox (A bottom) or Retroid/Nintendo (A right). */
+    fun setControllerLayout(nintendo: Boolean, then: () -> Unit) = Root.run(
+        Root.putSetting("system", "temp_abxy_layout_mode", if (nintendo) "1" else "0"),
+        Root.putSetting("system", "flip_button_layout", if (nintendo) "0" else "1"),
+        "setprop persist.sys.gamepad.type ${if (nintendo) 0 else 1}",
+        then = then,
+    )
 
     fun profileLabel(ctx: Context, key: String, table: Map<String, String>): String {
         val v = sys(ctx, key) ?: return "–"
