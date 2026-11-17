@@ -1442,10 +1442,10 @@ class ControlCenter(private val svc: HugminnService) {
         box.addView(sc, lp(MATCH, 0, 1f))
         r.addView(box, FrameLayout.LayoutParams((r.width * 0.9f).toInt(), (r.height * 0.9f).toInt(), Gravity.CENTER))
         gridEdit = box
-        renderGrid()
+        renderTileGrid()
     }
 
-    private fun renderGrid() {
+    private fun renderTileGrid() {
         val rootOk = Root.available()
         geTitle?.text = "Angezeigt (${geActive.size}) · Reihenfolge wie im Control Center"
         var selView: View? = null
@@ -1524,7 +1524,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
             geSel = to.coerceIn(0, total - 1)
         }
-        renderGrid()
+        renderTileGrid()
     }
 
     private fun gridA() {
@@ -1537,7 +1537,7 @@ class ControlCenter(private val svc: HugminnService) {
             // stay on the next tile to add
             geSel = (geActive.size + i).coerceAtMost(geActive.size + geAvail.size - 1)
         }
-        renderGrid()
+        renderTileGrid()
     }
 
     private fun gridRemove() {
@@ -1546,13 +1546,13 @@ class ControlCenter(private val svc: HugminnService) {
         geAvail.add(0, id)
         geMoving = false
         geSel = geSel.coerceAtMost((geActive.size + geAvail.size - 1).coerceAtLeast(0))
-        renderGrid()
+        renderTileGrid()
     }
 
     private fun gridDone() {
         if (geMoving) {
             geMoving = false
-            renderGrid()
+            renderTileGrid()
             return
         }
         svc.prefs.ccTiles = geActive.toList()
