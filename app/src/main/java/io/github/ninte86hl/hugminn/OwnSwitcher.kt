@@ -135,7 +135,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         thread {
             val list = loadTasks()
             // only trust Android's list if it could be read (otherwise keep what Hugminn has seen)
-            if (!list.isNullOrEmpty()) synchronized(this) { known = list.toMutableList() }
+            if (list != null) synchronized(this) { known = list.toMutableList() }
             then?.let { svc.ui.post(it) }
         }
     }
@@ -146,6 +146,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         val launchable = Apps.labels(svc).values.toSet()
         val res = mutableListOf<RecentApp>()
         val lines = out.lines().filter { it.contains("Recent #") }
+        // not even the home screen's entry: the list could not be read
+        if (lines.isEmpty()) { diag = "Taskliste: nicht lesbar"; return null }
         for (line in lines) {
             val type = Regex("""type=(\w+)""").find(line)?.groupValues?.get(1)
             if (type != null && type != "standard") continue
@@ -174,7 +176,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         fromPkg?.let { touch(it) }
         val show = {
             if (isOpen) {
-                apps = synchronized(this) { known.toList() }
+                apps = synchronized(this) { known.toList() }.let { l ->
+                    val f = fromPkg
+                    if (f != null && l.any { it.pkg == f }) listOf(l.first { it.pkg == f }) + l.filter { it.pkg != f } else l
+                }
                 sel = 0
                 build()
                 // complete the list with Android's tasks (ids for switching, apps opened elsewhere)
@@ -193,8 +198,24 @@ class OwnSwitcher(private val svc: HugminnService) {
             }
         }
         // the picture of the current app first (before Hugminn covers it)
+        // Android's current list first (at most ~0.45 s), so no app that was closed elsewhere shows up
+        var shown = false
+        val once = { if (!shown) { shown = true; show() } }
+        val afterList = {
+            if (Root.available()) {
+                thread {
+                    val list = loadTasks()
+                    if (list != null) synchronized(this) {
+                        known = list.toMutableList()
+                        fromPkg?.let { f -> if (known.none { it.pkg == f }) fromPkg = null }
+                    }
+                    svc.ui.post { once() }
+                }
+                svc.ui.postDelayed({ once() }, 450)
+            } else once()
+        }
         val f = fromPkg
-        if (f != null && !swipe) Snapshots.capture(svc, f) { show() } else show()
+        if (f != null && !swipe) Snapshots.capture(svc, f) { afterList() } else afterList()
     }
 
     fun close(back: Boolean) {
