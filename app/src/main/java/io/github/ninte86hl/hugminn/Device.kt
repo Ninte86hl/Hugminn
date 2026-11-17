@@ -95,11 +95,14 @@ object Device {
         "Rot" to 0xFFFF0000.toInt(),
         "Orange" to 0xFFFF6600.toInt(),
         "Gelb" to 0xFFFFDD00.toInt(),
+        "Limette" to 0xFF99FF00.toInt(),
         "Grün" to 0xFF00FF00.toInt(),
+        "Türkis" to 0xFF00FF99.toInt(),
         "Cyan" to 0xFF00FFFF.toInt(),
         "Blau" to 0xFF0000FF.toInt(),
         "Lila" to 0xFF8800FF.toInt(),
-        "Pink" to 0xFFFF00AA.toInt(),
+        "Magenta" to 0xFFFF00FF.toInt(),
+        "Pink" to 0xFFFF0077.toInt(),
     )
 
     fun airplane(ctx: Context) = Settings.Global.getInt(ctx.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) != 0

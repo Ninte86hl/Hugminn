@@ -151,6 +151,10 @@ class Prefs(ctx: Context) {
         get() = p.getString("ledApp", "") ?: ""
         set(v) = p.edit().putString("ledApp", v).apply()
 
+    var ledEffect: LedEffect
+        get() = enumOr(p.getString("ledEffect", null), LedEffect.NONE)
+        set(v) = p.edit().putString("ledEffect", v.name).apply()
+
     var gaugePalette: GaugePalette
         get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)
         set(v) = p.edit().putString("gaugePalette", v.name).apply()

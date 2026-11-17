@@ -55,6 +55,8 @@ class HugminnService : AccessibilityService() {
             }
         }.start()
         SettingsWatch.start(this)
+        // LED effect chosen last time keeps running
+        Thread { runCatching { LedFx.resume(this) } }.start()
         // A crash last time? Send the report with the system log (if feedback is set up).
         ui.postDelayed({ Feedback.sendErrorLogIfPending(this) }, 3000)
     }
@@ -68,6 +70,7 @@ class HugminnService : AccessibilityService() {
     override fun onDestroy() {
         if (::overlay.isInitialized) overlay.hide()
         SettingsWatch.stop(this)
+        LedFx.stop()
         instance = null
         super.onDestroy()
     }

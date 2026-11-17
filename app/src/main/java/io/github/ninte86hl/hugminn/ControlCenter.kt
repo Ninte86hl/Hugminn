@@ -29,7 +29,7 @@ import kotlin.math.abs
  * Controller: D-pad moves, A chooses, left/right change sliders, B goes back/closes.
  */
 class ControlCenter(private val svc: HugminnService) {
-    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false)
+    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false, val onY: (() -> Unit)? = null)
     private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val swatch: Int = 0, val header: Boolean = false, val run: (() -> Unit)?)
 
     var isOpen = false
@@ -466,8 +466,9 @@ class ControlCenter(private val svc: HugminnService) {
         } else {
             if (!svc.prefs.githubToken.isNullOrBlank()) hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback")
             if (pages() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
-            hint(KeyEvent.KEYCODE_BUTTON_Y, "Bearbeiten")
-            hint(KeyEvent.KEYCODE_BUTTON_A, "Auswählen")
+            val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
+            hint(KeyEvent.KEYCODE_BUTTON_Y, if (menuHere) "Optionen" else "Bearbeiten")
+            hint(KeyEvent.KEYCODE_BUTTON_A, if (adjusting) "Fertig" else "Auswählen")
             hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück")
         }
     }
@@ -507,7 +508,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
         val v = toggleElement(t, e)
-        return v to Item(v, t.act)
+        return v to Item(v, t.act, onY = t.menu)
     }
 
     /** Quick toggle: 1×1 only the icon, larger with name and state. */
@@ -808,7 +809,8 @@ class ControlCenter(private val svc: HugminnService) {
 
     // ---------- quick tiles ----------
 
-    private data class Tile(val title: String, val icon: IconView.Kind, val state: () -> String?, val on: () -> Boolean, val act: () -> Unit)
+    /** [menu]: submenu of the tile, opened with the edit button (△); A/tap only switches. */
+    private data class Tile(val title: String, val icon: IconView.Kind, val state: () -> String?, val on: () -> Boolean, val menu: (() -> Unit)? = null, val act: () -> Unit)
 
     private val tiles = mutableListOf<Tile>()
     private var page = 0
@@ -820,10 +822,14 @@ class ControlCenter(private val svc: HugminnService) {
     private fun pageCount() = ((tiles.size + perPage - 1) / perPage).coerceAtLeast(1)
 
     private fun tileFor(id: String, rootOk: Boolean): Tile? = when (id) {
-        "wifi" -> Tile("WLAN", IconView.Kind.WIFI, { if (Device.wifiOn(svc)) Device.wifiName(svc) ?: "An" else "Aus" }, { Device.wifiOn(svc) }) { wifiMenu(rootOk) }
+        "wifi" -> Tile("WLAN", IconView.Kind.WIFI, { if (Device.wifiOn(svc)) Device.wifiName(svc) ?: "An" else "Aus" }, { Device.wifiOn(svc) }, { wifiMenu(rootOk) }) {
+            if (rootOk) Device.setWifi(!Device.wifiOn(svc)) { refreshAll() } else wifiMenu(false)
+        }
         "bt" -> Tile("Bluetooth", IconView.Kind.BLUETOOTH, {
             if (!Device.btOn(svc)) "Aus" else Device.pairedDevices(svc).firstOrNull { it.second }?.first ?: "An"
-        }, { Device.btOn(svc) }) { btMenu(rootOk) }
+        }, { Device.btOn(svc) }, { btMenu(rootOk) }) {
+            if (rootOk) Device.setBt(!Device.btOn(svc)) { refreshAll() } else btMenu(false)
+        }
         "perf" -> if (rootOk && Device.sys(svc, "performance_mode") != null) Tile("Leistung", IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
             profileMenu("Leistung", "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
         } else null
@@ -837,7 +843,7 @@ class ControlCenter(private val svc: HugminnService) {
                     Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
                 } else null
         }
-        "leds" -> if (rootOk && Device.sys(svc, "joystick_light_enabled") != null) Tile("Stick-LEDs", IconView.Kind.LED, { if (Device.stickLeds(svc)) "An" else "Aus" }, { Device.stickLeds(svc) }) { ledMenu() } else null
+        "leds" -> if (rootOk && Device.sys(svc, "joystick_light_enabled") != null) Tile("Stick-LEDs", IconView.Kind.LED, { if (Device.stickLeds(svc)) "An" else "Aus" }, { Device.stickLeds(svc) }, { ledMenu() }) { toggleLeds() } else null
         "dnd" -> if (rootOk) Tile("Nicht stören", IconView.Kind.MOON, { if (Device.dnd(svc)) "An" else "Aus" }, { Device.dnd(svc) }) {
             Device.setDnd(!Device.dnd(svc)) { refreshAll() }
         } else null
@@ -1055,6 +1061,15 @@ class ControlCenter(private val svc: HugminnService) {
      * Stick LEDs. With an LED app chosen in the settings (Bifrost, AmbiLuma …) the menu links to it;
      * otherwise Hugminn sets the colours itself, the same way Retroid's own LED window does.
      */
+    private fun toggleLeds() {
+        val on = !Device.stickLeds(svc)
+        if (!on) LedFx.stop()
+        Device.setStickLeds(on) {
+            if (on) LedFx.resume(svc)
+            refreshAll()
+        }
+    }
+
     private fun ledMenu(select: Int = -1) {
         val on = Device.stickLeds(svc)
         val pkg = svc.prefs.ledApp.takeIf { it.isNotEmpty() }
@@ -1100,13 +1115,14 @@ class ControlCenter(private val svc: HugminnService) {
         // which stick
         val targetRow = LinearLayout(svc).apply { gravity = Gravity.CENTER }
         val targets = mutableListOf<Pair<View, () -> Unit>>()
-        listOf("Beide", "Links", "Rechts").forEachIndexed { i, label ->
+        // order: left, right, both (ledTarget: 1 left, 2 right, 0 both)
+        listOf(1 to "Links", 2 to "Rechts", 0 to "Beide").forEachIndexed { pos, (i, label) ->
             val sel = i == ledTarget
             val chip = text(label, 14f, if (sel) pal.onPrimaryContainer else pal.onSurfaceVariant, bold = sel).apply {
                 gravity = Gravity.CENTER
                 background = shape(if (sel) pal.primaryContainer else pal.surfaceHighest, 16f * d)
             }
-            val act = { ledTarget = i; ledRow = 0; ledCol = i; ledPicker() }
+            val act = { ledTarget = i; ledRow = 0; ledCol = pos; ledPicker() }
             chip.setOnClickListener { act() }
             targetRow.addView(chip, lp(76 * d, 36 * d).apply { marginStart = 4 * d; marginEnd = 4 * d })
             targets += chip to act
@@ -1116,11 +1132,11 @@ class ControlCenter(private val svc: HugminnService) {
 
         // 3 × 3 colours
         val grid = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 12 * d, 0, 12 * d) }
-        Device.ledPresets.chunked(3).forEach { line ->
+        Device.ledPresets.chunked(4).forEach { line ->
             val row = LinearLayout(svc).apply { gravity = Gravity.CENTER }
             val cells = mutableListOf<Pair<View, () -> Unit>>()
             line.forEach { (name, c) ->
-                val chosen = (current or 0xFF000000.toInt()) == c && (ledTarget != 0 || left == right)
+                val chosen = LedFx.current() == LedEffect.NONE && (current or 0xFF000000.toInt()) == c && (ledTarget != 0 || left == right)
                 val cell = FrameLayout(svc).apply {
                     background = shape(c, 16f * d)
                     contentDescription = name
@@ -1131,10 +1147,16 @@ class ControlCenter(private val svc: HugminnService) {
                     val l = if (ledTarget == 2) left else c
                     val rr = if (ledTarget == 1) right else c
                     closeMenu()
-                    Device.setLedColors(l, rr, turnOn = !on) { svc.ui.post { refreshAll() } }
+                    if (svc.prefs.ledEffect == LedEffect.BREATHE || svc.prefs.ledEffect == LedEffect.PULSE) {
+                        // breathing/pulsing keep running in the new colour
+                        Device.setLedColors(l, rr, turnOn = !on) { LedFx.resume(svc); svc.ui.post { refreshAll() } }
+                    } else {
+                        LedFx.set(svc, LedEffect.NONE)
+                        Device.setLedColors(l, rr, turnOn = !on) { svc.ui.post { refreshAll() } }
+                    }
                 }
                 cell.setOnClickListener { act() }
-                row.addView(cell, lp(72 * d, 72 * d).apply { setMargins(5 * d, 5 * d, 5 * d, 5 * d) })
+                row.addView(cell, lp(60 * d, 60 * d).apply { setMargins(5 * d, 5 * d, 5 * d, 5 * d) })
                 cells += cell to act
             }
             grid.addView(row)
@@ -1142,15 +1164,27 @@ class ControlCenter(private val svc: HugminnService) {
         }
         box.addView(grid)
 
-        // switch
-        val toggle = text(if (on) "LEDs ausschalten" else "LEDs einschalten", 14f, pal.onSurface).apply {
-            gravity = Gravity.CENTER
-            background = shape(pal.surfaceHighest, 16f * d)
+        // effects
+        box.addView(text("Effekte", 13f, pal.primary, bold = true).apply { setPadding(0, 0, 0, 6 * d) })
+        val fxRow = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+        val fx = mutableListOf<Pair<View, () -> Unit>>()
+        LedEffect.values().forEach { ef ->
+            val sel = svc.prefs.ledEffect == ef
+            val chip = text(ef.label, 13f, if (sel) pal.onPrimaryContainer else pal.onSurfaceVariant, bold = sel).apply {
+                gravity = Gravity.CENTER
+                setPadding(12 * d, 0, 12 * d, 0)
+                background = shape(if (sel) pal.primaryContainer else pal.surfaceHighest, 16f * d)
+            }
+            val act = {
+                closeMenu()
+                if (!on && ef != LedEffect.NONE) Device.setStickLeds(true) { LedFx.set(svc, ef); refreshAll() } else LedFx.set(svc, ef)
+            }
+            chip.setOnClickListener { act() }
+            fxRow.addView(chip, lp(WRAP, 36 * d).apply { marginStart = 3 * d; marginEnd = 3 * d })
+            fx += chip to act
         }
-        val toggleAct = { closeMenu(); Device.setStickLeds(!on) { refreshAll() } }
-        toggle.setOnClickListener { toggleAct() }
-        box.addView(toggle, lp(3 * 82 * d, 40 * d))
-        rows += listOf(toggle to toggleAct)
+        box.addView(fxRow)
+        rows += fx
 
         ledCells = rows
         ledRow = ledRow.coerceIn(0, rows.lastIndex)
@@ -1289,6 +1323,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun showFocus() {
         if (editing) return
         val round = pal.dots
+        renderFooter()
         if (!focusVisible) {
             items.forEach { it.view.foreground = null }
             return
@@ -2024,7 +2059,7 @@ class ControlCenter(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()
-            KeyEvent.KEYCODE_BUTTON_Y -> editMenu()
+            KeyEvent.KEYCODE_BUTTON_Y -> item?.onY?.takeIf { focusVisible }?.invoke() ?: editMenu()
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close()
         }
         return true
