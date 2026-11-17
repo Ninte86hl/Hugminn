@@ -91,9 +91,11 @@ class ControlCenter(private val svc: HugminnService) {
             isFocusable = true
             isFocusableInTouchMode = true
         }
+        topInset = if (svc.prefs.ccHideStatus) 0 else statusH
         val panel = build()
-        if (!svc.prefs.ccHideStatus) panel.setPadding(panel.paddingLeft, panel.paddingTop + statusH, panel.paddingRight, panel.paddingBottom)
+        panel.setPadding(panel.paddingLeft, panel.paddingTop + topInset, panel.paddingRight, panel.paddingBottom)
         r.addView(panel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        panelView = panel
         val lp = WindowManager.LayoutParams(
             bounds.width(), bounds.height(),
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
@@ -118,6 +120,7 @@ class ControlCenter(private val svc: HugminnService) {
         isOpen = false
         menuView = null
         editView = null
+        gridEdit = null
         svc.ui.removeCallbacks(tick)
         root?.let { runCatching { wm.removeView(it) } }
         root = null
@@ -149,6 +152,24 @@ class ControlCenter(private val svc: HugminnService) {
     private fun tileOnFg() = if (svc.prefs.tileColor == 0) pal.onPrimary else onColor(svc.prefs.tileColor)
 
     private var gearItem: Item? = null
+    private var panelView: View? = null
+    private var topInset = 0
+
+    /** Rebuilds the Control Center in place (live preview while editing). */
+    private fun rebuildPanel() {
+        val r = root ?: return
+        graphUpdates.clear()
+        refreshers.clear()
+        items.clear()
+        val p = build()
+        p.setPadding(p.paddingLeft, p.paddingTop + topInset, p.paddingRight, p.paddingBottom)
+        panelView?.let { r.removeView(it) }
+        r.addView(p, 0, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        panelView = p
+        r.post { showFocus() }
+    }
+
+    private fun size(id: String) = svc.prefs.ccSizes[id] ?: 1f
 
     private fun build(): View {
         pixel = svc.prefs.uiStyle == UiStyle.PIXEL
@@ -233,18 +254,19 @@ class ControlCenter(private val svc: HugminnService) {
                     i++
                     n++
                 }
-                add(row, lp(MATCH, 0, 1f))
+                val ids2 = blocks.subList(i - n, i).map { it.id }
+                add(row, lp(MATCH, 0, ids2.maxOf { size(it) }))
                 continue
             }
             when (b) {
-                CcBlock.TILES -> add(tilesBlock(), lp(MATCH, 0, 2.2f))
-                CcBlock.FPS -> add(fpsBlock(), lp(MATCH, 0, 1.3f))
-                CcBlock.BRIGHTNESS -> add(slider(IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc)) { Device.setBrightness(svc, it) }, lp(MATCH, 50 * d))
+                CcBlock.TILES -> add(tilesBlock(), lp(MATCH, 0, 2.2f * size("tiles")))
+                CcBlock.FPS -> add(fpsBlock(), lp(MATCH, 0, 1.3f * size("fps")))
+                CcBlock.BRIGHTNESS -> add(slider(IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc)) { Device.setBrightness(svc, it) }, lp(MATCH, (50 * d * size("brightness")).toInt()))
                 CcBlock.VOLUME -> {
                     val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                     add(slider(IconView.Kind.SPEAKER, "Lautstärke", max, audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
                         audio.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
-                    }, lp(MATCH, 50 * d))
+                    }, lp(MATCH, (50 * d * size("volume")).toInt()))
                 }
                 else -> {}
             }
@@ -731,7 +753,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun editMenu() {
         showMenu("Bearbeiten", listOf(
             MenuEntry("Layout anpassen", hint = "Bereiche ein-/ausblenden, Reihenfolge, Spalte") { layoutEditor() },
-            MenuEntry("Kacheln auswählen", hint = "Welche Kacheln, in welcher Reihenfolge") { tileEditor() },
+            MenuEntry("Kacheln auswählen", hint = "Wie bei Android: Kacheln hinzufügen, verschieben, entfernen") { tileEditor() },
             MenuEntry("Kachelfarbe", hint = TILE_COLORS[svc.prefs.tileColor] ?: "") { colorMenu() },
             MenuEntry("Form der Kacheln", hint = svc.prefs.tileShape.label) {
                 showMenu("Form der Kacheln", TileShape.values().map { t ->
@@ -756,6 +778,12 @@ class ControlCenter(private val svc: HugminnService) {
                     MenuEntry(t.label, checked = svc.prefs.theme == t) { svc.prefs.theme = t; reopen() }
                 })
             },
+            MenuEntry("Standard wiederherstellen", hint = "Layout, Kacheln, Größen und Farben zurücksetzen") {
+                showMenu("Wirklich zurücksetzen?", listOf(
+                    MenuEntry("Ja, Standard wiederherstellen") { svc.prefs.resetControlCenter(); reopen() },
+                    MenuEntry("Abbrechen") {},
+                ))
+            },
         ))
     }
 
@@ -779,13 +807,20 @@ class ControlCenter(private val svc: HugminnService) {
     private var editNote: (String) -> String = { "" }
     private var editEnableTo = 0
     private var editDone: () -> Unit = {}
+    private var editAdjust: ((String, Int) -> Unit)? = null
+    private var editLive: (() -> Unit)? = null
     private var editSel = 0
 
     private fun flat() = editSections.flatMapIndexed { si, sec -> sec.ids.indices.map { si to it } }
 
-    private fun openEditor(title: String, sections: List<EditSection>, enableTo: Int, label: (String) -> String, note: (String) -> String, done: () -> Unit) {
+    private fun openEditor(
+        title: String, sections: List<EditSection>, enableTo: Int, label: (String) -> String, note: (String) -> String,
+        adjust: ((String, Int) -> Unit)? = null, live: (() -> Unit)? = null, done: () -> Unit,
+    ) {
         val r = root ?: return
         closeMenu()
+        editAdjust = adjust
+        editLive = live
         editSections = sections
         editLabel = label
         editNote = note
@@ -809,6 +844,7 @@ class ControlCenter(private val svc: HugminnService) {
             help.addView(text(t, 12f, pal.onSurfaceVariant).apply { setPadding(5 * d, 0, 12 * d, 0) })
         }
         h(KeyEvent.KEYCODE_BUTTON_A, "ein/aus")
+        if (adjust != null) h(KeyEvent.KEYCODE_DPAD_LEFT, "Größe −/+")
         h(KeyEvent.KEYCODE_BUTTON_L1, "nach oben")
         h(KeyEvent.KEYCODE_BUTTON_R1, "nach unten")
         h(KeyEvent.KEYCODE_BUTTON_B, "fertig")
@@ -818,8 +854,11 @@ class ControlCenter(private val svc: HugminnService) {
         val sc = android.widget.ScrollView(svc).apply { addView(list) }
         editScroll = sc
         box.addView(sc, lp(MATCH, 0, 1f))
-        val w = (r.width * 0.5f).toInt().coerceAtLeast(360 * d)
-        r.addView(box, FrameLayout.LayoutParams(w, (r.height * 0.88f).toInt(), Gravity.CENTER))
+        // With live preview the editor sits on the right so the Control Center stays visible.
+        val w = (r.width * (if (live != null) 0.38f else 0.5f)).toInt().coerceAtLeast(340 * d)
+        r.addView(box, FrameLayout.LayoutParams(w, (r.height * 0.9f).toInt(), if (live != null) Gravity.END or Gravity.CENTER_VERTICAL else Gravity.CENTER).apply {
+            if (live != null) marginEnd = 12 * d
+        })
         editView = box
         renderEditor()
     }
@@ -865,6 +904,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (si == last) editSections[editEnableTo].ids.add(id) else editSections[last].ids.add(0, id)
         editSel = flat().indexOfFirst { (s2, j) -> editSections[s2].ids[j] == id }.coerceAtLeast(0)
         renderEditor()
+        editLive?.invoke()
     }
 
     /** Moves the selected item up/down; past the end of a section it moves into the next one. */
@@ -881,6 +921,14 @@ class ControlCenter(private val svc: HugminnService) {
         }
         editSel = flat().indexOfFirst { (s2, j) -> editSections[s2].ids[j] == id }.coerceAtLeast(0)
         renderEditor()
+        editLive?.invoke()
+    }
+
+    private fun adjustEdit(dir: Int) {
+        val (si, i) = flat().getOrNull(editSel) ?: return
+        editAdjust?.invoke(editSections[si].ids[i], dir) ?: return
+        renderEditor()
+        editLive?.invoke()
     }
 
     private fun closeEditor() {
@@ -896,33 +944,223 @@ class ControlCenter(private val svc: HugminnService) {
             EditSection("Linke Spalte", left.toMutableList()),
             EditSection("Rechte Spalte", right.toMutableList()),
             EditSection("Ausgeblendet", hidden.toMutableList()),
-        ), enableTo = 1, label = { CcBlock.of(it)?.label ?: it }, note = { "" }) {
+        ), enableTo = 1, label = { CcBlock.of(it)?.label ?: it },
+            note = { id -> "Größe ${Math.round(size(id) * 100)} %" },
+            adjust = { id, dir ->
+                val m = svc.prefs.ccSizes.toMutableMap()
+                m[id] = ((m[id] ?: 1f) + 0.2f * dir).coerceIn(0.6f, 2.0f)
+                svc.prefs.ccSizes = m
+            },
+            live = {
+                svc.prefs.ccLayout = editSections[0].ids.toList() to editSections[1].ids.toList()
+                rebuildPanel()
+                editView?.bringToFront()
+            },
+        ) {
             svc.prefs.ccLayout = editSections[0].ids.toList() to editSections[1].ids.toList()
-            reopen()
+            rebuildPanel()
         }
     }
 
+    // ---------- tile editor like stock Android: grid of shown tiles, grid of tiles to add ----------
+
+    private var gridEdit: View? = null
+    private val geActive = mutableListOf<String>()
+    private val geAvail = mutableListOf<String>()
+    private var geSel = 0
+    private var geMoving = false
+    private var geActiveGrid: LinearLayout? = null
+    private var geAvailGrid: LinearLayout? = null
+    private var geScroll: android.widget.ScrollView? = null
+    private var geTitle: TextView? = null
+    private val geCols = 6
+
     private fun tileEditor() {
-        val chosen = svc.prefs.ccTiles
+        val r = root ?: return
+        closeMenu()
         val rootOk = Root.available()
-        openEditor("Kacheln auswählen", listOf(
-            EditSection("Angezeigt", chosen.toMutableList()),
-            EditSection("Ausgeblendet", TileCatalog.all.keys.filter { it !in chosen }.toMutableList()),
-        ), enableTo = 0, label = { TileCatalog.all[it] ?: it }, note = { if (tileFor(it, rootOk) == null) "nicht verfügbar" else "" }) {
-            svc.prefs.ccTiles = editSections[0].ids.toList()
-            reopen()
+        geActive.clear()
+        geActive += svc.prefs.ccTiles.filter { tileFor(it, rootOk) != null }
+        geAvail.clear()
+        geAvail += TileCatalog.all.keys.filter { it !in geActive && tileFor(it, rootOk) != null }
+        geSel = 0
+        geMoving = false
+        val box = LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
+            setPadding(18 * d, 16 * d, 18 * d, 12 * d)
+            elevation = 12f * d
+            isClickable = true
         }
+        val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+        head.addView(text("Kacheln bearbeiten", 18f, pal.onSurface, bold = true), lp(0, WRAP, 1f))
+        fun h(k: Int, t: String) {
+            head.addView(Glyphs.chip(svc, svc.prefs, pal, k, 20))
+            head.addView(text(t, 12f, pal.onSurfaceVariant).apply { setPadding(5 * d, 0, 12 * d, 0) })
+        }
+        h(KeyEvent.KEYCODE_BUTTON_A, "Hinzufügen / Verschieben")
+        h(KeyEvent.KEYCODE_BUTTON_X, "Entfernen")
+        h(KeyEvent.KEYCODE_BUTTON_B, "Fertig")
+        box.addView(head)
+        val content = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        val t1 = text("", 13f, pal.primary, bold = true).apply { setPadding(4 * d, 12 * d, 0, 6 * d) }
+        geTitle = t1
+        content.addView(t1)
+        val g1 = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        geActiveGrid = g1
+        content.addView(g1)
+        content.addView(View(svc).apply { setBackgroundColor(pal.outline) }, lp(MATCH, 1 * d).apply { topMargin = 12 * d; bottomMargin = 4 * d })
+        content.addView(text("Zum Hinzufügen auswählen", 13f, pal.primary, bold = true).apply { setPadding(4 * d, 8 * d, 0, 6 * d) })
+        val g2 = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        geAvailGrid = g2
+        content.addView(g2)
+        val sc = android.widget.ScrollView(svc).apply { addView(content) }
+        geScroll = sc
+        box.addView(sc, lp(MATCH, 0, 1f))
+        r.addView(box, FrameLayout.LayoutParams((r.width * 0.9f).toInt(), (r.height * 0.9f).toInt(), Gravity.CENTER))
+        gridEdit = box
+        renderGrid()
+    }
+
+    private fun renderGrid() {
+        val rootOk = Root.available()
+        geTitle?.text = "Angezeigt (${geActive.size}) · Reihenfolge wie im Control Center"
+        var selView: View? = null
+        fun fill(grid: LinearLayout?, ids: List<String>, offset: Int) {
+            grid ?: return
+            grid.removeAllViews()
+            if (ids.isEmpty()) grid.addView(text("—", 14f, pal.outline).apply { setPadding(8 * d, 8 * d, 0, 8 * d) })
+            ids.chunked(geCols).forEachIndexed { ri, chunk ->
+                val row = LinearLayout(svc)
+                chunk.forEachIndexed { ci, id ->
+                    val idx = offset + ri * geCols + ci
+                    val t = tileFor(id, rootOk) ?: return@forEachIndexed
+                    val selected = idx == geSel
+                    val moving = selected && geMoving
+                    val icon = IconView(svc, t.icon, 24).apply { setColor(if (moving) tileOnFg() else pal.onSurface) }
+                    val circle = FrameLayout(svc).apply {
+                        background = if (svc.prefs.tileShape == TileShape.ROUND && !pixel) rounded(if (moving) tileOn() else pal.surfaceHighest, 26f * d)
+                        else shape(if (moving) tileOn() else pal.surfaceHighest, 14f * d)
+                        foreground = if (selected) shape(0, if (svc.prefs.tileShape == TileShape.ROUND && !pixel) 26f * d else 14f * d, 3 * d, pal.onSurface) else null
+                        addView(icon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+                    }
+                    val cell = LinearLayout(svc).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.CENTER_HORIZONTAL
+                        setPadding(2 * d, 4 * d, 2 * d, 4 * d)
+                        addView(circle, LinearLayout.LayoutParams(52 * d, 52 * d))
+                        addView(TextView(svc).apply {
+                            text = t.title
+                            gravity = Gravity.CENTER
+                            maxLines = 2
+                            setTextColor(pal.onSurface)
+                            typeface = Look.font(svc, pixel, selected)
+                            setAutoSizeTextTypeUniformWithConfiguration(9, 12, 1, TypedValue.COMPLEX_UNIT_SP)
+                        }, lp(MATCH, 30 * d).apply { topMargin = 4 * d })
+                        setOnClickListener { geSel = idx; gridA() }
+                    }
+                    row.addView(cell, lp(0, WRAP, 1f))
+                    if (selected) selView = cell
+                }
+                repeat(geCols - chunk.size) { row.addView(View(svc), lp(0, 1, 1f)) }
+                grid.addView(row, lp(MATCH, WRAP))
+            }
+        }
+        fill(geActiveGrid, geActive, 0)
+        fill(geAvailGrid, geAvail, geActive.size)
+        geScroll?.post {
+            val v = selView ?: return@post
+            val sc = geScroll ?: return@post
+            val loc = IntArray(2).also(v::getLocationInWindow)
+            val sloc = IntArray(2).also(sc::getLocationInWindow)
+            val top = loc[1] - sloc[1]
+            if (top < 0) sc.smoothScrollBy(0, top - 10 * d) else if (top + v.height > sc.height) sc.smoothScrollBy(0, top + v.height - sc.height + 10 * d)
+        }
+    }
+
+    private fun gridMove(dx: Int, dy: Int) {
+        val total = geActive.size + geAvail.size
+        if (total == 0) return
+        if (geMoving && geSel < geActive.size) {
+            // Move the held tile within the shown tiles
+            val to = (geSel + dx + dy * geCols).coerceIn(0, geActive.lastIndex)
+            if (to != geSel) {
+                val id = geActive.removeAt(geSel)
+                geActive.add(to, id)
+                geSel = to
+            }
+        } else {
+            val inActive = geSel < geActive.size
+            var to = geSel + dx + dy * geCols
+            // Crossing between the two grids keeps the column where possible
+            if (dy > 0 && inActive && to >= geActive.size) to = geActive.size + (geSel % geCols).coerceAtMost((geAvail.size - 1).coerceAtLeast(0))
+            if (dy < 0 && !inActive && to < geActive.size) {
+                val col = (geSel - geActive.size) % geCols
+                val lastRowStart = (geActive.size - 1).coerceAtLeast(0) / geCols * geCols
+                to = (lastRowStart + col).coerceAtMost(geActive.size - 1)
+            }
+            geSel = to.coerceIn(0, total - 1)
+        }
+        renderGrid()
+    }
+
+    private fun gridA() {
+        if (geSel < geActive.size) {
+            geMoving = !geMoving
+        } else {
+            val i = geSel - geActive.size
+            val id = geAvail.removeAt(i)
+            geActive += id
+            // stay on the next tile to add
+            geSel = (geActive.size + i).coerceAtMost(geActive.size + geAvail.size - 1)
+        }
+        renderGrid()
+    }
+
+    private fun gridRemove() {
+        if (geSel >= geActive.size) return
+        val id = geActive.removeAt(geSel)
+        geAvail.add(0, id)
+        geMoving = false
+        geSel = geSel.coerceAtMost((geActive.size + geAvail.size - 1).coerceAtLeast(0))
+        renderGrid()
+    }
+
+    private fun gridDone() {
+        if (geMoving) {
+            geMoving = false
+            renderGrid()
+            return
+        }
+        svc.prefs.ccTiles = geActive.toList()
+        gridEdit?.let { v -> (v.parent as? ViewGroup)?.removeView(v) }
+        gridEdit = null
+        rebuildPanel()
     }
 
     fun onKey(e: KeyEvent): Boolean {
         if (e.action != KeyEvent.ACTION_DOWN) return true
+        if (gridEdit != null) {
+            when (e.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> gridMove(-1, 0)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> gridMove(1, 0)
+                KeyEvent.KEYCODE_DPAD_UP -> gridMove(0, -1)
+                KeyEvent.KEYCODE_DPAD_DOWN -> gridMove(0, 1)
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> gridA()
+                KeyEvent.KEYCODE_BUTTON_X -> gridRemove()
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_Y -> gridDone()
+            }
+            return true
+        }
         if (editView != null) {
             when (e.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> { editSel = (editSel - 1).coerceAtLeast(0); renderEditor() }
                 KeyEvent.KEYCODE_DPAD_DOWN -> { editSel = (editSel + 1).coerceAtMost((flat().size - 1).coerceAtLeast(0)); renderEditor() }
                 KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> toggleEdit()
-                KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_DPAD_LEFT -> moveEdit(-1)
-                KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_DPAD_RIGHT -> moveEdit(1)
+                KeyEvent.KEYCODE_BUTTON_L1 -> moveEdit(-1)
+                KeyEvent.KEYCODE_BUTTON_R1 -> moveEdit(1)
+                KeyEvent.KEYCODE_DPAD_LEFT -> if (editAdjust != null) adjustEdit(-1) else moveEdit(-1)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> if (editAdjust != null) adjustEdit(1) else moveEdit(1)
                 KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_Y -> closeEditor()
             }
             return true

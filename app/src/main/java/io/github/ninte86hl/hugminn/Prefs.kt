@@ -103,6 +103,19 @@ class Prefs(ctx: Context) {
         }
         set(v) = p.edit().putString("ccLayout", v.first.joinToString(",") + "|" + v.second.joinToString(",")).apply()
 
+    /** Size factor per Control Center block (1.0 = normal). */
+    var ccSizes: Map<String, Float>
+        get() = p.getString("ccSizes", null)?.split(',')?.mapNotNull { e ->
+            val kv = e.split(':')
+            kv.getOrNull(1)?.toFloatOrNull()?.let { kv[0] to it }
+        }?.toMap() ?: emptyMap()
+        set(v) = p.edit().putString("ccSizes", v.entries.joinToString(",") { "${it.key}:${it.value}" }).apply()
+
+    /** Back to the default Control Center (layout, tiles, sizes, colours). */
+    fun resetControlCenter() = p.edit()
+        .remove("ccLayout").remove("ccTiles").remove("ccSizes").remove("tileColor").remove("tileShape").remove("gaugePalette")
+        .apply()
+
     var gaugePalette: GaugePalette
         get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)
         set(v) = p.edit().putString("gaugePalette", v.name).apply()
