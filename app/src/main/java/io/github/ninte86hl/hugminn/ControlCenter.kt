@@ -1152,12 +1152,14 @@ class ControlCenter(private val svc: HugminnService) {
                         // breathing/pulsing keep running in the new colour
                         Device.setLedColors(l, rr, turnOn = !on) { LedFx.resume(svc); svc.ui.post { refreshAll() } }
                     } else {
-                        LedFx.set(svc, LedEffect.NONE)
-                        Device.setLedColors(l, rr, turnOn = !on) { svc.ui.post { refreshAll() } }
+                        Device.setLedColors(l, rr, turnOn = !on) {
+                            LedFx.set(svc, LedEffect.NONE)
+                            svc.ui.post { refreshAll() }
+                        }
                     }
                 }
                 cell.setOnClickListener { act() }
-                row.addView(cell, lp(60 * d, 60 * d).apply { setMargins(5 * d, 5 * d, 5 * d, 5 * d) })
+                row.addView(cell, lp(54 * d, 54 * d).apply { setMargins(5 * d, 4 * d, 5 * d, 4 * d) })
                 cells += cell to act
             }
             grid.addView(row)
@@ -1186,6 +1188,38 @@ class ControlCenter(private val svc: HugminnService) {
         }
         box.addView(fxRow)
         rows += fx
+
+        // brightness and speed: [−] value [+], the window stays open
+        val tune = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, 10 * d, 0, 0) }
+        val tuneCells = mutableListOf<Pair<View, () -> Unit>>()
+        fun stepper(label: String, value: String, minus: () -> Unit, plus: () -> Unit) {
+            fun btn(sym: String, run: () -> Unit) = text(sym, 18f, pal.onSurface, bold = true).apply {
+                gravity = Gravity.CENTER
+                background = shape(pal.surfaceHighest, 14f * d)
+                setOnClickListener { run() }
+            }
+            tune.addView(text(label, 13f, pal.onSurfaceVariant).apply { setPadding(8 * d, 0, 8 * d, 0) })
+            val m = btn("−", minus)
+            tune.addView(m, lp(40 * d, 36 * d))
+            tune.addView(text(value, 14f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER }, lp(58 * d, WRAP))
+            val p = btn("+", plus)
+            tune.addView(p, lp(40 * d, 36 * d))
+            tuneCells += m to minus
+            tuneCells += p to plus
+        }
+        val bright = svc.prefs.ledBrightness
+        val sp = svc.prefs.ledSpeed
+        val si = LedFx.speeds.indexOfFirst { it >= sp }.coerceAtLeast(0)
+        fun again(col: Int) { ledRow = rows.size; ledCol = col; ledPicker() }
+        stepper("Helligkeit", "$bright %",
+            { LedFx.setBrightness(svc, (bright - 10).coerceAtLeast(10)); again(0) },
+            { LedFx.setBrightness(svc, (bright + 10).coerceAtMost(100)); again(1) })
+        tune.addView(View(svc), lp(16 * d, 1))
+        stepper("Tempo", "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
+            { LedFx.setSpeed(svc, LedFx.speeds[(si - 1).coerceAtLeast(0)]); again(2) },
+            { LedFx.setSpeed(svc, LedFx.speeds[(si + 1).coerceAtMost(LedFx.speeds.lastIndex)]); again(3) })
+        box.addView(tune)
+        rows += tuneCells
 
         ledCells = rows
         ledRow = ledRow.coerceIn(0, rows.lastIndex)

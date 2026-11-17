@@ -23,27 +23,52 @@ enum class LedEffect(val label: String) {
 object LedFx {
     @Volatile private var thread: Thread? = null
     @Volatile private var effect = LedEffect.NONE
-    private const val FRAME_MS = 50L
+    @Volatile private var running = false
+    private const val FRAME_MS = 40L
 
-    fun current() = effect
+    /** Effect speed factors and brightness steps offered in the LED window. */
+    val speeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.5f, 2f, 3f)
+    @Volatile var speed = 1f
+    @Volatile var brightness = 100
+
+    fun current() = if (running) effect else LedEffect.NONE
+
+    private fun load(ctx: Context) {
+        val p = Prefs(ctx)
+        speed = p.ledSpeed
+        brightness = p.ledBrightness
+    }
 
     /** Starts the remembered effect (service start, LEDs switched on). */
     fun resume(ctx: Context) {
+        load(ctx)
         val e = Prefs(ctx).ledEffect
-        if (e != LedEffect.NONE && Device.stickLeds(ctx)) start(ctx, e) else stop()
+        if (Device.stickLeds(ctx) && (e != LedEffect.NONE || brightness < 100)) start(ctx, e) else stop()
     }
 
     fun set(ctx: Context, e: LedEffect) {
         Prefs(ctx).ledEffect = e
-        if (e == LedEffect.NONE) {
+        load(ctx)
+        if (e == LedEffect.NONE && brightness >= 100) {
             stop()
             // hand the LEDs back to the firmware with the stored colours
             Device.ledColors(ctx)?.let { (l, r) -> Device.setLedColors(l, r, turnOn = false) {} }
         } else start(ctx, e)
     }
 
+    fun setSpeed(ctx: Context, v: Float) {
+        Prefs(ctx).ledSpeed = v
+        speed = v
+    }
+
+    fun setBrightness(ctx: Context, v: Int) {
+        Prefs(ctx).ledBrightness = v
+        brightness = v
+        set(ctx, Prefs(ctx).ledEffect)
+    }
+
     fun stop() {
-        effect = LedEffect.NONE
+        running = false
         thread?.interrupt()
         thread = null
     }
@@ -51,16 +76,23 @@ object LedFx {
     private fun start(ctx: Context, e: LedEffect) {
         stop()
         effect = e
+        running = true
         val app = ctx.applicationContext
         val (left, right) = Device.ledColors(app) ?: (Color.WHITE to Color.WHITE)
         val t = Thread {
-            val t0 = System.currentTimeMillis()
+            var phase = 0f
+            var last = System.currentTimeMillis()
             try {
-                while (!Thread.currentThread().isInterrupted && effect == e) {
-                    val s = (System.currentTimeMillis() - t0) / 1000f
-                    val zones = frame(e, s, left, right)
+                while (!Thread.currentThread().isInterrupted && running && effect == e) {
+                    val now = System.currentTimeMillis()
+                    // phase advances with the speed, so changing it never makes the effect jump
+                    phase += (now - last) / 1000f * speed
+                    last = now
+                    val k = brightness / 100f
+                    val zones = frame(e, phase, left, right).map { scale(it, k) }.toIntArray()
                     Root.exec(command(zones), 1_000)
-                    Thread.sleep(FRAME_MS)
+                    // static colour (only dimmed): refresh now and then in case the firmware rewrites it
+                    Thread.sleep(if (e == LedEffect.NONE) 1_500 else FRAME_MS)
                 }
             } catch (_: InterruptedException) {
             } catch (t: Throwable) {
@@ -76,10 +108,10 @@ object LedFx {
     /** Colours of the zones: left upper, left lower, right upper, right lower. */
     private fun frame(e: LedEffect, s: Float, left: Int, right: Int): IntArray = when (e) {
         LedEffect.RAINBOW -> hsv(s * 40f).let { intArrayOf(it, it, it, it) }
-        // clockwise around both sticks: left upper → right upper → right lower → left lower
+        // every stick shows the whole rainbow, turning clockwise: opposite halves are half a turn apart
         LedEffect.RING -> {
-            val base = s * 120f
-            intArrayOf(hsv(base), hsv(base + 270f), hsv(base + 90f), hsv(base + 180f))
+            val base = s * 90f
+            intArrayOf(hsv(base), hsv(base + 180f), hsv(base + 180f), hsv(base))
         }
         LedEffect.BREATHE -> {
             val k = 0.08f + 0.92f * (0.5f - 0.5f * kotlin.math.cos(2 * PI * s / 4.0).toFloat())
@@ -94,6 +126,13 @@ object LedFx {
         LedEffect.NONE -> intArrayOf(left, left, right, right)
     }
 
+    /** Lights the zones 1–4 of the left stick in red, green, blue, white: shows how many zones there are. */
+    fun probeZones() {
+        stop()
+        val cmd = listOf("1-255:0:0:255", "2-0:255:0:255", "3-0:0:255:255", "4-255:255:255:255")
+            .joinToString("; ") { "echo $it > /sys/class/sn3112l/led/brightness" }
+        Root.exec(cmd, 2_000)
+    }
     private fun beat(p: Float, at: Float): Float {
         val x = (p - at) / 0.18f
         return if (x < 0f || x > 1f) 0f else sin(PI * x).toFloat()
