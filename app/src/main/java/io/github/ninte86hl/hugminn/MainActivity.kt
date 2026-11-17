@@ -26,12 +26,22 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Crash.install(this)
         prefs = Prefs(this)
     }
 
     override fun onResume() {
         super.onResume()
         build()
+        // Android switches the service off after a crash: bring it back automatically (root only).
+        if (HugminnService.instance == null && Root.available() && Device.whitelisted(this)) {
+            thread {
+                if (Device.restartService(this)) runOnUiThread {
+                    Toast.makeText(this, "Hugminn wurde neu gestartet", Toast.LENGTH_SHORT).show()
+                    build()
+                }
+            }
+        }
     }
 
     private fun d(v: Int) = dp(v)
@@ -139,6 +149,16 @@ class MainActivity : Activity() {
                 })
                 st.addView(b)
             }
+        }
+        Crash.last(this)?.let { crash ->
+            st.addView(text("Letzter Fehler (wird mit dem Feedback gesendet):", 13f, pal.onSurface, bold = true).apply { setPadding(0, d(10), 0, d(2)) })
+            st.addView(text(crash.lines().take(6).joinToString("\n"), 11f, pal.onSurfaceVariant).apply {
+                maxLines = 6
+                typeface = android.graphics.Typeface.MONOSPACE
+            })
+            val cb = LinearLayout(this).apply { setPadding(0, d(6), 0, d(4)) }
+            cb.addView(button("Fehler löschen") { Crash.clear(this); build() })
+            st.addView(cb)
         }
         if (!running) {
             val b = LinearLayout(this).apply { setPadding(0, d(8), 0, d(4)) }

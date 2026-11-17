@@ -111,6 +111,19 @@ object Device {
         return !hasWhitelist(ctx) || whitelisted(ctx)
     }
 
+    /** Turns the accessibility service off and on again (Android stops it after a crash). */
+    fun restartService(ctx: Context): Boolean {
+        val comp = "${ctx.packageName}/${HugminnService::class.java.name}"
+        val cur = Settings.Secure.getString(ctx.contentResolver, "enabled_accessibility_services").orEmpty()
+        val others = cur.split(':').filter { it.isNotBlank() && it != "null" && !it.startsWith("${ctx.packageName}/") }
+        Root.exec(Root.putSetting("secure", "enabled_accessibility_services", others.joinToString(":").ifEmpty { "\"\"" }))
+        Thread.sleep(400)
+        Root.exec(Root.putSetting("secure", "enabled_accessibility_services", (others + comp).joinToString(":")))
+        Root.exec("settings put secure accessibility_enabled 1")
+        Thread.sleep(500)
+        return HugminnService.instance != null
+    }
+
     /** Grants usage access (helps to name apps in the switcher) and screen brightness writing via root. */
     fun grantExtras(ctx: Context) {
         Root.exec("appops set ${ctx.packageName} GET_USAGE_STATS allow")

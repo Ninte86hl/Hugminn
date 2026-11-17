@@ -103,6 +103,7 @@ object Feedback {
         val pal = Palette(svc)
         appendLine("Dunkelmodus: ${pal.dark} · Tastensymbole: ${svc.prefs.glyphStyle} farbig=${svc.prefs.glyphColored} · Nintendo-Layout: ${Glyphs.nintendoLayout()}")
         appendLine("Statusleiste: ${svc.prefs.statusBar}")
+        Crash.last(svc)?.let { appendLine(); appendLine("Letzter Fehler:"); appendLine(it) }
         appendLine()
         val ws = runCatching { svc.windows }.getOrDefault(emptyList())
         appendLine("${ws.size} Fenster")

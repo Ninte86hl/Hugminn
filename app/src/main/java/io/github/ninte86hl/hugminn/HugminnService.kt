@@ -38,6 +38,7 @@ class HugminnService : AccessibilityService() {
     }
 
     override fun onServiceConnected() {
+        Crash.install(this)
         prefs = Prefs(this)
         switcher = Switcher(this)
         controlCenter = ControlCenter(this)

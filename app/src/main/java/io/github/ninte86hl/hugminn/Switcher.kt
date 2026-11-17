@@ -44,8 +44,13 @@ class Switcher(private val svc: HugminnService) {
     class Card(val node: AccessibilityNodeInfo, val label: String?, val pkg: String?, val type: AppType)
     private class Item(val label: String, val run: () -> Unit)
 
-    /** Card geometry relative to the card's top-left corner, measured on a fully visible card. */
-    private class Layout(val w: Int, val h: Int, val snap: RectF?, val icon: RectF?, val lock: RectF?)
+    /**
+     * Geometry of the card in the middle (taken right after the view opens) and the distance between
+     * cards. The recents view does not report positions while it scrolls, so Hugminn moves its frame
+     * with the same animation the launcher uses (750 ms, quintic ease-out) and corrects itself with the
+     * launcher's own signals (input focus, scroll events).
+     */
+    private class Model(val card: RectF, val snap: RectF?, val icon: RectF?, val lock: RectF?, val pitch: Float)
 
     /** What the frame draws in one frame. */
     class Frame(val snaps: List<RectF>, val icons: List<RectF>, val locks: List<RectF>, val selected: Int)
@@ -56,35 +61,35 @@ class Switcher(private val svc: HugminnService) {
     private lateinit var pal: Palette
     private var bar: FrameLayout? = null
     private var shell: ShellView? = null
-    @Volatile private var cards: List<Card> = emptyList()
-    @Volatile private var layout: Layout? = null
-    @Volatile private var panel: AccessibilityNodeInfo? = null
+    private var cards: List<Card> = emptyList()
+    private var model: Model? = null
+    private var pos = 0f // continuous index of the card in the middle
+    private var target = 0
+    private var anim: android.animation.ValueAnimator? = null
+    private var lastKeyAt = 0L
     private var sel = -1
     private var menu: List<Item>? = null
     private var menuSel = 0
     @Volatile private var launcherPkg: String? = null
     private var busyUntil = 0L
-    @Volatile private var activeUntil = 0L
     @Volatile private var generation = 0
-
-    private var tracker: HandlerThread? = null
-    private var trackHandler: Handler? = null
+    private var worker: HandlerThread? = null
+    private var work: Handler? = null
 
     fun open() {
         isOpen = true
         pal = Palette(svc)
         generation++
         cards = emptyList()
-        layout = null
+        model = null
         sel = -1
         menu = null
         busyUntil = System.currentTimeMillis() + 1500
-        markActive(1200)
         if (findPanel() == null) svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
-        tracker = HandlerThread("hugminn-switcher").also { it.start() }
-        trackHandler = Handler(tracker!!.looper)
+        worker = HandlerThread("hugminn-switcher").also { it.start() }
+        work = Handler(worker!!.looper)
         val gen = generation
-        trackHandler?.post { trackLoop(gen, 0) }
+        work?.post { scan(gen, 0, null) }
     }
 
     fun close(goBack: Boolean) {
@@ -92,20 +97,18 @@ class Switcher(private val svc: HugminnService) {
         isOpen = false
         generation++
         menu = null
-        tracker?.quitSafely()
-        tracker = null
-        trackHandler = null
+        anim?.cancel()
+        anim = null
+        worker?.quitSafely()
+        worker = null
+        work = null
         listOf(shell, bar).forEach { v -> v?.let { runCatching { wm.removeView(it) } } }
         bar = null
         shell = null
         if (goBack) svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
     }
 
-    private fun markActive(ms: Long = 900) {
-        activeUntil = SystemClock.uptimeMillis() + ms
-    }
-
-    // ---------- tracking (background thread) ----------
+    // ---------- reading the recents view (worker thread) ----------
 
     private fun findPanel(): AccessibilityNodeInfo? {
         for (r in svc.roots()) {
@@ -121,38 +124,67 @@ class Switcher(private val svc: HugminnService) {
     private fun findIn(id: String): AccessibilityNodeInfo? =
         svc.roots().firstNotNullOfOrNull { it.findAccessibilityNodeInfosByViewId("$launcherPkg:id/$id").firstOrNull() }
 
-    private fun trackLoop(gen: Int, attempt: Int) {
-        if (gen != generation || !isOpen) return
-        val h = trackHandler ?: return
-        var p = panel
-        if (p == null || !p.refresh()) {
-            p = findPanel()
-            panel = p
-            if (p == null) {
-                if (attempt > 40) svc.ui.post {
-                    Toast.makeText(svc, "Hugminn: Android-Übersicht nicht gefunden", Toast.LENGTH_SHORT).show()
-                    close(goBack = false)
-                } else h.postDelayed({ trackLoop(gen, attempt + 1) }, 50)
-                return
-            }
-            cards = emptyList()
+    private fun bounds(n: AccessibilityNodeInfo) = Rect().also(n::getBoundsInScreen)
+
+    private fun cardNodes(): List<AccessibilityNodeInfo> {
+        val p = findPanel() ?: return emptyList()
+        return (0 until p.childCount).mapNotNull { p.getChild(it) }.filter { it.isClickable }
+    }
+
+    /** Waits until the recents view has settled (same card bounds twice), then builds the model. */
+    private fun scan(gen: Int, attempt: Int, last: List<Rect>?) {
+        if (gen != generation) return
+        val h = work ?: return
+        val nodes = try { cardNodes() } catch (t: Throwable) { emptyList() }
+        val now = nodes.map { bounds(it) }
+        val settled = nodes.isNotEmpty() && last != null && last == now
+        if (!settled) {
+            if (attempt > 60) svc.ui.post {
+                if (nodes.isEmpty()) Toast.makeText(svc, "Hugminn: Android-Übersicht nicht gefunden", Toast.LENGTH_SHORT).show()
+                close(goBack = false)
+            } else h.postDelayed({ scan(gen, attempt + 1, now) }, 60)
+            return
         }
-        val nodes = (0 until p.childCount).mapNotNull { p.getChild(it) }.filter { it.isClickable }
-        if (nodes.size != cards.size || layout == null) {
-            cards = resolve(nodes)
-            layout = measure(nodes)
-            if (cards.isEmpty()) {
-                svc.ui.post {
-                    close(goBack = false)
-                    svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
-                }
-                return
-            }
+        val newCards = resolve(nodes)
+        val m = buildModel(nodes)
+        val focused = nodes.indexOfFirst { it.isFocused }
+        svc.ui.post {
+            if (gen != generation) return@post
+            cards = newCards
+            if (m != null) model = m
+            val mid = wm.currentWindowMetrics.bounds.width() / 2f
+            val centred = focused.takeIf { it >= 0 }
+                ?: now.indices.minByOrNull { abs(now[it].exactCenterX() - mid) } ?: 0
+            jumpTo(centred)
         }
-        val frame = computeFrame()
-        svc.ui.post { if (gen == generation) apply(frame) }
-        val delay = if (SystemClock.uptimeMillis() < activeUntil) 16L else 180L
-        h.postDelayed({ trackLoop(gen, 0) }, delay)
+    }
+
+    private fun buildModel(nodes: List<AccessibilityNodeInfo>): Model? {
+        val screenW = wm.currentWindowMetrics.bounds.width()
+        val rs = nodes.map { bounds(it) }
+        val full = rs.indices.maxByOrNull { rs[it].width() } ?: return null
+        val b = rs[full]
+        if (b.width() < 10) return null
+        fun child(n: AccessibilityNodeInfo, id: String) =
+            (0 until n.childCount).mapNotNull { n.getChild(it) }.firstOrNull { it.viewIdResourceName?.endsWith(":id/$id") == true }
+        fun rel(id: String) = child(nodes[full], id)?.let { c ->
+            val r = bounds(c)
+            if (r.width() <= 0) null else RectF((r.left - b.left).toFloat(), (r.top - b.top).toFloat(), (r.right - b.left).toFloat(), (r.bottom - b.top).toFloat())
+        }
+        // Left edge of a card even if it is cut off at the screen edge.
+        fun left(i: Int): Float {
+            val r = rs[i]
+            return if (r.width() < b.width() - 2 && r.left <= 0) (r.right - b.width()).toFloat() else r.left.toFloat()
+        }
+        val pitch = when {
+            full + 1 < rs.size && rs[full + 1].right > 0 && rs[full + 1].left < screenW -> left(full + 1) - left(full)
+            full > 0 && rs[full - 1].right > 0 -> left(full) - left(full - 1)
+            else -> b.width() * 1.04f
+        }.takeIf { it > b.width() * 0.5f } ?: (b.width() * 1.04f)
+        // Card rect as it sits in the middle of the screen.
+        val mid = screenW / 2f
+        val card = RectF(mid - b.width() / 2f, b.top.toFloat(), mid + b.width() / 2f, b.bottom.toFloat())
+        return Model(card, rel("snapshot"), rel("icon"), rel("lock_icon"), pitch)
     }
 
     private fun resolve(nodes: List<AccessibilityNodeInfo>): List<Card> {
@@ -177,66 +209,102 @@ class Switcher(private val svc: HugminnService) {
         return nodes.mapIndexed { i, n -> Card(n, resolved[i].first, resolved[i].second, Apps.typeOf(resolved[i].second)) }
     }
 
-    private fun bounds(n: AccessibilityNodeInfo) = Rect().also(n::getBoundsInScreen)
-
-    private fun child(n: AccessibilityNodeInfo, id: String): AccessibilityNodeInfo? =
-        (0 until n.childCount).mapNotNull { n.getChild(it) }.firstOrNull { it.viewIdResourceName?.endsWith(":id/$id") == true }
-
-    private fun measure(nodes: List<AccessibilityNodeInfo>): Layout? {
-        val full = nodes.maxByOrNull { bounds(it).width() } ?: return null
-        val b = bounds(full)
-        if (b.width() < 10) return null
-        fun rel(id: String) = child(full, id)?.let { c ->
-            val r = bounds(c)
-            if (r.width() <= 0) null else RectF((r.left - b.left).toFloat(), (r.top - b.top).toFloat(), (r.right - b.left).toFloat(), (r.bottom - b.top).toFloat())
+    /** After a move: ask the launcher which card has focus and correct the model if needed. */
+    private fun verifyFocus() {
+        val gen = generation
+        work?.post {
+            val nodes = try { cardNodes() } catch (t: Throwable) { return@post }
+            val focused = nodes.indexOfFirst { it.isFocused }
+            val count = nodes.size
+            svc.ui.post {
+                if (gen != generation || anim?.isRunning == true) return@post
+                if (count != cards.size) {
+                    rescan()
+                    return@post
+                }
+                if (focused >= 0 && focused != target) jumpTo(focused)
+            }
         }
-        return Layout(b.width(), b.height(), rel("snapshot"), rel("icon"), rel("lock_icon"))
+    }
+
+    /** Re-reads cards (after one was closed). */
+    private fun rescan() {
+        val gen = generation
+        work?.post {
+            val nodes = try { cardNodes() } catch (t: Throwable) { emptyList() }
+            val newCards = resolve(nodes)
+            val focused = nodes.indexOfFirst { it.isFocused }
+            svc.ui.post {
+                if (gen != generation) return@post
+                cards = newCards
+                if (cards.isEmpty()) {
+                    close(goBack = false)
+                    svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+                    return@post
+                }
+                jumpTo(if (focused >= 0) focused else target.coerceIn(0, cards.lastIndex))
+            }
+        }
+    }
+
+    // ---------- moving the frame (UI thread) ----------
+
+    private fun jumpTo(i: Int) {
+        anim?.cancel()
+        target = i
+        pos = i.toFloat()
+        redraw()
+    }
+
+    /** Same motion as the launcher's page snap: 750 ms, quintic ease-out; a new press first jumps to the old target. */
+    private fun animateTo(i: Int) {
+        val from = if (anim?.isRunning == true) target.toFloat() else pos
+        anim?.cancel()
+        target = i
+        anim = android.animation.ValueAnimator.ofFloat(from, i.toFloat()).apply {
+            duration = 750
+            interpolator = android.animation.TimeInterpolator { t -> val u = t - 1f; u * u * u * u * u + 1f }
+            addUpdateListener {
+                pos = it.animatedValue as Float
+                redraw()
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(a: android.animation.Animator) {
+                    if (anim === a) svc.ui.postDelayed({ verifyFocus() }, 60)
+                }
+            })
+            start()
+        }
+        redraw()
     }
 
     private fun computeFrame(): Frame {
-        val l = layout
-        val screenW = wm.currentWindowMetrics.bounds.width()
-        val mid = screenW / 2f
+        val m = model
         val snaps = mutableListOf<RectF>()
         val icons = mutableListOf<RectF>()
         val locks = mutableListOf<RectF>()
-        var best = -1
-        var bestDist = Float.MAX_VALUE
-        cards.forEachIndexed { i, c ->
-            c.node.refresh()
-            val r = bounds(c.node)
-            if (r.right <= 0 || r.left >= screenW || r.width() <= 0) {
+        for (i in cards.indices) {
+            if (m == null) {
                 snaps += RectF(); icons += RectF(); locks += RectF()
-                return@forEachIndexed
+                continue
             }
-            // Bounds are clipped at the screen edge: rebuild the full card from its known width.
-            var left = r.left.toFloat()
-            if (l != null && r.width() < l.w - 2) {
-                left = if (r.left <= 0) (r.right - l.w).toFloat() else r.left.toFloat()
-            }
-            val top = r.top.toFloat()
+            val dx = (i - pos) * m.pitch
+            val left = m.card.left + dx
+            val top = m.card.top
             fun off(x: RectF?) = x?.let { RectF(it.left + left, it.top + top, it.right + left, it.bottom + top) } ?: RectF()
-            val snap = if (l?.snap != null) off(l.snap) else RectF(left, top, left + (l?.w ?: r.width()), r.bottom.toFloat())
-            snaps += snap
-            icons += off(l?.icon)
-            locks += off(l?.lock)
-            val dist = abs(snap.centerX() - mid)
-            if (dist < bestDist) {
-                bestDist = dist
-                best = i
-            }
+            snaps += m.snap?.let { off(it) } ?: RectF(m.card).also { it.offset(dx, 0f) }
+            icons += off(m.icon)
+            locks += off(m.lock)
         }
-        return Frame(snaps, icons, locks, best)
+        return Frame(snaps, icons, locks, target)
     }
 
-    // ---------- views (UI thread) ----------
-
-    private fun apply(f: Frame) {
+    private fun redraw() {
         if (!isOpen) return
         if (shell == null) addViews()
-        shell?.frame = f
-        if (f.selected != sel && menu == null) {
-            sel = f.selected
+        shell?.frame = computeFrame()
+        if (target != sel && menu == null) {
+            sel = target
             render()
         }
     }
@@ -346,8 +414,13 @@ class Switcher(private val svc: HugminnService) {
     fun onKey(e: KeyEvent): Boolean {
         val m = menu
         if (m == null && (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
-            // Android's recents view moves itself (same speed as always); we only follow it.
-            markActive()
+            // Android's recents view moves itself (as fast as always, wrapping at the ends); the frame follows.
+            if (e.action == KeyEvent.ACTION_DOWN && cards.size > 1 && model != null) {
+                lastKeyAt = SystemClock.uptimeMillis()
+                val n = cards.size
+                val next = if (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) (target + 1) % n else (target - 1 + n) % n
+                animateTo(next)
+            }
             return false
         }
         if (e.action != KeyEvent.ACTION_DOWN) return true
@@ -368,7 +441,14 @@ class Switcher(private val svc: HugminnService) {
         if (!isOpen) return
         val pkg = e.packageName?.toString()
         if (e.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
-            if (pkg == launcherPkg) markActive()
+            // Scrolled by touch: the launcher reports which cards are visible once it has settled.
+            if (pkg == launcherPkg && SystemClock.uptimeMillis() - lastKeyAt > 900 && e.fromIndex >= 0 && e.toIndex >= 0) {
+                val lo = minOf(e.fromIndex, e.toIndex)
+                val hi = maxOf(e.fromIndex, e.toIndex)
+                val guess = if (hi - lo >= 2) (lo + hi) / 2 else listOf(lo, hi).minByOrNull { abs(it - pos) } ?: lo
+                if (guess in cards.indices && guess != target) jumpTo(guess)
+                svc.ui.postDelayed({ verifyFocus() }, 100)
+            }
             return
         }
         if (System.currentTimeMillis() < busyUntil || e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || pkg == null) return
@@ -385,19 +465,19 @@ class Switcher(private val svc: HugminnService) {
     private fun closeApp() {
         val c = cards.getOrNull(sel) ?: return
         busyUntil = System.currentTimeMillis() + 1200
-        markActive(1500)
         val dismiss = c.node.actionList.firstOrNull {
             it.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_DISMISS.id ||
                 it.label?.toString()?.contains(Regex("schließen|close|dismiss|entfernen", RegexOption.IGNORE_CASE)) == true
         }
-        if (dismiss == null || !c.node.performAction(dismiss.id)) swipeUp(c)
+        if (dismiss == null || !c.node.performAction(dismiss.id)) swipeUp()
+        svc.ui.postDelayed({ rescan() }, 500)
     }
 
-    private fun swipeUp(c: Card) {
-        val r = bounds(c.node)
+    private fun swipeUp() {
+        val r = computeFrame().snaps.getOrNull(target) ?: return
         val path = Path().apply {
-            moveTo(r.exactCenterX(), r.exactCenterY())
-            lineTo(r.exactCenterX(), 5f)
+            moveTo(r.centerX(), r.centerY())
+            lineTo(r.centerX(), 5f)
         }
         svc.dispatchGesture(GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0, 180)).build(), null, null)
     }
@@ -512,7 +592,14 @@ class ShellView(
     private fun grow(r: RectF, by: Float) = RectF(r.left - by, r.top - by, r.right + by, r.bottom + by)
 
     override fun onDraw(c: Canvas) {
-        val f = frame
+        try {
+            draw(c, frame)
+        } catch (t: Throwable) {
+            Crash.note(context, t)
+        }
+    }
+
+    private fun draw(c: Canvas, f: Switcher.Frame?) {
         val path = Path().apply {
             fillType = Path.FillType.EVEN_ODD
             addRect(0f, 0f, width.toFloat(), height.toFloat(), Path.Direction.CW)
