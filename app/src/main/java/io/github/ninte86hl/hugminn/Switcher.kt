@@ -136,7 +136,7 @@ class Switcher(private val svc: HugminnService) {
     }
 
     /** Waits until the recents view has settled (same card bounds twice), then builds the model. */
-    private fun scan(gen: Int, attempt: Int, last: List<Rect>?, emptyStreak: Int = 0) {
+    private fun scan(gen: Int, attempt: Int, last: List<Rect>?, emptyStreak: Int = 0, stable: Int = 0) {
         if (gen != generation) return
         val h = work ?: return
         val nodes = try { cardNodes() } catch (t: Throwable) { emptyList() }
@@ -144,12 +144,17 @@ class Switcher(private val svc: HugminnService) {
         // No open apps: the recents view is shown but has no cards. Wait a moment to be sure.
         val panelShown = nodes.isEmpty() && (try { findPanel()?.isVisibleToUser == true } catch (t: Throwable) { false })
         val streak = if (panelShown) emptyStreak + 1 else 0
-        val settled = (nodes.isNotEmpty() && last != null && last == now) || streak >= 5
+        // While the view opens the cards are scaled down; only accept full-size, unchanged cards.
+        val screen = wm.currentWindowMetrics.bounds
+        val fullSize = now.any { it.width() > screen.width() * 0.3f && it.height() > screen.height() * 0.4f }
+        val same = nodes.isNotEmpty() && last != null && last == now && fullSize
+        val stableNow = if (same) stable + 1 else 0
+        val settled = stableNow >= 2 || streak >= 5
         if (!settled) {
             if (attempt > 60) svc.ui.post {
                 Toast.makeText(svc, "Hugminn: Android-Übersicht nicht gefunden", Toast.LENGTH_SHORT).show()
                 close(goBack = false)
-            } else h.postDelayed({ scan(gen, attempt + 1, now, streak) }, 60)
+            } else h.postDelayed({ scan(gen, attempt + 1, now, streak, stableNow) }, 50)
             return
         }
         val newCards = resolve(nodes)
@@ -292,6 +297,8 @@ class Switcher(private val svc: HugminnService) {
         target = i
         anim = android.animation.ValueAnimator.ofFloat(from, i.toFloat()).apply {
             duration = 750
+            // The key reaches the launcher a little after Hugminn sees it.
+            startDelay = 40
             interpolator = android.animation.TimeInterpolator { t -> val u = t - 1f; u * u * u * u * u + 1f }
             addUpdateListener {
                 pos = it.animatedValue as Float
