@@ -1438,7 +1438,8 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun showMenu(title: String, entries: List<MenuEntry>, select: Int = -1) {
         val r = root ?: return
-        if (title != menuTitle) { menuTitle = ""; stopBtScan() }
+        // another menu replaces the Bluetooth list: its search ends (a fresh search starts with menuTitle empty)
+        if (menuTitle.isNotEmpty() && title != menuTitle) { menuTitle = ""; stopBtScan() }
         removeMenuView()
         menuEntries = entries
         menuRows.clear()
