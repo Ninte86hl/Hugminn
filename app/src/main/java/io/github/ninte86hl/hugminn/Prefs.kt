@@ -132,6 +132,16 @@ class Prefs(ctx: Context) {
         get() = enumOr(p.getString("overlayPos", null), OverlayPos.TOP_LEFT)
         set(v) = p.edit().putString("overlayPos", v.name).apply()
     /** true: values side by side in one line, false: below each other. */
+    /** Fan speed (%) at 40, 55, 70 and 85 °C for Hugminn's own fan curve. */
+    var fanCurve: List<Int>
+        get() = p.getString("fanCurve", null)?.split(',')?.mapNotNull { it.toIntOrNull() }?.takeIf { it.size == 4 } ?: listOf(25, 35, 60, 90)
+        set(v) = p.edit().putString("fanCurve", v.joinToString(",")).apply()
+
+    /** Hugminn's fan curve is in charge (custom fan mode). */
+    var fanCustom: Boolean
+        get() = p.getBoolean("fanCustom", false)
+        set(v) = p.edit().putBoolean("fanCustom", v).apply()
+
     /** Size of the performance overlay (1 = normal). */
     var overlayScale: Float
         get() = p.getFloat("overlayScale", 1f)

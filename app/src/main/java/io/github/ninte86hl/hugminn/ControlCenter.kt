@@ -570,8 +570,8 @@ class ControlCenter(private val svc: HugminnService) {
             "perf" -> InfoSpec(IconView.Kind.BOLT, "LEISTUNG", { _ -> Device.perfLabel(svc) }, { s -> "CPU bis %.2f GHz".format(s.cpuMhz / 1000f) },
                 onA = { profileMenu("Leistungsprofil", "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } } })
             "fan" -> InfoSpec(IconView.Kind.FAN, "LÜFTER", { _ -> Device.fanLabel(svc) },
-                { _ -> if (Device.sys(svc, "fan_mode") == "6") Device.fanSpeed(svc)?.let { "Drehzahl $it" } ?: "" else "Profil" },
-                onA = { profileMenu("Lüfterprofil", "fan_mode", Device.fanProfiles) { v -> Device.setFan(v) { refreshAll() } } })
+                { _ -> if (FanCurve.isRunning()) "${FanCurve.currentPct} % bei ${FanCurve.currentTemp.toInt()} °C" else "Profil" },
+                onA = { profileMenu("Lüfterprofil", "fan_mode", Device.fanProfiles) { v -> chooseFan(v) } })
             "temp" -> InfoSpec(IconView.Kind.THERMO, "TEMP", { s -> if (s.cpuTemp > 0) "${s.cpuTemp.toInt()}°" else "–" },
                 { s -> listOfNotNull(s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()}°" }, s.batTemp.takeIf { it > 0 }?.let { "Akku ${it.toInt()}°" }).joinToString(" · ") },
                 { s -> (s.cpuTemp - 40f) / 45f }, colorValue = true)
@@ -838,7 +838,7 @@ class ControlCenter(private val svc: HugminnService) {
             profileMenu("Leistung", "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
         } else null
         "fan" -> if (rootOk && Device.sys(svc, "fan_mode") != null) Tile("Lüfter", IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
-            profileMenu("Lüfter", "fan_mode", Device.fanProfiles) { v -> Device.setFan(v) { refreshAll() } }
+            profileMenu("Lüfter", "fan_mode", Device.fanProfiles) { v -> chooseFan(v) }
         } else null
         "refresh" -> {
             val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
@@ -1020,6 +1020,78 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     // ---------- sub menus ----------
+
+    /** Fan profile: the firmware's ones directly, "custom" opens Hugminn's fan curve. */
+    private fun chooseFan(v: String) {
+        if (v == "6") { svc.ui.post { fanCurveEditor() }; return }
+        FanCurve.stop(restoreSmart = false)
+        svc.prefs.fanCustom = false
+        Device.setFan(v) { refreshAll() }
+    }
+
+    /** Keys of a popup that handles the controller itself (fan curve). */
+    private var popupKeys: ((Int) -> Unit)? = null
+
+    /** Editor for the fan curve: ◀ ▶ choose a point, ▲ ▼ change its speed, A activates, B back. */
+    private fun fanCurveEditor() {
+        val r = root ?: return
+        closeMenu()
+        val box = LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
+            setPadding(22 * d, 16 * d, 22 * d, 14 * d)
+            elevation = 12f * d
+            isClickable = true
+        }
+        box.addView(text("Eigene Lüfterkurve", 18f, pal.onSurface, bold = true))
+        val info = text("", 12f, pal.onSurfaceVariant).apply { setPadding(0, 4 * d, 0, 4 * d) }
+        box.addView(info)
+        val pts = svc.prefs.fanCurve.toMutableList()
+        val view = FanCurveView(svc, pal).apply { points = pts.toList(); selected = 1 }
+        box.addView(view, lp(560 * d, 240 * d))
+        box.addView(text("◀ ▶ Punkt · ▲ ▼ Drehzahl · A aktivieren · B zurück", 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
+        fun refreshInfo() {
+            val t = FanCurve.currentTemp.takeIf { it > 0 } ?: 0f
+            view.liveTemp = t
+            info.text = if (FanCurve.isRunning()) "Aktiv · jetzt ${t.toInt()} °C → ${FanCurve.currentPct} %" else
+                "Unter ${FanCurve.MIN} % geht es nie, ab ${FanCurve.HOT} °C läuft der Lüfter voll"
+        }
+        refreshInfo()
+        val tickInfo = object : Runnable { override fun run() { if (menuView === box) { refreshInfo(); svc.ui.postDelayed(this, 1000) } } }
+        svc.ui.postDelayed(tickInfo, 1000)
+        r.addView(box, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        menuView = box
+        popupKeys = { code ->
+            when (code) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> view.selected = (view.selected - 1).coerceAtLeast(0)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> view.selected = (view.selected + 1).coerceAtMost(pts.lastIndex)
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    val i = view.selected
+                    pts[i] = (pts[i] + if (code == KeyEvent.KEYCODE_DPAD_UP) 5 else -5).coerceIn(FanCurve.MIN, 100)
+                    // the curve never falls with rising temperature
+                    for (j in 0 until i) pts[j] = minOf(pts[j], pts[i])
+                    for (j in i + 1..pts.lastIndex) pts[j] = maxOf(pts[j], pts[i])
+                    view.points = pts.toList()
+                    if (FanCurve.isRunning()) svc.prefs.fanCurve = pts.toList()
+                }
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    svc.prefs.fanCurve = pts.toList()
+                    Thread {
+                        if (!FanCurve.available()) {
+                            svc.ui.post { Toast.makeText(svc, "Dieses Gerät erlaubt keine eigene Lüftersteuerung", Toast.LENGTH_LONG).show() }
+                        } else {
+                            svc.prefs.fanCustom = true
+                            FanCurve.start(svc)
+                            svc.ui.postDelayed({ refreshAll() }, 600)
+                        }
+                    }.start()
+                    closeMenu()
+                }
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> closeMenu()
+            }
+        }
+    }
 
     private fun profileMenu(title: String, key: String, table: Map<String, String>, set: (String) -> Unit) {
         val cur = Device.sys(svc, key)
@@ -1526,6 +1598,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun removeMenuView() {
         menuView?.let { v -> (v.parent as? ViewGroup)?.removeView(v) }
         menuView = null
+        popupKeys = null
         ledCells = null
         activeWheel = null
     }
@@ -2268,6 +2341,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
             return true
         }
+        popupKeys?.let { k -> if (menuView != null) { k(e.keyCode); return true } }
         if (activeWheel != null && menuView != null) {
             wheelKey(e.keyCode)
             return true

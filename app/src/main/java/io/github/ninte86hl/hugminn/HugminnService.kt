@@ -98,6 +98,8 @@ class HugminnService : AccessibilityService() {
                 if (level >= 0) Thread { runCatching { LedFx.battery(this@HugminnService, level * 100 / scale, charging) } }.start()
             }
         }, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        // own fan curve chosen last time keeps running
+        if (prefs.fanCustom) Thread { if (FanCurve.available()) FanCurve.start(this) }.start()
         // LED effect chosen last time keeps running
         Thread { runCatching { LedFx.resume(this) } }.start()
         // A crash last time? Send the report with the system log (if feedback is set up).
@@ -114,6 +116,7 @@ class HugminnService : AccessibilityService() {
         if (::overlay.isInitialized) overlay.hide()
         SettingsWatch.stop(this)
         LedFx.stop()
+        FanCurve.stop(restoreSmart = true)
         instance = null
         super.onDestroy()
     }
