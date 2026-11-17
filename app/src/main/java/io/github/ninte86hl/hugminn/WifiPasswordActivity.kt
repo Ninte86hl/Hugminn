@@ -108,10 +108,16 @@ class WifiPasswordActivity : Activity() {
             gravity = Gravity.CENTER_HORIZONTAL
             setBackgroundColor(0x99000000.toInt())
             setPadding(0, dp(16), 0, 0)
+            // keep clear of the navigation bar / gesture area at the bottom
+            setOnApplyWindowInsetsListener { v, ins ->
+                val nav = ins.getInsets(android.view.WindowInsets.Type.navigationBars() or android.view.WindowInsets.Type.systemGestures()).bottom
+                v.setPadding(0, dp(16), 0, nav)
+                ins
+            }
             addView(box, LinearLayout.LayoutParams(dp(520), LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(View(this@WifiPasswordActivity), LinearLayout.LayoutParams(1, 0, 1f))
             addView(keyboard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(dp(12), 0, dp(12), dp(10))
+                setMargins(dp(12), 0, dp(12), dp(16))
             })
         }
         setContentView(root)

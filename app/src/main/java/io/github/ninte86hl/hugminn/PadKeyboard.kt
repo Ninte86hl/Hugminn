@@ -98,7 +98,7 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
 
     override fun onMeasure(wSpec: Int, hSpec: Int) {
         val w = MeasureSpec.getSize(wSpec)
-        setMeasuredDimension(w, minOf(context.dp(250), (w * 0.36f).toInt()))
+        setMeasuredDimension(w, minOf(context.dp(232), (w * 0.33f).toInt()))
     }
 
     private fun shape(r: RectF): Path = if (pixel) pixelPath(r, unit, 2) else Path().apply { addRoundRect(r, radius, radius, Path.Direction.CW) }
