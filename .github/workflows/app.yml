@@ -39,6 +39,21 @@ jobs:
           name: hugminn
           path: hugminn.apk
 
+      - name: Read version
+        id: ver
+        run: echo "name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish versioned pre-release (for Obtainium)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.name }}
+          name: Hugminn v${{ steps.ver.outputs.name }}
+          prerelease: true
+          make_latest: false
+          files: hugminn.apk
+          body: |
+            Test build ${{ steps.ver.outputs.name }} of Hugminn. Install `hugminn.apk` on the handheld.
+
       - name: Publish as pre-release "latest"
         uses: softprops/action-gh-release@v2
         with:
