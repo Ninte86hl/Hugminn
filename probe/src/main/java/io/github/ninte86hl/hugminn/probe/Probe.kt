@@ -152,7 +152,7 @@ object Probe {
         for (id in InputDevice.getDeviceIds()) {
             val d = InputDevice.getDevice(id) ?: continue
             appendLine("[$id] \"${d.name}\"  vendor=0x${Integer.toHexString(d.vendorId)} product=0x${Integer.toHexString(d.productId)}  extern=${d.isExternal}  controller#=${d.controllerNumber}")
-            appendLine("   Quellen=0x${Integer.toHexString(d.sources)}  Gamepad=${d.sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD}  Joystick=${d.sources and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK}")
+            appendLine("   Quellen=0x${Integer.toHexString(d.sources)}  Gamepad=${(d.sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD}  Joystick=${(d.sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK}")
             val has = d.hasKeys(*keys)
             appendLine("   Tasten: " + keys.indices.filter { has[it] }.joinToString(" ") { KeyEvent.keyCodeToString(keys[it]).removePrefix("KEYCODE_") })
             val axes = d.motionRanges.map { MotionEvent.axisToString(it.axis).removePrefix("AXIS_") }.distinct()

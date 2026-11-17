@@ -317,8 +317,8 @@ class MainActivity : Activity() {
         busy = false
         report.putAll(sections)
         if (step != Step.READ) return
-        val pads = InputDevice.getDeviceIds().mapNotNull { InputDevice.getDevice(it) }
-            .filter { it.sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD }
+        val pads = InputDevice.getDeviceIds().toList().mapNotNull { InputDevice.getDevice(it) }
+            .filter { (it.sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD }
             .map { it.name }.distinct()
         val m = resources.displayMetrics
         page(
