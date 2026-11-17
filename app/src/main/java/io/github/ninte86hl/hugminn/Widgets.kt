@@ -184,3 +184,30 @@ object GaugeColors {
         GaugePalette.MONO -> pal.onSurfaceVariant
     }
 }
+
+/** Thin bar for a load between 0 and 1 (modern: rounded, pixel: blocks). */
+class GaugeBar(ctx: Context, private val pal: Palette, private val pixel: Boolean) : View(ctx) {
+    private var fraction = 0f
+    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHighest }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.primary }
+
+    fun set(f: Float, color: Int) {
+        fraction = f.coerceIn(0f, 1f)
+        fill.color = color
+        invalidate()
+    }
+
+    override fun onDraw(c: Canvas) {
+        val w = width.toFloat()
+        val h = height.toFloat()
+        if (pixel) {
+            val n = 12
+            val bw = w / n
+            val lit = Math.round(fraction * n)
+            for (i in 0 until n) c.drawRect(i * bw + 1.5f, 0f, (i + 1) * bw - 1.5f, h, if (i < lit) fill else track)
+        } else {
+            c.drawRoundRect(0f, 0f, w, h, h / 2, h / 2, track)
+            if (fraction > 0f) c.drawRoundRect(0f, 0f, h + (w - h) * fraction, h, h / 2, h / 2, fill)
+        }
+    }
+}

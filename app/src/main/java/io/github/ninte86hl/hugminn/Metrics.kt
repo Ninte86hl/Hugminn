@@ -5,15 +5,16 @@ import android.content.Context
 import java.io.File
 
 /** Live values for the Control Center graphs. All read without root. */
-class Metrics(private val ctx: Context) {
+class Metrics(private val ctx: Context, private val foreground: () -> String? = { null }) {
     data class Sample(
         val cpuPct: Float, val cpuMhz: Int,
         val gpuPct: Float, val gpuMhz: Int,
         val ramUsedMb: Long, val ramTotalMb: Long,
         val cpuTemp: Float, val gpuTemp: Float, val batTemp: Float,
         val batPct: Int, val watts: Float, val charging: Boolean,
-        /** Frames the display composed per second (needs root), -1 if unknown. */
+        /** Frames per second of the app in the foreground (needs root), -1 if unknown. */
         val fps: Int,
+        val frameTimesMs: List<Float> = emptyList(),
     )
 
     private var lastFrames = -1L
@@ -61,6 +62,7 @@ class Metrics(private val ctx: Context) {
         zones.mapNotNull { read(it)?.toFloatOrNull() }.filter { it in 1f..150_000f }.maxOrNull()?.let { if (it > 1000) it / 1000f else it } ?: 0f
 
     fun sample(): Sample {
+        val frame = try { FrameRate.sample(foreground()) } catch (t: Throwable) { null }
         // CPU load from /proc/stat deltas.
         var cpuPct = 0f
         read(File("/proc/stat"))?.lineSequence()?.firstOrNull()?.let { line ->
@@ -93,7 +95,8 @@ class Metrics(private val ctx: Context) {
         return Sample(
             cpuPct.coerceIn(0f, 100f), cpuMhz, gpuPct.coerceIn(0f, 100f), gpuMhz,
             usedMb, totalMb, maxTemp(cpuZones), maxTemp(gpuZones), batTemp, batPct, watts, charging,
-            if (Root.available()) fps() else -1,
+            frame?.fps ?: if (Root.available()) fps() else -1,
+            frame?.frameTimesMs ?: emptyList(),
         )
     }
 }

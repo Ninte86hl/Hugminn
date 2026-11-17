@@ -79,7 +79,7 @@ class ControlCenter(private val svc: HugminnService) {
         refreshers.clear()
         graphUpdates.clear()
         focus = 0
-        metrics = Metrics(svc)
+        metrics = Metrics(svc) { svc.foregroundPkg }
         // Full window over everything; the status bar is covered unless the user wants to keep it.
         val metrics = wm.currentWindowMetrics
         val bounds = metrics.bounds
@@ -166,6 +166,8 @@ class ControlCenter(private val svc: HugminnService) {
     private fun tileOnFg() = if (svc.prefs.tileColor == 0) pal.onPrimary else onColor(svc.prefs.tileColor)
 
     private var gearItem: Item? = null
+    /** Cards that open something when chosen (frame rate, performance, fan). */
+    private val cardItems = mutableListOf<Item>()
     private var panelView: View? = null
     private var topInset = 0
 
@@ -224,6 +226,7 @@ class ControlCenter(private val svc: HugminnService) {
         tiles.clear()
         tileGrid = null
         sliderItems.clear()
+        cardItems.clear()
         val cols = listOf(left, right).filter { it.isNotEmpty() }
         cols.forEachIndexed { i, ids ->
             if (i > 0) body.addView(View(svc), lp(14 * d, MATCH))
@@ -263,7 +266,8 @@ class ControlCenter(private val svc: HugminnService) {
             if (b.small) {
                 val row = LinearLayout(svc)
                 var n = 0
-                while (i < blocks.size && blocks[i].small && n < 4) {
+                val kind = blocks[i].gauge
+                while (i < blocks.size && blocks[i].small && blocks[i].gauge == kind && n < 4) {
                     row.addView(smallBlock(blocks[i]), lp(0, MATCH, 1f).apply { if (n > 0) marginStart = 10 * d })
                     i++
                     n++
@@ -313,7 +317,9 @@ class ControlCenter(private val svc: HugminnService) {
         row.addView(text(" FPS", 18f, pal.onSurfaceVariant, bold = true).apply { setPadding(0, 0, 0, 10 * d) })
         fps.addView(modeChip)
         fps.addView(row)
-        fps.addView(text("Aktuelle Bildrate", 12f, pal.onSurfaceVariant))
+        fps.addView(text("Bildrate des Spiels · A: Leistungs-Overlay", 12f, pal.onSurfaceVariant))
+        fps.setOnClickListener { overlayMenu() }
+        cardItems += Item(fps, { overlayMenu() })
         val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
         graphUpdates += { s ->
             value.text = if (s.fps >= 0) "${s.fps}" else "–"
@@ -331,8 +337,12 @@ class ControlCenter(private val svc: HugminnService) {
             graphUpdates += { s -> r.update(s) }
             return c
         }
-        fun info(icon: IconView.Kind, title: String, update: (TextView, TextView, Metrics.Sample) -> Unit): View {
+        fun info(icon: IconView.Kind, title: String, onA: (() -> Unit)? = null, bar: GaugeBar? = null, update: (TextView, TextView, Metrics.Sample) -> Unit): View {
             val c = card()
+            if (onA != null) {
+                c.setOnClickListener { onA() }
+                cardItems += Item(c, onA)
+            }
             val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
             head.addView(IconView(svc, icon, 18).apply { setColor(pal.onSurfaceVariant) })
             head.addView(text(title, 12f, pal.onSurfaceVariant, bold = true).apply { setPadding(8 * d, 0, 0, 0) })
@@ -340,10 +350,28 @@ class ControlCenter(private val svc: HugminnService) {
             val sub = text("", 11f, pal.onSurfaceVariant)
             c.addView(head)
             c.addView(View(svc), lp(1, 0, 1f))
-            c.addView(big)
+            val line = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+            line.addView(big, lp(0, WRAP, 1f))
+            if (onA != null) line.addView(text("›", 22f, pal.onSurfaceVariant, bold = true))
+            c.addView(line)
             c.addView(sub)
+            bar?.let { c.addView(it, lp(MATCH, 6 * d).apply { topMargin = 6 * d }) }
             graphUpdates += { s -> update(big, sub, s) }
             return c
+        }
+        fun gauge(title: String, icon: IconView.Kind, value: (Metrics.Sample) -> Triple<Float, String, String>, ringLabel: String): View {
+            if (!svc.prefs.gaugeBars) return ring(ringLabel, pal.primary) { s ->
+                val (f, v, u) = value(s)
+                setColor(GaugeColors.of(pal, gp, f))
+                set(f, v, u)
+            }
+            val bar = GaugeBar(svc, pal, pixel)
+            return info(icon, title, bar = bar) { big, sub, s ->
+                val (f, v, u) = value(s)
+                big.text = v
+                sub.text = u
+                bar.set(f, GaugeColors.of(pal, gp, f))
+            }
         }
         return when (b) {
             CcBlock.TEMP -> info(IconView.Kind.THERMO, "TEMPERATUR") { big, sub, s ->
@@ -354,7 +382,15 @@ class ControlCenter(private val svc: HugminnService) {
                     s.batTemp.takeIf { it > 0 }?.let { "Akku ${it.toInt()} °C" },
                 ).joinToString(" · ")
             }
-            CcBlock.FAN -> info(IconView.Kind.FAN, "LÜFTER") { big, sub, _ ->
+            CcBlock.PERF -> info(IconView.Kind.BOLT, "LEISTUNG", onA = {
+                profileMenu("Leistungsprofil", "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
+            }) { big, sub, s ->
+                big.text = Device.perfLabel(svc)
+                sub.text = "CPU bis %.2f GHz".format(s.cpuMhz / 1000f)
+            }
+            CcBlock.FAN -> info(IconView.Kind.FAN, "LÜFTER", onA = {
+                profileMenu("Lüfterprofil", "fan_mode", Device.fanProfiles) { v -> Device.setFan(v) { refreshAll() } }
+            }) { big, sub, _ ->
                 big.text = Device.fanLabel(svc)
                 sub.text = Device.fanSpeed(svc)?.let { "Drehzahl $it" } ?: ""
             }
@@ -363,23 +399,19 @@ class ControlCenter(private val svc: HugminnService) {
                 big.setTextColor(if (gp != GaugePalette.MONO) GaugeColors.of(pal, gp, 1f - s.batPct / 100f) else pal.onSurface)
                 sub.text = "%.1f W".format(s.watts) + if (s.charging) " · lädt" else ""
             }
-            CcBlock.CPU -> ring("CPU", pal.primary) { s ->
-                setColor(GaugeColors.of(pal, gp, s.cpuPct / 100f))
-                set(s.cpuPct / 100f, "%.2f".format(s.cpuMhz / 1000f), "GHz · ${s.cpuPct.toInt()} %")
-            }
-            CcBlock.GPU -> ring("GPU", pal.primary) { s ->
-                setColor(GaugeColors.of(pal, gp, s.gpuPct / 100f))
-                set(s.gpuPct / 100f, "${s.gpuMhz}", "MHz · ${s.gpuPct.toInt()} %")
-            }
-            CcBlock.POWER -> ring("LEISTUNG", pal.primary) { s ->
-                setColor(GaugeColors.of(pal, gp, s.watts / 15f))
-                set(s.watts / 15f, "%.1f".format(s.watts), if (s.charging) "W · lädt" else "W")
-            }
-            CcBlock.RAM -> ring("RAM", pal.primary) { s ->
+            CcBlock.CPU -> gauge("CPU", IconView.Kind.BOLT, { s ->
+                Triple(s.cpuPct / 100f, "${s.cpuPct.toInt()} %", "%.2f GHz".format(s.cpuMhz / 1000f))
+            }, "CPU")
+            CcBlock.GPU -> gauge("GPU", IconView.Kind.REFRESH, { s ->
+                Triple(s.gpuPct / 100f, "${s.gpuPct.toInt()} %", "${s.gpuMhz} MHz")
+            }, "GPU")
+            CcBlock.POWER -> gauge("LEISTUNGSAUFNAHME", IconView.Kind.PLUG, { s ->
+                Triple(s.watts / 15f, "%.1f W".format(s.watts), if (s.charging) "lädt" else "aus dem Akku")
+            }, "WATT")
+            CcBlock.RAM -> gauge("RAM", IconView.Kind.SCREEN, { s ->
                 val pct = if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f
-                setColor(GaugeColors.of(pal, gp, pct))
-                set(pct, "%.1f".format(s.ramUsedMb / 1024f), "GB · ${(pct * 100).toInt()} %")
-            }
+                Triple(pct, "%.1f GB".format(s.ramUsedMb / 1024f), "${(pct * 100).toInt()} % von ${Math.round(s.ramTotalMb / 1024f)} GB")
+            }, "RAM")
             else -> View(svc)
         }
     }
@@ -534,6 +566,7 @@ class ControlCenter(private val svc: HugminnService) {
         }
         items.clear()
         items += tileItems
+        items += cardItems
         items += sliderItems
         gearItem?.let { items += it }
         focus = 0
@@ -654,7 +687,7 @@ class ControlCenter(private val svc: HugminnService) {
                 minimumHeight = 46 * d
                 setOnClickListener { runMenu(i) }
             }
-            row.addView(text(if (e.checked) "●" else "○", 14f, if (e.checked) pal.primary else pal.outline).apply {
+            if (entries.any { it.checked }) row.addView(text(if (e.checked) "●" else "○", 14f, if (e.checked) pal.primary else pal.outline).apply {
                 setPadding(0, 0, 12 * d, 0)
                 visibility = if (e.run == null && !e.checked) View.INVISIBLE else View.VISIBLE
             })
@@ -782,6 +815,13 @@ class ControlCenter(private val svc: HugminnService) {
                     }
                 })
             },
+            MenuEntry("Anzeigeart", hint = if (svc.prefs.gaugeBars) "Karten mit Balken" else "Ringe") {
+                showMenu("Anzeigeart", listOf(
+                    MenuEntry("Karten mit Balken", checked = svc.prefs.gaugeBars) { svc.prefs.gaugeBars = true; reopen() },
+                    MenuEntry("Ringe (AYN-Stil)", checked = !svc.prefs.gaugeBars) { svc.prefs.gaugeBars = false; reopen() },
+                ))
+            },
+            MenuEntry("Leistungs-Overlay", hint = if (svc.prefs.overlayOn) "An" else "Aus") { overlayMenu() },
             MenuEntry("Farben der Anzeigen", hint = svc.prefs.gaugePalette.label) {
                 showMenu("Farben der Anzeigen", GaugePalette.values().map { g ->
                     MenuEntry(g.label, checked = svc.prefs.gaugePalette == g) { svc.prefs.gaugePalette = g; reopen() }
@@ -797,6 +837,34 @@ class ControlCenter(private val svc: HugminnService) {
                     MenuEntry("Ja, Standard wiederherstellen") { svc.prefs.resetControlCenter(); reopen() },
                     MenuEntry("Abbrechen") {},
                 ))
+            },
+        ))
+    }
+
+    private fun overlayMenu() {
+        val p = svc.prefs
+        showMenu("Leistungs-Overlay", listOf(
+            MenuEntry(if (p.overlayOn) "Overlay ausschalten" else "Overlay einschalten", hint = "Kleine Anzeige über dem Spiel, wie bei Steam") {
+                p.overlayOn = !p.overlayOn
+                svc.overlay.refresh()
+            },
+            MenuEntry("Angezeigte Werte", hint = p.overlayItems.mapNotNull { OverlayItem.of(it)?.label }.joinToString(", ")) {
+                openEditor("Overlay-Werte", listOf(
+                    EditSection("Angezeigt", p.overlayItems.toMutableList()),
+                    EditSection("Ausgeblendet", OverlayItem.values().map { it.id }.filter { it !in p.overlayItems }.toMutableList()),
+                ), enableTo = 0, label = { OverlayItem.of(it)?.label ?: it }, note = { "" }) {
+                    p.overlayItems = editSections[0].ids.toList()
+                    if (p.overlayOn) svc.overlay.show()
+                }
+            },
+            MenuEntry("Position", hint = p.overlayPos.label) {
+                showMenu("Position", OverlayPos.values().map { pos ->
+                    MenuEntry(pos.label, checked = p.overlayPos == pos) { p.overlayPos = pos; if (p.overlayOn) svc.overlay.show() }
+                })
+            },
+            MenuEntry("Anordnung", hint = if (p.overlayRow) "Nebeneinander" else "Untereinander") {
+                p.overlayRow = !p.overlayRow
+                if (p.overlayOn) svc.overlay.show()
             },
         ))
     }
@@ -850,12 +918,19 @@ class ControlCenter(private val svc: HugminnService) {
         }
         box.addView(text(title, 18f, pal.onSurface, bold = true).apply { setPadding(12 * d, 0, 12 * d, 4 * d) })
         val help = LinearLayout(svc).apply {
-            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.VERTICAL
             setPadding(12 * d, 0, 12 * d, 10 * d)
         }
+        var helpRow: LinearLayout? = null
         fun h(k: Int, t: String) {
-            help.addView(Glyphs.chip(svc, svc.prefs, pal, k, 20))
-            help.addView(text(t, 12f, pal.onSurfaceVariant).apply { setPadding(5 * d, 0, 12 * d, 0) })
+            val r0 = helpRow?.takeIf { it.childCount < 4 } ?: LinearLayout(svc).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, 2 * d, 0, 2 * d)
+                help.addView(this)
+                helpRow = this
+            }
+            r0.addView(Glyphs.chip(svc, svc.prefs, pal, k, 20))
+            r0.addView(text(t, 12f, pal.onSurfaceVariant).apply { setPadding(5 * d, 0, 14 * d, 0) })
         }
         h(KeyEvent.KEYCODE_BUTTON_A, "ein/aus")
         if (adjust != null) h(KeyEvent.KEYCODE_DPAD_LEFT, "Größe −/+")

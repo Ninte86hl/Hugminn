@@ -24,6 +24,8 @@ class HugminnService : AccessibilityService() {
         private set
     private lateinit var switcher: Switcher
     private lateinit var controlCenter: ControlCenter
+    lateinit var overlay: PerfOverlay
+        private set
 
     private var pendingSingle = false
     private var longFired = false
@@ -42,7 +44,9 @@ class HugminnService : AccessibilityService() {
         prefs = Prefs(this)
         switcher = Switcher(this)
         controlCenter = ControlCenter(this)
+        overlay = PerfOverlay(this)
         instance = this
+        if (prefs.overlayOn) ui.post { runCatching { overlay.show() } }
         // Keep the firmware from killing Hugminn in the background.
         Thread {
             Device.ensureWhitelist(this)
@@ -62,6 +66,7 @@ class HugminnService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        if (::overlay.isInitialized) overlay.hide()
         SettingsWatch.stop(this)
         instance = null
         super.onDestroy()
@@ -69,7 +74,18 @@ class HugminnService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent) {
+    /** Package of the app in the foreground (game), for frame rate and overlay. */
+    @Volatile var foregroundPkg: String? = null
+        private set
+    private val notApps = setOf("com.android.systemui", "com.android.launcher3", "com.google.android.inputmethod.latin")
+
+        override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val pkg = event.packageName?.toString()
+            if (pkg != null && pkg != packageName && pkg !in notApps && !pkg.contains("launcher", true) && !pkg.contains("inputmethod", true)) {
+                foregroundPkg = pkg
+            }
+        }
         if (::switcher.isInitialized) try {
             switcher.onEvent(event)
         } catch (t: Throwable) {

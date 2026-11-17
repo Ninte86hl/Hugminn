@@ -116,6 +116,25 @@ class Prefs(ctx: Context) {
         .remove("ccLayout").remove("ccTiles").remove("ccSizes").remove("tileColor").remove("tileShape").remove("gaugePalette")
         .apply()
 
+    var overlayOn: Boolean
+        get() = p.getBoolean("overlayOn", false)
+        set(v) = p.edit().putBoolean("overlayOn", v).apply()
+    var overlayItems: List<String>
+        get() = p.getString("overlayItems", null)?.split(',')?.filter { OverlayItem.of(it) != null } ?: OverlayItem.defaults
+        set(v) = p.edit().putString("overlayItems", v.joinToString(",")).apply()
+    var overlayPos: OverlayPos
+        get() = enumOr(p.getString("overlayPos", null), OverlayPos.TOP_LEFT)
+        set(v) = p.edit().putString("overlayPos", v.name).apply()
+    /** true: values side by side in one line, false: below each other. */
+    var overlayRow: Boolean
+        get() = p.getBoolean("overlayRow", true)
+        set(v) = p.edit().putBoolean("overlayRow", v).apply()
+
+    /** Gauges as bars (true) or rings (false). */
+    var gaugeBars: Boolean
+        get() = p.getBoolean("gaugeBars", true)
+        set(v) = p.edit().putBoolean("gaugeBars", v).apply()
+
     var gaugePalette: GaugePalette
         get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)
         set(v) = p.edit().putString("gaugePalette", v.name).apply()

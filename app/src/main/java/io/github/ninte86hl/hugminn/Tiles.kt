@@ -28,7 +28,7 @@ object TileCatalog {
         "settings" to "Android-Einstellungen",
         "hugminn" to "Hugminn",
     )
-    val defaults = listOf("wifi", "bt", "perf", "fan", "refresh", "leds", "dnd", "screenshot")
+    val defaults = listOf("wifi", "bt", "refresh", "leds", "dnd", "rotation", "clean", "screenshot")
 }
 
 /** Building blocks of the Control Center; "small" ones sit side by side in a row. */
@@ -38,6 +38,7 @@ enum class CcBlock(val id: String, val label: String, val small: Boolean) {
     VOLUME("volume", "Lautstärke", false),
     FPS("fps", "Bildrate", false),
     TEMP("temp", "Temperatur", true),
+    PERF("perf", "Leistungsprofil", true),
     FAN("fan", "Lüfter", true),
     BATTERY("battery", "Akku", true),
     CPU("cpu", "CPU-Anzeige", true),
@@ -45,8 +46,11 @@ enum class CcBlock(val id: String, val label: String, val small: Boolean) {
     POWER("power", "Leistungsaufnahme", true),
     RAM("ram", "RAM-Anzeige", true);
 
+    /** Gauges (CPU, GPU, RAM, power) and info cards are not mixed in one row. */
+    val gauge get() = id in setOf("cpu", "gpu", "ram", "power")
+
     companion object {
-        val defaultLeft = listOf("fps", "temp", "fan", "cpu", "gpu", "power", "ram")
+        val defaultLeft = listOf("fps", "temp", "perf", "fan", "cpu", "gpu", "ram", "power")
         val defaultRight = listOf("tiles", "brightness", "volume")
         fun of(id: String) = values().firstOrNull { it.id == id }
     }
