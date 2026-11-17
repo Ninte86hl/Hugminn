@@ -467,7 +467,8 @@ class ControlCenter(private val svc: HugminnService) {
             if (!svc.prefs.githubToken.isNullOrBlank()) hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback")
             if (pages() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
-            hint(KeyEvent.KEYCODE_BUTTON_Y, if (menuHere) "Optionen" else "Bearbeiten")
+            if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_X, "Optionen")
+            hint(KeyEvent.KEYCODE_BUTTON_Y, "Bearbeiten")
             hint(KeyEvent.KEYCODE_BUTTON_A, if (adjusting) "Fertig" else "Auswählen")
             hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück")
         }
@@ -809,7 +810,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     // ---------- quick tiles ----------
 
-    /** [menu]: submenu of the tile, opened with the edit button (△); A/tap only switches. */
+    /** [menu]: submenu of the tile, opened with the west button (□); A/tap only switches. */
     private data class Tile(val title: String, val icon: IconView.Kind, val state: () -> String?, val on: () -> Boolean, val menu: (() -> Unit)? = null, val act: () -> Unit)
 
     private val tiles = mutableListOf<Tile>()
@@ -2059,7 +2060,8 @@ class ControlCenter(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()
-            KeyEvent.KEYCODE_BUTTON_Y -> item?.onY?.takeIf { focusVisible }?.invoke() ?: editMenu()
+            KeyEvent.KEYCODE_BUTTON_X -> if (focusVisible) item?.onY?.invoke()
+            KeyEvent.KEYCODE_BUTTON_Y -> editMenu()
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close()
         }
         return true
