@@ -27,6 +27,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.view.accessibility.AccessibilityNodeInfo
 import java.io.File
 import kotlin.concurrent.thread
 import kotlin.math.abs
@@ -208,7 +209,9 @@ class OwnSwitcher(private val svc: HugminnService) {
         bar = null
         // removed at once: a fade-out left a ghost of the cards over the home screen
         r?.let { runCatching { wm.removeViewImmediate(it) } }
-        if (back && fromSwipe) {
+        val under = recentsUnder
+        recentsUnder = false
+        if (back && (fromSwipe || under)) {
             // Android's recents view is still underneath: back into the app, or home
             val f = fromPkg
             if (f != null) bring(apps.firstOrNull { it.pkg == f } ?: RecentApp(f, -1)) else svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
@@ -234,7 +237,7 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     private fun openSelected() {
         val a = apps.getOrNull(sel) ?: return
-        val same = !fromSwipe && a.pkg == fromPkg
+        val same = !fromSwipe && !recentsUnder && a.pkg == fromPkg
         close(back = false)
         // the app is already underneath: just uncover it
         if (!same) bring(a)
@@ -257,14 +260,70 @@ class OwnSwitcher(private val svc: HugminnService) {
         renderBar()
     }
 
-    /** Ends the app and removes its card from Android's recents view as well. */
+    /** Android's recents view was opened underneath (to remove cards): leave it like after a swipe. */
+    private var recentsUnder = false
+    /** What removing apps did (for feedback reports). */
+    @Volatile var removeDiag = ""
+
+    private fun removeTaskCode(): Int? = runCatching {
+        Class.forName("android.app.IActivityTaskManager\$Stub").getDeclaredField("TRANSACTION_removeTask").apply { isAccessible = true }.getInt(null)
+    }.getOrNull()
+
+    private fun stillListed(pkg: String) = loadTasks()?.any { it.pkg == pkg }
+
+    /**
+     * Ends the app and removes its card from Android's recents view as well: first through the system
+     * (root), checked against Android's list; if the card is still there, Hugminn removes it in
+     * Android's own view, hidden behind the switcher.
+     */
     private fun removeTask(a: RecentApp) {
         thread {
-            // task id: from the list, or look it up now
             val id = a.taskId.takeIf { it > 0 } ?: loadTasks()?.firstOrNull { it.pkg == a.pkg }?.taskId ?: -1
-            if (id > 0) Root.exec("am stack remove $id")
+            val log = StringBuilder("${a.pkg} (Task $id):")
+            if (id > 0) {
+                val code = removeTaskCode()
+                if (code != null) log.append(" service call $code → ${Root.exec("service call activity_task $code i32 $id")}")
+                else log.append(" kein Transaktionscode")
+                if (stillListed(a.pkg) == true) log.append(" | am stack remove → ${Root.exec("am stack remove $id 2>&1")}")
+            }
             Root.exec("am force-stop ${a.pkg}")
+            val still = stillListed(a.pkg) == true
+            log.append(if (still) " → noch in Androids Liste, entferne in Androids Ansicht" else " → entfernt")
+            removeDiag = (removeDiag + "\n" + log).takeLast(1500)
+            if (still) svc.ui.post { dismissInRecents(Apps.label(svc, a.pkg)) }
         }
+    }
+
+    /** Opens Android's recents view under the switcher and swipes the app's card away there. */
+    private fun dismissInRecents(label: String) {
+        if (!isOpen) return
+        recentsUnder = true
+        if (findPanel() == null) svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
+        var tries = 0
+        val look = object : Runnable {
+            override fun run() {
+                if (!isOpen) return
+                val card = findPanel()?.let { p -> (0 until p.childCount).mapNotNull { p.getChild(it) } }
+                    ?.firstOrNull { it.contentDescription?.toString() == label }
+                if (card != null) {
+                    val dismiss = card.actionList.firstOrNull {
+                        it.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_DISMISS.id ||
+                            it.label?.toString()?.contains(Regex("schließen|close|dismiss|entfernen", RegexOption.IGNORE_CASE)) == true
+                    }
+                    val ok = dismiss != null && card.performAction(dismiss.id)
+                    removeDiag += "\nAndroids Ansicht: Karte \"$label\" ${if (ok) "entfernt" else "gefunden, aber nicht entfernbar (${card.actionList.joinToString { it.label?.toString() ?: it.id.toString() }})"}"
+                } else if (++tries < 20) svc.ui.postDelayed(this, 100)
+                else removeDiag += "\nAndroids Ansicht: Karte \"$label\" nicht gefunden"
+            }
+        }
+        svc.ui.postDelayed(look, 250)
+    }
+
+    private fun findPanel(): AccessibilityNodeInfo? {
+        for (r in svc.roots()) {
+            r.findAccessibilityNodeInfosByViewId("${r.packageName}:id/overview_panel").firstOrNull()?.let { return it }
+        }
+        return null
     }
 
     private fun openMenu() {

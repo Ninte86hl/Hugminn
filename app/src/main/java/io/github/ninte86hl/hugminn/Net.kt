@@ -19,14 +19,20 @@ object Wifi {
 
     fun startScan() = Root.run("cmd wifi start-scan")
 
+    /** Raw answer of the last scan listing (for feedback reports). */
+    @Volatile var diag = ""
+
     /** Networks in range, strongest first, one entry per name. */
     fun scanResults(): List<Net> {
-        val out = Root.execLong("cmd wifi list-scan-results") ?: return emptyList()
+        val out = Root.execLong("cmd wifi list-scan-results 2>&1")
+        diag = "Scan: " + (out?.lines()?.take(4)?.joinToString(" ⏎ ")?.take(400) ?: "keine Antwort")
+        if (out == null) return emptyList()
         val res = LinkedHashMap<String, Net>()
         for (line in out.lines()) {
             val t = line.trim().split(Regex("\\s+"))
             if (t.size < 5 || !Regex("^[0-9a-fA-F:]{17}$").matches(t[0])) continue
-            val rssi = t[2].toIntOrNull() ?: continue
+            // RSSI may come as "-45(0:-48/1:-47)"
+            val rssi = Regex("^-?\\d+").find(t[2])?.value?.toIntOrNull() ?: continue
             val flagsAt = t.indexOfFirst { it.startsWith("[") }.let { if (it < 0) t.size else it }
             val ssid = t.subList(4, flagsAt).joinToString(" ").trim()
             if (ssid.isEmpty()) continue
@@ -79,6 +85,8 @@ object Wifi {
 /** Bluetooth: paired devices, connecting them, finding and pairing new ones. */
 @SuppressLint("MissingPermission")
 object Bt {
+    /** What the last device search reported (for feedback reports). */
+    @Volatile var diag = ""
     private fun adapter(ctx: Context): BluetoothAdapter? = ctx.getSystemService(BluetoothManager::class.java)?.adapter
 
     fun paired(ctx: Context): List<BluetoothDevice> = runCatching { adapter(ctx)?.bondedDevices?.toList() }.getOrNull().orEmpty()
@@ -130,16 +138,21 @@ object Bt {
                 val d = i.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE) ?: return
                 if (d.bondState == BluetoothDevice.BOND_BONDED) return
                 val known = list[d.address]
+                diag += " · gefunden: ${d.address}"
                 if (known == null || (runCatching { known.name }.getOrNull() == null && runCatching { d.name }.getOrNull() != null)) {
                     list[d.address] = d
-                    found(list.values.filter { runCatching { it.name }.getOrNull() != null })
+                    found(list.values.toList())
                 }
             }
         }
 
         fun start() {
             runCatching { ctx.registerReceiver(rx, IntentFilter(BluetoothDevice.ACTION_FOUND)) }
-            runCatching { adapter(ctx)?.startDiscovery() }
+            val r = runCatching { adapter(ctx)?.startDiscovery() }
+            diag = "Suche gestartet: ${r.getOrNull()} ${r.exceptionOrNull()?.let { it.javaClass.simpleName + ": " + it.message } ?: ""}" +
+                " · Rechte: scan=${ctx.checkSelfPermission(android.Manifest.permission.BLUETOOTH_SCAN) == 0}" +
+                " connect=${ctx.checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == 0}" +
+                " ort=${ctx.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == 0}"
         }
 
         fun stop() {
