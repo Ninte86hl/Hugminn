@@ -73,10 +73,13 @@ class Switcher(private val svc: HugminnService) {
     @Volatile private var launcherPkg: String? = null
     private var busyUntil = 0L
     @Volatile private var generation = 0
+    private var closedAt = 0L
+    private var lastAutoCheck = 0L
     private var worker: HandlerThread? = null
     private var work: Handler? = null
 
     fun open() {
+        if (isOpen) return
         isOpen = true
         pal = Palette(svc)
         generation++
@@ -95,6 +98,7 @@ class Switcher(private val svc: HugminnService) {
     fun close(goBack: Boolean) {
         if (!isOpen) return
         isOpen = false
+        closedAt = SystemClock.uptimeMillis()
         generation++
         menu = null
         anim?.cancel()
@@ -156,7 +160,32 @@ class Switcher(private val svc: HugminnService) {
             val centred = focused.takeIf { it >= 0 }
                 ?: now.indices.minByOrNull { abs(now[it].exactCenterX() - mid) } ?: 0
             jumpTo(centred)
+            watch(gen, 0)
         }
+    }
+
+    /** Closes the frame as soon as the recents view is gone (app opened, swiped home, ...). */
+    private fun watch(gen: Int, misses: Int) {
+        val h = work ?: return
+        h.postDelayed({
+            if (gen != generation) return@postDelayed
+            val visible = try { findPanel()?.isVisibleToUser == true } catch (t: Throwable) { false }
+            val m = if (visible) 0 else misses + 1
+            if (m >= 2) svc.ui.post { if (gen == generation) close(goBack = false) } else watch(gen, m)
+        }, 250)
+    }
+
+    /** Called for launcher events while closed: opens the frame when the recents view appeared by gesture. */
+    private fun autoOpen(e: AccessibilityEvent) {
+        if (!svc.prefs.autoSwitcher) return
+        val pkg = e.packageName?.toString() ?: return
+        val known = launcherPkg
+        if (known != null) { if (pkg != known) return } else if (!pkg.contains("launcher", true) && !pkg.contains("quickstep", true)) return
+        val now = SystemClock.uptimeMillis()
+        if (now - closedAt < 1200 || now - lastAutoCheck < 200) return
+        lastAutoCheck = now
+        val p = try { findPanel() } catch (t: Throwable) { null } ?: return
+        if (p.isVisibleToUser && p.childCount > 0) open()
     }
 
     private fun buildModel(nodes: List<AccessibilityNodeInfo>): Model? {
@@ -438,7 +467,10 @@ class Switcher(private val svc: HugminnService) {
     }
 
     fun onEvent(e: AccessibilityEvent) {
-        if (!isOpen) return
+        if (!isOpen) {
+            autoOpen(e)
+            return
+        }
         val pkg = e.packageName?.toString()
         if (e.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
             // Scrolled by touch: the launcher reports which cards are visible once it has settled.

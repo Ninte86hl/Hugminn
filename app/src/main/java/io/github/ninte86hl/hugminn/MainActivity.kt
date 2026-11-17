@@ -181,6 +181,9 @@ class MainActivity : Activity() {
 
         // Switcher look
         val sw = section("Game Switcher")
+        row(sw, "Auch bei Wischgeste", "Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird", if (prefs.autoSwitcher) "An" else "Aus") {
+            prefs.autoSwitcher = !prefs.autoSwitcher
+        }
         row(sw, "Statusleiste", "Was der Rahmen oben zeigt: Uhrzeit und Akku im Hugminn-Stil, nichts, oder die normale Android-Leiste", prefs.statusBar.label) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
         }

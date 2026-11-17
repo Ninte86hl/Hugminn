@@ -44,6 +44,11 @@ class Prefs(ctx: Context) {
         get() = enumOr(p.getString("statusBar", null), StatusBar.OVERLAY)
         set(v) = p.edit().putString("statusBar", v.name).apply()
 
+    /** Show the switcher frame also when Android's recents view is opened by gesture. */
+    var autoSwitcher: Boolean
+        get() = p.getBoolean("autoSwitcher", true)
+        set(v) = p.edit().putBoolean("autoSwitcher", v).apply()
+
     var glyphStyle: GlyphStyle
         get() = enumOr(p.getString("glyphs", null), GlyphStyle.AUTO)
         set(v) = p.edit().putString("glyphs", v.name).apply()
