@@ -1,0 +1,52 @@
+name: Build Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "probe/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - ".github/workflows/probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Build APK
+        run: gradle :probe:assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: cp probe/build/outputs/apk/debug/probe-debug.apk hugminn-probe.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hugminn-probe
+          path: hugminn-probe.apk
+
+      - name: Publish as pre-release "probe-latest"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: probe-latest
+          name: Hugminn Probe (Test-App)
+          prerelease: true
+          make_latest: false
+          files: hugminn-probe.apk
+          body: |
+            Test app that reads device information for Hugminn. Read-only; installs next to nothing else.
+            Download `hugminn-probe.apk` below and open it on the handheld.

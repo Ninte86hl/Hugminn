@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_desc">Hugminn Probe protokolliert nur zum Testen Tastendrücke (auch Home) und liest die Android-Übersicht aus. Es wird nichts verändert oder verschickt.</string>
+</resources>
