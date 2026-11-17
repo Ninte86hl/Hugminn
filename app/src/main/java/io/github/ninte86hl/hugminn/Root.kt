@@ -62,7 +62,11 @@ object Root {
      * Runs [cmd] as root and returns its whole output. The service only answers with one line, so the
      * output goes to a scratch file and is read back in base64 chunks.
      */
-    fun execLong(cmd: String, timeoutMs: Long = 20_000): String? {
+    private val longLock = Any()
+
+    fun execLong(cmd: String, timeoutMs: Long = 20_000): String? = synchronized(longLock) { execLongLocked(cmd, timeoutMs) }
+
+    private fun execLongLocked(cmd: String, timeoutMs: Long): String? {
         if (!available()) return null
         val f = "/data/local/tmp/hugminn_${android.os.Process.myPid()}_${counter.incrementAndGet()}"
         val mark = "@@HUGMINN_END@@"
@@ -74,11 +78,18 @@ object Root {
         }
         val size = exec("wc -c < $f 2>/dev/null")?.trim()?.toLongOrNull() ?: 0L
         val out = java.io.ByteArrayOutputStream()
-        val chunk = 48_000
+        // small chunks: the service's answer gets cut off when it is too long
+        val chunk = 12_000
         var off = 0L
         while (off < size) {
             val b64 = exec("tail -c +${off + 1} $f | head -c $chunk | base64 -w 0", 10_000) ?: break
-            out.write(android.util.Base64.decode(b64.trim(), android.util.Base64.DEFAULT))
+            val bytes = try {
+                android.util.Base64.decode(b64.trim(), android.util.Base64.DEFAULT)
+            } catch (t: IllegalArgumentException) {
+                exec("rm -f $f")
+                return null
+            }
+            out.write(bytes)
             off += chunk
         }
         exec("rm -f $f")

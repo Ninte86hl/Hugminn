@@ -145,7 +145,7 @@ class OwnSwitcher(private val svc: HugminnService) {
      * is taken from the activity it really runs (realActivity / the start intent), not its affinity.
      */
     private fun loadTasks(): List<RecentApp>? {
-        val out = Root.execLong("dumpsys activity recents") ?: run { diag = "Taskliste: keine Antwort"; return null }
+        val out = Root.execLong("dumpsys activity recents | grep -E 'Recent #|realActivity=|cmp='") ?: run { diag = "Taskliste: keine Antwort"; return null }
         val starts = Regex("""\* Recent #\d+: Task\{\S+ #(\d+)[^\n]*""").findAll(out).toList()
         if (starts.isEmpty()) { diag = "Taskliste: nicht lesbar"; return null }
         val launchable = Apps.labels(svc).values.toSet()

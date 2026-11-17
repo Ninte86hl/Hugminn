@@ -52,6 +52,8 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
 
     init {
         isFocusable = false
+        // opaque panel: nothing of the screen behind shows between the keys
+        background = Look.shape(ctx, pixel, pal.surface, ctx.dp(16).toFloat())
         build()
     }
 
@@ -98,7 +100,10 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
 
     override fun onMeasure(wSpec: Int, hSpec: Int) {
         val w = MeasureSpec.getSize(wSpec)
-        setMeasuredDimension(w, minOf(context.dp(232), (w * 0.33f).toInt()))
+        val want = minOf(context.dp(232), (w * 0.33f).toInt())
+        // never taller than the room the window has left
+        val h = if (MeasureSpec.getMode(hSpec) == MeasureSpec.UNSPECIFIED) want else minOf(want, MeasureSpec.getSize(hSpec))
+        setMeasuredDimension(w, h)
     }
 
     private fun shape(r: RectF): Path = if (pixel) pixelPath(r, unit, 2) else Path().apply { addRoundRect(r, radius, radius, Path.Direction.CW) }
