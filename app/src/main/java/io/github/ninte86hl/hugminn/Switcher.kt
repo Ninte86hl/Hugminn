@@ -104,7 +104,7 @@ class Switcher(private val svc: HugminnService) {
         lingering?.let { l -> lingering = null; runCatching { wm.removeView(l) } }
         // Opened from the home screen: B leads back there, not into the last game.
         val front = runCatching { svc.rootInActiveWindow?.packageName?.toString() }.getOrNull()
-        fromPkg = if (front != null && front.contains("launcher", true)) null else svc.foregroundPkg
+        fromPkg = if (front != null && Apps.isHome(svc, front)) null else svc.foregroundPkg
         pal = Palette(svc)
         generation++
         cards = emptyList()

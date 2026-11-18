@@ -31,6 +31,27 @@ object Apps {
         else -> AppType.APP
     }
 
+    @Volatile private var homePkg: String? = null
+    @Volatile private var homeAt = 0L
+
+    /**
+     * Launchers never count as apps to switch to: Android's own and the home app the user set
+     * (Cocoon, ES-DE, Daijisho …).
+     */
+    fun isHome(ctx: Context, pkg: String?): Boolean {
+        if (pkg == null) return false
+        if (pkg.contains("launcher", true)) return true
+        val now = System.currentTimeMillis()
+        if (now - homeAt > 30_000) {
+            homePkg = runCatching {
+                ctx.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY)
+                    ?.activityInfo?.packageName?.takeIf { it != "android" }
+            }.getOrNull()
+            homeAt = now
+        }
+        return pkg == homePkg
+    }
+
     @Volatile private var labelCache: Map<String, String> = emptyMap()
 
     /** Launcher label → package for all launchable apps. */
