@@ -4,8 +4,7 @@ package io.github.ninte86hl.hugminn
  * Frame rate of the game in front, measured from SurfaceFlinger's present times of the layer the
  * game draws into (`dumpsys SurfaceFlinger --latency <layer>`, root). Which layer that is differs per
  * app (SurfaceView, its BLAST child, the window …), so every layer of the app is tried once and the
- * one that really receives pictures is kept. All counting happens in the shell, so the root service
- * only has to hand back one short line.
+ * one that really receives pictures is kept. Only simple shell commands are used; counting is done here.
  */
 object FrameRate {
     class Result(val fps: Int, val frameTimesMs: List<Float>)
@@ -19,32 +18,29 @@ object FrameRate {
     private var emptyRuns = 0
     private val recent = ArrayDeque<Float>()
 
-    /**
-     * awk: frames presented within the last second before the newest one, and that newest time.
-     * No "\n" in it: an escaped newline does not survive the way to the root service.
-     */
-    private const val COUNT =
-        "awk 'NR>1 && \$2>0 && \$2<9000000000000000000 { t[++n]=\$2; if (\$2>m) m=\$2 } " +
-            "END { c=0; for (i=1;i<=n;i++) if (m-t[i] <= 1000000000) c++; printf \"%d %.0f\", (c>0?c-1:0), m }'"
+    /** Present times (ns) of a layer, newest 130; the command form that is known to work through the root service. */
+    private fun presents(layer: String): List<Long>? {
+        val out = Root.execLong("dumpsys SurfaceFlinger --latency ${Root.quote(layer)} | awk 'NR>1 { print 0, \$2 }' | tail -n 130", 3_000) ?: return null
+        return out.lines().mapNotNull { it.trim().split(' ').getOrNull(1)?.toLongOrNull() }
+            .filter { it in 1 until 9_000_000_000_000_000_000L }.sorted()
+    }
+
+    /** Frames within the last second before the newest one, and that newest time. */
+    private fun count(p: List<Long>): Pair<Int, Long> {
+        val last = p.lastOrNull() ?: return 0 to 0L
+        return (p.count { last - it <= 1_000_000_000L } - 1).coerceAtLeast(0) to last
+    }
 
     /** Tries every layer of [pkg] and keeps the one with the most recent pictures. */
     private fun findLayer(pkg: String): String? {
         val now = System.currentTimeMillis()
         if (pkg == layerPkg && layer != null && now - layerAt < 15_000) return layer
-        // the layer names go to a file first: dumpsys inside a "while read" loop would eat its input
-        val list = "/data/local/tmp/hugminn_layers"
-        val script = "dumpsys SurfaceFlinger --list | grep -F ${Root.quote(pkg)} | grep -v ActivityRecord | grep -v InputSink | head -n 12 > $list; " +
-            "while IFS= read -r L; do n=\$(dumpsys SurfaceFlinger --latency \"\$L\" </dev/null | $COUNT); echo \"\$n|\$L\"; done < $list; rm -f $list"
-        val out = Root.execLong(script, 6_000)
-        if (out == null) { diag = "Ebenensuche: keine Antwort"; return null }
-        val rows = out.lines().mapNotNull { line ->
-            val parts = line.split('|', limit = 2)
-            if (parts.size < 2) return@mapNotNull null
-            val nums = parts[0].trim().split(' ')
-            Triple(nums.getOrNull(0)?.toIntOrNull() ?: 0, nums.getOrNull(1)?.toDoubleOrNull() ?: 0.0, parts[1])
-        }
+        val list = Root.execLong("dumpsys SurfaceFlinger --list | grep -F ${Root.quote(pkg)}", 4_000)
+        if (list == null) { diag = "Ebenenliste: keine Antwort"; return null }
+        val names = list.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("ActivityRecord") && !it.contains("InputSink") }.take(10)
+        val rows = names.map { n -> val c = presents(n)?.let { count(it) } ?: (0 to 0L); Triple(c.first, c.second, n) }
         val best = rows.maxWithOrNull(compareBy({ it.first }, { it.second }))
-        diag = "Ebenen: " + (if (rows.isEmpty()) "keine lesbar, Antwort: ${out.replace('\n', ' ').take(300)}" else rows.joinToString { "${it.third.take(70)}=${it.first}" })
+        diag = "Ebenen: " + (if (rows.isEmpty()) "keine (Liste: ${list.replace('\n', ' ').take(200)})" else rows.joinToString { "${it.third.take(70)}=${it.first}" })
         layerPkg = pkg
         layer = best?.takeIf { it.first > 0 || it.second > 0 }?.third
         layerAt = now
@@ -54,10 +50,8 @@ object FrameRate {
     fun sample(pkg: String?): Result? {
         if (pkg == null || !Root.available()) return null
         val l = findLayer(pkg) ?: return Result(0, emptyList())
-        val out = Root.execLong("dumpsys SurfaceFlinger --latency ${Root.quote(l)} | $COUNT", 3_000)
-        val nums = out?.trim()?.split(' ')
-        val fps = nums?.getOrNull(0)?.toIntOrNull() ?: return null
-        val last = nums.getOrNull(1)?.toDoubleOrNull() ?: 0.0
+        val (fps, lastNs) = count(presents(l) ?: return null)
+        val last = lastNs.toDouble()
         // no new picture for a while: the game is paused (or drawing elsewhere now)
         val stale = last <= 0 || System.nanoTime() - last > 1_500_000_000.0
         if (stale || fps == 0) {
