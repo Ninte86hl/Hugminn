@@ -96,7 +96,7 @@ Jede Version erscheint unter **Releases**, automatisch gebaut und signiert von G
 
 Nach der Installation Hugminn öffnen: eine kurze [Einführung](https://github.com/Ninte86hl/Hugminn/wiki/Einrichtungsassistent) erklärt Game Switcher und Control Center, schaltet die Bedienungshilfe ein und lässt dich abschalten, was du nicht brauchst.
 
-**Testversionen** aus dem `test`-Zweig (mit zusätzlichen Diagnosewerkzeugen) erscheinen als Vorabversionen namens *Hugminn Test*. Sie sind mit demselben Schlüssel signiert, du kannst also ohne Neuinstallation zwischen Test- und normaler Version wechseln.
+**Testversionen** aus dem `test`-Zweig (mit zusätzlichen Diagnosewerkzeugen) erscheinen als Vorabversionen namens *Hugminn Test*; für Obtainium gibt es [obtainium-test.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium-test.json). Sie sind mit demselben Schlüssel signiert, du kannst also ohne Neuinstallation zwischen Test- und normaler Version wechseln.
 
 ## Fehler melden
 
