@@ -2099,7 +2099,7 @@ class ControlCenter(private val svc: HugminnService) {
         svc.startApp(Intent(action))
     }
 
-    private fun showMenu(title: String, entries: List<MenuEntry>, select: Int = -1) {
+    private fun showMenu(title: String, entries: List<MenuEntry>, select: Int = -1, forceTall: Boolean = false) {
         val r = root ?: return
         // another menu replaces the Bluetooth list: its search ends (a fresh search starts with menuTitle empty)
         if (menuTitle.isNotEmpty() && title != menuTitle) { menuTitle = ""; stopBtScan() }
@@ -2146,7 +2146,7 @@ class ControlCenter(private val svc: HugminnService) {
             list.addView(row, lp(MATCH, WRAP))
             menuRows += row
         }
-        val tall = entries.size > 6 || title == "Bluetooth" || title == tr("WLAN")
+        val tall = forceTall || entries.size > 6 || title == "Bluetooth" || title == tr("WLAN")
         val sc = android.widget.ScrollView(svc).apply { addView(list) }
         menuScroll = sc
         box.addView(sc, if (tall) lp(MATCH, 0, 1f) else lp(MATCH, WRAP))
@@ -2413,12 +2413,47 @@ class ControlCenter(private val svc: HugminnService) {
         val switches = TileCatalog.all.keys.filter { tileFor(it, rootOk) != null }
         val infos = GridLayout.widgetNames.keys.filter { GridLayout.isInfo(it) }
         val sliders = GridLayout.widgetNames.keys.filter { GridLayout.isSlider(it) }
-        val list = mutableListOf<MenuEntry>()
-        if (infos.isNotEmpty()) { list += MenuEntry(tr("Anzeigen"), header = true, run = null); infos.forEach { list += entryFor(it) } }
-        if (sliders.isNotEmpty()) { list += MenuEntry(tr("Regler"), header = true, run = null); sliders.forEach { list += entryFor(it) } }
-        if (switches.isNotEmpty()) { list += MenuEntry(tr("Schalter"), header = true, run = null); switches.forEach { list += entryFor(it) } }
-        if (list.isEmpty()) list += MenuEntry(tr("Alles ist schon im Raster"), run = null)
-        showMenu(tr("Hinzufügen"), list)
+        // categories side by side: ◀ ▶ switches between them instead of scrolling through one long list
+        val tabs = listOf(
+            tr("Anzeigen") to infos.map { entryFor(it) },
+            tr("Regler") to sliders.map { entryFor(it) },
+            tr("Schalter") to switches.map { entryFor(it) },
+        ).filter { it.second.isNotEmpty() }
+        tabMenu(tr("Hinzufügen"), tabs, addTab.coerceIn(0, (tabs.size - 1).coerceAtLeast(0)))
+    }
+
+    /** Last category of the "add" picker (it opens there again). */
+    private var addTab = 0
+
+    /** Menu with categories as tabs: ◀ ▶ (or L1/R1, or a tap) changes the category. */
+    private fun tabMenu(title: String, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int) {
+        if (tabs.isEmpty()) { showMenu(title, listOf(MenuEntry(tr("Alles ist schon im Raster"), run = null))); return }
+        addTab = tab
+        showMenu(title, tabs[tab].second, forceTall = true)
+        val box = menuView as? LinearLayout ?: return
+        val bar = LinearLayout(svc).apply { setPadding(10 * d, 0, 10 * d, 10 * d); gravity = Gravity.CENTER_VERTICAL }
+        bar.addView(text("◀", 13f, pal.onSurfaceVariant, bold = true).apply { setPadding(0, 0, 8 * d, 0) })
+        tabs.forEachIndexed { i, (name, _) ->
+            val sel = i == tab
+            bar.addView(text(name, 14f, if (sel) tileOnFg() else pal.onSurface, bold = sel).apply {
+                gravity = Gravity.CENTER
+                maxLines = 1
+                background = shape(if (sel) tileOn() else pal.surfaceHighest, 14f * d)
+                setOnClickListener { tabMenu(title, tabs, i) }
+            }, lp(0, 36 * d, 1f).apply { marginEnd = 6 * d })
+        }
+        bar.addView(text("▶", 13f, pal.onSurfaceVariant, bold = true).apply { setPadding(2 * d, 0, 0, 0) })
+        box.addView(bar, 1)
+        popupKeys = { code ->
+            when (code) {
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BUTTON_L1 -> tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size)
+                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BUTTON_R1 -> tabMenu(title, tabs, (tab + 1) % tabs.size)
+                KeyEvent.KEYCODE_DPAD_UP -> moveMenu(-1)
+                KeyEvent.KEYCODE_DPAD_DOWN -> moveMenu(1)
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> runMenu(menuSel)
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> closeMenu()
+            }
+        }
     }
 
     /** Puts [id] at the cursor in the largest preferred size that fits there. */
