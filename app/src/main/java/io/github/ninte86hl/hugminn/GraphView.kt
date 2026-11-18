@@ -9,7 +9,7 @@ import android.graphics.Shader
 import android.view.View
 
 /** Small rolling line chart (last [capacity] values between 0 and [max]). */
-class GraphView(ctx: Context, private val color: Int, private val max: Float = 100f) : View(ctx) {
+class GraphView(ctx: Context, private val color: Int, private val max: Float = 100f, private val min: Float = 0f) : View(ctx) {
     private val capacity = 60
     private val values = ArrayDeque<Float>()
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -30,8 +30,8 @@ class GraphView(ctx: Context, private val color: Int, private val max: Float = 1
     }
 
     fun push(v: Float) {
-        if (values.isEmpty()) repeat(capacity - 1) { values.addLast(v.coerceIn(0f, max)) }
-        values.addLast(v.coerceIn(0f, max))
+        if (values.isEmpty()) repeat(capacity - 1) { values.addLast(v.coerceIn(min, max)) }
+        values.addLast(v.coerceIn(min, max))
         while (values.size > capacity) values.removeFirst()
         invalidate()
     }
@@ -45,7 +45,7 @@ class GraphView(ctx: Context, private val color: Int, private val max: Float = 1
         path.reset()
         values.forEachIndexed { i, v ->
             val x = start + i * step
-            val y = h - v / max * (h - line.strokeWidth) - line.strokeWidth / 2
+            val y = h - (v - min) / (max - min) * (h - line.strokeWidth) - line.strokeWidth / 2
             if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
         val area = Path(path).apply {

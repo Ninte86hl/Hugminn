@@ -589,12 +589,23 @@ class ControlCenter(private val svc: HugminnService) {
         ids.forEachIndexed { i, id ->
             if (i % perRow == 0) row = LinearLayout(svc).also { grid.addView(it, lp(MATCH, 0, 1f)) }
             val sp = spec(id) ?: return@forEachIndexed
-            val cell = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+            val cell = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
             val ring = RingView(svc, pal, "", pal.primary, pixel)
             cell.addView(ring, lp(MATCH, 0, 1f))
-            cell.addView(text(sp.title, 10f, pal.onSurfaceVariant, bold = true).apply { gravity = Gravity.CENTER; maxLines = 1 }, lp(MATCH, WRAP))
+            val name = text(sp.title, 10f, pal.onSurfaceVariant, bold = true).apply { gravity = Gravity.CENTER; maxLines = 1 }
+            cell.addView(name, lp(MATCH, WRAP))
             val sub = text("", 9f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
             cell.addView(sub, lp(MATCH, WRAP))
+            // the ring only as big as fits, so the labels sit right under it (not at the bottom)
+            cell.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                val room = v.height - name.height - sub.height - v.paddingTop - v.paddingBottom
+                val size = minOf(v.width, room).coerceAtLeast(1)
+                val lpR = ring.layoutParams as LinearLayout.LayoutParams
+                if (lpR.height != size || lpR.weight != 0f) {
+                    lpR.height = size; lpR.weight = 0f; lpR.width = size
+                    v.post { ring.requestLayout() }
+                }
+            }
             row!!.addView(cell, lp(0, MATCH, 1f).apply { marginStart = 3 * d; marginEnd = 3 * d })
             live { s ->
                 val f = if (id == "fps") (if (s.fps > 0) (s.fps / 60f).coerceAtMost(1f) else 0f) else sp.fraction?.invoke(s) ?: 0f
@@ -618,7 +629,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
             val ft = GraphView(svc, pal.primary, 50f).apply { setColors(GaugeColors.graph(pal, gp, 50f) { GaugeColors.frameTime(it) }) }
             val ftV = text("", 10f, pal.onSurface, bold = true)
-            val tg = GraphView(svc, pal.primary, 100f).apply { setColors(GaugeColors.graph(pal, gp, 100f) { (it - 40f) / 45f }) }
+            val tg = GraphView(svc, pal.primary, 95f, 25f).apply { setColors(GaugeColors.graph(pal, gp, 95f, 25f) { (it - 40f) / 45f }) }
             val tV = text("", 10f, pal.onSurface, bold = true)
             graphs.addView(graphBox(t("FRAMETIME", "FRAME TIME"), ft, ftV), lp(0, MATCH, 1f).apply { marginEnd = 5 * d })
             graphs.addView(graphBox(t("TEMPERATUR", "TEMPERATURE"), tg, tV), lp(0, MATCH, 1f).apply { marginStart = 5 * d })
@@ -647,19 +658,23 @@ class ControlCenter(private val svc: HugminnService) {
         c.addView(View(svc), lp(MATCH, 0, 1f))
         val chips = mutableListOf<Pair<String, TextView>>()
         val rows = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-        val perRow = if (table.size > 3) 3 else table.size
+        // long names (performance) two per row, short ones (fan) three
+        val perRow = if (perf) 2 else 3
         var row: LinearLayout? = null
         table.entries.forEachIndexed { i, (v, name) ->
             if (i % perRow == 0) row = LinearLayout(svc).also { rows.addView(it, lp(MATCH, WRAP).apply { if (i > 0) topMargin = 5 * d }) }
             val chip = text(name, 11f, pal.onSurface, bold = true).apply {
                 gravity = Gravity.CENTER
                 maxLines = 1
+                setAutoSizeTextTypeUniformWithConfiguration(7, 11, 1, TypedValue.COMPLEX_UNIT_SP)
                 setPadding(4 * d, 0, 4 * d, 0)
                 setOnClickListener { if (!editing) { if (perf) Device.setPerf(v) { refreshAll() } else chooseFan(v) } }
             }
             row!!.addView(chip, lp(0, 30 * d, 1f).apply { marginEnd = 5 * d })
             chips += v to chip
         }
+        val left = (perRow - table.size % perRow) % perRow
+        repeat(left) { row?.addView(View(svc), lp(0, 30 * d, 1f).apply { marginEnd = 5 * d }) }
         c.addView(rows)
         val refresh = {
             val cur = if (!perf && svc.prefs.fanCustom) "6" else Device.sys(svc, key)
@@ -689,7 +704,7 @@ class ControlCenter(private val svc: HugminnService) {
             right.text = if (on) tr("An") else tr("Aus")
             right.setTextColor(if (on) tileOn() else pal.onSurfaceVariant)
             list.removeAllViews()
-            if (!on) list.addView(text(t("Bluetooth ist aus · A schaltet ein", "Bluetooth is off · A turns it on"), 12f, pal.onSurfaceVariant))
+            if (!on) list.addView(offNote(IconView.Kind.BLUETOOTH, t("Bluetooth ist aus · A schaltet ein", "Bluetooth is off · A turns it on")), lp(MATCH, MATCH))
             else {
                 val devs = Bt.paired(svc).sortedByDescending { Bt.isConnected(it) }
                 if (devs.isEmpty()) list.addView(text(tr("Noch keine"), 12f, pal.onSurfaceVariant))
@@ -710,6 +725,38 @@ class ControlCenter(private val svc: HugminnService) {
         return c to Item(c, tile.act, onY = tile.menu)
     }
 
+    /** Networks for the large Wi-Fi card (shared, so a re-drawn grid keeps them). */
+    @Volatile private var wifiNets: List<Wifi.Net>? = null
+    @Volatile private var wifiSaved: Map<String, String?> = emptyMap()
+    @Volatile private var wifiScanning = false
+
+    /** Known results at once, then a fresh scan; every large Wi-Fi card updates. */
+    private fun wifiScan() {
+        if (wifiScanning || !Device.wifiOn(svc)) return
+        wifiScanning = true
+        thread {
+            try {
+                val sv = runCatching { Wifi.saved() }.getOrDefault(emptyMap())
+                val first = Wifi.scanResults()
+                svc.ui.post { wifiSaved = sv; if (first.isNotEmpty()) wifiNets = first; refreshers.forEach { it() } }
+                Wifi.startScan()
+                Thread.sleep(3500)
+                val fresh = Wifi.scanResults()
+                svc.ui.post { if (fresh.isNotEmpty()) wifiNets = fresh; refreshers.forEach { it() } }
+            } finally {
+                wifiScanning = false
+            }
+        }
+    }
+
+    /** Centered icon and text for a large card whose function is switched off. */
+    private fun offNote(icon: IconView.Kind, msg: String): View = LinearLayout(svc).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        addView(IconView(svc, icon, 36).apply { setColor(pal.onSurfaceVariant) })
+        addView(text(msg, 12f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER; setPadding(0, 8 * d, 0, 0) })
+    }
+
     /** Large Wi-Fi card: current network and the strongest ones in range; touch connects. */
     private fun wifiElement(e: GridEntry, tile: Tile): Pair<View, Item?> {
         val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
@@ -718,15 +765,15 @@ class ControlCenter(private val svc: HugminnService) {
         val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         c.addView(list, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
         val maxRows = if (e.h >= 4) 6 else 3
-        var nets: List<Wifi.Net>? = null
-        var saved: Map<String, String?> = emptyMap()
         val refresh = {
+            val nets = wifiNets
+            val saved = wifiSaved
             val on = Device.wifiOn(svc)
             val cur = Device.wifiName(svc)
             right.text = if (on) tr("An") else tr("Aus")
             right.setTextColor(if (on) tileOn() else pal.onSurfaceVariant)
             list.removeAllViews()
-            if (!on) list.addView(text(t("WLAN ist aus · A schaltet ein", "Wi-Fi is off · A turns it on"), 12f, pal.onSurfaceVariant))
+            if (!on) list.addView(offNote(IconView.Kind.WIFI, t("WLAN ist aus · A schaltet ein", "Wi-Fi is off · A turns it on")), lp(MATCH, MATCH))
             else {
                 val shown = (nets ?: cur?.let { listOf(Wifi.Net(it, -50, "wpa2")) }.orEmpty()).sortedByDescending { it.ssid == cur }.take(maxRows)
                 if (shown.isEmpty()) list.addView(text(tr("Wird geladen …"), 12f, pal.onSurfaceVariant))
@@ -754,18 +801,10 @@ class ControlCenter(private val svc: HugminnService) {
                 repeat((maxRows - shown.size).coerceAtLeast(0)) { list.addView(View(svc), lp(MATCH, 0, 1f).apply { topMargin = 5 * d }) }
             }
         }
-        fun scan() = thread {
-            if (!Device.wifiOn(svc)) return@thread
-            Wifi.startScan()
-            Thread.sleep(2500)
-            val n = Wifi.scanResults()
-            val sv = runCatching { Wifi.saved() }.getOrDefault(emptyMap())
-            svc.ui.post { nets = n; saved = sv; if (c.isAttachedToWindow) refresh() }
-        }
         refresh()
         refreshers += refresh
-        scan()
-        whileShown(c, 20_000) { scan() }
+        wifiScan()
+        whileShown(c, 20_000) { wifiScan() }
         return c to Item(c, tile.act, onY = tile.menu)
     }
 

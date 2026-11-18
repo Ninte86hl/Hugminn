@@ -270,8 +270,8 @@ class BigSlider(
 /** Colour for a load between 0 and 1 in the chosen gauge palette. */
 object GaugeColors {
     /** Colours for a graph from 0 to [max] (bottom to top), using [fraction] like the gauges do. */
-    fun graph(pal: Palette, palette: GaugePalette, max: Float, fraction: (Float) -> Float): IntArray =
-        IntArray(9) { i -> of(pal, palette, fraction(max * i / 8f)) }
+    fun graph(pal: Palette, palette: GaugePalette, max: Float, min: Float = 0f, fraction: (Float) -> Float): IntArray =
+        IntArray(9) { i -> of(pal, palette, fraction(min + (max - min) * i / 8f)) }
 
     /** Frame time: 16.7 ms (60 FPS) is good, 33 ms and more is bad. */
     fun frameTime(ms: Float) = ((ms - 12f) / 30f).coerceIn(0f, 1f)
