@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.8.8
+- Music tile: if Android does not yet let Hugminn see what is playing (e.g. right after an update), it switches the access on and tries again.
+- Musik-Kachel: Lässt Android Hugminn noch nicht sehen, was läuft (z. B. direkt nach einem Update), schaltet es den Zugriff ein und versucht es erneut.
+
 ## 1.8.7
 - "Add element" shows the categories (displays, sliders, switches) side by side; ◀ ▶ or L1/R1 switches between them, no more long scrolling.
 - „Element hinzufügen“ zeigt die Kategorien (Anzeigen, Regler, Schalter) nebeneinander; ◀ ▶ oder L1/R1 wechselt zwischen ihnen, kein langes Scrollen mehr.
