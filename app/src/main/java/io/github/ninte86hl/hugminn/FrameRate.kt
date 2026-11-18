@@ -34,7 +34,7 @@ object FrameRate {
         val now = System.nanoTime()
         val prev = flipsPrev; val at = flipsAt
         flipsPrev = v; flipsAt = now
-        if (prev < 0 || v < prev || now - at > 5_000_000_000L || now - at < 200_000_000L) return null
+        if (prev < 0 || v < prev || now - at > 30_000_000_000L || now - at < 200_000_000L) return null
         return ((v - prev) * 1_000_000_000.0 / (now - at)).toInt()
     }
 
@@ -76,6 +76,7 @@ object FrameRate {
     @Volatile private var tsOn = false
     private var tsFails = 0
     private var tsDiag = ""
+    private var tsEnable: String? = null
 
     private val TS = """dumpsys SurfaceFlinger --timestats -dump -maxlayers 24 2>/dev/null | awk -v P="${'$'}1" '
 /layerName =/ { g = 0; mine = index(${'$'}0, P) > 0; next }
@@ -91,17 +92,17 @@ dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
 
     /** FPS from TimeStats, or null when it has nothing (then the layer method below is used). */
     private fun timeStats(pkg: String): Int? {
-        if (tsFails > 5) return null
+        if (tsFails > 20) return null
         if (!tsOn) {
-            Root.exec("sh -c " + Root.quote("dumpsys SurfaceFlinger --timestats -enable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1; echo ok"))
+            tsEnable = Root.exec("sh -c " + Root.quote("dumpsys SurfaceFlinger --timestats -enable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1; echo ok"))
             tsOn = true
             return null
         }
         val cmd = Root.script("fps", TS) ?: return null
         val out = Root.exec("$cmd ${Root.quote(pkg)}", 4_000)
         val p = out?.trim()?.split(' ')
-        tsDiag = "TimeStats: ${out ?: "keine Antwort"} (Skript: $cmd, ${Root.exec("sh -c " + Root.quote("wc -c < ${cmd.removePrefix("sh ")}"))} Byte)"
-        if (p == null || p.size < 6 || p[0] != "TS") { if (++tsFails > 5) tsDiag += " → abgeschaltet"; diag = tsDiag; return null }
+        tsDiag = "TimeStats: ${out ?: "keine Antwort"} (an: $tsEnable, Skript: $cmd, root liest ${Root.exec("sh -c " + Root.quote("wc -c < ${cmd.removePrefix("sh ")}"))} Byte)"
+        if (p == null || p.size < 6 || p[0] != "TS") { if (++tsFails > 20) tsDiag += " → abgeschaltet"; diag = tsDiag; return null }
         val frames = p[1].toIntOrNull() ?: 0
         val fps = p[2].toFloatOrNull() ?: 0f
         val layerFrames = p[4].toIntOrNull() ?: 0

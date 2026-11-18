@@ -65,6 +65,7 @@ class HugminnService : AccessibilityService() {
     }
 
     override fun onServiceConnected() {
+        Root.filesDir = filesDir
         Crash.install(this)
         prefs = Prefs(this)
         switcher = Switcher(this)

@@ -102,16 +102,20 @@ object Root {
      * Writes [body] once to a script file in small pieces (the service only takes short commands) and
      * returns the command that runs it. Long pipelines sent directly come back empty.
      */
+    /** The app's own files folder; root reads scripts from there (set by the service). */
+    @Volatile var filesDir: java.io.File? = null
+
     fun script(name: String, body: String): String? = synchronized(scripts) {
-        val path = "/data/local/tmp/hugminn_$name.sh"
-        if (scripts[name] == body && exec("sh -c " + quote("[ -f $path ] && echo ok")) == "ok") return "sh $path"
-        val b64 = android.util.Base64.encodeToString(body.toByteArray(), android.util.Base64.NO_WRAP)
         if (!available()) return null
-        exec("rm -f $path.b64")
-        b64.chunked(600).forEach { exec("sh -c " + quote("echo -n '$it' >> $path.b64")) }
-        exec("sh -c " + quote("base64 -d $path.b64 > $path; rm -f $path.b64; chmod 755 $path"))
-        scripts[name] = body
-        "sh $path"
+        val dir = filesDir ?: return null
+        val f = java.io.File(java.io.File(dir, "root-scripts").apply { mkdirs(); setExecutable(true, false); setReadable(true, false) }, "$name.sh")
+        if (scripts[name] != body || !f.exists()) {
+            f.writeText(body)
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+            scripts[name] = body
+        }
+        "sh ${f.absolutePath}"
     }
 
     fun putSetting(table: String, key: String, value: String) = "settings put $table $key ${quote(value)}"
