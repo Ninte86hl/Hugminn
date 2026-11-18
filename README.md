@@ -100,7 +100,7 @@ Every release is published under **Releases**, built and signed automatically by
 
 After installing, open Hugminn: a short [introduction](https://github.com/Ninte86hl/Hugminn/wiki/Setup-Wizard) explains the Game Switcher and the Control Center, turns on the accessibility service and lets you switch off what you don't need.
 
-**Test builds** from the `test` branch (with extra diagnostic tools) are published as pre-releases named *Hugminn Test*; for Obtainium use [obtainium-test.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium-test.json). They are signed with the same key, so you can switch between test and release builds without reinstalling.
+**Test builds** from the `test` branch (with extra diagnostic tools) are published as pre-releases named *Hugminn Test*; for Obtainium use [obtainium-test.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium-test.json) (also attached to every test build). They are signed with the same key, so you can switch between test and release builds without reinstalling.
 
 ## Reporting bugs
 

@@ -95,5 +95,6 @@ jobs:
           make_latest: false
           files: |
             hugminn.apk
+            obtainium-test.json
           body: |
             Test build ${{ steps.ver.outputs.name }} from the `test` branch, with diagnostic tools (feedback upload, input and LED tests).
