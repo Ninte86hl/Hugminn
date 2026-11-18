@@ -35,6 +35,8 @@ object FrameRate {
     @Volatile var diag = ""
     @Volatile private var statsOn = false
     @Volatile private var probed = false
+    @Volatile private var statsBroken = false
+    private var statsFails = 0
     @Volatile private var probe = ""
     private var lastGood = -1
     private var lastGoodAt = 0L
@@ -59,18 +61,25 @@ object FrameRate {
             "END { f=(t>0)?1000*n/t:0; if (rr>0 && f>rr) f=rr; printf \"HFPS %d %d\\n\", f+0.5, n }'; " +
             "dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1"
         // through a scratch file: the root service's direct answer is only one line and may come back empty
+        if (statsBroken) return null
         if (!probed) {
             probed = true
-            probe = Root.execLong("command -v awk; dumpsys SurfaceFlinger --timestats -dump 2>&1 | head -c 160", 8_000)?.replace('\n', ' ') ?: "keine Antwort"
+            // only for the feedback report, in the background (never delays the display)
+            Thread { probe = Root.execLong("command -v awk; dumpsys SurfaceFlinger --timestats -dump 2>&1 | head -c 160", 8_000)?.replace('\n', ' ') ?: "keine Antwort" }.start()
         }
-        val raw = Root.execLong(script, 10_000)
+        val raw = Root.execLong(script, 3_000)
         val out = raw?.lines()?.lastOrNull { it.isNotBlank() }
         diag = "TimeStats: ${raw?.replace('\n', ' ')?.take(240) ?: "keine Antwort"} · Probe: ${probe.take(220)}"
-        val m = out?.let { Regex("""HFPS (\d+) (\d+)""").find(it) } ?: return null
+        val m = out?.let { Regex("""HFPS (\d+) (\d+)""").find(it) }
+        if (m == null) {
+            // this firmware doesn't answer with statistics: stop asking, measure the game's layer right away
+            if (++statsFails >= 2) statsBroken = true
+            return null
+        }
         val fps = m.groupValues[1].toInt()
         val frames = m.groupValues[2].toInt()
         // no frames at all in the statistics: this firmware doesn't fill them, use the app's own layer
-        if (frames == 0 && lastGoodAt == 0L) return null
+        if (frames == 0 && lastGoodAt == 0L) { if (++statsFails >= 3) statsBroken = true; return null }
         val now = System.currentTimeMillis()
         if (frames >= 5 && fps in 1..240) {
             lastGood = fps
@@ -88,10 +97,11 @@ object FrameRate {
             return Result(fps, recent.toList())
         }
         val l = findLayer(pkg) ?: return null
-        val out = Root.execLong("dumpsys SurfaceFlinger --latency ${Root.quote(l)}", 6_000)
+        // only the present times, the newest 130 (keeps the answer small and quick)
+        val out = Root.execLong("dumpsys SurfaceFlinger --latency ${Root.quote(l)} | awk 'NR>1 { print 0, \$2 }' | tail -n 130", 3_000)
         diag += " · Ebene: $l (${out?.lines()?.size ?: "keine Antwort"} Zeilen${out?.lines()?.getOrNull(1)?.let { ", z. B. $it" } ?: ""})"
         if (out == null) return null
-        val presents = out.lines().drop(1).mapNotNull { line ->
+        val presents = out.lines().mapNotNull { line ->
             val p = line.trim().split(Regex("\\s+"))
             if (p.size < 3) null else p[1].toLongOrNull()
         }.filter { it in 1 until Long.MAX_VALUE }.sorted()

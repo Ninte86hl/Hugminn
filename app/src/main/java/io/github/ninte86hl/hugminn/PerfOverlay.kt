@@ -54,7 +54,7 @@ class PerfOverlay(private val svc: HugminnService) {
                 val s = try { m.sample() } catch (t: Throwable) { null }
                 if (s != null) svc.ui.post { if (view != null) updates.forEach { it(s) } }
             }.start()
-            svc.ui.postDelayed(this, 1000)
+            svc.ui.postDelayed(this, 600)
         }
     }
 

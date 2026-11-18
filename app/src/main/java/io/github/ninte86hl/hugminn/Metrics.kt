@@ -69,9 +69,9 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
     }
 
     fun sample(): Sample {
-        shared?.takeIf { System.currentTimeMillis() - sharedAt < 800 }?.let { return it }
+        shared?.takeIf { System.currentTimeMillis() - sharedAt < 450 }?.let { return it }
         return synchronized(lock) {
-            shared?.takeIf { System.currentTimeMillis() - sharedAt < 800 } ?: measure().also {
+            shared?.takeIf { System.currentTimeMillis() - sharedAt < 450 } ?: measure().also {
                 shared = it
                 sharedAt = System.currentTimeMillis()
             }
