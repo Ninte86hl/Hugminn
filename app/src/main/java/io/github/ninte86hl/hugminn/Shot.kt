@@ -6,7 +6,6 @@ import android.graphics.Bitmap
 import android.os.Environment
 import android.provider.MediaStore
 import android.view.Display
-import android.widget.Toast
 
 /**
  * Screenshot with Hugminn's overlays (Select while the Control Center or the switcher is open).
@@ -15,10 +14,13 @@ import android.widget.Toast
  */
 object Shot {
     @Volatile private var busy = false
+    /** When Hugminn itself last saved a picture (so the system screenshot notice does not show twice). */
+    @Volatile var savedAt = 0L
 
     fun take(svc: HugminnService) {
         if (busy) return
         busy = true
+        savedAt = System.currentTimeMillis()
         svc.takeScreenshot(Display.DEFAULT_DISPLAY, svc.mainExecutor, object : AccessibilityService.TakeScreenshotCallback {
             override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
                 val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
@@ -53,6 +55,7 @@ object Shot {
 
     private fun done(svc: HugminnService, ok: Boolean) {
         busy = false
-        Toast.makeText(svc, if (ok) "Screenshot gespeichert (Bilder/Screenshots)" else "Screenshot fehlgeschlagen", Toast.LENGTH_SHORT).show()
+        if (ok) savedAt = System.currentTimeMillis()
+        Notice.show(svc, if (ok) "Screenshot gespeichert" else "Screenshot fehlgeschlagen")
     }
 }

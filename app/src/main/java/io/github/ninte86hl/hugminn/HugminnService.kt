@@ -69,6 +69,7 @@ class HugminnService : AccessibilityService() {
         Crash.install(this)
         prefs = Prefs(this)
         prefs.forgetOld()
+        watchScreenshots()
         switcher = Switcher(this)
         own = OwnSwitcher(this)
         own.refresh()
@@ -153,6 +154,26 @@ class HugminnService : AccessibilityService() {
         } catch (t: Throwable) {
             Crash.note(this, t)
         }
+    }
+
+    private var shotsAt = 0L
+
+    /**
+     * Android's own screenshot (Power + Volume down) shows no confirmation while the Control Center or
+     * the switcher covers the screen, so Hugminn shows one when a new picture appears meanwhile.
+     */
+    private fun watchScreenshots() {
+        val o = object : android.database.ContentObserver(ui) {
+            override fun onChange(selfChange: Boolean, uris: Collection<android.net.Uri>, flags: Int) {
+                if (flags and android.content.ContentResolver.NOTIFY_INSERT == 0) return
+                if (!::controlCenter.isInitialized || (!controlCenter.isOpen && !anySwitcherOpen)) return
+                val now = System.currentTimeMillis()
+                if (now - Shot.savedAt < 4_000 || now - shotsAt < 3_000) return
+                shotsAt = now
+                Notice.show(this@HugminnService, "Screenshot gespeichert")
+            }
+        }
+        runCatching { contentResolver.registerContentObserver(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, o) }
     }
 
     private val systemKeys = setOf(
