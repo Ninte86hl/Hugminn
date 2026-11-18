@@ -42,6 +42,9 @@ object GridLayout {
     fun sizes(id: String, cols: Int): List<Pair<Int, Int>> = when {
         // vertical (1×2 … 1×4) or horizontal (2×1 … full width)
         isSlider(id) -> (2..ROWS).map { 1 to it } + (2..cols).map { it to 1 }
+        // music: also large, with cover and buttons; FPS: a wider and larger frame time graph
+        id == "media" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2, 2 to 4, 4 to 4).filter { it.first <= cols && it.second <= ROWS }
+        id == "fps" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }
         isInfo(id) -> listOf(1 to 1, 2 to 1, 2 to 2)
         else -> listOf(1 to 1, 2 to 1)
     }
