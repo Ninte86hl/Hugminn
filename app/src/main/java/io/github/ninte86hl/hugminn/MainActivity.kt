@@ -302,6 +302,29 @@ class MainActivity : Activity() {
             }
         }
 
+        // Backup
+        val bk = section(t("Sichern", "Backup"))
+        bk.addView(text(
+            t("Alle Einstellungen (Layout, Kacheln, Farben, Profile pro App …) als Datei sichern, zum Beispiel vor einer Neuinstallation.",
+                "Save all settings (layout, tiles, colours, profiles per app …) to a file, for example before reinstalling."),
+            12f, pal.onSurfaceVariant,
+        ).apply { setPadding(0, d(6), 0, d(6)) })
+        val bkb = LinearLayout(this).apply { setPadding(0, 0, 0, d(6)) }
+        bkb.addView(button(t("Sichern …", "Save …")) {
+            runCatching {
+                startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                    .setType("application/json").putExtra(Intent.EXTRA_TITLE, "hugminn-settings.json"), REQ_EXPORT)
+            }
+        })
+        bkb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
+        bkb.addView(button(t("Wiederherstellen …", "Restore …")) {
+            runCatching {
+                startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                    .setType("*/*"), REQ_IMPORT)
+            }
+        })
+        bk.addView(bkb)
+
         // Report a problem: a prefilled GitHub issue (nothing is sent by Hugminn itself)
         val bug = section(tr("Fehler melden"))
         bug.addView(text(
@@ -396,6 +419,35 @@ class MainActivity : Activity() {
         } catch (t: Throwable) {
             Toast.makeText(this, tr("Kein Browser gefunden"), Toast.LENGTH_LONG).show()
         }
+    }
+
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data ?: return
+        if (resultCode != RESULT_OK) return
+        when (requestCode) {
+            REQ_EXPORT -> Toast.makeText(this,
+                if (Backup.export(this, uri)) t("Einstellungen gesichert", "Settings saved") else t("Sichern fehlgeschlagen", "Saving failed"),
+                Toast.LENGTH_LONG).show()
+            REQ_IMPORT -> {
+                val n = Backup.import(this, uri)
+                if (n < 0) Toast.makeText(this, t("Keine Hugminn-Sicherung", "Not a Hugminn backup"), Toast.LENGTH_LONG).show()
+                else {
+                    prefs = Prefs(this)
+                    Lang.init(this)
+                    HugminnService.instance?.let { svc -> runCatching { svc.overlay.refresh() } }
+                    Toast.makeText(this, t("$n Einstellungen wiederhergestellt", "$n settings restored"), Toast.LENGTH_LONG).show()
+                    build()
+                }
+            }
+        }
+    }
+
+    private companion object {
+        const val REQ_EXPORT = 41
+        const val REQ_IMPORT = 42
     }
 
 }

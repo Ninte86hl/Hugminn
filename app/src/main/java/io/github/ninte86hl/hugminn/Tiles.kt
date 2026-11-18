@@ -24,6 +24,7 @@ object TileCatalog {
         "screen" to tr("Bildschirm an"),
         "clean" to tr("Speicher leeren"),
         "screenshot" to "Screenshot",
+        "media" to t("Musik", "Music"),
         "rpsettings" to tr("Retroid-Einstellungen"),
         "settings" to tr("Android-Einstellungen"),
         "hugminn" to "Hugminn",

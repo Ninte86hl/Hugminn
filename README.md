@@ -83,6 +83,8 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 - Bluetooth submenu: paired devices (connect / disconnect), search and pair new devices
 - Sliders for volume and brightness in 5 % steps, vertical or horizontal; confirm with A before the D-pad changes them
 - Cards for performance and fan profiles (open the profile menu), CPU, GPU, RAM, temperatures, battery and FPS
+- Battery card shows the time left (or the time until full while charging)
+- Music tile: what is playing, play/pause, next and previous track for any music app
 - Performance and fan profile per app: choose "Remember for …" while an emulator runs, and it always starts with that profile; leaving it brings back the previous setting
 - Gauges coloured by load (traffic light, cool → warm, accent colour, monochrome)
 - Steam-like performance overlay in games (FPS, CPU, GPU, RAM, temperatures; position and items selectable)
@@ -111,6 +113,7 @@ Every gesture can be reassigned (home, switcher, control center, recent apps, la
 
 - Four styles across the whole app: **Modern** (Material 3), **Pixel** (pixel font, stepped corners), **Dot matrix** (Nothing-like dots) and **Cocoon** (light and playful with colourful icon badges, made to sit next to the Cocoon launcher)
 - Themes: system, light, dark, OLED black
+- Back up all settings to a file and restore them (Settings → Backup)
 - Languages: English and German (follows the system language, or choose in the settings)
 - Tile colour from presets or a colour wheel; it becomes the accent colour in every style
 - PlayStation, Xbox or Nintendo button symbols, coloured or monochrome, following the device's controller layout

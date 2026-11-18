@@ -15,6 +15,7 @@ import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
+import kotlin.concurrent.thread
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -610,6 +611,27 @@ class ControlCenter(private val svc: HugminnService) {
         return v
     }
 
+    /** Music: what is playing, play/pause, next, previous (the menu stays open). */
+    private fun mediaMenu(sel: Int = -1) {
+        val entries = mutableListOf<MenuEntry>()
+        Media.title?.let { entries += MenuEntry(it, header = true, run = null) }
+        Media.app?.let { entries += MenuEntry(Apps.label(svc, it), run = null) }
+        val again = { i: Int -> svc.ui.postDelayed({ thread { if (Root.available()) Media.refresh(); svc.ui.post { refreshAll(); mediaMenu(i) } } }, 400) }
+        entries += MenuEntry(if (Media.playing) t("Pause", "Pause") else t("Abspielen", "Play")) {
+            Media.key(svc, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE); again(entries.size - 3)
+        }
+        entries += MenuEntry(t("Nächster Titel", "Next track")) { Media.key(svc, KeyEvent.KEYCODE_MEDIA_NEXT); again(entries.size - 2) }
+        entries += MenuEntry(t("Vorheriger Titel", "Previous track")) { Media.key(svc, KeyEvent.KEYCODE_MEDIA_PREVIOUS); again(entries.size - 1) }
+        showMenu(t("Musik", "Music"), entries, sel)
+    }
+
+    /** "noch 2 h 40 min" / "voll in 35 min", or null while unknown. */
+    private fun batteryTime(s: Metrics.Sample): String? {
+        val m = s.batMinutes.takeIf { it > 0 } ?: return null
+        val txt = if (m >= 60) "${m / 60} h ${m % 60} min" else "$m min"
+        return if (s.charging) t("voll in $txt", "full in $txt") else t("noch $txt", "$txt left")
+    }
+
     private class InfoSpec(
         val icon: IconView.Kind, val title: String,
         val value: (Metrics.Sample) -> String, val sub: (Metrics.Sample) -> String,
@@ -630,7 +652,7 @@ class ControlCenter(private val svc: HugminnService) {
             "temp" -> InfoSpec(IconView.Kind.THERMO, "TEMP", { s -> if (s.cpuTemp > 0) "${s.cpuTemp.toInt()}°" else "–" },
                 { s -> listOfNotNull(s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()}°" }, s.batTemp.takeIf { it > 0 }?.let { t("Akku ${it.toInt()}°", "Battery ${it.toInt()}°") }).joinToString(" · ") },
                 { s -> (s.cpuTemp - 40f) / 45f }, colorValue = true)
-            "battery" -> InfoSpec(IconView.Kind.PLUG, t("AKKU", "BATT"), { s -> "${s.batPct} %" }, { s -> "%.1f W".format(s.watts) + if (s.charging) tr(" · lädt") else "" },
+            "battery" -> InfoSpec(IconView.Kind.PLUG, t("AKKU", "BATT"), { s -> "${s.batPct} %" }, { s -> batteryTime(s) ?: ("%.1f W".format(s.watts) + if (s.charging) tr(" · lädt") else "") },
                 { s -> 1f - s.batPct / 100f }, colorValue = true)
             "cpu" -> InfoSpec(IconView.Kind.BOLT, "CPU", { s -> "${s.cpuPct.toInt()} %" }, { s -> "%.2f GHz".format(s.cpuMhz / 1000f) }, { s -> s.cpuPct / 100f })
             "gpu" -> InfoSpec(IconView.Kind.REFRESH, "GPU", { s -> "${s.gpuPct.toInt()} %" }, { s -> "${s.gpuMhz} MHz" }, { s -> s.gpuPct / 100f })
@@ -948,6 +970,15 @@ class ControlCenter(private val svc: HugminnService) {
                     svc.ui.postDelayed({ open() }, 60)
                 }
             })
+        }
+        "media" -> {
+            if (Root.available()) thread { Media.refresh(); refreshAll() }
+            Tile(t("Musik", "Music"), IconView.Kind.MUSIC,
+                { Media.title ?: if (Media.playing) t("Spielt", "Playing") else t("Nichts läuft", "Nothing playing") },
+                { Media.playing }, menu = { mediaMenu() }) {
+                Media.key(svc, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                if (Root.available()) svc.ui.postDelayed({ thread { Media.refresh(); refreshAll() } }, 500)
+            }
         }
         "screenshot" -> Tile("Screenshot", IconView.Kind.CAMERA, { null }, { false }) {
             close()
