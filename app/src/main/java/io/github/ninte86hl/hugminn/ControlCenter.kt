@@ -280,6 +280,7 @@ class ControlCenter(private val svc: HugminnService) {
     private val itemEntry = mutableListOf<Int>()
 
     private fun computeCols(): Int {
+        svc.prefs.gridCols.takeIf { it > 0 }?.let { return it.coerceIn(3, 12) }
         val m = wm.currentWindowMetrics.bounds
         val gap = 10 * d
         val bodyH = m.height() - topInset - (14 + 12 + 44 + 34 + 12 + 8) * d
@@ -292,6 +293,7 @@ class ControlCenter(private val svc: HugminnService) {
     /** (Re)builds the grid page and the footer, keeping the edit state. */
     private fun renderGrid() {
         val body = bodyView ?: return
+        GridLayout.ROWS = svc.prefs.gridRows.coerceIn(2, 6)
         gridCols = computeCols()
         if (!editing) entries = svc.prefs.ccGrid.toMutableList()
         placed = GridLayout.place(entries, gridCols)

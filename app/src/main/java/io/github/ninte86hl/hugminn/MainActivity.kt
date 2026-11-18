@@ -35,6 +35,11 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // first start: the introduction
+        if (!prefs.setupDone) {
+            prefs.setupDone = true
+            startActivity(Intent(this, SetupActivity::class.java))
+        }
         build()
         // Android switches the service off after a crash: bring it back automatically (root only).
         if (HugminnService.instance == null && Root.available() && Device.whitelisted(this)) {
@@ -326,6 +331,13 @@ class MainActivity : Activity() {
         }
 
         val ccs = section("Control Center")
+        row(ccs, t("Zeilen", "Rows"), t("Wie viele Reihen das Raster des Control Centers hat", "How many rows the Control Center grid has"), { "${prefs.gridRows}" }) {
+            prefs.gridRows = cycle(listOf(3, 4, 5, 6), prefs.gridRows)
+        }
+        row(ccs, t("Spalten", "Columns"), t("Automatisch: so viele quadratische Felder, wie auf den Bildschirm passen", "Automatic: as many square cells as fit on the screen"),
+            { if (prefs.gridCols == 0) t("Automatisch", "Automatic") else "${prefs.gridCols}" }) {
+            prefs.gridCols = cycle(listOf(0, 4, 5, 6, 7, 8, 9, 10), prefs.gridCols)
+        }
         row(ccs, t("Spiel pausieren", "Pause the game"), t("Solange das Control Center offen ist, hält das Spiel dahinter an (auch der Ton) und läuft danach weiter",
             "While the Control Center is open, the game behind it pauses (sound too) and goes on afterwards"), { if (prefs.pauseInCc) tr("An") else tr("Aus") }) {
             prefs.pauseInCc = !prefs.pauseInCc
@@ -488,6 +500,9 @@ class MainActivity : Activity() {
 
         // About
         val a = section(tr("Über"))
+        val ib = LinearLayout(this).apply { setPadding(0, d(8), 0, d(4)) }
+        ib.addView(button(t("Einführung erneut zeigen", "Show the introduction again")) { startActivity(Intent(this, SetupActivity::class.java)) })
+        a.addView(ib)
         a.addView(text(
             tr("In der nordischen Sage hat Odin zwei Raben: Huginn (Gedanke) und Muninn (Erinnerung). ") +
                 tr("Hugminn vereint beide: das Control Center denkt für dich mit, der Game Switcher merkt sich deine Spiele."),
