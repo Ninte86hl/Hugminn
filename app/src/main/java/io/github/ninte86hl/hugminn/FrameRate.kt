@@ -28,8 +28,10 @@ object FrameRate {
     private fun findLayer(pkg: String): String? {
         val now = System.currentTimeMillis()
         if (pkg == layerPkg && layer != null && now - layerAt < 15_000) return layer
-        val script = "dumpsys SurfaceFlinger --list | grep -F ${Root.quote(pkg)} | grep -v -e '^ActivityRecord' -e 'InputSink' | head -n 12 | " +
-            "while IFS= read -r L; do n=\$(dumpsys SurfaceFlinger --latency \"\$L\" | $COUNT); echo \"\$n|\$L\"; done"
+        // the layer names go to a file first: dumpsys inside a "while read" loop would eat its input
+        val list = "/data/local/tmp/hugminn_layers"
+        val script = "dumpsys SurfaceFlinger --list | grep -F ${Root.quote(pkg)} | grep -v ActivityRecord | grep -v InputSink | head -n 12 > $list; " +
+            "while IFS= read -r L; do n=\$(dumpsys SurfaceFlinger --latency \"\$L\" </dev/null | $COUNT); echo \"\$n|\$L\"; done < $list; rm -f $list"
         val out = Root.execLong(script, 6_000)
         if (out == null) { diag = "Ebenensuche: keine Antwort"; return null }
         val rows = out.lines().mapNotNull { line ->
@@ -39,7 +41,7 @@ object FrameRate {
             Triple(nums.getOrNull(0)?.toIntOrNull() ?: 0, nums.getOrNull(1)?.toDoubleOrNull() ?: 0.0, parts[1])
         }
         val best = rows.maxWithOrNull(compareBy({ it.first }, { it.second }))
-        diag = "Ebenen: " + rows.joinToString { "${it.third.take(70)}=${it.first}" }
+        diag = "Ebenen: " + (if (rows.isEmpty()) "keine lesbar, Antwort: ${out.replace('\n', ' ').take(300)}" else rows.joinToString { "${it.third.take(70)}=${it.first}" })
         layerPkg = pkg
         layer = best?.takeIf { it.first > 0 || it.second > 0 }?.third
         layerAt = now
