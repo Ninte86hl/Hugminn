@@ -77,6 +77,8 @@ object FrameRate {
     private var tsFails = 0
     private var tsDiag = ""
     private var tsEnable: String? = null
+    private var prevFrames = 0
+    private var prevMs = 0f
 
     private val TS = """dumpsys SurfaceFlinger --timestats -dump -maxlayers 24 2>/dev/null | awk -v P="${'$'}1" '
 /layerName =/ { g = 0; mine = index(${'$'}0, P) > 0; next }
@@ -109,8 +111,12 @@ dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
         val layerFps = p[5].toFloatOrNull() ?: 0f
         tsFails = 0
         diag = tsDiag
+        // average over this and the previous window (about one second) so the number doesn't jump
+        val ms = if (frames > 0 && fps > 0) frames * 1000f / fps else 0f
+        val n2 = frames + prevFrames; val ms2 = ms + prevMs
+        prevFrames = frames; prevMs = ms
         return when {
-            frames >= 5 && fps > 0 -> Math.round(fps)
+            n2 >= 5 && ms2 > 0 -> Math.round(n2 * 1000f / ms2)
             layerFrames >= 5 && layerFps > 0 -> Math.round(layerFps)
             else -> 0
         }
