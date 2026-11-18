@@ -236,7 +236,7 @@ enum class UiStyle(val label: String) { MODERN("Modern"), PIXEL("Pixel"), DOTS("
 
 /**
  * Shapes and fonts for the chosen style. "Pixel" (matching the Retroid Pocket Classic/Dual design
- * line) uses the Pixelify Sans font (SIL Open Font License) and notched, square-pixel corners.
+ * line) uses the Jersey 10 pixel font (SIL Open Font License) and notched, square-pixel corners.
  */
 object Look {
     @Volatile private var regular: Typeface? = null
@@ -262,7 +262,8 @@ object Look {
         val cached = if (b) bold else regular
         if (cached != null) return cached
         val tf = try {
-            Typeface.Builder(ctx.assets, "fonts/PixelifySans.ttf").setFontVariationSettings("'wght' ${if (b) 700 else 450}").build()
+            // Jersey 10: a pixel font with clear, well-defined digits (one weight)
+            Typeface.createFromAsset(ctx.assets, "fonts/Jersey10.ttf")
         } catch (t: Throwable) {
             Typeface.MONOSPACE
         }

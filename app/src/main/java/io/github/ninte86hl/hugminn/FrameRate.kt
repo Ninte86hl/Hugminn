@@ -26,6 +26,8 @@ object FrameRate {
         return found
     }
 
+    /** What the last measurement saw (for feedback reports). */
+    @Volatile var diag = ""
     @Volatile private var statsOn = false
     private var lastGood = -1
     private var lastGoodAt = 0L
@@ -49,10 +51,13 @@ object FrameRate {
             "h==1 { for (i=1;i<=NF;i++) { if (split(\$i,kv,\"=\")==2) { ms=kv[1]+0; c=kv[2]+0; if (c>0 && ms<100) { n+=c; t+=ms*c } } } h=0 } " +
             "END { f=(t>0)?1000*n/t:0; if (rr>0 && f>rr) f=rr; printf \"HFPS %d %d\\n\", f+0.5, n }'; " +
             "dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1"
-        val out = Root.exec("sh -c " + Root.quote(script), 3_000) ?: return null
-        val m = Regex("""HFPS (\d+) (\d+)""").find(out) ?: return null
+        val out = Root.exec("sh -c " + Root.quote(script), 3_000)
+        diag = "TimeStats: ${out ?: "keine Antwort"}"
+        val m = out?.let { Regex("""HFPS (\d+) (\d+)""").find(it) } ?: return null
         val fps = m.groupValues[1].toInt()
         val frames = m.groupValues[2].toInt()
+        // no frames at all in the statistics: this firmware doesn't fill them, use the app's own layer
+        if (frames == 0 && lastGoodAt == 0L) return null
         val now = System.currentTimeMillis()
         if (frames >= 5 && fps in 1..240) {
             lastGood = fps
@@ -71,6 +76,7 @@ object FrameRate {
         }
         val l = findLayer(pkg) ?: return null
         val out = Root.execLong("dumpsys SurfaceFlinger --latency ${Root.quote(l)}", 4_000) ?: return null
+        diag += " · Ebene: $l (${out.lines().size} Zeilen)"
         val presents = out.lines().drop(1).mapNotNull { line ->
             val p = line.trim().split(Regex("\\s+"))
             if (p.size < 3) null else p[1].toLongOrNull()
