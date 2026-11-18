@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.8.7
+- "Add element" shows the categories (displays, sliders, switches) side by side; ◀ ▶ or L1/R1 switches between them, no more long scrolling.
+- „Element hinzufügen“ zeigt die Kategorien (Anzeigen, Regler, Schalter) nebeneinander; ◀ ▶ oder L1/R1 wechselt zwischen ihnen, kein langes Scrollen mehr.
+
 ## 1.8.6
 - Large tiles polished: rings in the system overview sit with their labels, performance and fan names fit, Wi-Fi list shows the networks in range, a clear note when Wi-Fi or Bluetooth is off, temperature graph uses its useful range.
 - Große Kacheln verbessert: Ringe der System-Übersicht sitzen bei ihren Beschriftungen, Namen bei Leistung und Lüfter passen, die WLAN-Liste zeigt die Netze in Reichweite, klarer Hinweis wenn WLAN oder Bluetooth aus ist, Temperatur-Graph mit sinnvollem Bereich.
