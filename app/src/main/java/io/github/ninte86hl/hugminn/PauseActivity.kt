@@ -54,11 +54,13 @@ class PauseActivity : Activity() {
 
     companion object {
         @Volatile private var current: PauseActivity? = null
-        @Volatile private var wanted = false
+        /** Who wants the app paused right now ("switcher", "cc"); the cover stays while anyone does. */
+        private val owners = java.util.Collections.synchronizedSet(HashSet<String>())
+        private val wanted get() = owners.isNotEmpty()
 
         /** Covers (and so pauses) the app in front. */
-        fun hold(svc: HugminnService) {
-            wanted = true
+        fun hold(svc: HugminnService, who: String) {
+            owners += who
             if (current != null) return
             runCatching {
                 svc.startActivity(Intent(svc, PauseActivity::class.java).addFlags(
@@ -68,8 +70,8 @@ class PauseActivity : Activity() {
         }
 
         /** Uncovers again, after [delayMs] (time for another app to come to the front first). */
-        fun release(svc: HugminnService, delayMs: Long = 0) {
-            wanted = false
+        fun release(svc: HugminnService, who: String, delayMs: Long = 0) {
+            owners -= who
             val run = { if (!wanted) current?.finishQuietly() }
             if (delayMs <= 0) svc.ui.post(run) else svc.ui.postDelayed(run, delayMs)
         }
