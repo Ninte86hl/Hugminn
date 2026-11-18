@@ -33,23 +33,38 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/control-center-modern.png" alt="Control Center, modern style" width="100%">
+  <img src="docs/screenshots/styles.gif" alt="Control Center in all styles: Modern, Pixel, Dot matrix and Cocoon, light and dark" width="100%">
 </p>
+<p align="center"><sub>The Control Center in all four styles – Modern, Pixel, Dot matrix and Cocoon – light and dark</sub></p>
 
 | | |
 | --- | --- |
-| ![Control Center, pixel style](docs/screenshots/control-center-pixel.png) | ![Control Center, dot matrix style](docs/screenshots/control-center-dots.png) |
-| Control Center – pixel style | Control Center – dot matrix style |
-| ![Game switcher](docs/screenshots/game-switcher.png) | ![Game switcher, dot matrix style](docs/screenshots/game-switcher-dots.png) |
-| Muninn – game switcher | Game switcher – dot matrix style |
-| ![Stick LEDs](docs/screenshots/stick-leds.png) | ![Performance overlay in a game](docs/screenshots/fps-overlay.png) |
-| Stick LEDs: colours and effects | Performance overlay in a game |
+| ![Game switcher](docs/screenshots/game-switcher.png) | ![Performance overlay in a game](docs/screenshots/fps-overlay.png) |
+| Muninn – game switcher with the running game's title | Performance overlay in a game |
 | ![Performance profile](docs/screenshots/performance-profile.png) | ![Fan profile](docs/screenshots/fan-profile.png) |
-| Performance profiles | Fan profiles and custom fan curve |
-| ![Performance overlay settings](docs/screenshots/performance-overlay-menu.png) | ![Edit menu](docs/screenshots/edit-menu.png) |
-| Performance overlay settings | Edit: layout, tile colour, style |
+| Performance profile, remembered per emulator | Fan profile, remembered per emulator |
+| ![Custom fan curve](docs/screenshots/fan-curve.png) | ![Stick LEDs](docs/screenshots/stick-leds.png) |
+| Custom fan curve | Stick LEDs: colours and effects |
+| ![Edit menu](docs/screenshots/edit-menu.png) | ![Tile colour](docs/screenshots/tile-colour.png) |
+| Edit: layout, tiles, style, colours | Tile colour |
 | ![Edit mode](docs/screenshots/edit-mode.png) | ![Add element](docs/screenshots/add-element.png) |
 | Edit mode: move and resize elements on a grid with pages | Add displays, switches and sliders |
+
+<details>
+<summary>All styles one by one</summary>
+
+| | |
+| --- | --- |
+| ![Modern dark](docs/screenshots/style-modern-dark.png) | ![Modern light](docs/screenshots/style-modern-light.png) |
+| Modern · dark | Modern · light |
+| ![Pixel dark](docs/screenshots/style-pixel-dark.png) | ![Cocoon light](docs/screenshots/style-cocoon-light.png) |
+| Pixel · dark | Cocoon · light |
+| ![Dot matrix dark](docs/screenshots/style-dots-dark.png) | ![Dot matrix light](docs/screenshots/style-dots-light.png) |
+| Dot matrix · OLED black | Dot matrix · light |
+| ![Cocoon dark](docs/screenshots/style-cocoon-dark.png) | |
+| Cocoon · dark | |
+
+</details>
 
 ## Features
 
