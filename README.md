@@ -35,191 +35,37 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 <p align="center">
   <img src="docs/screenshots/styles.gif" alt="Control Center in all styles: Modern, Pixel, Dot matrix and Cocoon, light and dark" width="100%">
 </p>
-<p align="center"><sub>The Control Center in all four styles – Modern, Pixel, Dot matrix and Cocoon – light and dark</sub></p>
-
-| | |
-| --- | --- |
-| ![Game switcher](docs/screenshots/modern/dark-switcher.png) | ![Performance profile](docs/screenshots/modern/dark-perf.png) |
-| Muninn – game switcher with the running game's title | Performance profile, remembered per emulator |
-| ![Fan profile](docs/screenshots/modern/dark-fan.png) | ![Custom fan curve](docs/screenshots/modern/dark-curve.png) |
-| Fan profile, remembered per emulator | Custom fan curve |
-| ![Stick LEDs](docs/screenshots/modern/dark-leds.png) | ![Edit menu](docs/screenshots/modern/dark-editmenu.png) |
-| Stick LEDs: colours and effects | Edit: layout, tiles, style, colours |
-| ![Tile colour](docs/screenshots/modern/dark-tile.png) | ![Edit mode](docs/screenshots/modern/dark-edit.png) |
-| Tile colour | Edit mode: move and resize elements on a grid with pages |
-| ![Add element](docs/screenshots/add-element.png) | |
-| Add displays, switches and sliders | |
-
-<details>
-<summary>Modern – every screen, dark and light</summary>
 
 | Dark | Light |
 | --- | --- |
-| ![Control Center · dark](docs/screenshots/modern/dark-main.png) | ![Control Center · light](docs/screenshots/modern/light-main.png) |
-| Control Center · dark | Control Center · light |
-| ![Performance profile · dark](docs/screenshots/modern/dark-perf.png) | ![Performance profile · light](docs/screenshots/modern/light-perf.png) |
-| Performance profile · dark | Performance profile · light |
-| ![Fan profile · dark](docs/screenshots/modern/dark-fan.png) | ![Fan profile · light](docs/screenshots/modern/light-fan.png) |
-| Fan profile · dark | Fan profile · light |
-| ![Custom fan curve · dark](docs/screenshots/modern/dark-curve.png) | ![Custom fan curve · light](docs/screenshots/modern/light-curve.png) |
-| Custom fan curve · dark | Custom fan curve · light |
-| ![Stick LEDs · dark](docs/screenshots/modern/dark-leds.png) | ![Stick LEDs · light](docs/screenshots/modern/light-leds.png) |
-| Stick LEDs · dark | Stick LEDs · light |
-| ![Edit menu · dark](docs/screenshots/modern/dark-editmenu.png) | ![Edit menu · light](docs/screenshots/modern/light-editmenu.png) |
-| Edit menu · dark | Edit menu · light |
-| ![Edit mode · dark](docs/screenshots/modern/dark-edit.png) | ![Edit mode · light](docs/screenshots/modern/light-edit.png) |
-| Edit mode · dark | Edit mode · light |
-| ![Tile colour · dark](docs/screenshots/modern/dark-tile.png) | ![Tile colour · light](docs/screenshots/modern/light-tile.png) |
-| Tile colour · dark | Tile colour · light |
-| ![Game switcher · dark](docs/screenshots/modern/dark-switcher.png) | ![Game switcher · light](docs/screenshots/modern/light-switcher.png) |
-| Game switcher · dark | Game switcher · light |
+| ![Modern dark](docs/screenshots/modern/dark-main.png) | ![Modern light](docs/screenshots/modern/light-main.png) |
+| Modern | Modern |
+| ![Pixel dark](docs/screenshots/pixel/dark-main.png) | ![Pixel light](docs/screenshots/pixel/light-main.png) |
+| Pixel | Pixel |
+| ![Dot matrix dark](docs/screenshots/dots/dark-main.png) | ![Dot matrix light](docs/screenshots/dots/light-main.png) |
+| Dot matrix | Dot matrix |
+| ![Cocoon dark](docs/screenshots/cocoon/dark-main.png) | ![Cocoon light](docs/screenshots/cocoon/light-main.png) |
+| Cocoon | Cocoon |
 
-</details>
-
-<details>
-<summary>Pixel – every screen, dark and light</summary>
-
-| Dark | Light |
-| --- | --- |
-| ![Control Center · dark](docs/screenshots/pixel/dark-main.png) | ![Control Center · light](docs/screenshots/pixel/light-main.png) |
-| Control Center · dark | Control Center · light |
-| ![Performance profile · dark](docs/screenshots/pixel/dark-perf.png) | ![Performance profile · light](docs/screenshots/pixel/light-perf.png) |
-| Performance profile · dark | Performance profile · light |
-| ![Fan profile · dark](docs/screenshots/pixel/dark-fan.png) | ![Fan profile · light](docs/screenshots/pixel/light-fan.png) |
-| Fan profile · dark | Fan profile · light |
-| ![Custom fan curve · dark](docs/screenshots/pixel/dark-curve.png) | ![Custom fan curve · light](docs/screenshots/pixel/light-curve.png) |
-| Custom fan curve · dark | Custom fan curve · light |
-| ![Stick LEDs · dark](docs/screenshots/pixel/dark-leds.png) | ![Stick LEDs · light](docs/screenshots/pixel/light-leds.png) |
-| Stick LEDs · dark | Stick LEDs · light |
-| ![Edit menu · dark](docs/screenshots/pixel/dark-editmenu.png) | ![Edit menu · light](docs/screenshots/pixel/light-editmenu.png) |
-| Edit menu · dark | Edit menu · light |
-| ![Edit mode · dark](docs/screenshots/pixel/dark-edit.png) | ![Edit mode · light](docs/screenshots/pixel/light-edit.png) |
-| Edit mode · dark | Edit mode · light |
-| ![Tile colour · dark](docs/screenshots/pixel/dark-tile.png) | ![Tile colour · light](docs/screenshots/pixel/light-tile.png) |
-| Tile colour · dark | Tile colour · light |
-| ![Game switcher · dark](docs/screenshots/pixel/dark-switcher.png) | ![Game switcher · light](docs/screenshots/pixel/light-switcher.png) |
-| Game switcher · dark | Game switcher · light |
-
-</details>
-
-<details>
-<summary>Dot matrix – every screen, dark and light</summary>
-
-| Dark | Light |
-| --- | --- |
-| ![Control Center · dark](docs/screenshots/dots/dark-main.png) | ![Control Center · light](docs/screenshots/dots/light-main.png) |
-| Control Center · dark | Control Center · light |
-| ![Performance profile · dark](docs/screenshots/dots/dark-perf.png) | ![Performance profile · light](docs/screenshots/dots/light-perf.png) |
-| Performance profile · dark | Performance profile · light |
-| ![Fan profile · dark](docs/screenshots/dots/dark-fan.png) | ![Fan profile · light](docs/screenshots/dots/light-fan.png) |
-| Fan profile · dark | Fan profile · light |
-| ![Custom fan curve · dark](docs/screenshots/dots/dark-curve.png) | ![Custom fan curve · light](docs/screenshots/dots/light-curve.png) |
-| Custom fan curve · dark | Custom fan curve · light |
-| ![Stick LEDs · dark](docs/screenshots/dots/dark-leds.png) | ![Stick LEDs · light](docs/screenshots/dots/light-leds.png) |
-| Stick LEDs · dark | Stick LEDs · light |
-| ![Edit menu · dark](docs/screenshots/dots/dark-editmenu.png) | ![Edit menu · light](docs/screenshots/dots/light-editmenu.png) |
-| Edit menu · dark | Edit menu · light |
-| ![Edit mode · dark](docs/screenshots/dots/dark-edit.png) | ![Edit mode · light](docs/screenshots/dots/light-edit.png) |
-| Edit mode · dark | Edit mode · light |
-| ![Tile colour · dark](docs/screenshots/dots/dark-tile.png) | ![Tile colour · light](docs/screenshots/dots/light-tile.png) |
-| Tile colour · dark | Tile colour · light |
-| ![Game switcher · dark](docs/screenshots/dots/dark-switcher.png) | ![Game switcher · light](docs/screenshots/dots/light-switcher.png) |
-| Game switcher · dark | Game switcher · light |
-
-</details>
-
-<details>
-<summary>Cocoon – every screen, dark and light</summary>
-
-| Dark | Light |
-| --- | --- |
-| ![Control Center · dark](docs/screenshots/cocoon/dark-main.png) | ![Control Center · light](docs/screenshots/cocoon/light-main.png) |
-| Control Center · dark | Control Center · light |
-| ![Performance profile · dark](docs/screenshots/cocoon/dark-perf.png) | ![Performance profile · light](docs/screenshots/cocoon/light-perf.png) |
-| Performance profile · dark | Performance profile · light |
-| ![Fan profile · dark](docs/screenshots/cocoon/dark-fan.png) | ![Fan profile · light](docs/screenshots/cocoon/light-fan.png) |
-| Fan profile · dark | Fan profile · light |
-| ![Custom fan curve · dark](docs/screenshots/cocoon/dark-curve.png) | ![Custom fan curve · light](docs/screenshots/cocoon/light-curve.png) |
-| Custom fan curve · dark | Custom fan curve · light |
-| ![Stick LEDs · dark](docs/screenshots/cocoon/dark-leds.png) | ![Stick LEDs · light](docs/screenshots/cocoon/light-leds.png) |
-| Stick LEDs · dark | Stick LEDs · light |
-| ![Edit menu · dark](docs/screenshots/cocoon/dark-editmenu.png) | ![Edit menu · light](docs/screenshots/cocoon/light-editmenu.png) |
-| Edit menu · dark | Edit menu · light |
-| ![Edit mode · dark](docs/screenshots/cocoon/dark-edit.png) | ![Edit mode · light](docs/screenshots/cocoon/light-edit.png) |
-| Edit mode · dark | Edit mode · light |
-| ![Tile colour · dark](docs/screenshots/cocoon/dark-tile.png) | ![Tile colour · light](docs/screenshots/cocoon/light-tile.png) |
-| Tile colour · dark | Tile colour · light |
-| ![Game switcher · dark](docs/screenshots/cocoon/dark-switcher.png) | ![Game switcher · light](docs/screenshots/cocoon/light-switcher.png) |
-| Game switcher · dark | Game switcher · light |
-
-</details>
+Every screen in every style: **[Styles and themes](https://github.com/Ninte86hl/Hugminn/wiki/Styles-and-Themes)** in the wiki.
 
 ## Features
 
-### Muninn – Game Switcher
+Each feature has its own page in the **[wiki](https://github.com/Ninte86hl/Hugminn/wiki)**.
 
-- Its own switcher: Android's recent-apps view is not opened at all, so nothing flickers or shows through
-- Large card for the selected app, smaller cards beside it, with Hugminn's own preview pictures (taken when you press Home and every few seconds while you play)
-- D-pad, left stick or L1/R1 to browse; touch: swipe sideways to browse, swipe a card up to close it, tap to open
-- Follows Android's current task list; apps closed elsewhere disappear; your home app (Cocoon, ES-DE …) is never listed
-- The switcher shows the game an emulator is running (from the launcher, the open game file, RetroArch's log), e.g. "Crash Bandicoot 2" above the DuckStation card
-- Actions:
-
-| Button | Action |
+| | |
 | --- | --- |
-| A | Open the app (its running task comes back to the front) |
-| □ / X | Close the app, also removing it from Android's recent apps |
-| △ / Y | Options: App info, close all others |
-| ○ / B | Back to where you were |
-| Select | Screenshot with the overlay (also in the Control Center), saved to Pictures/Screenshots |
+| **[Game Switcher](https://github.com/Ninte86hl/Hugminn/wiki/Game-Switcher)** | Home twice: your recent games as large cards with live previews and the running game's title, e.g. "Crash Bandicoot 2" above DuckStation. Browse with the D-pad, close apps with one button. |
+| **[Control Center](https://github.com/Ninte86hl/Hugminn/wiki/Control-Center)** | Hold Home: Wi-Fi, Bluetooth, brightness, volume, music, battery time and live CPU/GPU/RAM/temperature values in a grid of tiles. |
+| **[Editing](https://github.com/Ninte86hl/Hugminn/wiki/Editing-the-Control-Center)** | Arrange, resize and add tiles on several pages; pick the tile colour. |
+| **[Performance and fan](https://github.com/Ninte86hl/Hugminn/wiki/Performance-and-Fan)** | Performance and fan profiles, a custom fan curve, and profiles remembered per emulator. |
+| **[Stick LEDs](https://github.com/Ninte86hl/Hugminn/wiki/Stick-LEDs)** | Colour wheel, quick colours and effects, or an LED app such as Bifrost. |
+| **[Performance overlay](https://github.com/Ninte86hl/Hugminn/wiki/Performance-Overlay)** | FPS, frame time, CPU, GPU, temperature and more over the game, in the style you chose. |
+| **[Home button](https://github.com/Ninte86hl/Hugminn/wiki/Home-Button)** | Press, double press and hold, each with its own action. |
+| **[Styles and themes](https://github.com/Ninte86hl/Hugminn/wiki/Styles-and-Themes)** | Modern, Pixel, Dot matrix and Cocoon; light, dark or OLED black; your own accent colour. |
+| **[Settings](https://github.com/Ninte86hl/Hugminn/wiki/Settings)** | Everything adjustable, backup and restore, English and German. |
 
-- The system's swipe-up gesture is covered by the switcher as soon as Android's view settles
-- Classic mode (a frame over Android's own recent-apps view) remains available in the settings
-
-### Huginn – Control Center
-
-- Full-screen grid of square tiles with several pages (rows and columns adjustable in the settings); free cells open a picker sorted by type (displays, sliders, switches)
-- Edit mode: hold A (or long-press) to move, resize and remove tiles by drag & drop or D-pad; tile colour; reset to default
-- D-pad navigation follows the grid; nothing is preselected until you press a direction
-- Switches (A toggles, □ opens the tile's submenu): WLAN, Bluetooth, stick LEDs, 60/120 Hz, Do not disturb, airplane mode, rotation lock, screen always on and more
-- WLAN submenu: networks in range with signal, saved networks connect directly, password window for new ones
-- Bluetooth submenu: paired devices (connect / disconnect), search and pair new devices
-- Sliders for volume and brightness in 5 % steps, vertical or horizontal; confirm with A before the D-pad changes them
-- Cards for performance and fan profiles (open the profile menu), CPU, GPU, RAM, temperatures, battery and FPS
-- Battery card shows the time left (or the time until full while charging)
-- Music tile: what is playing, play/pause, next and previous track for any music app
-- Performance and fan profile per app: choose "Remember for …" while an emulator runs, and it always starts with that profile; leaving it brings back the previous setting
-- Gauges coloured by load (traffic light, cool → warm, accent colour, monochrome)
-- Steam-like performance overlay in games (FPS, CPU, GPU, RAM, temperatures; position and items selectable; matches the chosen style, light or dark)
-- Button for Android's settings; own status bar (clock, battery) in the chosen style
-
-### Stick LEDs
-
-- On/off, colour wheel with live preview, 12 quick colours, left / right / both sticks
-- Effects: colour cycle, offset rainbow, breathing, pulse; adjustable speed
-- Brightness uses the firmware's own value (same as Retroid's LED window)
-- Sticks pulse red when the battery drops to 10 %
-- Optional link to an LED app such as [Bifrost](https://github.com/Pollux-MoonBench/Bifrost) or AmbiLuma instead of the built-in colours
-- Note: the Pocket 6 lights each stick in one colour; a rainbow running around a single stick is not possible
-
-### Home button
-
-| Button | Default action |
-| --- | --- |
-| Home (press) | Home, as usual |
-| Home (double press) | Game Switcher |
-| Home (hold) | Control Center |
-
-Every gesture can be reassigned (home, switcher, control center, recent apps, last app). The Back button is left alone, so it keeps working in RetroArch and other emulators.
-
-### Styles and colours
-
-- Four styles across the whole app: **Modern** (Material 3), **Pixel** (pixel font, stepped corners), **Dot matrix** (Nothing-like dots) and **Cocoon** (light and playful with colourful icon badges, made to sit next to the Cocoon launcher)
-- Themes: system, light, dark, OLED black
-- Back up all settings to a file and restore them (Settings → Backup)
-- Languages: English and German (follows the system language, or choose in the settings)
-- Tile colour from presets or a colour wheel; it becomes the accent colour in every style
-- PlayStation, Xbox or Nintendo button symbols, coloured or monochrome, following the device's controller layout
+Pausing: the game can pause (picture and sound) while the switcher or the Control Center is open. Everything works with the controller; touch works too.
 
 ## Supported devices
 
@@ -235,7 +81,7 @@ Hugminn detects the device and only shows what it supports, for example no 120 H
 
 - One of the devices above on stock firmware
 - Most system features use the firmware's built-in privileged service (`PServerBinder`), so no separate root setup is needed. Without it, Hugminn opens the matching system settings instead.
-- Hugminn runs as an accessibility service (for the Home button, the overlays and screenshots).
+- Hugminn runs as an accessibility service (for the Home button, the overlays and screenshots). Technical details: [How it works](https://github.com/Ninte86hl/Hugminn/wiki/How-It-Works).
 
 ## Installation
 
@@ -245,29 +91,17 @@ Every release is published under **Releases**, built and signed automatically by
 - **With [Obtainium](https://github.com/ImranR98/Obtainium) (recommended, keeps Hugminn up to date):** download [obtainium.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium.json) (also attached to every release) and import it in Obtainium under *Import/Export → Obtainium Import*.
   Manual setup works too: just add `https://github.com/Ninte86hl/Hugminn` as source.
 
-After installing, open Hugminn: a short introduction explains the Game Switcher and the Control Center, turns on the accessibility service and lets you switch off what you don't need.
+After installing, open Hugminn: a short [introduction](https://github.com/Ninte86hl/Hugminn/wiki/Setup-Wizard) explains the Game Switcher and the Control Center, turns on the accessibility service and lets you switch off what you don't need.
 
 **Test builds** from the `test` branch (with extra diagnostic tools) are published as pre-releases named *Hugminn Test*. They are signed with the same key, so you can switch between test and release builds without reinstalling.
 
 ## Reporting bugs
 
-Open Hugminn's settings and tap **Fehler auf GitHub melden**. It opens a new [issue](https://github.com/Ninte86hl/Hugminn/issues) already filled in with the version, your device and the last error; just describe what happened. Hugminn itself never sends anything.
+Settings → **Report a bug** opens a prefilled GitHub [issue](https://github.com/Ninte86hl/Hugminn/issues). More in the [wiki](https://github.com/Ninte86hl/Hugminn/wiki/Reporting-Bugs).
 
 ## Permissions
 
-Hugminn has no internet permission: it never sends anything anywhere. (Reporting a bug opens your browser with a prefilled GitHub issue; you decide whether to submit it.)
-
-| Permission | What Hugminn uses it for |
-| --- | --- |
-| Accessibility service | The heart of the app: catching the Home button and controller buttons while an overlay is open, drawing the Control Center, switcher and performance overlay on top of everything, taking screenshots for the switcher previews, and confirming the Bluetooth pairing dialog for you. Hugminn does not read or store what you type or what other apps show. |
-| Reorder tasks (`REORDER_TASKS`) | Bringing the game you pick in the switcher back to the front. |
-| See installed apps (`QUERY_ALL_PACKAGES`) | Showing app names and icons in the switcher and telling games, emulators and RetroArch apart. |
-| Usage access (`PACKAGE_USAGE_STATS`) | Only without the firmware's root service: guessing your recent apps when the task list cannot be read. |
-| Location (`ACCESS_FINE_LOCATION`) and Wi-Fi state | Android only returns the list of nearby Wi-Fi networks to apps with location access. Hugminn uses it only for the Wi-Fi menu and never determines your location. |
-| Nearby devices (`BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`) | Finding, pairing and connecting Bluetooth devices in the Bluetooth menu. The scan is flagged as never used for location. |
-| Photos (writing to `Pictures/Screenshots`) | Saving screenshots you take with Select. No storage permission is needed for this. |
-
-On Retroid and AYN handhelds, Hugminn grants itself these permissions once through the firmware's built-in privileged service (`PServerBinder`), so you do not have to tap through permission dialogs. The same service changes the firmware settings (performance, fan, LEDs, button layout) that Android does not offer to normal apps.
+Hugminn has **no internet permission** and never sends anything anywhere. It needs the accessibility service and a few permissions for Wi-Fi, Bluetooth and the switcher; what each one is for is explained in the wiki: **[Permissions](https://github.com/Ninte86hl/Hugminn/wiki/Permissions)**.
 
 ## Acknowledgements
 
