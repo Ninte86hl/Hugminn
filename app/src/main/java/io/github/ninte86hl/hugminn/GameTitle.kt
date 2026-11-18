@@ -31,7 +31,8 @@ object GameTitle {
             if (res.containsKey(pkg)) continue
             if (Apps.typeOf(pkg) == AppType.APP) continue
             d.append(pkg).append(": dat=").append(dat?.take(160)).append('\n')
-            val title = dat?.let { fromPath(it, folderOk = true) } ?: fromOpenFiles(pkg, d) ?: fromRetroArchHistory(pkg, d) ?: fromLog(pkg, d)
+            // what the emulator has open now beats the start intent (a reused task keeps its first one)
+            val title = fromOpenFiles(pkg, d) ?: fromLog(pkg, d) ?: fromRetroArchHistory(pkg, d) ?: dat?.let { fromPath(it, folderOk = true) }
             d.append("  → ").append(title).append('\n')
             if (title != null) res[pkg] = title
         }
@@ -43,8 +44,14 @@ object GameTitle {
         val out = Root.execLong("ls -l /proc/\$(pidof -s ${Root.quote(pkg)})/fd 2>/dev/null", 3_000) ?: return null
         // the largest-looking game file wins; .zip only if nothing else is open
         // only files on the storage (games), not the app's own caches or the system
-        val paths = out.lines().mapNotNull { it.substringAfter(" -> ", "").takeIf { p -> p.startsWith("/") } }
-            .filter { p -> storage.any { p.startsWith(it) } && !p.contains("/Android/data/") }
+        // newest first: the highest file number was opened last (after switching games the old
+        // file may still be open for a moment)
+        val paths = out.lines().mapNotNull { l ->
+            val p = l.substringAfter(" -> ", "").takeIf { it.startsWith("/") } ?: return@mapNotNull null
+            val fd = l.substringBefore(" -> ").trim().substringAfterLast(' ').toIntOrNull() ?: 0
+            fd to p
+        }.filter { (_, p) -> storage.any { p.startsWith(it) } && !p.contains("/Android/data/") }
+            .sortedByDescending { it.first }.map { it.second }.distinct()
         val games = paths.filter { ext(it) in romExt && ext(it) != "zip" && ext(it) != "7z" }
             .ifEmpty { paths.filter { ext(it) == "zip" || ext(it) == "7z" } }
         d?.append("  offene Spieldateien: ")?.append(paths.take(4).joinToString(" | "))?.append('\n')
