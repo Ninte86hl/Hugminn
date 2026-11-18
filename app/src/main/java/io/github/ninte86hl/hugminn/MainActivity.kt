@@ -56,13 +56,100 @@ class MainActivity : Activity() {
         typeface = Look.font(this@MainActivity, pixel, bold)
     }
 
+    /** Settings are split into pages like Android's own settings; null = the overview. */
+    private var page: String? = null
+
+    private var builtPage: String? = "-"
+    private val pageButtons = HashMap<String, Button>()
+
+    private class Page(val id: String, val icon: IconView.Kind, val de: String, val en: String, val subDe: String, val subEn: String)
+
+    private val pages = listOf(
+        Page("look", IconView.Kind.PALETTE, "Darstellung", "Appearance", "Stil, Farben, Sprache, Tastensymbole", "Style, colours, language, button symbols"),
+        Page("cc", IconView.Kind.SCREEN, "Control Center", "Control Center", "Statusleiste, Kacheln, LED-App", "Status bar, tiles, LED app"),
+        Page("switcher", IconView.Kind.REFRESH, "Game Switcher", "Game Switcher", "Eigene Übersicht, Pausieren, Wischgeste", "Own overview, pausing, swipe gesture"),
+        Page("home", IconView.Kind.GAMEPAD, "Home-Taste", "Home button", "Einmal, zweimal und lange drücken", "Single, double and long press"),
+        Page("profiles", IconView.Kind.FAN, "Profile pro App", "Profiles per app", "Leistung und Lüfter je Emulator", "Performance and fan per emulator"),
+        Page("backup", IconView.Kind.LOCK, "Sichern", "Backup", "Einstellungen sichern und wiederherstellen", "Save and restore settings"),
+        Page("about", IconView.Kind.GEAR, "Hilfe & Info", "Help & about", "Ausprobieren, Fehler melden, Version", "Try it, report a problem, version"),
+    )
+
+    /** Which page a section belongs to (by its title). */
+    private fun pageOf(title: String): String = when (title) {
+        "Status" -> "status"
+        tr("Home-Taste") -> "home"
+        tr("Darstellung"), tr("Tastensymbole") -> "look"
+        "Game Switcher" -> "switcher"
+        "Control Center" -> "cc"
+        t("Profile pro App", "Profiles per app") -> "profiles"
+        t("Sichern", "Backup") -> "backup"
+        else -> "about"
+    }
+
     private fun section(title: String): LinearLayout {
-        content.addView(text(title, 14f, pal.primary, bold = true).apply { setPadding(d(4), d(18), 0, d(6)) })
-        return LinearLayout(this).apply {
+        val cat = pageOf(title)
+        val shown = if (page == null) cat == "status" else cat == page
+        val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = Look.shape(this@MainActivity, pixel, pal.surfaceHigh, d(20).toFloat())
             setPadding(d(16), d(8), d(16), d(8))
-            content.addView(this)
+        }
+        // sections of other pages are built but never shown
+        if (!shown) return box
+        content.addView(text(title, 14f, pal.primary, bold = true).apply { setPadding(d(4), d(18), 0, d(6)) })
+        content.addView(box)
+        return box
+    }
+
+    /** Icon of a line-icon kind as a drawable (for the page list). */
+    private fun iconDrawable(kind: IconView.Kind, color: Int, sizeDp: Int): android.graphics.drawable.Drawable {
+        val px = d(sizeDp)
+        val v = IconView(this, kind, sizeDp).apply { setColor(color) }
+        v.measure(View.MeasureSpec.makeMeasureSpec(px, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(px, View.MeasureSpec.EXACTLY))
+        v.layout(0, 0, px, px)
+        val bmp = android.graphics.Bitmap.createBitmap(px, px, android.graphics.Bitmap.Config.ARGB_8888)
+        v.draw(android.graphics.Canvas(bmp))
+        return android.graphics.drawable.BitmapDrawable(resources, bmp).apply { setBounds(0, 0, px, px) }
+    }
+
+    /** The overview: one row per page, like the main list of Android's settings. */
+    private fun pageList() {
+        content.addView(text(t("Einstellungen", "Settings"), 14f, pal.primary, bold = true).apply { setPadding(d(4), d(18), 0, d(6)) })
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Look.shape(this@MainActivity, pixel, pal.surfaceHigh, d(20).toFloat())
+            setPadding(d(8), d(8), d(8), d(8))
+        }
+        pages.forEach { pg ->
+            val title = t(pg.de, pg.en)
+            val sub = t(pg.subDe, pg.subEn)
+            val label = android.text.SpannableStringBuilder().apply {
+                append(title, android.text.style.StyleSpan(Typeface.BOLD), 0)
+                append("\n")
+                val st = length
+                append(sub)
+                setSpan(android.text.style.RelativeSizeSpan(0.8f), st, length, 0)
+                setSpan(android.text.style.ForegroundColorSpan(pal.onSurfaceVariant), st, length, 0)
+            }
+            val b = button("") { page = pg.id; build() }
+            pageButtons[pg.id] = b
+            b.text = label
+            b.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            b.setTextColor(pal.onSurface)
+            b.background = Look.shape(this, pixel, pal.surfaceHigh, d(16).toFloat())
+            b.setPadding(d(14), d(10), d(14), d(10))
+            b.compoundDrawablePadding = d(16)
+            b.setCompoundDrawablesRelative(iconDrawable(pg.icon, pal.primary, 26), null, null, null)
+            box.addView(b, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        content.addView(box)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        // back from a page to the overview, from the overview out of the app
+        if (page != null) { page = null; build() } else {
+            @Suppress("DEPRECATION") super.onBackPressed()
         }
     }
 
@@ -106,8 +193,13 @@ class MainActivity : Activity() {
 
     private fun build() {
         // Structural changes rebuild the page; keep the scroll position and the focused button.
-        val oldScroll = scroll?.scrollY ?: 0
-        val oldFocus = buttons.indexOfFirst { it.isFocused }
+        // a new page starts at the top; back on the overview the page's row gets the focus again
+        val pageChanged = page != builtPage
+        val returnTo = if (pageChanged && page == null) builtPage else null
+        builtPage = page
+        val oldScroll = if (pageChanged) 0 else scroll?.scrollY ?: 0
+        val oldFocus = if (pageChanged) -1 else buttons.indexOfFirst { it.isFocused }
+        pageButtons.clear()
         afterChange.clear()
         pal = Palette(this)
         window.statusBarColor = pal.surface
@@ -118,6 +210,14 @@ class MainActivity : Activity() {
             setPadding(d(28), d(16), d(28), d(28))
         }
 
+        // On a page: a back button and the page's name instead of the big header
+        val cur = pages.firstOrNull { it.id == page }
+        if (cur != null) {
+            val bar = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+            bar.addView(button("‹  " + t("Zurück", "Back")) { page = null; build() })
+            bar.addView(text(t(cur.de, cur.en), 24f, pal.onSurface, bold = true).apply { setPadding(d(18), 0, 0, 0) })
+            content.addView(bar)
+        }
         // Header
         val head = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         head.addView(ImageView(this).apply { setImageResource(R.mipmap.ic_launcher) }, LinearLayout.LayoutParams(d(56), d(56)))
@@ -128,7 +228,7 @@ class MainActivity : Activity() {
         hc.addView(text("Hugminn", 26f, pal.onSurface, bold = true))
         hc.addView(text(tr("Huginn denkt mit (Control Center) · Muninn erinnert sich (Game Switcher)"), 13f, pal.onSurfaceVariant))
         head.addView(hc)
-        content.addView(head)
+        if (cur == null) content.addView(head)
 
         // Status
         val running = HugminnService.instance != null
@@ -175,6 +275,8 @@ class MainActivity : Activity() {
             b.addView(button(tr("Aktivieren")) { enable(rootOk) })
             st.addView(b)
         }
+
+        if (page == null) pageList()
 
         // Gestures
         val g = section(tr("Home-Taste"))
@@ -399,7 +501,8 @@ class MainActivity : Activity() {
         setContentView(sv)
         sv.post {
             sv.scrollTo(0, oldScroll)
-            (buttons.getOrNull(oldFocus) ?: buttons.firstOrNull())?.requestFocus()
+            (returnTo?.let { pageButtons[it] } ?: buttons.getOrNull(oldFocus)?.takeIf { it.isAttachedToWindow }
+                ?: buttons.firstOrNull { it.isAttachedToWindow })?.requestFocus()
             sv.scrollTo(0, oldScroll)
         }
     }
