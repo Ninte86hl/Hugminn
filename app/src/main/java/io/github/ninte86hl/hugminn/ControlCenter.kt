@@ -2367,11 +2367,13 @@ class ControlCenter(private val svc: HugminnService) {
     /** A on a free cell: choose what goes there, sorted by type. */
     private fun addMenu() {
         val rootOk = Root.available()
+        // everything may be added more than once (e.g. a small and a large music tile)
         val present = entries.map { it.id }.toSet()
-        fun entryFor(id: String): MenuEntry = MenuEntry(GridLayout.name(id)) { placeAtCursor(id) }
-        val switches = TileCatalog.all.keys.filter { it !in present && tileFor(it, rootOk) != null }
-        val infos = GridLayout.widgetNames.keys.filter { GridLayout.isInfo(it) && it !in present }
-        val sliders = GridLayout.widgetNames.keys.filter { GridLayout.isSlider(it) && it !in present }
+        fun entryFor(id: String): MenuEntry = MenuEntry(GridLayout.name(id),
+            hint = if (id in present) t("Schon im Raster · noch einmal hinzufügen", "Already in the grid · add another") else null) { placeAtCursor(id) }
+        val switches = TileCatalog.all.keys.filter { tileFor(it, rootOk) != null }
+        val infos = GridLayout.widgetNames.keys.filter { GridLayout.isInfo(it) }
+        val sliders = GridLayout.widgetNames.keys.filter { GridLayout.isSlider(it) }
         val list = mutableListOf<MenuEntry>()
         if (infos.isNotEmpty()) { list += MenuEntry(tr("Anzeigen"), header = true, run = null); infos.forEach { list += entryFor(it) } }
         if (sliders.isNotEmpty()) { list += MenuEntry(tr("Regler"), header = true, run = null); sliders.forEach { list += entryFor(it) } }
