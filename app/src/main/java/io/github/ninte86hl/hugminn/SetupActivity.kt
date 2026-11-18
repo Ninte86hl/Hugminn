@@ -133,7 +133,7 @@ class SetupActivity : Activity() {
         // light or dark picture of the style, whichever exists
         val want = "$base-${if (pal.dark) "dark" else "light"}"
         val names = runCatching { assets.list("wizard")?.toSet() }.getOrNull().orEmpty()
-        return listOf(want, "$base-dark", "$base-light").firstOrNull { "$it.jpg" in names } ?: "cc"
+        return listOf(want, "$base-dark", "$base-light").firstOrNull { "$it.jpg" in names } ?: "modern-dark"
     }
 
     private fun onOff(b: Boolean) = if (b) tr("An") else tr("Aus")
