@@ -47,13 +47,19 @@ class PerfOverlay(private val svc: HugminnService) {
 
     val isShown get() = view != null
 
+    @Volatile private var busy = false
+
     private val tick = object : Runnable {
         override fun run() {
             val m = metrics ?: return
-            Thread {
-                val s = try { m.sample() } catch (t: Throwable) { null }
-                if (s != null) svc.ui.post { if (view != null) updates.forEach { it(s) } }
-            }.start()
+            if (!busy) {
+                busy = true
+                Thread {
+                    val s = try { m.sample() } catch (t: Throwable) { null }
+                    busy = false
+                    if (s != null) svc.ui.post { if (view != null) updates.forEach { it(s) } }
+                }.start()
+            }
             svc.ui.postDelayed(this, 600)
         }
     }
@@ -159,7 +165,6 @@ class PerfOverlay(private val svc: HugminnService) {
         view?.let { runCatching { wm.removeView(it) } }
         view = null
         metrics = null
-        Thread { FrameRate.stop() }.start()
     }
 
     /** Applies changed settings. */

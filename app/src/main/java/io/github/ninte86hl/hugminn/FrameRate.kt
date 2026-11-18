@@ -58,13 +58,13 @@ object FrameRate {
         val now = System.currentTimeMillis()
         if (pkg == layerPkg && now - layerAt < 15_000) return layer
         val list = Root.execLong("dumpsys SurfaceFlinger --list | grep -F ${Root.quote(pkg)}", 4_000)
-        if (list == null) { diag = "Ebenenliste: keine Antwort"; return null }
+        if (list == null) { diag = tsDiag + " · Ebenenliste: keine Antwort"; return null }
         val names = list.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("ActivityRecord") && !it.contains("InputSink") }
             .sortedBy { if (it.contains("(BLAST)")) 0 else if (it.startsWith("SurfaceView")) 1 else 2 }.take(14)
         val lines = HashMap<String, Int>(); var raw = ""
         val rows = names.map { n -> val p = presents(n); lines[n] = p?.size ?: -1; if (raw.isEmpty() && n.contains("(BLAST)")) raw = rawInfo; val c = p?.let { count(it) } ?: (0 to 0L); Triple(c.first, c.second, n) }
         val best = rows.maxWithOrNull(compareBy({ it.first }, { it.second }))
-        diag = "Ebenen: " + (if (rows.isEmpty()) "keine (Liste: ${list.replace('\n', ' ').take(200)})" else rows.joinToString { "${it.third.takeLast(60)}=${it.first}/${lines[it.third]}" } + " · BLAST roh: $raw")
+        diag = tsDiag + " · Ebenen: " + (if (rows.isEmpty()) "keine (Liste: ${list.replace('\n', ' ').take(200)})" else rows.joinToString { "${it.third.takeLast(60)}=${it.first}/${lines[it.third]}" } + " · BLAST roh: $raw")
         layerPkg = pkg
         layer = best?.takeIf { it.first > 0 || it.second > 0 }?.third
         layerAt = now
@@ -75,6 +75,7 @@ object FrameRate {
     // (technique as used by PULSE: enable TimeStats, read the global presentToPresent histogram, clear)
     @Volatile private var tsOn = false
     private var tsFails = 0
+    private var tsDiag = ""
 
     private val TS = """dumpsys SurfaceFlinger --timestats -dump -maxlayers 24 2>/dev/null | awk -v P="${'$'}1" '
 /layerName =/ { g = 0; mine = index(${'$'}0, P) > 0; next }
@@ -92,20 +93,21 @@ dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
     private fun timeStats(pkg: String): Int? {
         if (tsFails > 5) return null
         if (!tsOn) {
-            Root.exec("dumpsys SurfaceFlinger --timestats -enable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1; echo ok")
+            Root.exec("sh -c " + Root.quote("dumpsys SurfaceFlinger --timestats -enable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1; echo ok"))
             tsOn = true
             return null
         }
         val cmd = Root.script("fps", TS) ?: return null
         val out = Root.exec("$cmd ${Root.quote(pkg)}", 4_000)
         val p = out?.trim()?.split(' ')
-        diag = "TimeStats: ${out ?: "keine Antwort"}"
-        if (p == null || p.size < 6 || p[0] != "TS") { tsFails++; return null }
+        tsDiag = "TimeStats: ${out ?: "keine Antwort"} (Skript: $cmd, ${Root.exec("sh -c " + Root.quote("wc -c < ${cmd.removePrefix("sh ")}"))} Byte)"
+        if (p == null || p.size < 6 || p[0] != "TS") { if (++tsFails > 5) tsDiag += " → abgeschaltet"; diag = tsDiag; return null }
         val frames = p[1].toIntOrNull() ?: 0
         val fps = p[2].toFloatOrNull() ?: 0f
         val layerFrames = p[4].toIntOrNull() ?: 0
         val layerFps = p[5].toFloatOrNull() ?: 0f
         tsFails = 0
+        diag = tsDiag
         return when {
             frames >= 5 && fps > 0 -> Math.round(fps)
             layerFrames >= 5 && layerFps > 0 -> Math.round(layerFps)
@@ -117,7 +119,7 @@ dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
     fun stop() {
         if (!tsOn) return
         tsOn = false
-        Root.run("dumpsys SurfaceFlinger --timestats -disable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1")
+        Root.run("sh -c " + Root.quote("dumpsys SurfaceFlinger --timestats -disable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1"))
     }
 
     fun sample(pkg: String?): Result? {

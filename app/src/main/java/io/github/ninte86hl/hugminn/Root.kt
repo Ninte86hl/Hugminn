@@ -104,12 +104,12 @@ object Root {
      */
     fun script(name: String, body: String): String? = synchronized(scripts) {
         val path = "/data/local/tmp/hugminn_$name.sh"
-        if (scripts[name] == body && exec("[ -f $path ] && echo ok") == "ok") return "sh $path"
+        if (scripts[name] == body && exec("sh -c " + quote("[ -f $path ] && echo ok")) == "ok") return "sh $path"
         val b64 = android.util.Base64.encodeToString(body.toByteArray(), android.util.Base64.NO_WRAP)
         if (!available()) return null
         exec("rm -f $path.b64")
-        b64.chunked(600).forEach { exec("echo -n '$it' >> $path.b64") }
-        exec("base64 -d $path.b64 > $path; rm -f $path.b64; chmod 755 $path")
+        b64.chunked(600).forEach { exec("sh -c " + quote("echo -n '$it' >> $path.b64")) }
+        exec("sh -c " + quote("base64 -d $path.b64 > $path; rm -f $path.b64; chmod 755 $path"))
         scripts[name] = body
         "sh $path"
     }

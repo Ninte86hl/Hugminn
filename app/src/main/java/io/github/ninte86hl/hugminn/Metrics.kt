@@ -31,8 +31,6 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
         return r.coerceIn(-1, 240)
     }
 
-    private var lastIdle = 0L
-    private var lastTotal = 0L
     private val cpuFreqFiles = File("/sys/devices/system/cpu/cpufreq").listFiles { f -> f.name.startsWith("policy") }
         ?.map { File(it, "scaling_cur_freq") } ?: emptyList()
     private val gpuDir = File("/sys/class/kgsl/kgsl-3d0")
@@ -66,6 +64,35 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
         private val lock = Any()
         @Volatile private var shared: Sample? = null
         @Volatile private var sharedAt = 0L
+        // CPU deltas belong to the shared measurement, not to one Metrics instance
+        private var lastIdle = 0L
+        private var lastTotal = 0L
+
+        // The FPS measurement needs root calls that can take a while, so it runs on its own thread and
+        // the quick values (CPU, RAM, temperatures …) never wait for it.
+        @Volatile private var fpsPkg: String? = null
+        @Volatile private var fpsWanted = 0L
+        @Volatile private var fpsLatest: FrameRate.Result? = null
+        @Volatile private var fpsLatestAt = 0L
+        private var fpsThread: Thread? = null
+
+        private fun wantFps(pkg: String?) {
+            fpsPkg = pkg
+            fpsWanted = System.currentTimeMillis()
+            synchronized(this) {
+                if (fpsThread?.isAlive == true) return
+                fpsThread = Thread {
+                    while (System.currentTimeMillis() - fpsWanted < 3_000) {
+                        val t = System.currentTimeMillis()
+                        val r = try { FrameRate.sample(fpsPkg) } catch (e: Throwable) { null }
+                        fpsLatest = r; fpsLatestAt = System.currentTimeMillis()
+                        val rest = 500 - (System.currentTimeMillis() - t)
+                        if (rest > 0) Thread.sleep(rest)
+                    }
+                    FrameRate.stop()
+                }.apply { isDaemon = true; name = "hugminn-fps"; start() }
+            }
+        }
     }
 
     fun sample(): Sample {
@@ -79,7 +106,8 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
     }
 
     private fun measure(): Sample {
-        val frame = try { FrameRate.sample(foreground()) } catch (t: Throwable) { null }
+        wantFps(foreground())
+        val frame = fpsLatest?.takeIf { System.currentTimeMillis() - fpsLatestAt < 3_000 }
         // CPU load from /proc/stat deltas.
         var cpuPct = 0f
         read(File("/proc/stat"))?.lineSequence()?.firstOrNull()?.let { line ->
@@ -112,7 +140,7 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
         return Sample(
             cpuPct.coerceIn(0f, 100f), cpuMhz, gpuPct.coerceIn(0f, 100f), gpuMhz,
             usedMb, totalMb, maxTemp(cpuZones), maxTemp(gpuZones), batTemp, batPct, watts, charging,
-            frame?.fps ?: if (Root.available()) fps() else -1,
+            frame?.fps ?: -1,
             frame?.frameTimesMs ?: emptyList(),
         )
     }
