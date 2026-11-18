@@ -116,7 +116,7 @@ class PerfOverlay(private val svc: HugminnService) {
             when (OverlayItem.of(id)) {
                 OverlayItem.FPS -> label(accent).also { t -> addItem(t); updates += { s -> t.text = if (s.fps >= 0) "${s.fps} FPS" else "– FPS" } }
                 OverlayItem.FRAMETIME -> {
-                    val g = GraphView(svc, accent, 50f)
+                    val g = GraphView(svc, accent, 50f).apply { setColors(GaugeColors.graph(pal, gp, 50f) { GaugeColors.frameTime(it) }) }
                     box.addView(g, LinearLayout.LayoutParams(sz(90), sz(22)).apply { if (box.childCount > 0) { if (row) marginStart = sz(12) else topMargin = sz(2) } })
                     updates += { s -> s.frameTimesMs.takeLast(20).forEach { g.push(it) } }
                 }

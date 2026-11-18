@@ -616,9 +616,9 @@ class ControlCenter(private val svc: HugminnService) {
                 box.addView(g, lp(MATCH, 0, 1f).apply { topMargin = 4 * d })
                 return box
             }
-            val ft = GraphView(svc, pal.primary, 50f)
+            val ft = GraphView(svc, pal.primary, 50f).apply { setColors(GaugeColors.graph(pal, gp, 50f) { GaugeColors.frameTime(it) }) }
             val ftV = text("", 10f, pal.onSurface, bold = true)
-            val tg = GraphView(svc, GaugeColors.of(pal, GaugePalette.TRAFFIC, 0.85f), 100f)
+            val tg = GraphView(svc, pal.primary, 100f).apply { setColors(GaugeColors.graph(pal, gp, 100f) { (it - 40f) / 45f }) }
             val tV = text("", 10f, pal.onSurface, bold = true)
             graphs.addView(graphBox(t("FRAMETIME", "FRAME TIME"), ft, ftV), lp(0, MATCH, 1f).apply { marginEnd = 5 * d })
             graphs.addView(graphBox(t("TEMPERATUR", "TEMPERATURE"), tg, tV), lp(0, MATCH, 1f).apply { marginStart = 5 * d })
@@ -1066,7 +1066,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (big && e.id == "fps") {
             c.addView(value)
             c.addView(sub)
-            graph = GraphView(svc, pal.primary, 50f)
+            graph = GraphView(svc, pal.primary, 50f).apply { setColors(GaugeColors.graph(pal, gp, 50f) { GaugeColors.frameTime(it) }) }
             c.addView(graph, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
         } else if (big && sp.fraction != null) {
             ring = RingView(svc, pal, "", pal.primary, pixel)
