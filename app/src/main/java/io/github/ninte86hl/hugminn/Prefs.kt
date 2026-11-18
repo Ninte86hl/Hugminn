@@ -85,6 +85,11 @@ class Prefs(ctx: Context) {
         get() = p.getString("ccTiles", null)?.split(',')?.filter { it in TileCatalog.all } ?: TileCatalog.defaults
         set(v) = p.edit().putString("ccTiles", v.filter { it in TileCatalog.all }.distinct().joinToString(",")).apply()
 
+    /** Pixel style font: NF Pixels (thin) or Jersey 10 (bold). */
+    var pixelNf: Boolean
+        get() = p.getBoolean("pixelNf", true)
+        set(v) = p.edit().putBoolean("pixelNf", v).apply()
+
     var uiStyle: UiStyle
         get() = enumOr(p.getString("uiStyle", null), UiStyle.MODERN)
         set(v) = p.edit().putString("uiStyle", v.name).apply()

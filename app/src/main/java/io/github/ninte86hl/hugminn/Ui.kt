@@ -322,12 +322,16 @@ object Look {
 
     fun pixel(ctx: Context) = Prefs(ctx).uiStyle == UiStyle.PIXEL
 
+    @Volatile private var pixelNf: Boolean? = null
+
     private fun pixelFont(ctx: Context, b: Boolean): Typeface {
+        val nf = Prefs(ctx).pixelNf
+        if (nf != pixelNf) { pixelNf = nf; regular = null; bold = null }
         val cached = if (b) bold else regular
         if (cached != null) return cached
         val tf = try {
-            // Jersey 10: a pixel font with clear, well-defined digits (one weight)
-            Typeface.createFromAsset(ctx.assets, "fonts/Jersey10.ttf")
+            // NF Pixels: thin and light; Jersey 10: bold with clear digits (each has one weight)
+            Typeface.createFromAsset(ctx.assets, if (nf) "fonts/NFPixels.ttf" else "fonts/Jersey10.ttf")
         } catch (t: Throwable) {
             Typeface.MONOSPACE
         }

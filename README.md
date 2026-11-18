@@ -132,6 +132,7 @@ Hugminn is an independent project and is not affiliated with Retroid, AYN or any
 ## Third-party assets
 
 - [Jersey 10](https://github.com/scfried/soft-type-jersey) pixel font by The Soft Type Project Authors, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/Jersey10-OFL.txt`)
+- [NF Pixels](https://github.com/sgigou/NF-Pixels) pixel font by Steve Gigou, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/NFPixels-OFL.txt`)
 - [Doto](https://github.com/oliverlalan/Doto) dot-matrix font by Óliver Lalan, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/Doto-OFL.txt`)
 
 ## Author
