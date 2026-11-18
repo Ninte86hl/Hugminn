@@ -19,10 +19,13 @@ object FrameRate {
     private var emptyRuns = 0
     private val recent = ArrayDeque<Float>()
 
-    /** awk: frames presented within the last second before the newest one, and that newest time. */
+    /**
+     * awk: frames presented within the last second before the newest one, and that newest time.
+     * No "\n" in it: an escaped newline does not survive the way to the root service.
+     */
     private const val COUNT =
         "awk 'NR>1 && \$2>0 && \$2<9000000000000000000 { t[++n]=\$2; if (\$2>m) m=\$2 } " +
-            "END { c=0; for (i=1;i<=n;i++) if (m-t[i] <= 1000000000) c++; printf \"%d %.0f\\n\", (c>0?c-1:0), m }'"
+            "END { c=0; for (i=1;i<=n;i++) if (m-t[i] <= 1000000000) c++; printf \"%d %.0f\", (c>0?c-1:0), m }'"
 
     /** Tries every layer of [pkg] and keeps the one with the most recent pictures. */
     private fun findLayer(pkg: String): String? {
