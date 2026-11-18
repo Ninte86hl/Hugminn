@@ -107,7 +107,7 @@ Every gesture can be reassigned (home, switcher, control center, recent apps, la
 
 ### Styles and colours
 
-- Three styles across the whole app: **Modern** (Material 3), **Pixel** (pixel font, stepped corners) and **Dot matrix** (Nothing-like dots)
+- Four styles across the whole app: **Modern** (Material 3), **Pixel** (pixel font, stepped corners), **Dot matrix** (Nothing-like dots) and **Cocoon** (light and playful with colourful icon badges, made to sit next to the Cocoon launcher)
 - Themes: system, light, dark, OLED black
 - Languages: English and German (follows the system language, or choose in the settings)
 - Tile colour from presets or a colour wheel; it becomes the accent colour in every style
@@ -175,6 +175,7 @@ Hugminn is an independent project and is not affiliated with Retroid, AYN or any
 
 ## Third-party assets
 
+- [Inter](https://github.com/rsms/inter) font by The Inter Project Authors, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/Inter-OFL.txt`)
 - [NF Pixels](https://github.com/sgigou/NF-Pixels) pixel font by Steve Gigou, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/NFPixels-OFL.txt`)
 - [Doto](https://github.com/oliverlalan/Doto) dot-matrix font by Óliver Lalan, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/Doto-OFL.txt`)
 
