@@ -34,19 +34,30 @@ object Media {
     fun positionNow(): Long = if (position < 0) -1 else
         (position + if (playing) ((SystemClock.elapsedRealtime() - positionAt) * speed).toLong() else 0L).let { if (duration > 0) it.coerceAtMost(duration) else it }
 
+    /** What the last refresh saw (test builds report it). */
+    @Volatile var diag = ""
+
     private fun component(ctx: Context) = android.content.ComponentName(ctx, MediaListener::class.java)
 
     /** Lets Hugminn read the media sessions (once, through the root service). */
     fun enableListener(ctx: Context) {
         val c = component(ctx).flattenToString()
         val on = android.provider.Settings.Secure.getString(ctx.contentResolver, "enabled_notification_listeners").orEmpty()
-        if (!on.contains(c)) Root.exec("cmd notification allow_listener $c")
+        listenerInfo = if (on.contains(c)) "an" else "aus → allow_listener: " + (Root.exec("cmd notification allow_listener $c 2>&1")?.trim()?.ifEmpty { "ok" } ?: "keine Antwort")
     }
+
+    /** State of the media listener when it was last checked (test builds report it). */
+    @Volatile var listenerInfo = "nicht geprüft"
 
     /** From Android's media sessions (needs [MediaListener] enabled); false if not available. */
     private fun fromSessions(ctx: Context): Boolean {
         val msm = ctx.getSystemService(android.media.session.MediaSessionManager::class.java) ?: return false
-        val list = runCatching { msm.getActiveSessions(component(ctx)) }.getOrNull() ?: return false
+        val res = runCatching { msm.getActiveSessions(component(ctx)) }
+        val list = res.getOrNull()
+        if (list == null) { diag = "Sessions: nicht erlaubt (${res.exceptionOrNull()?.javaClass?.simpleName})"; return false }
+        diag = "Sessions: " + list.joinToString(" | ") { m ->
+            "${m.packageName} state=${m.playbackState?.state} title=${m.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)} art=${m.metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) != null}"
+        }.ifEmpty { "keine" }
         val mc = list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING }
             ?: list.firstOrNull { it.metadata != null }
         val md = mc?.metadata
@@ -75,6 +86,12 @@ object Media {
     fun refresh(ctx: Context? = null) {
         if (ctx != null && fromSessions(ctx)) return
         if (!Root.available()) return
+        // not allowed yet (e.g. right after an update): switch the listener on and try again
+        if (ctx != null) {
+            runCatching { enableListener(ctx) }
+            Thread.sleep(300)
+            if (fromSessions(ctx)) return
+        }
         song = null; artist = null; art = null; duration = -1L; position = -1L
         val out = Root.execLong("dumpsys media_session | grep -E 'package=|state=PlaybackState|description='", 3_000) ?: return
         class S(val pkg: String) { var state = 0; var desc: String? = null }
@@ -87,7 +104,8 @@ object Media {
                 t.contains("description=") -> list.lastOrNull()?.desc = t.substringAfter("description=").trim().takeIf { it.isNotEmpty() && it != "null, null, null" }
             }
         }
-        val s = list.firstOrNull { it.state == 3 } ?: list.firstOrNull { it.desc != null }
+        diag += "\nDumpsys: " + list.joinToString(" | ") { "${it.pkg} state=${it.state} desc=${it.desc}" }.ifEmpty { "keine" }
+        val s = list.firstOrNull { it.state == 3 } ?: list.firstOrNull { it.desc != null } ?: list.firstOrNull()
         playing = s?.state == 3
         app = s?.pkg
         // "Song, Artist, Album" → "Song – Artist"
