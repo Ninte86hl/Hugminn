@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "Hugminn"
-include(":probe", ":app")
+include(":app")

@@ -224,36 +224,3 @@ object Device {
     }
 }
 
-/**
- * Writes down every change of a system setting while Hugminn runs, so the values behind the
- * firmware's profiles (performance, fan, ...) can be learned by simply switching through them.
- */
-object SettingsWatch {
-    private val skip = Regex("^(volume_|screen_brightness|screen_off_timeout|next_alarm|dim_screen|haptic|sound_effects)")
-    val log: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf())
-    private var observer: android.database.ContentObserver? = null
-
-    fun start(ctx: Context) {
-        if (observer != null) return
-        val app = ctx.applicationContext
-        val o = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
-                val key = uri?.lastPathSegment ?: return
-                if (skip.containsMatchIn(key)) return
-                val v = Device.sys(app, key)
-                val t = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.GERMANY).format(java.util.Date())
-                synchronized(log) {
-                    log.add(0, "$t  $key = $v")
-                    while (log.size > 60) log.removeAt(log.lastIndex)
-                }
-            }
-        }
-        app.contentResolver.registerContentObserver(Settings.System.CONTENT_URI, true, o)
-        observer = o
-    }
-
-    fun stop(ctx: Context) {
-        observer?.let { ctx.applicationContext.contentResolver.unregisterContentObserver(it) }
-        observer = null
-    }
-}

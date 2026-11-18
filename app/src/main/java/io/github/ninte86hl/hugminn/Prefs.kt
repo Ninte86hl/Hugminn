@@ -85,10 +85,8 @@ class Prefs(ctx: Context) {
         get() = p.getString("ccTiles", null)?.split(',')?.filter { it in TileCatalog.all } ?: TileCatalog.defaults
         set(v) = p.edit().putString("ccTiles", v.filter { it in TileCatalog.all }.distinct().joinToString(",")).apply()
 
-    /** Pixel style font: NF Pixels (thin) or Jersey 10 (bold). */
-    var pixelNf: Boolean
-        get() = p.getBoolean("pixelNf", true)
-        set(v) = p.edit().putBoolean("pixelNf", v).apply()
+    /** Removes values of test versions (the old feedback token never stays on the device). */
+    fun forgetOld() = p.edit().remove("githubToken").remove("pixelNf").apply()
 
     var uiStyle: UiStyle
         get() = enumOr(p.getString("uiStyle", null), UiStyle.MODERN)
@@ -208,10 +206,6 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("glyphColored", true)
         set(v) = p.edit().putBoolean("glyphColored", v).apply()
 
-    /** GitHub token for uploading feedback screenshots (needs write access to the repository). */
-    var githubToken: String?
-        get() = p.getString("githubToken", null)
-        set(v) = p.edit().putString("githubToken", v).apply()
 
     /** Max gap between two presses for a double press, in ms. */
     var doubleMs: Int

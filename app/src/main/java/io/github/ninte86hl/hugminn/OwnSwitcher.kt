@@ -506,7 +506,6 @@ class OwnSwitcher(private val svc: HugminnService) {
     private fun renderBar() {
         val b = bar ?: return
         b.removeAllViews()
-        val feedback = !svc.prefs.githubToken.isNullOrBlank()
         val m = menu
         val a = apps.getOrNull(sel)
         if (m != null) {
@@ -532,7 +531,6 @@ class OwnSwitcher(private val svc: HugminnService) {
                 addView(text("Keine offenen Apps", 17f, pal.onSurface, bold = true))
                 addView(text("Starte ein Spiel, dann taucht es hier auf", 12f, pal.onSurfaceVariant))
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            if (feedback) b.addView(hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback"))
             b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
             return
         }
@@ -543,7 +541,6 @@ class OwnSwitcher(private val svc: HugminnService) {
             addView(text(Apps.label(svc, a.pkg), 17f, pal.onSurface, bold = true))
             addView(text("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", 12f, pal.onSurfaceVariant))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        if (feedback) b.addView(hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback"))
         if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, "Wechseln"))
         b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Öffnen"))
         b.addView(hint(KeyEvent.KEYCODE_BUTTON_X, "Schließen"))

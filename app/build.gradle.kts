@@ -11,17 +11,25 @@ android {
         applicationId = "io.github.ninte86hl.hugminn"
         minSdk = 30
         targetSdk = 34
-        versionCode = 107
-        versionName = "0.12.26"
+        versionCode = 108
+        versionName = "1.0.0"
     }
 
-    // Fixed key for test builds so new versions install over old ones. Not a release key.
+    // Release key: only on GitHub (secrets SIGNING_KEYSTORE_B64 / SIGNING_PASSWORD), never in the repository.
+    // Local builds without it use the old test key.
+    val releaseStore = System.getenv("HUGMINN_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
     signingConfigs {
         create("test") {
             storeFile = file("signing/hugminn-test.jks")
             storePassword = "hugminn-test"
             keyAlias = "hugminn"
             keyPassword = "hugminn-test"
+        }
+        if (releaseStore != null) create("release") {
+            storeFile = releaseStore
+            storePassword = System.getenv("HUGMINN_KEY_PASSWORD")
+            keyAlias = "hugminn"
+            keyPassword = System.getenv("HUGMINN_KEY_PASSWORD")
         }
     }
 
@@ -30,6 +38,15 @@ android {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("test")
         }
+        release {
+            isMinifyEnabled = false
+            signingConfig = if (releaseStore != null) signingConfigs.getByName("release") else signingConfigs.getByName("test")
+        }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     compileOptions {

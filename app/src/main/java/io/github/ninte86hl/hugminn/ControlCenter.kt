@@ -467,7 +467,6 @@ class ControlCenter(private val svc: HugminnService) {
             }
             hint(KeyEvent.KEYCODE_BUTTON_B, "Fertig")
         } else {
-            if (!svc.prefs.githubToken.isNullOrBlank()) hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Feedback")
             if (pages() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
             if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_X, "Optionen")
@@ -1855,11 +1854,6 @@ class ControlCenter(private val svc: HugminnService) {
             MenuEntry("Anordnen & Größe", hint = "Elemente verschieben, vergrößern, entfernen") { startEdit() },
             MenuEntry("Element hinzufügen", hint = "Schalter, Anzeigen und Regler") { addMenu() },
             MenuEntry("Kachelfarbe", hint = TILE_COLORS[svc.prefs.tileColor] ?: "Eigene") { colorMenu() },
-            *(if (svc.prefs.uiStyle == UiStyle.PIXEL) arrayOf(MenuEntry("Pixel-Schrift", hint = if (svc.prefs.pixelNf) "NF Pixels (dünn)" else "Jersey 10 (kräftig)") {
-                svc.prefs.pixelNf = !svc.prefs.pixelNf
-                if (svc.prefs.overlayOn) svc.overlay.show()
-                reopen()
-            }) else emptyArray()),
             MenuEntry("Stil", hint = svc.prefs.uiStyle.label) {
                 showMenu("Stil", UiStyle.values().map { st ->
                     MenuEntry(when (st) {

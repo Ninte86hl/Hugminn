@@ -68,6 +68,7 @@ class HugminnService : AccessibilityService() {
         Root.filesDir = filesDir
         Crash.install(this)
         prefs = Prefs(this)
+        prefs.forgetOld()
         switcher = Switcher(this)
         own = OwnSwitcher(this)
         own.refresh()
@@ -88,7 +89,6 @@ class HugminnService : AccessibilityService() {
                 if (checkSelfPermission(perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) Root.exec("pm grant $packageName $perm")
             }
         }.start()
-        SettingsWatch.start(this)
         // Low battery: the sticks pulse red
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {
@@ -103,8 +103,6 @@ class HugminnService : AccessibilityService() {
         if (prefs.fanCustom) Thread { if (FanCurve.available()) FanCurve.start(this) }.start()
         // LED effect chosen last time keeps running
         Thread { runCatching { LedFx.resume(this) } }.start()
-        // A crash last time? Send the report with the system log (if feedback is set up).
-        ui.postDelayed({ Feedback.sendErrorLogIfPending(this) }, 3000)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -115,7 +113,6 @@ class HugminnService : AccessibilityService() {
 
     override fun onDestroy() {
         if (::overlay.isInitialized) overlay.hide()
-        SettingsWatch.stop(this)
         LedFx.stop()
         FanCurve.stop(restoreSmart = true)
         instance = null
@@ -160,18 +157,7 @@ class HugminnService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
-        if (InputTestActivity.active) {
-            InputTestActivity.add("HUGMINN ${if (event.action == KeyEvent.ACTION_DOWN) "DOWN" else "UP  "} ${KeyEvent.keyCodeToString(event.keyCode)} scan=${event.scanCode} dev=\"${event.device?.name}\"")
-            // Let everything through to the test (except Home, so the test can be left).
-            if (event.keyCode != KeyEvent.KEYCODE_MOVE_HOME && event.keyCode != KeyEvent.KEYCODE_HOME) return false
-        }
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
-        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || anySwitcherOpen)) {
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                Feedback.capture(this, if (controlCenter.isOpen) "controlcenter" else "switcher")
-            }
-            return true
-        }
         return try {
             when {
                 controlCenter.isOpen -> controlCenter.onKey(event)

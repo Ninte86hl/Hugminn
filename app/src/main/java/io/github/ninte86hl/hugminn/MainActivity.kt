@@ -272,82 +272,23 @@ class MainActivity : Activity() {
         tr.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
         tr.addView(button("Control Center öffnen") { HugminnService.instance?.perform(Action.CONTROL_CENTER) ?: notRunning() })
         t.addView(tr)
-        t.addView(text(
-            "RetroArch: Für „Speichern & zurück“ im Game Switcher in RetroArch unter Einstellungen → Netzwerk die Netzwerkbefehle einschalten (Port 55355).",
-            12f, pal.onSurfaceVariant,
-        ).apply { setPadding(0, 0, 0, d(6)) })
 
-        // Profile learning
-        val pr = section("Geräteprofile erkennen")
-        pr.addView(text(
-            "Öffne die Retroid-Schnelleinstellungen und schalte nacheinander durch alle Leistungs- und Lüfterprofile. " +
-                "Hugminn schreibt hier mit, welche Werte sich ändern. Schick davon einfach ein Foto.",
+        // Report a problem: a prefilled GitHub issue (nothing is sent by Hugminn itself)
+        val bug = section("Fehler melden")
+        bug.addView(text(
+            "Öffnet auf GitHub eine neue Fehlermeldung, schon ausgefüllt mit Version, Gerät und dem letzten Fehler. " +
+                "Beschreib kurz, was passiert ist, und schick sie ab (dafür brauchst du ein GitHub-Konto).",
             12f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(6), 0, d(6)) })
-        val logView = text("", 13f, pal.onSurface).apply {
-            maxLines = 20
-            typeface = android.graphics.Typeface.MONOSPACE
-            setPadding(0, 0, 0, d(6))
+        val lastError = Crash.last(this)
+        if (lastError != null) bug.addView(text("Letzter Fehler: " + lastError.lineSequence().first(), 12f, pal.onSurface).apply { setPadding(0, 0, 0, d(6)) })
+        val bb = LinearLayout(this).apply { setPadding(0, 0, 0, d(6)) }
+        bb.addView(button("Fehler auf GitHub melden") { reportBug() })
+        if (lastError != null) {
+            bb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
+            bb.addView(button("Fehler vergessen") { Crash.clear(this); build() })
         }
-        val fillLog = {
-            val log = synchronized(SettingsWatch.log) { SettingsWatch.log.toList() }
-            logView.text = if (log.isEmpty()) "Noch keine Änderungen erkannt." else log.take(20).joinToString("\n")
-        }
-        fillLog()
-        pr.addView(logView)
-        val prb = LinearLayout(this).apply { setPadding(0, 0, 0, d(6)) }
-        prb.addView(button("Aktualisieren") { fillLog() })
-        prb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
-        prb.addView(button("Liste leeren") { SettingsWatch.log.clear(); fillLog() })
-        pr.addView(prb)
-
-        // Diagnosis
-        val dg = section("Diagnose")
-        dg.addView(text("Zeichnet jede Taste und jede Achse des Controllers auf (Steuerkreuz, Sticks, Trigger) und lädt sie mit Select hoch.", 12f, pal.onSurfaceVariant).apply {
-            setPadding(0, d(6), 0, d(6))
-        })
-        val dgb = LinearLayout(this).apply { setPadding(0, 0, 0, d(6)) }
-        dgb.addView(button("Eingabetest starten") { startActivity(Intent(this, InputTestActivity::class.java)) })
-        dgb.addView(button("LED-Zonen testen") { startActivity(Intent(this, LedTestActivity::class.java)) })
-        dg.addView(dgb)
-
-        // Feedback upload
-        val fb = section("Feedback an Claude")
-        fb.addView(text(
-            "Drücke Select, während der Game Switcher oder das Control Center offen ist: Hugminn lädt einen Screenshot " +
-                "und eine Beschreibung des Bildschirms auf GitHub hoch (Zweig „feedback“). Dafür braucht Hugminn einen eigenen " +
-                "GitHub-Token mit Schreibrecht: Repository Hugminn, Berechtigung „Contents: Read and write“.",
-            12f, pal.onSurfaceVariant,
-        ).apply { setPadding(0, d(6), 0, d(6)) })
-        val hasToken = !prefs.githubToken.isNullOrBlank()
-        fb.addView(text(if (hasToken) "✓ Token eingetragen" else "✕ Kein Token eingetragen", 15f, pal.onSurface, bold = true))
-        val fbb = LinearLayout(this).apply { setPadding(0, d(8), 0, d(6)) }
-        fbb.addView(button("Token aus Zwischenablage einfügen") {
-            val cm = getSystemService(android.content.ClipboardManager::class.java)
-            val t = cm.primaryClip?.getItemAt(0)?.text?.toString()?.trim()
-            if (t != null && (t.startsWith("github_pat_") || t.startsWith("ghp_"))) {
-                prefs.githubToken = t
-                Toast.makeText(this, "Token gespeichert", Toast.LENGTH_SHORT).show()
-            } else Toast.makeText(this, "In der Zwischenablage ist kein GitHub-Token", Toast.LENGTH_LONG).show()
-            build()
-        })
-        if (hasToken) {
-            fbb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
-            fbb.addView(button("Token entfernen") { prefs.githubToken = null; build() })
-        }
-        fb.addView(fbb)
-        if (hasToken) {
-            fb.addView(text(
-                "Fehler werden automatisch mit dem Systemprotokoll hochgeladen, nach einem Absturz beim nächsten Start.",
-                12f, pal.onSurfaceVariant,
-            ))
-            val lb = LinearLayout(this).apply { setPadding(0, d(8), 0, d(6)) }
-            lb.addView(button("Protokoll jetzt hochladen") {
-                Feedback.sendLog(this, "protokoll")
-                Toast.makeText(this, "Wird hochgeladen – siehe Benachrichtigung", Toast.LENGTH_SHORT).show()
-            })
-            fb.addView(lb)
-        }
+        bug.addView(bb)
 
         // About
         val a = section("Über")
@@ -395,4 +336,36 @@ class MainActivity : Activity() {
             }
         }
     }
+
+    private fun reportBug() {
+        val version = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "?"
+        val error = Crash.last(this)
+        val body = buildString {
+            appendLine("**Was ist passiert?**")
+            appendLine()
+            appendLine("<!-- Kurz beschreiben: was hast du gemacht, was ist passiert, was hättest du erwartet? -->")
+            appendLine()
+            appendLine("**Gerät**")
+            appendLine("- Hugminn $version")
+            appendLine("- ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}")
+            appendLine("- Stil: ${prefs.uiStyle.label} · Root-Dienst: ${if (Root.available()) "ja" else "nein"}")
+            if (error != null) {
+                appendLine()
+                appendLine("**Letzter Fehler**")
+                appendLine("```")
+                appendLine(error.lines().take(18).joinToString("\n"))
+                appendLine("```")
+            }
+        }
+        val uri = android.net.Uri.parse("https://github.com/Ninte86hl/Hugminn/issues/new").buildUpon()
+            .appendQueryParameter("title", "Fehler: ")
+            .appendQueryParameter("body", body.take(6000))
+            .build()
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (t: Throwable) {
+            Toast.makeText(this, "Kein Browser gefunden", Toast.LENGTH_LONG).show()
+        }
+    }
+
 }

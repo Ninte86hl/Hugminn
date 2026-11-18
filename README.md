@@ -11,7 +11,7 @@
 
 ---
 
-> **Status:** in active testing on the Retroid Pocket 6 (current version: see Releases). Features marked *(testing)* are built but not yet confirmed on the device.
+> **Status:** in active testing on the Retroid Pocket 6 (current version: see Releases). Features marked are built but not yet confirmed on the device.
 
 ## What is Hugminn?
 
@@ -37,12 +37,11 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 | Button | Action |
 | --- | --- |
 | A | Open the app (its running task comes back to the front) |
-| □ / X | Close the app, also removing it from Android's recent apps *(testing)* |
+| □ / X | Close the app, also removing it from Android's recent apps |
 | △ / Y | Options: App info, close all others; for RetroArch: save state, load state, RetroArch menu |
 | ○ / B | Back to where you were |
-| Select | Send feedback |
 
-- The system's swipe-up gesture is covered by the switcher as soon as Android's view settles *(testing)*
+- The system's swipe-up gesture is covered by the switcher as soon as Android's view settles
 - Classic mode (a frame over Android's own recent-apps view) remains available in the settings
 
 ### Huginn – Control Center
@@ -51,8 +50,8 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 - Edit mode: hold A (or long-press) to move, resize and remove tiles by drag & drop or D-pad; tile colour; reset to default
 - D-pad navigation follows the grid; nothing is preselected until you press a direction
 - Switches (A toggles, □ opens the tile's submenu): WLAN, Bluetooth, stick LEDs, 60/120 Hz, Do not disturb, airplane mode, rotation lock, screen always on and more
-- WLAN submenu: networks in range with signal, saved networks connect directly, password window for new ones *(testing)*
-- Bluetooth submenu: paired devices (connect / disconnect), search and pair new devices *(testing)*
+- WLAN submenu: networks in range with signal, saved networks connect directly, password window for new ones
+- Bluetooth submenu: paired devices (connect / disconnect), search and pair new devices
 - Sliders for volume and brightness in 5 % steps, vertical or horizontal; confirm with A before the D-pad changes them
 - Cards for performance and fan profiles (open the profile menu), CPU, GPU, RAM, temperatures, battery and FPS
 - Gauges coloured by load (traffic light, cool → warm, accent colour, monochrome)
@@ -85,12 +84,6 @@ Every gesture can be reassigned (home, switcher, control center, recent apps, la
 - Tile colour from presets or a colour wheel; it becomes the accent colour in every style
 - PlayStation, Xbox or Nintendo button symbols, coloured or monochrome, following the device's controller layout
 
-### Feedback and diagnostics
-
-- Press Select in the switcher or the control center: screenshot plus your own short description are uploaded to the project (needs a GitHub token in the settings)
-- Errors are reported automatically with the system log; upload progress as a notification
-- Input test, guided LED zone test, log upload
-
 ## Supported devices
 
 | Device | Chip | Display | Status |
@@ -109,13 +102,19 @@ Hugminn detects the device and only shows what it supports, for example no 120 H
 
 ## Installation
 
-Every build is published under **Releases**, built automatically by GitHub Actions.
+Every release is published under **Releases**, built and signed automatically by GitHub Actions.
 
-- **Direct download:** [hugminn.apk](https://github.com/Ninte86hl/Hugminn/releases/download/latest/hugminn.apk) (always the newest test build)
+- **Direct download:** [hugminn.apk](https://github.com/Ninte86hl/Hugminn/releases/latest/download/hugminn.apk) (always the newest release)
 - **With [Obtainium](https://github.com/ImranR98/Obtainium) (recommended, keeps Hugminn up to date):** download [obtainium.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium.json) (also attached to every release) and import it in Obtainium under *Import/Export → Obtainium Import*.
   Manual setup works too: just add `https://github.com/Ninte86hl/Hugminn` as source.
 
 After installing, open Hugminn and tap **Aktivieren** to turn on its accessibility service.
+
+**Test builds** from the `test` branch (with extra diagnostic tools) are published as pre-releases named *Hugminn Test*. They are signed with the same key, so you can switch between test and release builds without reinstalling.
+
+## Reporting bugs
+
+Open Hugminn's settings and tap **Fehler auf GitHub melden**. It opens a new [issue](https://github.com/Ninte86hl/Hugminn/issues) already filled in with the version, your device and the last error; just describe what happened. Hugminn itself never sends anything.
 
 ## Acknowledgements
 
@@ -124,14 +123,13 @@ These projects showed what is possible on AYN and Retroid handhelds and inspired
 - [Thor Wayfinder](https://github.com/Thor-Wayfinder/thor-wayfinder): controller navigation for the recent-apps view
 - [Better Dual Screen Assistant](https://github.com/stormpanda/better-dual-screen-assistant): system settings and the firmware's privileged service
 - [Bifrost](https://github.com/Pollux-MoonBench/Bifrost): stick LED control and its integration API
-- [P.U.L.S.E.](https://github.com/keiretrogaming/pulse): performance tuning on the Retroid Pocket 6
+- [P.U.L.S.E.](https://github.com/keiretrogaming/pulse): performance tuning on the Retroid Pocket 6; the idea of measuring FPS through SurfaceFlinger TimeStats
 - [ClusterTune](https://github.com/AurelioB/ClusterTune): CPU and GPU frequency limits
 
 Hugminn is an independent project and is not affiliated with Retroid, AYN or any of the projects above.
 
 ## Third-party assets
 
-- [Jersey 10](https://github.com/scfried/soft-type-jersey) pixel font by The Soft Type Project Authors, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/Jersey10-OFL.txt`)
 - [NF Pixels](https://github.com/sgigou/NF-Pixels) pixel font by Steve Gigou, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/NFPixels-OFL.txt`)
 - [Doto](https://github.com/oliverlalan/Doto) dot-matrix font by Óliver Lalan, SIL Open Font License 1.1 (see `app/src/main/assets/fonts/Doto-OFL.txt`)
 
@@ -141,4 +139,4 @@ Created by [Ninte86hl](https://github.com/Ninte86hl).
 
 ## License
 
-To be decided.
+Hugminn is free software, licensed under the [GNU General Public License v3.0](LICENSE). You may use, study, share and change it; changed versions you share must be under the same license. The bundled fonts keep their own SIL Open Font License.

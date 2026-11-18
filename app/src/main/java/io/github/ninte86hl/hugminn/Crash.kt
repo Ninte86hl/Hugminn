@@ -25,10 +25,9 @@ object Crash {
         }
     }
 
-    /** A caught error: remembered and, if feedback is set up, sent with the system log right away. */
+    /** A caught error: remembered (shown in the settings and added to a bug report). */
     fun note(ctx: Context, e: Throwable) {
         save(ctx, "Fehler (abgefangen)", e)
-        Feedback.sendErrorLogIfPending(ctx)
     }
 
     private fun save(ctx: Context, what: String, e: Throwable) {

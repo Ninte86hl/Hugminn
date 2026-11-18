@@ -300,7 +300,7 @@ enum class UiStyle(val label: String) { MODERN("Modern"), PIXEL("Pixel"), DOTS("
 
 /**
  * Shapes and fonts for the chosen style. "Pixel" (matching the Retroid Pocket Classic/Dual design
- * line) uses the Jersey 10 pixel font (SIL Open Font License) and notched, square-pixel corners.
+ * line) uses the NF Pixels font (SIL Open Font License) and notched, square-pixel corners.
  */
 object Look {
     @Volatile private var regular: Typeface? = null
@@ -322,16 +322,12 @@ object Look {
 
     fun pixel(ctx: Context) = Prefs(ctx).uiStyle == UiStyle.PIXEL
 
-    @Volatile private var pixelNf: Boolean? = null
-
     private fun pixelFont(ctx: Context, b: Boolean): Typeface {
-        val nf = Prefs(ctx).pixelNf
-        if (nf != pixelNf) { pixelNf = nf; regular = null; bold = null }
         val cached = if (b) bold else regular
         if (cached != null) return cached
         val tf = try {
-            // NF Pixels: thin and light; Jersey 10: bold with clear digits (each has one weight)
-            Typeface.createFromAsset(ctx.assets, if (nf) "fonts/NFPixels.ttf" else "fonts/Jersey10.ttf")
+            // NF Pixels: a light pixel font with all German letters (one weight)
+            Typeface.createFromAsset(ctx.assets, "fonts/NFPixels.ttf")
         } catch (t: Throwable) {
             Typeface.MONOSPACE
         }
