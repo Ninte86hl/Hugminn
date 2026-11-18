@@ -1500,9 +1500,28 @@ class ControlCenter(private val svc: HugminnService) {
             side.addView(row)
         }
 
+        // what the sticks show: the chosen colour (with its effect), the battery or the temperature
+        side.addView(header(t("Anzeige", "Shows")))
+        val showRow = LinearLayout(svc)
+        val curFx = svc.prefs.ledEffect
+        listOf(LedEffect.NONE to t("Farbe", "Colour"), LedEffect.BATTERY to t("Akku", "Battery"), LedEffect.TEMP to t("Temperatur", "Temperature")).forEach { (ef, label) ->
+            val sel = if (ef == LedEffect.NONE) !curFx.indicator else curFx == ef
+            val c = chip(label, sel)
+            val act: () -> Unit = {
+                val again = { svc.ui.post { if (root != null) { ledFocus = "show${ef.ordinal}"; ledPicker() } } }
+                val target = if (ef == LedEffect.NONE) (if (curFx.indicator) LedEffect.NONE else curFx) else ef
+                if (!on) Device.setStickLeds(true) { LedFx.set(svc, target); refreshAll(); again() }
+                else { LedFx.set(svc, target); again() }
+            }
+            c.setOnClickListener { act() }
+            showRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
+            cells += LedCell("show${ef.ordinal}", c, act)
+        }
+        side.addView(showRow)
+
         side.addView(header(tr("Effekt")))
         val fxRow = LinearLayout(svc)
-        LedEffect.values().forEach { ef ->
+        LedEffect.values().filter { !it.indicator }.forEach { ef ->
             val c = chip(ef.label, svc.prefs.ledEffect == ef)
             val act: () -> Unit = {
                 // the window stays open for further adjustments

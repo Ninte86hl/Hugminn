@@ -12,9 +12,13 @@ enum class LedEffect(private val labelDe: String) {
     RAINBOW("Farbwechsel"),
     RING("Regenbogen versetzt"),
     BREATHE("Atmen"),
-    PULSE("Pulsieren");
+    PULSE("Pulsieren"),
+    /** Not effects but displays: the sticks show the battery charge or the temperature as a colour. */
+    BATTERY("Akku"),
+    TEMP("Temperatur");
 
     val label get() = tr(labelDe)
+    val indicator get() = this == BATTERY || this == TEMP
 }
 
 /**
@@ -39,7 +43,12 @@ object LedFx {
     @Volatile var lowBattery = false
         private set
 
+    /** Last known battery charge in percent (-1 = unknown yet). */
+    @Volatile var batPct = -1
+        private set
+
     fun battery(ctx: Context, pct: Int, charging: Boolean) {
+        batPct = pct
         val low = if (lowBattery) pct <= 12 && !charging else pct in 0..10 && !charging
         if (low == lowBattery) return
         lowBattery = low
@@ -137,6 +146,13 @@ object LedFx {
                     phase += (now - last) / 1000f * speed
                     last = now
                     val k = brightness / 100f
+                    if (e.indicator) {
+                        // a status colour changes slowly: write it every few seconds only
+                        val c = scale(indicatorColor(e), k)
+                        Root.exec(command(intArrayOf(c, c)), 1_000)
+                        Thread.sleep(3_000)
+                        continue
+                    }
                     val zones = frame(e, phase, left, right).map { scale(it, k) }.toIntArray()
                     val out = Root.exec(command(zones) + " 2>&1", 1_000)
                     if (!out.isNullOrBlank() && !diag.contains("Schreibfehler")) diag += "\nSchreibfehler: $out"
@@ -172,8 +188,32 @@ object LedFx {
             val k = max(beat(p, 0.0f), beat(p, 0.22f)).coerceAtLeast(0.06f)
             intArrayOf(scale(left, k), scale(right, k))
         }
+        LedEffect.BATTERY, LedEffect.TEMP -> indicatorColor(e).let { intArrayOf(it, it) }
         LedEffect.NONE -> intArrayOf(left, right)
     }
+
+    private const val GREEN = 0xFF00E040.toInt()
+    private const val YELLOW = 0xFFFFC000.toInt()
+    private const val RED = 0xFFFF1000.toInt()
+
+    /**
+     * Battery: green, yellow from 50 %, red from 20 %. Temperature (hottest CPU core): green,
+     * yellow from 60 °C, red from 75 °C.
+     */
+    private fun indicatorColor(e: LedEffect): Int = when (e) {
+        LedEffect.BATTERY -> batPct.let { if (it < 0) GREEN else if (it <= 20) RED else if (it <= 50) YELLOW else GREEN }
+        else -> cpuTemp().let { if (it >= 75f) RED else if (it >= 60f) YELLOW else GREEN }
+    }
+
+    private val cpuZones: List<java.io.File> by lazy {
+        java.io.File("/sys/class/thermal").listFiles { f -> f.name.startsWith("thermal_zone") }.orEmpty().filter { z ->
+            val type = runCatching { java.io.File(z, "type").readText().trim() }.getOrNull() ?: return@filter false
+            type.startsWith("cpu-") || type.startsWith("cpuss-")
+        }.map { java.io.File(it, "temp") }
+    }
+
+    private fun cpuTemp(): Float = cpuZones.mapNotNull { runCatching { it.readText().trim().toFloat() }.getOrNull() }
+        .filter { it in 1f..150_000f }.maxOrNull()?.let { if (it > 1000) it / 1000f else it } ?: 0f
 
     /**
      * Zone test on the left stick: reads the driver's files, then lights indices 0–8 one after another
