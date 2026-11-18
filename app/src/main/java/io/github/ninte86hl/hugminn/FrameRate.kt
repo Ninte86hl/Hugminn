@@ -18,10 +18,13 @@ object FrameRate {
         if (list == null) { diag += " · Ebenenliste: keine Antwort"; return null }
         val candidates = list.lines().map { it.trim() }.filter { it.contains(pkg) && !it.startsWith("ActivityRecord") && !it.contains("ActivityRecordInputSink") }
         diag += " · Ebenen: ${candidates.size}" + (candidates.firstOrNull()?.let { " (z. B. ${it.take(90)})" } ?: "")
-        // Games draw into a SurfaceView; otherwise the app window itself.
-        val found = candidates.firstOrNull { it.startsWith("SurfaceView") && !it.contains("BLAST") && !it.contains("Background") }
-            ?: candidates.firstOrNull { it.startsWith("SurfaceView") }
-            ?: candidates.firstOrNull { !it.startsWith("Task") }
+        // Games draw into a SurfaceView; on Android 13 its pictures arrive on the "(BLAST)" layer.
+        // Names may start with a hash ("35eaec7 com.foo/…", part of the name), so look for the words anywhere.
+        val names = candidates
+        val found = names.firstOrNull { it.contains("SurfaceView") && it.contains("BLAST") && !it.contains("Background") }
+            ?: names.firstOrNull { it.contains("SurfaceView") && !it.contains("Background") }
+            ?: names.firstOrNull { it.contains("BLAST") && !it.startsWith("Task") }
+            ?: names.firstOrNull { !it.startsWith("Task") && !it.startsWith("Splash") }
         layerPkg = pkg
         layer = found
         layerAt = now
@@ -31,6 +34,8 @@ object FrameRate {
     /** What the last measurement saw (for feedback reports). */
     @Volatile var diag = ""
     @Volatile private var statsOn = false
+    @Volatile private var probed = false
+    @Volatile private var probe = ""
     private var lastGood = -1
     private var lastGoodAt = 0L
     private val recent = ArrayDeque<Float>()
@@ -54,9 +59,13 @@ object FrameRate {
             "END { f=(t>0)?1000*n/t:0; if (rr>0 && f>rr) f=rr; printf \"HFPS %d %d\\n\", f+0.5, n }'; " +
             "dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1"
         // through a scratch file: the root service's direct answer is only one line and may come back empty
-        val raw = Root.execLong(script, 4_000)
+        if (!probed) {
+            probed = true
+            probe = Root.execLong("command -v awk; dumpsys SurfaceFlinger --timestats -dump 2>&1 | head -c 160", 8_000)?.replace('\n', ' ') ?: "keine Antwort"
+        }
+        val raw = Root.execLong(script, 10_000)
         val out = raw?.lines()?.lastOrNull { it.isNotBlank() }
-        diag = "TimeStats: ${raw?.replace('\n', ' ')?.take(240) ?: "keine Antwort"}"
+        diag = "TimeStats: ${raw?.replace('\n', ' ')?.take(240) ?: "keine Antwort"} · Probe: ${probe.take(220)}"
         val m = out?.let { Regex("""HFPS (\d+) (\d+)""").find(it) } ?: return null
         val fps = m.groupValues[1].toInt()
         val frames = m.groupValues[2].toInt()
@@ -79,8 +88,9 @@ object FrameRate {
             return Result(fps, recent.toList())
         }
         val l = findLayer(pkg) ?: return null
-        val out = Root.execLong("dumpsys SurfaceFlinger --latency ${Root.quote(l)}", 4_000) ?: return null
-        diag += " · Ebene: $l (${out.lines().size} Zeilen)"
+        val out = Root.execLong("dumpsys SurfaceFlinger --latency ${Root.quote(l)}", 6_000)
+        diag += " · Ebene: $l (${out?.lines()?.size ?: "keine Antwort"} Zeilen${out?.lines()?.getOrNull(1)?.let { ", z. B. $it" } ?: ""})"
+        if (out == null) return null
         val presents = out.lines().drop(1).mapNotNull { line ->
             val p = line.trim().split(Regex("\\s+"))
             if (p.size < 3) null else p[1].toLongOrNull()

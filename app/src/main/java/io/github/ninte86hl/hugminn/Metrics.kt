@@ -61,7 +61,24 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
     private fun maxTemp(zones: List<File>): Float =
         zones.mapNotNull { read(it)?.toFloatOrNull() }.filter { it in 1f..150_000f }.maxOrNull()?.let { if (it > 1000) it / 1000f else it } ?: 0f
 
+    companion object {
+        /** One measurement serves everyone (overlay and Control Center at the same time). */
+        private val lock = Any()
+        @Volatile private var shared: Sample? = null
+        @Volatile private var sharedAt = 0L
+    }
+
     fun sample(): Sample {
+        shared?.takeIf { System.currentTimeMillis() - sharedAt < 800 }?.let { return it }
+        return synchronized(lock) {
+            shared?.takeIf { System.currentTimeMillis() - sharedAt < 800 } ?: measure().also {
+                shared = it
+                sharedAt = System.currentTimeMillis()
+            }
+        }
+    }
+
+    private fun measure(): Sample {
         val frame = try { FrameRate.sample(foreground()) } catch (t: Throwable) { null }
         // CPU load from /proc/stat deltas.
         var cpuPct = 0f
