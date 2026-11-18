@@ -39,16 +39,42 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 
 | | |
 | --- | --- |
-| ![Game switcher](docs/screenshots/game-switcher.png) | ![Performance overlay in a game](docs/screenshots/fps-overlay.png) |
+| ![Game switcher](docs/screenshots/modern/dark-switcher.png) | ![Performance overlay in a game](docs/screenshots/fps-overlay.png) |
 | Muninn – game switcher with the running game's title | Performance overlay in a game |
-| ![Performance profile](docs/screenshots/performance-profile.png) | ![Fan profile](docs/screenshots/fan-profile.png) |
+| ![Performance profile](docs/screenshots/modern/dark-perf.png) | ![Fan profile](docs/screenshots/modern/dark-fan.png) |
 | Performance profile, remembered per emulator | Fan profile, remembered per emulator |
-| ![Custom fan curve](docs/screenshots/fan-curve.png) | ![Stick LEDs](docs/screenshots/stick-leds.png) |
+| ![Custom fan curve](docs/screenshots/modern/dark-curve.png) | ![Stick LEDs](docs/screenshots/modern/dark-leds.png) |
 | Custom fan curve | Stick LEDs: colours and effects |
-| ![Edit menu](docs/screenshots/edit-menu.png) | ![Tile colour](docs/screenshots/tile-colour.png) |
+| ![Edit menu](docs/screenshots/modern/dark-editmenu.png) | ![Tile colour](docs/screenshots/modern/dark-tile.png) |
 | Edit: layout, tiles, style, colours | Tile colour |
-| ![Edit mode](docs/screenshots/edit-mode.png) | ![Add element](docs/screenshots/add-element.png) |
+| ![Edit mode](docs/screenshots/modern/dark-edit.png) | ![Add element](docs/screenshots/add-element.png) |
 | Edit mode: move and resize elements on a grid with pages | Add displays, switches and sliders |
+
+<details>
+<summary>Modern – every screen, dark and light</summary>
+
+| Dark | Light |
+| --- | --- |
+| ![Control Center · dark](docs/screenshots/modern/dark-main.png) | ![Control Center · light](docs/screenshots/modern/light-main.png) |
+| Control Center · dark | Control Center · light |
+| ![Performance profile · dark](docs/screenshots/modern/dark-perf.png) | ![Performance profile · light](docs/screenshots/modern/light-perf.png) |
+| Performance profile · dark | Performance profile · light |
+| ![Fan profile · dark](docs/screenshots/modern/dark-fan.png) | ![Fan profile · light](docs/screenshots/modern/light-fan.png) |
+| Fan profile · dark | Fan profile · light |
+| ![Custom fan curve · dark](docs/screenshots/modern/dark-curve.png) | ![Custom fan curve · light](docs/screenshots/modern/light-curve.png) |
+| Custom fan curve · dark | Custom fan curve · light |
+| ![Stick LEDs · dark](docs/screenshots/modern/dark-leds.png) | ![Stick LEDs · light](docs/screenshots/modern/light-leds.png) |
+| Stick LEDs · dark | Stick LEDs · light |
+| ![Edit menu · dark](docs/screenshots/modern/dark-editmenu.png) | ![Edit menu · light](docs/screenshots/modern/light-editmenu.png) |
+| Edit menu · dark | Edit menu · light |
+| ![Edit mode · dark](docs/screenshots/modern/dark-edit.png) | ![Edit mode · light](docs/screenshots/modern/light-edit.png) |
+| Edit mode · dark | Edit mode · light |
+| ![Tile colour · dark](docs/screenshots/modern/dark-tile.png) | ![Tile colour · light](docs/screenshots/modern/light-tile.png) |
+| Tile colour · dark | Tile colour · light |
+| ![Game switcher · dark](docs/screenshots/modern/dark-switcher.png) | ![Game switcher · light](docs/screenshots/modern/light-switcher.png) |
+| Game switcher · dark | Game switcher · light |
+
+</details>
 
 <details>
 <summary>All styles one by one</summary>
