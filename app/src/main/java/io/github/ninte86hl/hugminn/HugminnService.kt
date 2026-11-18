@@ -83,7 +83,6 @@ class HugminnService : AccessibilityService() {
         Thread {
             Device.ensureWhitelist(this)
             listOf(
-                android.Manifest.permission.POST_NOTIFICATIONS,
                 android.Manifest.permission.BLUETOOTH_CONNECT,
                 android.Manifest.permission.BLUETOOTH_SCAN,
                 android.Manifest.permission.ACCESS_FINE_LOCATION,

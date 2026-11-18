@@ -163,6 +163,9 @@ class OwnSwitcher(private val svc: HugminnService) {
                 ?: Regex("""A=\d+:([\w.]+)""").find(head)?.groupValues?.get(1)
                 ?: return@forEachIndexed
             if (pkg.contains("launcher", true)) return@forEachIndexed
+            // Hugminn's helper screens (black pause screen, Wi-Fi password) are not apps to switch to;
+            // Hugminn itself counts only with its settings open
+            if (pkg == svc.packageName && !block.contains("MainActivity")) return@forEachIndexed
             // apps without their own launcher icon (e.g. a gallery opened from elsewhere) count too;
             // only system parts without a window of their own are left out
             if (pkg !in launchable && (pkg == "com.android.systemui" || pkg.startsWith("com.android.permissioncontroller") ||

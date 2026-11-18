@@ -31,9 +31,6 @@ class MainActivity : Activity() {
         Crash.install(this)
         prefs = Prefs(this)
         Lang.init(this)
-        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED && !Root.available()) {
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
-        }
     }
 
     override fun onResume() {
