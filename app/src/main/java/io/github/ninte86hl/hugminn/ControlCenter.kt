@@ -989,6 +989,11 @@ class ControlCenter(private val svc: HugminnService) {
             close()
             svc.ui.postDelayed({ svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) }, 300)
         }
+        // like the power button: the screen goes off and the game pauses until the device wakes up
+        "sleep" -> Tile(t("Bildschirm aus", "Screen off"), IconView.Kind.POWER, { t("Ruhemodus", "Sleep") }, { false }) {
+            close()
+            svc.ui.postDelayed({ svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN) }, 250)
+        }
         "rpsettings" -> svc.packageManager.getLaunchIntentForPackage("com.rp.settings")?.let { i ->
             Tile(tr("Retroid-Einstellungen"), IconView.Kind.GAMEPAD, { null }, { false }) { close(); svc.startApp(i) }
         }

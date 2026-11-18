@@ -9,7 +9,7 @@ import android.view.View
 
 /** Simple line icons drawn in code, so they look the same everywhere and follow the theme colour. */
 class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 22) : View(ctx) {
-    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC }
+    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC, POWER, BATTERY }
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -163,6 +163,16 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
                 c.drawLine(s * 0.44f, s * 0.72f, s * 0.44f, s * 0.2f, p)
                 c.drawLine(s * 0.82f, s * 0.64f, s * 0.82f, s * 0.14f, p)
                 c.drawLine(s * 0.44f, s * 0.2f, s * 0.82f, s * 0.14f, p)
+            }
+            Kind.POWER -> {
+                c.drawArc(RectF(s * 0.16f, s * 0.2f, s * 0.84f, s * 0.88f), 300f, 300f, false, p)
+                c.drawLine(m, s * 0.1f, m, s * 0.48f, p)
+            }
+            Kind.BATTERY -> {
+                c.drawRoundRect(RectF(s * 0.1f, s * 0.3f, s * 0.82f, s * 0.7f), s * 0.08f, s * 0.08f, p)
+                c.drawLine(s * 0.9f, s * 0.42f, s * 0.9f, s * 0.58f, p)
+                c.drawLine(s * 0.24f, s * 0.42f, s * 0.24f, s * 0.58f, p)
+                c.drawLine(s * 0.38f, s * 0.42f, s * 0.38f, s * 0.58f, p)
             }
             Kind.MOUSE -> {
                 c.drawRoundRect(RectF(s * 0.26f, s * 0.12f, s * 0.74f, s * 0.88f), s * 0.24f, s * 0.24f, p)
