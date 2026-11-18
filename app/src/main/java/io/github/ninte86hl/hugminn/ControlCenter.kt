@@ -1558,7 +1558,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
             val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
             col.addView(text(e.label, 15f, if (e.run == null) pal.onSurfaceVariant else pal.onSurface, bold = e.checked))
-            e.hint?.let { col.addView(text(it, 12f, pal.onSurfaceVariant)) }
+            e.hint?.let { col.addView(text(it, 12f, pal.onSurfaceVariant).apply { tag = "hint" }) }
             row.addView(col, lp(0, WRAP, 1f))
             list.addView(row, lp(MATCH, WRAP))
             menuRows += row
@@ -1582,6 +1582,11 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     private var menuScroll: android.widget.ScrollView? = null
+
+    /** Changes only the small text under a menu entry (no new menu, nothing flickers). */
+    private fun setMenuHint(i: Int, hint: String) {
+        menuRows.getOrNull(i)?.findViewWithTag<android.widget.TextView>("hint")?.text = hint
+    }
 
     private fun showMenuSel() {
         menuRows.forEachIndexed { i, v ->
@@ -1913,7 +1918,7 @@ class ControlCenter(private val svc: HugminnService) {
                 if (sizes[i] != p.overlayScale) {
                     p.overlayScale = sizes[i]
                     if (p.overlayOn) svc.overlay.show()
-                    svc.ui.post { overlayMenu(4) }
+                    setMenuHint(menuSel, "◀  ${Math.round(p.overlayScale * 100)} %  ▶")
                 }
             }) {},
         ), select)
