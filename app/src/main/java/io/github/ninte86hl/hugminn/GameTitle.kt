@@ -111,6 +111,29 @@ object GameTitle {
             .replace('_', ' ')
             .replace(Regex("""\s+"""), " ")
             .trim()
-        return s.takeIf { it.length >= 2 }
+        return fixCaps(s).takeIf { it.length >= 2 }
+    }
+
+    private val smallWords = setOf("OF", "A", "AN", "TO", "IN", "ON", "AT", "BY", "OR", "THE", "AND", "FOR")
+    private val commonShort = setOf("THE", "AND", "FOR", "NOT", "ARE", "YOU", "ONE", "TWO", "NEW", "BIG", "ALL", "OUT", "WAR", "MAN", "SKY", "SEA", "DAY", "AGE", "RUN")
+    private val roman = Regex("^[IVXLC]+$")
+
+    /**
+     * Words written in capitals get normal case ("THE LEGEND OF ZELDA" → "The Legend of Zelda"),
+     * abbreviations and numerals stay (HD, DX, 3D, II, NBA).
+     */
+    private fun fixCaps(title: String): String {
+        val words = title.split(' ')
+        return words.mapIndexed { i, w ->
+            val letters = w.filter { it.isLetter() }
+            if (letters.isEmpty() || letters.any { it.isLowerCase() }) return@mapIndexed w
+            val core = letters.uppercase()
+            when {
+                roman.matches(core) && core.length <= 4 -> w
+                i > 0 && core in smallWords -> w.lowercase()
+                core.length >= 4 || core in commonShort -> w.lowercase().replaceFirstChar { it.uppercase() }
+                else -> w
+            }
+        }.joinToString(" ")
     }
 }
