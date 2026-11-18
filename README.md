@@ -103,6 +103,32 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 </details>
 
 <details>
+<summary>Dot matrix – every screen, dark and light</summary>
+
+| Dark | Light |
+| --- | --- |
+| ![Control Center · dark](docs/screenshots/dots/dark-main.png) | ![Control Center · light](docs/screenshots/dots/light-main.png) |
+| Control Center · dark | Control Center · light |
+| ![Performance profile · dark](docs/screenshots/dots/dark-perf.png) | ![Performance profile · light](docs/screenshots/dots/light-perf.png) |
+| Performance profile · dark | Performance profile · light |
+| ![Fan profile · dark](docs/screenshots/dots/dark-fan.png) | ![Fan profile · light](docs/screenshots/dots/light-fan.png) |
+| Fan profile · dark | Fan profile · light |
+| ![Custom fan curve · dark](docs/screenshots/dots/dark-curve.png) | ![Custom fan curve · light](docs/screenshots/dots/light-curve.png) |
+| Custom fan curve · dark | Custom fan curve · light |
+| ![Stick LEDs · dark](docs/screenshots/dots/dark-leds.png) | ![Stick LEDs · light](docs/screenshots/dots/light-leds.png) |
+| Stick LEDs · dark | Stick LEDs · light |
+| ![Edit menu · dark](docs/screenshots/dots/dark-editmenu.png) | ![Edit menu · light](docs/screenshots/dots/light-editmenu.png) |
+| Edit menu · dark | Edit menu · light |
+| ![Edit mode · dark](docs/screenshots/dots/dark-edit.png) | ![Edit mode · light](docs/screenshots/dots/light-edit.png) |
+| Edit mode · dark | Edit mode · light |
+| ![Tile colour · dark](docs/screenshots/dots/dark-tile.png) | ![Tile colour · light](docs/screenshots/dots/light-tile.png) |
+| Tile colour · dark | Tile colour · light |
+| ![Game switcher · dark](docs/screenshots/dots/dark-switcher.png) | ![Game switcher · light](docs/screenshots/dots/light-switcher.png) |
+| Game switcher · dark | Game switcher · light |
+
+</details>
+
+<details>
 <summary>All styles one by one</summary>
 
 | | |
@@ -112,7 +138,7 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 | ![Pixel dark](docs/screenshots/style-pixel-dark.png) | ![Cocoon light](docs/screenshots/style-cocoon-light.png) |
 | Pixel · dark | Cocoon · light |
 | ![Dot matrix dark](docs/screenshots/style-dots-dark.png) | ![Dot matrix light](docs/screenshots/style-dots-light.png) |
-| Dot matrix · OLED black | Dot matrix · light |
+| Dot matrix · dark | Dot matrix · light |
 | ![Cocoon dark](docs/screenshots/style-cocoon-dark.png) | |
 | Cocoon · dark | |
 
