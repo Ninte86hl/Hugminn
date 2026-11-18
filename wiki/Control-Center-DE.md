@@ -14,7 +14,7 @@ Halte **Home** gedrückt, um das Control Center zu öffnen: ein Raster aus Kache
 - **Regler:** Lautstärke und Helligkeit in 5-%-Schritten, senkrecht oder waagerecht. Erst A drücken, dann ändert das Steuerkreuz den Wert – so verstellst du beim Bewegen nichts aus Versehen.
 - **Karten:** Leistungs- und Lüfterprofil, CPU, GPU, RAM, Temperaturen, Akku und FPS. Die Anzeigen färben sich nach Auslastung.
 - **Akku:** zeigt die Restzeit, beim Laden die Zeit bis voll.
-- **Musik:** was gerade läuft, Play/Pause, nächster und vorheriger Titel für jede Musik-App.
+- **Musik:** was gerade läuft, Play/Pause, nächster und vorheriger Titel für jede Musik-App. Als große Kachel (2×2, 4×2, 2×4 oder 4×4) mit Cover, Interpret, Fortschritt und Tasten.
 - **Bildschirm aus:** schickt den Handheld in den Ruhemodus wie die Power-Taste; das Spiel pausiert, bis du ihn aufweckst.
 - **Geräte-Akku:** Akkustand verbundener Bluetooth-Controller und -Kopfhörer, sofern sie ihn melden.
 - **Android-Einstellungen:** öffnet Androids Einstellungen.

@@ -14,7 +14,7 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - **Sliders:** volume and brightness in 5 % steps, vertical or horizontal. Press A first, then the D-pad changes the value, so you never change it by accident while moving.
 - **Cards:** performance and fan profile, CPU, GPU, RAM, temperatures, battery and FPS. Gauges are coloured by load.
 - **Battery:** shows the time left, or the time until full while charging.
-- **Music:** what is playing, play/pause, next and previous track for any music app.
+- **Music:** what is playing, play/pause, next and previous track for any music app. As a large tile (2×2, 4×2, 2×4 or 4×4) with cover, artist, progress and buttons.
 - **Screen off:** puts the handheld to sleep like the power button; the game pauses until you wake it.
 - **Device battery:** battery level of connected Bluetooth controllers and headphones that report one.
 - **Settings:** opens Android's settings.
