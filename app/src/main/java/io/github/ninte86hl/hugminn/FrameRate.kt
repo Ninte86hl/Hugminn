@@ -76,6 +76,7 @@ object FrameRate {
     @Volatile private var tsOn = false
     private var tsFails = 0
     private var tsDiag = ""
+    private var tsEmpty = 0
     private var tsEnable: String? = null
     private var prevFrames = 0
     private var prevMs = 0f
@@ -110,6 +111,8 @@ dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
         val layerFrames = p[4].toIntOrNull() ?: 0
         val layerFps = p[5].toFloatOrNull() ?: 0f
         tsFails = 0
+        // nothing at all for a while: TimeStats may have been switched off meanwhile, so switch it on again
+        if (frames == 0) { if (++tsEmpty >= 4) { tsEmpty = 0; tsOn = false } } else tsEmpty = 0
         diag = tsDiag
         // average over this and the previous window (about one second) so the number doesn't jump
         val ms = if (frames > 0 && fps > 0) frames * 1000f / fps else 0f
@@ -126,7 +129,8 @@ dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
     fun stop() {
         if (!tsOn) return
         tsOn = false
-        Root.run("sh -c " + Root.quote("dumpsys SurfaceFlinger --timestats -disable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1"))
+        // synchronous: a late "disable" must never land after the next "enable"
+        Root.exec("sh -c " + Root.quote("dumpsys SurfaceFlinger --timestats -disable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1"))
     }
 
     fun sample(pkg: String?): Result? {
