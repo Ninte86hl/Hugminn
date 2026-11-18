@@ -13,6 +13,9 @@ object GameTitle {
     @Volatile var titles: Map<String, String> = emptyMap()
         private set
 
+    /** What the last search saw (test builds report it). */
+    @Volatile var diag = ""
+
     private val romExt = setOf(
         "gba", "gb", "gbc", "nes", "fds", "sfc", "smc", "n64", "z64", "v64", "nds", "dsi", "3ds", "cia", "cci", "cxi",
         "iso", "cso", "chd", "pbp", "bin", "cue", "img", "ccd", "mds", "m3u", "gcm", "gcz", "rvz", "wbfs", "wia", "ciso", "wad",
@@ -23,22 +26,28 @@ object GameTitle {
     /** Called with the task list (background thread). */
     fun update(svc: HugminnService, tasks: List<Pair<String, String?>>) {
         val res = HashMap<String, String>()
+        val d = StringBuilder()
         for ((pkg, dat) in tasks) {
             if (res.containsKey(pkg)) continue
             if (Apps.typeOf(pkg) == AppType.APP) continue
-            val title = dat?.let { fromPath(it) } ?: fromOpenFiles(pkg)
+            d.append(pkg).append(": dat=").append(dat?.take(160)).append('\n')
+            val title = dat?.let { fromPath(it) } ?: fromOpenFiles(pkg, d)
+            d.append("  → ").append(title).append('\n')
             if (title != null) res[pkg] = title
         }
         titles = res
+        diag = d.toString()
     }
 
-    private fun fromOpenFiles(pkg: String): String? {
+    private fun fromOpenFiles(pkg: String, d: StringBuilder? = null): String? {
         val out = Root.execLong("ls -l /proc/\$(pidof -s ${Root.quote(pkg)})/fd 2>/dev/null", 3_000) ?: return null
         // the largest-looking game file wins; .zip only if nothing else is open
         val paths = out.lines().mapNotNull { it.substringAfter(" -> ", "").takeIf { p -> p.startsWith("/") } }
             .filter { !it.contains("/Android/data/") || it.contains("/files/") }
         val games = paths.filter { ext(it) in romExt && ext(it) != "zip" && ext(it) != "7z" }
             .ifEmpty { paths.filter { ext(it) == "zip" || ext(it) == "7z" } }
+        d?.append("  offene Dateien: ").append(paths.size).append(", z.B. ")
+            ?.append(paths.filter { !it.startsWith("/dev") && !it.startsWith("/system") && !it.startsWith("/apex") }.take(6).joinToString(" | "))?.append('\n')
         return games.firstOrNull()?.let { fromPath(it) }
     }
 
