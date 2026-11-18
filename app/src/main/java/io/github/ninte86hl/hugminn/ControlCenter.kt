@@ -32,7 +32,7 @@ import kotlin.math.roundToInt
  */
 class ControlCenter(private val svc: HugminnService) {
     private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false, val onY: (() -> Unit)? = null)
-    private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val swatch: Int = 0, val header: Boolean = false, val run: (() -> Unit)?)
+    private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val swatch: Int = 0, val header: Boolean = false, val side: ((Int) -> Unit)? = null, val run: (() -> Unit)?)
 
     var isOpen = false
         private set
@@ -1907,12 +1907,15 @@ class ControlCenter(private val svc: HugminnService) {
                 p.overlayRow = !p.overlayRow
                 if (p.overlayOn) svc.overlay.show()
             },
-            MenuEntry("Größe", hint = "${Math.round(p.overlayScale * 100)} % · A wechselt") {
+            MenuEntry("Größe", hint = "◀  ${Math.round(p.overlayScale * 100)} %  ▶", side = { dir ->
                 val sizes = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
-                p.overlayScale = sizes[(sizes.indexOfFirst { it >= p.overlayScale - 0.01f }.coerceAtLeast(0) + 1) % sizes.size]
-                if (p.overlayOn) svc.overlay.show()
-                svc.ui.post { overlayMenu(4) }
-            },
+                val i = (sizes.indexOfFirst { it >= p.overlayScale - 0.01f }.coerceAtLeast(0) + dir).coerceIn(0, sizes.lastIndex)
+                if (sizes[i] != p.overlayScale) {
+                    p.overlayScale = sizes[i]
+                    if (p.overlayOn) svc.overlay.show()
+                    svc.ui.post { overlayMenu(4) }
+                }
+            }) {},
         ), select)
     }
 
@@ -2354,6 +2357,8 @@ class ControlCenter(private val svc: HugminnService) {
             when (e.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> moveMenu(-1)
                 KeyEvent.KEYCODE_DPAD_DOWN -> moveMenu(1)
+                KeyEvent.KEYCODE_DPAD_LEFT -> menuEntries.getOrNull(menuSel)?.side?.invoke(-1)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> menuEntries.getOrNull(menuSel)?.side?.invoke(1)
                 KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> runMenu(menuSel)
                 KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> closeMenu()
             }

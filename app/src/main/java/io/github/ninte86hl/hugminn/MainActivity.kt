@@ -209,6 +209,9 @@ class MainActivity : Activity() {
         row(sw, "Eigene Übersicht", "An: Hugminn zeigt die letzten Apps selbst (mit eigenen Vorschaubildern), Androids Übersicht bleibt zu. Aus: Rahmen über Androids Übersicht", { if (prefs.ownSwitcher) "An" else "Aus" }) {
             prefs.ownSwitcher = !prefs.ownSwitcher
         }
+        row(sw, "Spiel pausieren", "Solange die eigene Übersicht offen ist, wird die App dahinter verdeckt und hält an (auch der Ton)", { if (prefs.pauseInSwitcher) "An" else "Aus" }) {
+            prefs.pauseInSwitcher = !prefs.pauseInSwitcher
+        }
         row(sw, "Auch bei Wischgeste", "Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird", { if (prefs.autoSwitcher) "An" else "Aus" }) {
             prefs.autoSwitcher = !prefs.autoSwitcher
         }

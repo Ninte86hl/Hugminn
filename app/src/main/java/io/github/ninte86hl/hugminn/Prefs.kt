@@ -167,6 +167,11 @@ class Prefs(ctx: Context) {
         set(v) = p.edit().putString("ledApp", v).apply()
 
     /** Hugminn's own switcher instead of an overlay on Android's recents view. */
+    /** Pause the app in front (cover it) while the own game switcher is open. */
+    var pauseInSwitcher: Boolean
+        get() = p.getBoolean("pauseInSwitcher", true)
+        set(v) = p.edit().putBoolean("pauseInSwitcher", v).apply()
+
     var ownSwitcher: Boolean
         get() = p.getBoolean("ownSwitcher", true)
         set(v) = p.edit().putBoolean("ownSwitcher", v).apply()
