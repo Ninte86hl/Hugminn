@@ -129,18 +129,28 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 </details>
 
 <details>
-<summary>All styles one by one</summary>
+<summary>Cocoon – every screen, dark and light</summary>
 
-| | |
+| Dark | Light |
 | --- | --- |
-| ![Modern dark](docs/screenshots/style-modern-dark.png) | ![Modern light](docs/screenshots/style-modern-light.png) |
-| Modern · dark | Modern · light |
-| ![Pixel dark](docs/screenshots/style-pixel-dark.png) | ![Cocoon light](docs/screenshots/style-cocoon-light.png) |
-| Pixel · dark | Cocoon · light |
-| ![Dot matrix dark](docs/screenshots/style-dots-dark.png) | ![Dot matrix light](docs/screenshots/style-dots-light.png) |
-| Dot matrix · dark | Dot matrix · light |
-| ![Cocoon dark](docs/screenshots/style-cocoon-dark.png) | |
-| Cocoon · dark | |
+| ![Control Center · dark](docs/screenshots/cocoon/dark-main.png) | ![Control Center · light](docs/screenshots/cocoon/light-main.png) |
+| Control Center · dark | Control Center · light |
+| ![Performance profile · dark](docs/screenshots/cocoon/dark-perf.png) | ![Performance profile · light](docs/screenshots/cocoon/light-perf.png) |
+| Performance profile · dark | Performance profile · light |
+| ![Fan profile · dark](docs/screenshots/cocoon/dark-fan.png) | ![Fan profile · light](docs/screenshots/cocoon/light-fan.png) |
+| Fan profile · dark | Fan profile · light |
+| ![Custom fan curve · dark](docs/screenshots/cocoon/dark-curve.png) | ![Custom fan curve · light](docs/screenshots/cocoon/light-curve.png) |
+| Custom fan curve · dark | Custom fan curve · light |
+| ![Stick LEDs · dark](docs/screenshots/cocoon/dark-leds.png) | ![Stick LEDs · light](docs/screenshots/cocoon/light-leds.png) |
+| Stick LEDs · dark | Stick LEDs · light |
+| ![Edit menu · dark](docs/screenshots/cocoon/dark-editmenu.png) | ![Edit menu · light](docs/screenshots/cocoon/light-editmenu.png) |
+| Edit menu · dark | Edit menu · light |
+| ![Edit mode · dark](docs/screenshots/cocoon/dark-edit.png) | ![Edit mode · light](docs/screenshots/cocoon/light-edit.png) |
+| Edit mode · dark | Edit mode · light |
+| ![Tile colour · dark](docs/screenshots/cocoon/dark-tile.png) | ![Tile colour · light](docs/screenshots/cocoon/light-tile.png) |
+| Tile colour · dark | Tile colour · light |
+| ![Game switcher · dark](docs/screenshots/cocoon/dark-switcher.png) | ![Game switcher · light](docs/screenshots/cocoon/light-switcher.png) |
+| Game switcher · dark | Game switcher · light |
 
 </details>
 

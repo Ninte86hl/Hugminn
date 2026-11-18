@@ -122,8 +122,8 @@ class SetupActivity : Activity() {
     /** Button to focus after a rebuild (-1: "next"). */
     private var focusAfter = -1
 
-    /** Picture of the chosen style (and light/dark for Cocoon). */
-    private fun stylePicture(): String {
+    /** Picture of the chosen style in light or dark (prefix "switcher-" for the switcher). */
+    private fun stylePicture(prefix: String = ""): String {
         val base = when (prefs.uiStyle) {
             UiStyle.PIXEL -> "pixel"
             UiStyle.DOTS -> "dots"
@@ -131,9 +131,9 @@ class SetupActivity : Activity() {
             else -> "modern"
         }
         // light or dark picture of the style, whichever exists
-        val want = "$base-${if (pal.dark) "dark" else "light"}"
+        val want = "$prefix$base-${if (pal.dark) "dark" else "light"}"
         val names = runCatching { assets.list("wizard")?.toSet() }.getOrNull().orEmpty()
-        return listOf(want, "$base-dark", "$base-light").firstOrNull { "$it.jpg" in names } ?: "modern-dark"
+        return listOf(want, "$prefix$base-dark", "$prefix$base-light", "${prefix}modern-dark").firstOrNull { "$it.jpg" in names } ?: "modern-dark"
     }
 
     private fun onOff(b: Boolean) = if (b) tr("An") else tr("Aus")
@@ -272,7 +272,7 @@ class SetupActivity : Activity() {
 
     private fun switcherPage(b: LinearLayout) {
         val on = prefs.double == Action.SWITCHER
-        twoColumns(b, "switcher", off = !on, right = { c ->
+        twoColumns(b, stylePicture("switcher-"), off = !on, right = { c ->
             option(c, t("Game Switcher", "Game Switcher"), {
                 if (prefs.double == Action.SWITCHER) t("Home 2× öffnet den Switcher", "Home 2× opens the switcher")
                 else t("Aus: Home 2× macht nichts", "Off: Home 2× does nothing")
