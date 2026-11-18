@@ -82,6 +82,7 @@ Every gesture can be reassigned (home, switcher, control center, recent apps, la
 
 - Three styles across the whole app: **Modern** (Material 3), **Pixel** (pixel font, stepped corners) and **Dot matrix** (Nothing-like dots)
 - Themes: system, light, dark, OLED black
+- Languages: English and German (follows the system language, or choose in the settings)
 - Tile colour from presets or a colour wheel; it becomes the accent colour in every style
 - PlayStation, Xbox or Nintendo button symbols, coloured or monochrome, following the device's controller layout
 
