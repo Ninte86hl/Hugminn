@@ -294,6 +294,44 @@ class MainActivity : Activity() {
         }
         bug.addView(bb)
 
+        // Feedback upload
+        val fb = section("Feedback an Claude")
+        fb.addView(text(
+            "Drücke Select, während der Game Switcher oder das Control Center offen ist: Hugminn lädt einen Screenshot " +
+                "und eine Beschreibung des Bildschirms in das private Repository Hugminn-Feedback hoch. Dafür braucht Hugminn einen eigenen " +
+                "GitHub-Token mit Schreibrecht: Repository Hugminn-Feedback, Berechtigung „Contents: Read and write“.",
+            12f, pal.onSurfaceVariant,
+        ).apply { setPadding(0, d(6), 0, d(6)) })
+        val hasToken = !prefs.githubToken.isNullOrBlank()
+        fb.addView(text(if (hasToken) "✓ Token eingetragen" else "✕ Kein Token eingetragen", 15f, pal.onSurface, bold = true))
+        val fbb = LinearLayout(this).apply { setPadding(0, d(8), 0, d(6)) }
+        fbb.addView(button("Token aus Zwischenablage einfügen") {
+            val cm = getSystemService(android.content.ClipboardManager::class.java)
+            val t = cm.primaryClip?.getItemAt(0)?.text?.toString()?.trim()
+            if (t != null && (t.startsWith("github_pat_") || t.startsWith("ghp_"))) {
+                prefs.githubToken = t
+                Toast.makeText(this, "Token gespeichert", Toast.LENGTH_SHORT).show()
+            } else Toast.makeText(this, "In der Zwischenablage ist kein GitHub-Token", Toast.LENGTH_LONG).show()
+            build()
+        })
+        if (hasToken) {
+            fbb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
+            fbb.addView(button("Token entfernen") { prefs.githubToken = null; build() })
+        }
+        fb.addView(fbb)
+        if (hasToken) {
+            fb.addView(text(
+                "Fehler werden automatisch mit dem Systemprotokoll hochgeladen, nach einem Absturz beim nächsten Start.",
+                12f, pal.onSurfaceVariant,
+            ))
+            val lb = LinearLayout(this).apply { setPadding(0, d(8), 0, d(6)) }
+            lb.addView(button("Protokoll jetzt hochladen") {
+                Feedback.sendLog(this, "protokoll")
+                Toast.makeText(this, "Wird hochgeladen – siehe Benachrichtigung", Toast.LENGTH_SHORT).show()
+            })
+            fb.addView(lb)
+        }
+
         // About
         val a = section(tr("Über"))
         a.addView(text(

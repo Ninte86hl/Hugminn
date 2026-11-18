@@ -98,7 +98,12 @@ class Prefs(ctx: Context) {
         set(v) = p.edit().putString("ccTiles", v.filter { it in TileCatalog.all }.distinct().joinToString(",")).apply()
 
     /** Removes values of test versions (the old feedback token never stays on the device). */
-    fun forgetOld() = p.edit().remove("githubToken").remove("pixelNf").apply()
+    fun forgetOld() = p.edit().remove("pixelNf").apply()
+
+    /** Test build: GitHub token for uploading feedback to the private repository Hugminn-Feedback. */
+    var githubToken: String?
+        get() = p.getString("githubToken", null)
+        set(v) = p.edit().putString("githubToken", v).apply()
 
     var language: Language
         get() = enumOr(p.getString("language", null), Language.AUTO)

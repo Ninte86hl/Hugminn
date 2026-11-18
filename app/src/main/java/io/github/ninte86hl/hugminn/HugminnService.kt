@@ -83,6 +83,7 @@ class HugminnService : AccessibilityService() {
         Thread {
             Device.ensureWhitelist(this)
             listOf(
+                android.Manifest.permission.POST_NOTIFICATIONS,
                 android.Manifest.permission.BLUETOOTH_CONNECT,
                 android.Manifest.permission.BLUETOOTH_SCAN,
                 android.Manifest.permission.ACCESS_FINE_LOCATION,
@@ -188,7 +189,10 @@ class HugminnService : AccessibilityService() {
         if (event.keyCode in systemKeys) return false
         // Select: screenshot with the overlays (Android's key combination cannot reach them)
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || anySwitcherOpen)) {
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) Shot.take(this)
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                if (prefs.githubToken.isNullOrBlank()) Shot.take(this)
+                else Feedback.capture(this, if (controlCenter.isOpen) "controlcenter" else "switcher")
+            }
             return true
         }
         return try {
