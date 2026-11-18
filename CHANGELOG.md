@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.9.0
+- Music tile also works with players that publish no song information (such as Android's own music app): app, playing state, and title and picture from the player's notification.
+- Musik-Kachel funktioniert auch mit Playern, die keine Titel-Infos melden (wie Androids eigene Musik-App): App, Wiedergabe-Status sowie Titel und Bild aus der Benachrichtigung des Players.
+
 ## 1.8.9
 - Tiles follow their style more closely: Pixel with stepped frames, block bars and stepped graphs; Dot matrix with dotted rings, dot bars and dot graphs, accent only where something is on; Cocoon with colourful badges on the large cards.
 - Kacheln passen besser zum Stil: Pixel mit Treppenrahmen, Blockbalken und Stufen-Graphen; Punktmatrix mit Punkt-Rahmen, Punktbalken und Punkt-Graphen, Akzent nur wo etwas an ist; Cocoon mit bunten Abzeichen auf den großen Karten.
