@@ -80,7 +80,7 @@ class SetupActivity : Activity() {
         ImageView(this).apply {
             setImageBitmap(bmp)
             adjustViewBounds = true
-            scaleType = ImageView.ScaleType.FIT_CENTER
+            scaleType = ImageView.ScaleType.FIT_START
             clipToOutline = true
             background = Look.shape(this@SetupActivity, pixel, pal.surfaceHigh, d(18).toFloat())
             contentDescription = name
@@ -107,14 +107,15 @@ class SetupActivity : Activity() {
         }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.addView(text(label, 15f, pal.onSurface, bold = true))
-        col.addView(text(sub(), 12f, pal.onSurfaceVariant).apply { maxLines = 2 })
+        col.addView(text(sub(), 12f, pal.onSurfaceVariant).apply { maxLines = 3 })
         card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = d(10) })
         card.addView(text(value(), 14f, pal.onPrimaryContainer, bold = true).apply {
             background = Look.shape(this@SetupActivity, pixel, pal.primaryContainer, d(14).toFloat())
             setPadding(d(14), d(6), d(14), d(6))
         })
         buttons += card
-        parent.addView(card, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = d(6) })
+        // side by side under picture and text
+        parent.addView(card, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { if (parent.childCount > 0) marginStart = d(12) })
     }
 
     /** Button to focus after a rebuild (-1: "next"). */
@@ -163,7 +164,9 @@ class SetupActivity : Activity() {
         dots.addView(text(t("Schritt ${step + 1} von $steps", "Step ${step + 1} of $steps"), 13f, pal.onSurfaceVariant).apply { setPadding(d(8), 0, 0, 0) })
         root.addView(dots)
 
-        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, d(10), 0, d(8)) }
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, d(12), 0, d(8)) }
+        val opts = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        options = opts
         when (step) {
             0 -> welcome(body)
             1 -> activate(body)
@@ -174,6 +177,7 @@ class SetupActivity : Activity() {
         }
         // nothing scrolls (awkward with a controller): the page fits, the buttons stay at the bottom
         root.addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        if (opts.childCount > 0) root.addView(opts, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, d(76)).apply { bottomMargin = d(6) })
 
         // navigation
         val nav = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, d(8), 0, 0) }
@@ -192,19 +196,20 @@ class SetupActivity : Activity() {
         root.post { (buttons.getOrNull(f) ?: next).requestFocus() }
     }
 
-    /** Text on the left; picture (limited height) and the setting cards on the right. */
+    /** Row of setting cards under picture and text (filled by the page, added by build()). */
+    private var options: LinearLayout? = null
+
+    /** Picture on the left, explanation beside it; the setting cards go into one row below. */
     private fun twoColumns(parent: LinearLayout, pic: String?, off: Boolean = false, right: ((LinearLayout) -> Unit)? = null, fill: (LinearLayout) -> Unit) {
         val row = LinearLayout(this).apply { gravity = Gravity.TOP }
-        val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        fill(left)
-        row.addView(left, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = d(28) })
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val picH = if (right == null) 260 else 180
-        // fixed height, width from the picture: it never pushes the cards off the screen
-        pic?.let { picture(it, off) }?.let { col.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, d(picH)).apply { bottomMargin = d(4) }) }
-        right?.invoke(col)
-        row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        pic?.let { picture(it, off) }?.let {
+            row.addView(it, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.9f).apply { marginEnd = d(28) })
+        }
+        val text = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        fill(text)
+        row.addView(text, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         parent.addView(row)
+        right?.let { r -> options?.let { r(it) } }
     }
 
     private fun welcome(b: LinearLayout) = twoColumns(b, stylePicture(), right = { c ->
