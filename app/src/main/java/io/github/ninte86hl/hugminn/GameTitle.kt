@@ -46,8 +46,10 @@ object GameTitle {
             .filter { !it.contains("/Android/data/") || it.contains("/files/") }
         val games = paths.filter { ext(it) in romExt && ext(it) != "zip" && ext(it) != "7z" }
             .ifEmpty { paths.filter { ext(it) == "zip" || ext(it) == "7z" } }
-        d?.append("  offene Dateien: ").append(paths.size).append(", z.B. ")
-            ?.append(paths.filter { !it.startsWith("/dev") && !it.startsWith("/system") && !it.startsWith("/apex") }.take(6).joinToString(" | "))?.append('\n')
+        d?.let { sb ->
+            sb.append("  offene Dateien: ").append(paths.size).append(", z.B. ")
+            sb.append(paths.filter { !it.startsWith("/dev") && !it.startsWith("/system") && !it.startsWith("/apex") }.take(6).joinToString(" | ")).append('\n')
+        }
         return games.firstOrNull()?.let { fromPath(it) }
     }
 
