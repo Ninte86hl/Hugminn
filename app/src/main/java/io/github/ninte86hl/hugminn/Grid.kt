@@ -17,10 +17,11 @@ object GridLayout {
     /** Rows of the grid (set from the settings before each layout). */
     @Volatile var ROWS = 4
 
-    private val infoIds = setOf("fps", "perf", "fan", "temp", "battery", "cpu", "gpu", "ram", "power")
+    private val infoIds = setOf("system", "fps", "perf", "fan", "temp", "battery", "cpu", "gpu", "ram", "power")
     private val sliderIds = setOf("brightness", "volume")
 
     val widgetNames get() = linkedMapOf(
+        "system" to t("System-Übersicht", "System overview"),
         "fps" to tr("Bildrate (FPS)"),
         "perf" to tr("Leistungsprofil"),
         "fan" to tr("Lüfter"),
@@ -44,6 +45,11 @@ object GridLayout {
         isSlider(id) -> (2..ROWS).map { 1 to it } + (2..cols).map { it to 1 }
         // music: also large, with cover and buttons; FPS: a wider and larger frame time graph
         id == "media" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2, 2 to 4, 4 to 4).filter { it.first <= cols && it.second <= ROWS }
+        // all live values in one large card
+        id == "system" -> listOf(4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }.ifEmpty { listOf(cols to 2) }
+        // Wi-Fi and Bluetooth with their lists, profiles with their choices, battery with all details
+        id == "wifi" || id == "bt" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
+        id == "perf" || id == "fan" || id == "battery" -> listOf(1 to 1, 2 to 1, 2 to 2)
         id == "fps" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }
         isInfo(id) -> listOf(1 to 1, 2 to 1, 2 to 2)
         else -> listOf(1 to 1, 2 to 1)

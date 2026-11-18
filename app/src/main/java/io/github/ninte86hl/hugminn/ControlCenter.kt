@@ -521,11 +521,252 @@ class ControlCenter(private val svc: HugminnService) {
             else FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 56 * d, Gravity.CENTER_VERTICAL))
             return wrap to Item(v, null, { dir -> v.step(5 * dir) }, vertical)
         }
+        val big = e.w >= 2 && e.h >= 2
+        if (id == "system") return systemElement(e)
+        if (big && (id == "perf" || id == "fan") && rootOk) return profileElement(e)
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
-        if (id == "media" && e.w >= 2 && e.h >= 2) return mediaElement(e, t)
+        if (id == "media" && big) return mediaElement(e, t)
+        if (id == "bt" && big) return btElement(e, t)
+        if (id == "wifi" && big && rootOk) return wifiElement(e, t)
         val v = toggleElement(t, e)
         return v to Item(v, t.act, onY = t.menu, round = e.w == 1 && e.h == 1)
+    }
+
+    /** Runs [f] every [ms] while [v] is on screen. */
+    private fun whileShown(v: View, ms: Long, f: () -> Unit) {
+        val r = object : Runnable {
+            override fun run() {
+                if (!v.isAttachedToWindow) return
+                f()
+                svc.ui.postDelayed(this, ms)
+            }
+        }
+        v.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(x: View) { svc.ui.postDelayed(r, ms) }
+            override fun onViewDetachedFromWindow(x: View) { svc.ui.removeCallbacks(r) }
+        })
+    }
+
+    /** Header of a large card: icon, title, optional right-hand text. */
+    private fun cardHead(icon: IconView.Kind, title: String): Pair<LinearLayout, TextView> {
+        val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+        head.addView(IconView(svc, icon, 16).apply { setColor(pal.onSurfaceVariant) })
+        head.addView(text(title, 11f, pal.onSurfaceVariant, bold = true).apply { setPadding(6 * d, 0, 0, 0) }, lp(0, WRAP, 1f))
+        val right = text("", 11f, pal.onSurfaceVariant, bold = true)
+        head.addView(right)
+        return head to right
+    }
+
+    /** One line of a list inside a large card (network, device); touch runs [act]. */
+    private fun listRow(title: String, sub: String, on: Boolean, act: (() -> Unit)?): View {
+        val row = LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(12 * d, 4 * d, 12 * d, 4 * d)
+            background = shape(if (on) tileOn() else pal.surfaceHighest, 14f * d)
+            if (act != null) setOnClickListener { if (!editing) act() }
+        }
+        row.addView(text(title, 13f, if (on) tileOnFg() else pal.onSurface, bold = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        if (sub.isNotEmpty()) row.addView(text(sub, 10f, if (on) tileOnFg() else pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        return row
+    }
+
+    /**
+     * System overview: FPS, CPU, GPU, RAM, battery and power draw as rings (4×2 in one row,
+     * 4×4 in two rows with frame time and temperature graphs below).
+     */
+    private fun systemElement(e: GridEntry): Pair<View, Item?> {
+        val gp = svc.prefs.gaugePalette
+        val tall = e.h >= 4
+        val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
+        c.addView(cardHead(IconView.Kind.GAMEPAD, t("SYSTEM", "SYSTEM")).first)
+        val ids = listOf("fps", "cpu", "gpu", "ram", "battery", "power")
+        val grid = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        c.addView(grid, lp(MATCH, 0, 1f))
+        val perRow = if (tall) 3 else 6
+        var row: LinearLayout? = null
+        ids.forEachIndexed { i, id ->
+            if (i % perRow == 0) row = LinearLayout(svc).also { grid.addView(it, lp(MATCH, 0, 1f)) }
+            val sp = spec(id) ?: return@forEachIndexed
+            val cell = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+            val ring = RingView(svc, pal, "", pal.primary, pixel)
+            cell.addView(ring, lp(MATCH, 0, 1f))
+            cell.addView(text(sp.title, 10f, pal.onSurfaceVariant, bold = true).apply { gravity = Gravity.CENTER; maxLines = 1 }, lp(MATCH, WRAP))
+            val sub = text("", 9f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+            cell.addView(sub, lp(MATCH, WRAP))
+            row!!.addView(cell, lp(0, MATCH, 1f).apply { marginStart = 3 * d; marginEnd = 3 * d })
+            live { s ->
+                val f = if (id == "fps") (if (s.fps > 0) (s.fps / 60f).coerceAtMost(1f) else 0f) else sp.fraction?.invoke(s) ?: 0f
+                // FPS: more is better, so its colour runs the other way
+                val col = GaugeColors.of(pal, gp, if (id == "fps") 1f - f else f)
+                ring.setColor(col)
+                ring.set(f, sp.value(s), "")
+                sub.text = sp.sub(s)
+            }
+        }
+        if (tall) {
+            val graphs = LinearLayout(svc)
+            fun graphBox(label: String, g: GraphView, value: TextView): View {
+                val box = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; background = shape(pal.surfaceHighest, 14f * d); setPadding(10 * d, 6 * d, 10 * d, 6 * d) }
+                val h = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+                h.addView(text(label, 10f, pal.onSurfaceVariant, bold = true), lp(0, WRAP, 1f))
+                h.addView(value)
+                box.addView(h)
+                box.addView(g, lp(MATCH, 0, 1f).apply { topMargin = 4 * d })
+                return box
+            }
+            val ft = GraphView(svc, pal.primary, 50f)
+            val ftV = text("", 10f, pal.onSurface, bold = true)
+            val tg = GraphView(svc, GaugeColors.of(pal, GaugePalette.TRAFFIC, 0.85f), 100f)
+            val tV = text("", 10f, pal.onSurface, bold = true)
+            graphs.addView(graphBox(t("FRAMETIME", "FRAME TIME"), ft, ftV), lp(0, MATCH, 1f).apply { marginEnd = 5 * d })
+            graphs.addView(graphBox(t("TEMPERATUR", "TEMPERATURE"), tg, tV), lp(0, MATCH, 1f).apply { marginStart = 5 * d })
+            c.addView(graphs, lp(MATCH, 0, 0.8f).apply { topMargin = 8 * d })
+            live { s ->
+                s.frameTimesMs.takeLast(20).forEach { ft.push(it) }
+                ftV.text = s.frameTimesMs.lastOrNull()?.let { "%.1f ms".format(it) } ?: ""
+                if (s.cpuTemp > 0) { tg.push(s.cpuTemp); tV.text = "${s.cpuTemp.toInt()} °C" }
+            }
+        }
+        return c to Item(c, { overlayMenu() })
+    }
+
+    /** Large performance or fan card: current profile, details, and every profile to tap. */
+    private fun profileElement(e: GridEntry): Pair<View, Item?> {
+        val perf = e.id == "perf"
+        val key = if (perf) "performance_mode" else "fan_mode"
+        val table = if (perf) Device.perfProfiles else Device.fanProfiles
+        val sp = spec(e.id)!!
+        val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
+        c.addView(cardHead(sp.icon, sp.title).first)
+        val value = text("", 22f, pal.onSurface, bold = true).apply { maxLines = 1 }
+        val sub = text("", 11f, pal.onSurfaceVariant).apply { maxLines = 1 }
+        c.addView(value)
+        c.addView(sub)
+        c.addView(View(svc), lp(MATCH, 0, 1f))
+        val chips = mutableListOf<Pair<String, TextView>>()
+        val rows = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        val perRow = if (table.size > 3) 3 else table.size
+        var row: LinearLayout? = null
+        table.entries.forEachIndexed { i, (v, name) ->
+            if (i % perRow == 0) row = LinearLayout(svc).also { rows.addView(it, lp(MATCH, WRAP).apply { if (i > 0) topMargin = 5 * d }) }
+            val chip = text(name, 11f, pal.onSurface, bold = true).apply {
+                gravity = Gravity.CENTER
+                maxLines = 1
+                setPadding(4 * d, 0, 4 * d, 0)
+                setOnClickListener { if (!editing) { if (perf) Device.setPerf(v) { refreshAll() } else chooseFan(v) } }
+            }
+            row!!.addView(chip, lp(0, 30 * d, 1f).apply { marginEnd = 5 * d })
+            chips += v to chip
+        }
+        c.addView(rows)
+        val refresh = {
+            val cur = if (!perf && svc.prefs.fanCustom) "6" else Device.sys(svc, key)
+            value.text = if (perf) Device.perfLabel(svc) else Device.fanLabel(svc)
+            chips.forEach { (v, chip) ->
+                val on = v == cur
+                chip.background = shape(if (on) tileOn() else pal.surfaceHighest, 12f * d)
+                chip.setTextColor(if (on) tileOnFg() else pal.onSurface)
+            }
+        }
+        refresh()
+        refreshers += refresh
+        live { s -> sub.text = sp.sub(s) }
+        return c to Item(c, sp.onA)
+    }
+
+    /** Large Bluetooth card: on/off and the paired devices with their battery; touch connects. */
+    private fun btElement(e: GridEntry, tile: Tile): Pair<View, Item?> {
+        val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
+        val (head, right) = cardHead(IconView.Kind.BLUETOOTH, "BLUETOOTH")
+        c.addView(head)
+        val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        c.addView(list, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
+        val maxRows = if (e.h >= 4) 6 else 3
+        val refresh = {
+            val on = Device.btOn(svc)
+            right.text = if (on) tr("An") else tr("Aus")
+            right.setTextColor(if (on) tileOn() else pal.onSurfaceVariant)
+            list.removeAllViews()
+            if (!on) list.addView(text(t("Bluetooth ist aus · A schaltet ein", "Bluetooth is off · A turns it on"), 12f, pal.onSurfaceVariant))
+            else {
+                val devs = Bt.paired(svc).sortedByDescending { Bt.isConnected(it) }
+                if (devs.isEmpty()) list.addView(text(tr("Noch keine"), 12f, pal.onSurfaceVariant))
+                devs.take(maxRows).forEachIndexed { i, dv ->
+                    val conn = Bt.isConnected(dv)
+                    val bat = if (conn) Bt.battery(dv) else null
+                    val sub = if (!conn) t("Gekoppelt", "Paired") else if (bat != null) t("Verbunden · Akku $bat %", "Connected · battery $bat %") else tr("Verbunden")
+                    list.addView(listRow(Bt.name(dv), sub, conn) {
+                        Bt.toggle(svc, dv, !conn) { svc.ui.postDelayed({ refreshAll() }, 1500) }
+                    }, lp(MATCH, 0, 1f).apply { if (i > 0) topMargin = 5 * d })
+                }
+                repeat((maxRows - devs.size).coerceAtLeast(0)) { list.addView(View(svc), lp(MATCH, 0, 1f).apply { topMargin = 5 * d }) }
+            }
+        }
+        refresh()
+        refreshers += refresh
+        whileShown(c, 5000) { refresh() }
+        return c to Item(c, tile.act, onY = tile.menu)
+    }
+
+    /** Large Wi-Fi card: current network and the strongest ones in range; touch connects. */
+    private fun wifiElement(e: GridEntry, tile: Tile): Pair<View, Item?> {
+        val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
+        val (head, right) = cardHead(IconView.Kind.WIFI, tr("WLAN").uppercase())
+        c.addView(head)
+        val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        c.addView(list, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
+        val maxRows = if (e.h >= 4) 6 else 3
+        var nets: List<Wifi.Net>? = null
+        var saved: Map<String, String?> = emptyMap()
+        val refresh = {
+            val on = Device.wifiOn(svc)
+            val cur = Device.wifiName(svc)
+            right.text = if (on) tr("An") else tr("Aus")
+            right.setTextColor(if (on) tileOn() else pal.onSurfaceVariant)
+            list.removeAllViews()
+            if (!on) list.addView(text(t("WLAN ist aus · A schaltet ein", "Wi-Fi is off · A turns it on"), 12f, pal.onSurfaceVariant))
+            else {
+                val shown = (nets ?: cur?.let { listOf(Wifi.Net(it, -50, "wpa2")) }.orEmpty()).sortedByDescending { it.ssid == cur }.take(maxRows)
+                if (shown.isEmpty()) list.addView(text(tr("Wird geladen …"), 12f, pal.onSurfaceVariant))
+                shown.forEachIndexed { i, n ->
+                    val connected = n.ssid == cur
+                    val known = saved.containsKey(n.ssid)
+                    val sub = "${Wifi.bars(n.level)}  " + when {
+                        connected -> tr("Verbunden")
+                        known -> t("Gespeichert", "Saved")
+                        n.security == "open" -> tr("offen")
+                        else -> tr("gesichert")
+                    }
+                    list.addView(listRow(n.ssid, sub, connected) {
+                        when {
+                            connected -> {}
+                            known || n.security == "open" || n.security == "owe" -> {
+                                Toast.makeText(svc, t("Verbinde mit ${n.ssid} …", "Connecting to ${n.ssid} …"), Toast.LENGTH_SHORT).show()
+                                Thread { Wifi.connect(n.ssid, n.security, saved[n.ssid]); svc.ui.postDelayed({ refreshAll() }, 2500) }.start()
+                            }
+                            // new secured network: the Wi-Fi menu asks for the password
+                            else -> tile.menu?.invoke()
+                        }
+                    }, lp(MATCH, 0, 1f).apply { if (i > 0) topMargin = 5 * d })
+                }
+                repeat((maxRows - shown.size).coerceAtLeast(0)) { list.addView(View(svc), lp(MATCH, 0, 1f).apply { topMargin = 5 * d }) }
+            }
+        }
+        fun scan() = thread {
+            if (!Device.wifiOn(svc)) return@thread
+            Wifi.startScan()
+            Thread.sleep(2500)
+            val n = Wifi.scanResults()
+            val sv = runCatching { Wifi.saved() }.getOrDefault(emptyMap())
+            svc.ui.post { nets = n; saved = sv; if (c.isAttachedToWindow) refresh() }
+        }
+        refresh()
+        refreshers += refresh
+        scan()
+        whileShown(c, 20_000) { scan() }
+        return c to Item(c, tile.act, onY = tile.menu)
     }
 
     /** Square whose side is the height it gets (cover next to the text in a wide music tile). */
@@ -831,6 +1072,12 @@ class ControlCenter(private val svc: HugminnService) {
             ring = RingView(svc, pal, "", pal.primary, pixel)
             c.addView(ring, lp(MATCH, 0, 1f))
             c.addView(sub.apply { gravity = Gravity.CENTER })
+            if (e.id == "battery") {
+                // large battery: power draw and temperature too
+                val more = text("", 11f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER }
+                c.addView(more)
+                live { s -> more.text = listOfNotNull("%.1f W".format(s.watts), s.batTemp.takeIf { it > 0 }?.let { "${it.toInt()} °C" }).joinToString(" · ") }
+            }
         } else {
             c.addView(View(svc), lp(1, 0, 1f))
             c.addView(value, if (small) lp(MATCH, 0, 1.4f) else lp(MATCH, WRAP))
@@ -2137,11 +2384,18 @@ class ControlCenter(private val svc: HugminnService) {
     private fun placeAtCursor(id: String) {
         val preferred = when {
             GridLayout.isSlider(id) -> listOf(1 to 2, 2 to 1, 1 to 3, 3 to 1)
+            id == "system" -> listOf(4 to 2, 4 to 4)
             id == "fps" -> listOf(2 to 2, 2 to 1, 1 to 1)
             GridLayout.isInfo(id) -> listOf(2 to 1, 1 to 1, 2 to 2)
             else -> listOf(1 to 1, 2 to 1)
         }
-        val size = preferred.firstOrNull { (w, h) -> fitsAt(GridEntry(id, w, h), cursorX, cursorY, gridPage, -1) } ?: return
+        val size = preferred.firstOrNull { (w, h) -> fitsAt(GridEntry(id, w, h), cursorX, cursorY, gridPage, -1) } ?: run {
+            // too big for this spot: the first free place (a new page if needed)
+            val (w, h) = preferred.first()
+            entries.add(GridEntry(id, w.coerceAtMost(gridCols), h.coerceAtMost(GridLayout.ROWS)))
+            renderGrid()
+            return
+        }
         entries.add(GridEntry(id, size.first, size.second, cursorX, cursorY, gridPage))
         renderGrid()
     }
