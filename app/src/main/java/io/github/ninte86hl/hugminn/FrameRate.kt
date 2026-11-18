@@ -83,11 +83,16 @@ object FrameRate {
 /layerName =/ { g = 0; mine = index(${'$'}0, P) > 0; next }
 g != 0 && ${'$'}1 == "displayRefreshRate" { rr = ${'$'}3 + 0 }
 g != 0 && /presentToPresent histogram/ { h = 1; next }
-g != 0 && h == 1 { h = 0; for (i = 1; i <= NF; i++) { split(${'$'}i, a, "="); ms = a[1] + 0; c = a[2] + 0; if (c > 0 && ms < 100) { n += c; sum += ms * c; if (ms > w) w = ms } } }
+g != 0 && h == 1 { h = 0; for (i = 1; i <= NF; i++) { split(${'$'}i, a, "="); ms = a[1] + 0; c = a[2] + 0; if (c > 0 && ms < 100) { k++; bm[k] = ms; bc[k] = c } } }
 g == 0 && mine && ${'$'}1 == "totalFrames" { lf = ${'$'}3 + 0; if (lf > blf) cand = 1; else cand = 0 }
 g == 0 && mine && cand && ${'$'}1 == "averageFPS" { blf = lf; bla = ${'$'}3 + 0 }
 BEGIN { g = 1 }
-END { f = (sum > 0) ? 1000 * n / sum : 0; if (rr > 0 && f > rr) f = rr; printf "TS %d %.1f %d %d %.1f %d", n, f, w, blf, bla, rr }'
+END {
+  # the histogram counts whole milliseconds (16.7 ms lands in "16"): put every interval back on the
+  # real refresh steps of the display, otherwise 60 FPS on a 120 Hz screen reads as 62-64
+  v = (rr > 0) ? 1000 / rr : 0
+  for (j = 1; j <= k; j++) { ms = bm[j]; if (v > 0) { q = int((ms + 0.5) / v + 0.5); if (q < 1) q = 1; ms = q * v } n += bc[j]; sum += ms * bc[j]; if (ms > w) w = ms }
+  f = (sum > 0) ? 1000 * n / sum : 0; if (rr > 0 && f > rr) f = rr; printf "TS %d %.1f %d %d %.1f %d", n, f, w, blf, bla, rr }'
 dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
 """
 
