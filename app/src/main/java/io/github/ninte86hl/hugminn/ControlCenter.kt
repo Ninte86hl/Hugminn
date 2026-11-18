@@ -505,7 +505,9 @@ class ControlCenter(private val svc: HugminnService) {
                     audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(p * max / 100f), 0)
                 }
             }
-            v.setAccent(tileOn(), tileOnFg())
+            // Cocoon: brightness yellow, volume purple (unless a tile colour was chosen)
+            if (pal.cocoon && svc.prefs.tileColor == 0) v.setAccent(if (id == "brightness") 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
+            else v.setAccent(tileOn(), tileOnFg())
             val wrap = FrameLayout(svc)
             wrap.addView(v, if (vertical) FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             else FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 56 * d, Gravity.CENTER_VERTICAL))
