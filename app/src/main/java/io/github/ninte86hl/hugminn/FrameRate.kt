@@ -87,7 +87,7 @@ g != 0 && h == 1 { h = 0; for (i = 1; i <= NF; i++) { split(${'$'}i, a, "="); ms
 g == 0 && mine && ${'$'}1 == "totalFrames" { lf = ${'$'}3 + 0; if (lf > blf) cand = 1; else cand = 0 }
 g == 0 && mine && cand && ${'$'}1 == "averageFPS" { blf = lf; bla = ${'$'}3 + 0 }
 BEGIN { g = 1 }
-END { f = (sum > 0) ? 1000 * n / sum : 0; if (rr > 0 && f > rr) f = rr; printf "TS %d %.1f %d %d %.1f", n, f, w, blf, bla }'
+END { f = (sum > 0) ? 1000 * n / sum : 0; if (rr > 0 && f > rr) f = rr; printf "TS %d %.1f %d %d %.1f %d", n, f, w, blf, bla, rr }'
 dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
 """
 
@@ -108,6 +108,7 @@ dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
         val fps = p[2].toFloatOrNull() ?: 0f
         val layerFrames = p[4].toIntOrNull() ?: 0
         val layerFps = p[5].toFloatOrNull() ?: 0f
+        p.getOrNull(6)?.toIntOrNull()?.takeIf { it in 30..240 }?.let { refresh = it }
         tsFails = 0
         // nothing at all for a while: TimeStats may have been switched off meanwhile, so switch it on again
         if (frames == 0) { if (++tsEmpty >= 4) { tsEmpty = 0; tsOn = false } } else tsEmpty = 0
@@ -127,8 +128,17 @@ dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
 
     /** Games run at fixed rates (25, 30, 50, 60 …): a value just next to one is that rate. */
     private val rates = floatArrayOf(20f, 24f, 25f, 30f, 40f, 45f, 48f, 50f, 60f, 72f, 90f, 100f, 120f)
+    /** Display refresh rate (60 or 120 Hz mode), from TimeStats. */
+    @Volatile var refresh = 60
+        private set
+
     private fun snap(v: Float): Int {
-        val r = rates.minByOrNull { kotlin.math.abs(it - v) } ?: return Math.round(v)
+        // what the display can show: its rate and whole fractions of it (120 Hz: 120, 60, 40, 30, 24 …),
+        // plus the usual game rates (25/50 run unevenly on a 60/120 Hz screen)
+        val hz = refresh.toFloat()
+        val cands = (rates.filter { it <= hz + 0.5f } + (1..6).map { hz / it }).filter { it >= 12f }
+        if (v >= hz * 0.97f) return refresh
+        val r = cands.minByOrNull { kotlin.math.abs(it - v) } ?: return Math.round(v)
         return if (kotlin.math.abs(r - v) <= r * 0.04f) r.toInt() else Math.round(v)
     }
 
