@@ -192,6 +192,11 @@ class Prefs(ctx: Context) {
 
     /** Hugminn's own switcher instead of an overlay on Android's recents view. */
     /** Pause the app in front (cover it) while the own game switcher is open. */
+    /** Pause the app in front while the Control Center is open. */
+    var pauseInCc: Boolean
+        get() = p.getBoolean("pauseInCc", true)
+        set(v) = p.edit().putBoolean("pauseInCc", v).apply()
+
     var pauseInSwitcher: Boolean
         get() = p.getBoolean("pauseInSwitcher", true)
         set(v) = p.edit().putBoolean("pauseInSwitcher", v).apply()

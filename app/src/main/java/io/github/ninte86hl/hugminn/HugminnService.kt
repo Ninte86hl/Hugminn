@@ -124,6 +124,8 @@ class HugminnService : AccessibilityService() {
 
     /** Package of the app in the foreground (game), for frame rate and overlay. */
     @Volatile var foregroundPkg: String? = null
+    /** The home screen (launcher) is in front, not an app. */
+    @Volatile var homeInFront = false
         private set
     /** Last opened windows (package/class), for finding firmware dialogs in feedback reports. */
     val windowLog: MutableList<String> = mutableListOf()
@@ -147,9 +149,11 @@ class HugminnService : AccessibilityService() {
                 if (foregroundPkg != pkg && ::own.isInitialized) own.touch(pkg)
                 AppProfiles.onForeground(this, pkg)
                 foregroundPkg = pkg
+                homeInFront = false
             } else if (pkg != null && Apps.isHome(this, pkg)) {
                 // back on the home screen: profiles of the last app end
                 AppProfiles.onForeground(this, null)
+                homeInFront = true
             }
         }
         if (event.packageName?.toString() == foregroundPkg) appEventAt = SystemClock.uptimeMillis()

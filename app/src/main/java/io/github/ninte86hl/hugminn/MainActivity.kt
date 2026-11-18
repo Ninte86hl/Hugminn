@@ -326,6 +326,10 @@ class MainActivity : Activity() {
         }
 
         val ccs = section("Control Center")
+        row(ccs, t("Spiel pausieren", "Pause the game"), t("Solange das Control Center offen ist, hält das Spiel dahinter an (auch der Ton) und läuft danach weiter",
+            "While the Control Center is open, the game behind it pauses (sound too) and goes on afterwards"), { if (prefs.pauseInCc) tr("An") else tr("Aus") }) {
+            prefs.pauseInCc = !prefs.pauseInCc
+        }
         row(ccs, tr("Statusleiste"), tr("Oben im Control Center: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.ccStatusBar.label }) {
             prefs.ccStatusBar = cycle(StatusBar.values().toList(), prefs.ccStatusBar)
         }

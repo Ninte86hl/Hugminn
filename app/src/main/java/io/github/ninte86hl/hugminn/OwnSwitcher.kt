@@ -238,7 +238,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
         val f = fromPkg
         // cover the app with a black screen so it pauses (and goes quiet) while the switcher is open
-        val pauseIt = { if (isOpen && fromPkg != null && svc.prefs.pauseInSwitcher) PauseActivity.hold(svc) }
+        val pauseIt = { if (isOpen && fromPkg != null && svc.prefs.pauseInSwitcher) PauseActivity.hold(svc, "switcher") }
         if (f != null && !swipe) Snapshots.capture(svc, f) { pauseIt(); afterList() } else { pauseIt(); afterList() }
     }
 
@@ -261,8 +261,8 @@ class OwnSwitcher(private val svc: HugminnService) {
             // Android's recents view is still underneath: back into the app, or home
             val f = fromPkg
             if (f != null) bring(apps.firstOrNull { it.pkg == f } ?: RecentApp(f, -1)) else svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
-            PauseActivity.release(svc, 400)
-        } else PauseActivity.release(svc, if (back) 0 else 500)
+            PauseActivity.release(svc, "switcher", 400)
+        } else PauseActivity.release(svc, "switcher", if (back) 0 else 500)
     }
 
     /** Brings an app (its existing task) to the front. */
@@ -287,7 +287,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         val same = !fromSwipe && !recentsUnder && a.pkg == fromPkg
         close(back = false)
         // the app is already underneath: just uncover it
-        if (!same) bring(a) else PauseActivity.release(svc, 0)
+        if (!same) bring(a) else PauseActivity.release(svc, "switcher", 0)
     }
 
     private fun closeSelected() {
