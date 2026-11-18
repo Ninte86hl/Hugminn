@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.8.6
+- Large tiles polished: rings in the system overview sit with their labels, performance and fan names fit, Wi-Fi list shows the networks in range, a clear note when Wi-Fi or Bluetooth is off, temperature graph uses its useful range.
+- Große Kacheln verbessert: Ringe der System-Übersicht sitzen bei ihren Beschriftungen, Namen bei Leistung und Lüfter passen, die WLAN-Liste zeigt die Netze in Reichweite, klarer Hinweis wenn WLAN oder Bluetooth aus ist, Temperatur-Graph mit sinnvollem Bereich.
+
 ## 1.8.5
 - Elements can be added to the Control Center more than once (e.g. a small and a large music tile).
 - Elemente lassen sich mehrfach ins Control Center legen (z. B. eine kleine und eine große Musik-Kachel).
