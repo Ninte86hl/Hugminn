@@ -92,6 +92,8 @@ class ControlCenter(private val svc: HugminnService) {
         focusVisible = false
         adjusting = false
         metrics = Metrics(svc) { svc.foregroundPkg }
+        // the running game (for "Remember for <game>" in the profile menus)
+        svc.foregroundPkg?.takeIf { Root.available() && Apps.typeOf(it) != AppType.APP }?.let { pkg -> thread { runCatching { GameTitle.current(pkg) } } }
         // Full window over everything; the status bar is covered unless the user wants to keep it.
         val metrics = wm.currentWindowMetrics
         val bounds = metrics.bounds
@@ -1224,6 +1226,20 @@ class ControlCenter(private val svc: HugminnService) {
                 AppProfiles.set(svc, app, kind, if (saved != null) null else now)
                 val at = entries.size - 1
                 svc.ui.post { profileMenu(title, key, table, at, set) }
+            }
+            // per game: the emulator's running game, once it is known
+            GameTitle.titles[app]?.takeIf { Apps.typeOf(app) != AppType.APP }?.let { game ->
+                val gSaved = AppProfiles.ofGame(svc, app, game)?.let { if (kind == "fan") it.fan else it.perf }
+                val idx = entries.size
+                entries += MenuEntry(
+                    if (gSaved != null) t("Für $game gespeichert", "Saved for $game") else t("Für $game merken", "Remember for $game"),
+                    checked = gSaved != null,
+                    hint = if (gSaved != null) t("${table[gSaved] ?: gSaved} · A entfernt", "${table[gSaved] ?: gSaved} · A removes")
+                    else t("Nur dieses Spiel startet mit „${table[now] ?: now}“", "Only this game starts with “${table[now] ?: now}”"),
+                ) {
+                    AppProfiles.set(svc, AppProfiles.gameKey(app, game), kind, if (gSaved != null) null else now)
+                    svc.ui.post { profileMenu(title, key, table, idx, set) }
+                }
             }
         }
         showMenu(title, entries, sel)

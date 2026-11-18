@@ -40,6 +40,17 @@ object GameTitle {
         diag = d.toString()
     }
 
+    /**
+     * Looks up the game [pkg] is running right now (for profiles per game) and keeps it in [titles].
+     * Only for emulators; takes a few root calls, so call it off the main thread.
+     */
+    fun current(pkg: String): String? {
+        if (Apps.typeOf(pkg) == AppType.APP) return null
+        val t = fromOpenFiles(pkg) ?: fromLog(pkg, null) ?: fromRetroArchHistory(pkg, null) ?: titles[pkg]
+        if (t != null && titles[pkg] != t) titles = titles + (pkg to t)
+        return t
+    }
+
     private fun fromOpenFiles(pkg: String, d: StringBuilder? = null): String? {
         val out = Root.execLong("ls -l /proc/\$(pidof -s ${Root.quote(pkg)})/fd 2>/dev/null", 3_000) ?: return null
         // the largest-looking game file wins; .zip only if nothing else is open

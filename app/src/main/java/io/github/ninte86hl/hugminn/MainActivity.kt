@@ -400,10 +400,10 @@ class MainActivity : Activity() {
             val profiles = AppProfiles.all(svc)
             val ap = section(t("Profile pro App", "Profiles per app"))
             ap.addView(text(
-                t("Im Control Center bei Leistung oder Lüfter „Für … merken“ wählen, während das Spiel läuft: " +
-                    "die App startet dann immer mit diesem Profil, danach kommt die vorige Einstellung zurück.",
-                    "In the Control Center, choose “Remember for …” under performance or fan while the game runs: " +
-                        "the app then always starts with that profile, afterwards the previous setting comes back."),
+                t("Im Control Center bei Leistung oder Lüfter „Für … merken“ wählen, während das Spiel läuft – für den ganzen Emulator oder nur dieses Spiel: " +
+                    "es startet dann immer mit diesem Profil, danach kommt die vorige Einstellung zurück. Ein Spielprofil geht vor dem des Emulators.",
+                    "In the Control Center, choose “Remember for …” under performance or fan while the game runs – for the whole emulator or just this game: " +
+                        "it then always starts with that profile, afterwards the previous setting comes back. A game's profile beats the emulator's."),
                 12f, pal.onSurfaceVariant,
             ).apply { setPadding(0, d(6), 0, d(6)) })
             if (profiles.isEmpty()) ap.addView(text(t("Noch keine gespeichert", "None saved yet"), 14f, pal.onSurface))
@@ -412,7 +412,8 @@ class MainActivity : Activity() {
                     p.perf?.let { Device.perfProfiles[it] ?: it },
                     p.fan?.let { t("Lüfter: ", "Fan: ") + (Device.fanProfiles[it] ?: it) },
                 ).joinToString(" · ")
-                row(ap, Apps.label(this, pkg), parts, { t("Entfernen", "Remove") }) {
+                val who = AppProfiles.titleOf(pkg)?.let { g -> "$g · ${Apps.label(this, AppProfiles.pkgOf(pkg))}" } ?: Apps.label(this, pkg)
+                row(ap, who, parts, { t("Entfernen", "Remove") }) {
                     AppProfiles.set(svc, pkg, "perf", null)
                     AppProfiles.set(svc, pkg, "fan", null)
                     content.post { build() }
