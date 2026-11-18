@@ -31,7 +31,7 @@ import kotlin.math.roundToInt
  * Controller: D-pad moves, A chooses, left/right change sliders, B goes back/closes.
  */
 class ControlCenter(private val svc: HugminnService) {
-    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false, val onY: (() -> Unit)? = null)
+    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false, val onY: (() -> Unit)? = null, val round: Boolean = false)
     private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val swatch: Int = 0, val header: Boolean = false, val side: ((Int) -> Unit)? = null, val run: (() -> Unit)?)
 
     var isOpen = false
@@ -512,7 +512,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
         val v = toggleElement(t, e)
-        return v to Item(v, t.act, onY = t.menu)
+        return v to Item(v, t.act, onY = t.menu, round = e.w == 1 && e.h == 1)
     }
 
     /** Quick toggle: 1×1 only the icon, larger with name and state. */
@@ -1646,7 +1646,7 @@ class ControlCenter(private val svc: HugminnService) {
         items.forEachIndexed { i, it ->
             // Same corners as the element itself: round only for the round 1×1 switches of the dot style.
             val v = it.view
-            val circle = round && v.width > 0 && kotlin.math.abs(v.width - v.height) < 4 * d && v.width < 160 * d
+            val circle = round && it.round && v.width > 0
             val r = if (circle) v.width / 2f else 22f * d
             val adj = adjusting && i == focus && it.onAdjust != null
             v.foreground = if (i == focus) shape(0, r, (if (adj) 5 else 3) * d, if (adj) tileOn() else pal.onSurface) else null
