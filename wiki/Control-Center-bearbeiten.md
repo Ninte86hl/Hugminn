@@ -7,7 +7,7 @@ Drück im Control Center **△ / Y**, um das Bearbeiten-Menü zu öffnen.
 | Eintrag | Was er macht |
 | --- | --- |
 | Anordnen & Größe | Bearbeitungsmodus: Elemente verschieben, vergrößern, entfernen |
-| Element hinzufügen | Schalter, Anzeigen und Regler hinzufügen, nach Art sortiert |
+| Element hinzufügen | Schalter, Anzeigen und Regler hinzufügen; die drei Kategorien liegen nebeneinander, ◀ ▶ oder L1/R1 wechselt. Elemente dürfen auch mehrfach vorkommen |
 | Kachelfarbe | Farbe aktiver Kacheln; sie wird in jedem Stil zur Akzentfarbe |
 | Stil | Modern, Pixel, Punktmatrix oder Cocoon |
 | Leistungs-Overlay | [Overlay](Leistungs-Overlay) einschalten, Position, Größe und Werte wählen |
