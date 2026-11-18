@@ -82,6 +82,8 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 - Bluetooth submenu: paired devices (connect / disconnect), search and pair new devices
 - Sliders for volume and brightness in 5 % steps, vertical or horizontal; confirm with A before the D-pad changes them
 - Cards for performance and fan profiles (open the profile menu), CPU, GPU, RAM, temperatures, battery and FPS
+- Performance and fan profile per app: choose "Remember for …" while an emulator runs, and it always starts with that profile; leaving it brings back the previous setting
+- The switcher shows the game an emulator is running (from the launcher, the open game file, RetroArch's log), e.g. "Crash Bandicoot 2" above the DuckStation card
 - Gauges coloured by load (traffic light, cool → warm, accent colour, monochrome)
 - Steam-like performance overlay in games (FPS, CPU, GPU, RAM, temperatures; position and items selectable)
 - Button for Android's settings; own status bar (clock, battery) in the chosen style
