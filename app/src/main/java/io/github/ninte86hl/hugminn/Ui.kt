@@ -296,7 +296,10 @@ class DpadView(ctx: Context, pal: Palette, private val sizeDp: Int) : View(ctx) 
 }
 
 /** Visual style of Hugminn's own screens. */
-enum class UiStyle(val label: String) { MODERN("Modern"), PIXEL("Pixel"), DOTS("Punktmatrix") }
+enum class UiStyle(private val labelDe: String) { MODERN("Modern"), PIXEL("Pixel"), DOTS("Punktmatrix");
+
+    val label get() = tr(labelDe)
+}
 
 /**
  * Shapes and fonts for the chosen style. "Pixel" (matching the Retroid Pocket Classic/Dual design

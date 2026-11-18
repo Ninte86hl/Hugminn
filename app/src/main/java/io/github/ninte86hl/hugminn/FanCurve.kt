@@ -170,7 +170,7 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
             val px = x(liveTemp.coerceIn(tMin, tMax))
             dot.color = pal.onSurfaceVariant
             c.drawLine(px, pad, px, pad + h, dot.apply { strokeWidth = context.dp(1).toFloat() })
-            c.drawText("jetzt ${liveTemp.toInt()}°", px, pad - context.dp(8), text)
+            c.drawText(t("jetzt ${liveTemp.toInt()}°", "now ${liveTemp.toInt()}°"), px, pad - context.dp(8), text)
         }
     }
 }

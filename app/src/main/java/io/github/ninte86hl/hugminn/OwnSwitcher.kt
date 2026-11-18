@@ -366,11 +366,11 @@ class OwnSwitcher(private val svc: HugminnService) {
     private fun openMenu() {
         val a = apps.getOrNull(sel) ?: return
         val items = mutableListOf<Pair<String, () -> Unit>>()
-        items += "App-Info" to {
+        items += tr("App-Info") to {
             close(back = false)
             svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
         }
-        if (Root.available() && apps.size > 1) items += "Alle anderen schließen" to {
+        if (Root.available() && apps.size > 1) items += tr("Alle anderen schließen") to {
             apps.filter { it.pkg != a.pkg }.forEach { o ->
                 removeTask(o)
                 Snapshots.remove(svc, o.pkg)
@@ -509,7 +509,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         val m = menu
         val a = apps.getOrNull(sel)
         if (m != null) {
-            b.addView(text(a?.let { Apps.label(svc, it.pkg) } ?: "Optionen", 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, svc.dp(16), 0) })
+            b.addView(text(a?.let { Apps.label(svc, it.pkg) } ?: tr("Optionen"), 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, svc.dp(16), 0) })
             val items = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
             m.forEachIndexed { i, (label, _) ->
                 val on = i == menuSel
@@ -521,17 +521,17 @@ class OwnSwitcher(private val svc: HugminnService) {
             }
             b.addView(android.widget.HorizontalScrollView(svc).apply { isHorizontalScrollBarEnabled = false; addView(items) },
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Ausführen"))
-            b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+            b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Ausführen")))
+            b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück")))
             return
         }
         if (a == null) {
             b.addView(LinearLayout(svc).apply {
                 orientation = LinearLayout.VERTICAL
-                addView(text("Keine offenen Apps", 17f, pal.onSurface, bold = true))
-                addView(text("Starte ein Spiel, dann taucht es hier auf", 12f, pal.onSurfaceVariant))
+                addView(text(tr("Keine offenen Apps"), 17f, pal.onSurface, bold = true))
+                addView(text(tr("Starte ein Spiel, dann taucht es hier auf"), 12f, pal.onSurfaceVariant))
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+            b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück")))
             return
         }
         b.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, a.pkg)) }, LinearLayout.LayoutParams(svc.dp(40), svc.dp(40)))
@@ -539,13 +539,13 @@ class OwnSwitcher(private val svc: HugminnService) {
             orientation = LinearLayout.VERTICAL
             setPadding(svc.dp(12), 0, 0, 0)
             addView(text(Apps.label(svc, a.pkg), 17f, pal.onSurface, bold = true))
-            addView(text("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", 12f, pal.onSurfaceVariant))
+            addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}"), 12f, pal.onSurfaceVariant))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, "Wechseln"))
-        b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Öffnen"))
-        b.addView(hint(KeyEvent.KEYCODE_BUTTON_X, "Schließen"))
-        b.addView(hint(KeyEvent.KEYCODE_BUTTON_Y, "Optionen"))
-        b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+        if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln")))
+        b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Öffnen")))
+        b.addView(hint(KeyEvent.KEYCODE_BUTTON_X, tr("Schließen")))
+        b.addView(hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Optionen")))
+        b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück")))
     }
 
     /** The cards: the selected one large in the middle, the others smaller to the sides. */
@@ -633,7 +633,7 @@ class OwnSwitcher(private val svc: HugminnService) {
 
         override fun onDraw(c: Canvas) {
             if (apps.isEmpty()) {
-                c.drawText("Keine offenen Apps", width / 2f, height / 2f, emptyPaint)
+                c.drawText(tr("Keine offenen Apps"), width / 2f, height / 2f, emptyPaint)
                 return
             }
             val order = apps.indices.sortedByDescending { abs(it - pos) }

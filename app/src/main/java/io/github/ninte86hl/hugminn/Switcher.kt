@@ -217,7 +217,7 @@ class Switcher(private val svc: HugminnService) {
         val settled = stableNow >= 2 || streak >= 5
         if (!settled) {
             if (attempt > 60) svc.ui.post {
-                Toast.makeText(svc, "Hugminn: Android-Übersicht nicht gefunden", Toast.LENGTH_SHORT).show()
+                Toast.makeText(svc, tr("Hugminn: Android-Übersicht nicht gefunden"), Toast.LENGTH_SHORT).show()
                 close(goBack = false)
             } else h.postDelayed({ scan(gen, attempt + 1, now, streak, stableNow) }, 50)
             return
@@ -553,9 +553,9 @@ class Switcher(private val svc: HugminnService) {
         val c = cards.getOrNull(sel)
         if (!scanned) {
             row.addView(View(svc), LinearLayout.LayoutParams(0, 1, 1f))
-            row.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, "Wechseln"))
-            row.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Öffnen"))
-            row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+            row.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln")))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Öffnen")))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück")))
             b.addView(row, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             return
         }
@@ -565,28 +565,28 @@ class Switcher(private val svc: HugminnService) {
                 val col = LinearLayout(svc).apply {
                     orientation = LinearLayout.VERTICAL
                     setPadding(svc.dp(12), 0, 0, 0)
-                    addView(text(c.label ?: "Unbekannte App", 17f, pal.onSurface, bold = true))
-                    addView(text("${c.type.label} · ${sel + 1} von ${cards.size}", 12f, pal.onSurfaceVariant))
+                    addView(text(c.label ?: tr("Unbekannte App"), 17f, pal.onSurface, bold = true))
+                    addView(text(t("${c.type.label} · ${sel + 1} von ${cards.size}", "${c.type.label} · ${sel + 1} of ${cards.size}"), 12f, pal.onSurfaceVariant))
                 }
                 row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             } else {
                 val col = LinearLayout(svc).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(text("Keine offenen Apps", 17f, pal.onSurface, bold = true))
-                    addView(text("Starte ein Spiel, dann taucht es hier auf", 12f, pal.onSurfaceVariant))
+                    addView(text(tr("Keine offenen Apps"), 17f, pal.onSurface, bold = true))
+                    addView(text(tr("Starte ein Spiel, dann taucht es hier auf"), 12f, pal.onSurfaceVariant))
                 }
                 row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-                row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+                row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück")))
                 b.addView(row, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                 return
             }
-            row.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, "Wechseln"))
-            row.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Öffnen"))
-            row.addView(hint(KeyEvent.KEYCODE_BUTTON_X, "Schließen"))
-            row.addView(hint(KeyEvent.KEYCODE_BUTTON_Y, "Optionen"))
-            row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+            row.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln")))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Öffnen")))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_X, tr("Schließen")))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Optionen")))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück")))
         } else {
-            row.addView(text(c?.label ?: "Optionen", 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, svc.dp(16), 0) })
+            row.addView(text(c?.label ?: tr("Optionen"), 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, svc.dp(16), 0) })
             val items = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
             m.forEachIndexed { i, it ->
                 val on = i == menuSel
@@ -602,8 +602,8 @@ class Switcher(private val svc: HugminnService) {
                 isHorizontalScrollBarEnabled = false
                 addView(items)
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            row.addView(hint(KeyEvent.KEYCODE_BUTTON_A, "Ausführen"))
-            row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück"))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Ausführen")))
+            row.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück")))
         }
         b.addView(row, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     }
@@ -749,17 +749,17 @@ class Switcher(private val svc: HugminnService) {
         val c = cards.getOrNull(sel) ?: return
         val items = mutableListOf<Item>()
         c.pkg?.let { pkg ->
-            items += Item("App-Info") {
+            items += Item(tr("App-Info")) {
                 close(goBack = false)
                 svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg")))
             }
-            if (Root.available()) items += Item("Beenden erzwingen") {
+            if (Root.available()) items += Item(tr("Beenden erzwingen")) {
                 busyUntil = System.currentTimeMillis() + 1500
                 Root.run("am force-stop $pkg") { svc.ui.post { closeApp() } }
             }
         }
         findIn("clear_all_button")?.let { btn ->
-            items += Item("Alle schließen") {
+            items += Item(tr("Alle schließen")) {
                 close(goBack = false)
                 btn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             }
@@ -889,7 +889,7 @@ class ShellView(
         c.drawPath(path, fill)
         if (f == null) return
         if (hole == null) {
-            if (f.snaps.isEmpty()) c.drawText("Keine offenen Apps", width / 2f, (statusH + barTop) / 2f, emptyPaint)
+            if (f.snaps.isEmpty()) c.drawText(tr("Keine offenen Apps"), width / 2f, (statusH + barTop) / 2f, emptyPaint)
             return
         }
         c.save()

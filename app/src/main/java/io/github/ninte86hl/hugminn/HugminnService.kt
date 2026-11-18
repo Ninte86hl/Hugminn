@@ -69,6 +69,7 @@ class HugminnService : AccessibilityService() {
         Crash.install(this)
         prefs = Prefs(this)
         prefs.forgetOld()
+        Lang.init(this)
         watchScreenshots()
         switcher = Switcher(this)
         own = OwnSwitcher(this)
@@ -170,7 +171,7 @@ class HugminnService : AccessibilityService() {
                 val now = System.currentTimeMillis()
                 if (now - Shot.savedAt < 4_000 || now - shotsAt < 3_000) return
                 shotsAt = now
-                Notice.show(this@HugminnService, "Screenshot gespeichert")
+                Notice.show(this@HugminnService, tr("Screenshot gespeichert"))
             }
         }
         runCatching { contentResolver.registerContentObserver(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, o) }

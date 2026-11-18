@@ -341,7 +341,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
         }
         body.addView(board, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-        if (!editing && placed.isEmpty()) body.addView(text("Leer – Y drücken und „Anordnen“ wählen", 15f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER },
+        if (!editing && placed.isEmpty()) body.addView(text(tr("Leer – Y drücken und „Anordnen“ wählen"), 15f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER },
             FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         gearItem?.let { if (!editing) items += it }
         if (!editing) {
@@ -457,23 +457,23 @@ class ControlCenter(private val svc: HugminnService) {
             footer.addView(text(s, 13f, pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
         }
         val pc = pages() + if (editing) 1 else 0
-        if (pc > 1) footer.addView(text("Seite ${gridPage + 1}/$pc", 13f, pal.onSurfaceVariant).apply { setPadding(0, 0, 16 * d, 0) })
+        if (pc > 1) footer.addView(text(t("Seite ${gridPage + 1}/$pc", "Page ${gridPage + 1}/$pc"), 13f, pal.onSurfaceVariant).apply { setPadding(0, 0, 16 * d, 0) })
         if (editing) {
-            footer.addView(text(if (holding) "Verschieben: Steuerkreuz" else "Bearbeiten", 13f, pal.primary, bold = true).apply { setPadding(0, 0, 16 * d, 0) }, lp(0, WRAP, 1f))
-            if (holding) hint(KeyEvent.KEYCODE_BUTTON_A, "Ablegen") else {
-                hint(KeyEvent.KEYCODE_BUTTON_A, if (elementAt(cursorX, cursorY) >= 0) "Optionen" else "Hinzufügen")
-                hint(KeyEvent.KEYCODE_BUTTON_X, "Entfernen")
-                hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
+            footer.addView(text(if (holding) tr("Verschieben: Steuerkreuz") else tr("Bearbeiten"), 13f, pal.primary, bold = true).apply { setPadding(0, 0, 16 * d, 0) }, lp(0, WRAP, 1f))
+            if (holding) hint(KeyEvent.KEYCODE_BUTTON_A, tr("Ablegen")) else {
+                hint(KeyEvent.KEYCODE_BUTTON_A, if (elementAt(cursorX, cursorY) >= 0) tr("Optionen") else tr("Hinzufügen"))
+                hint(KeyEvent.KEYCODE_BUTTON_X, tr("Entfernen"))
+                hint(KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             }
-            hint(KeyEvent.KEYCODE_BUTTON_B, "Fertig")
+            hint(KeyEvent.KEYCODE_BUTTON_B, tr("Fertig"))
         } else {
             hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Screenshot")
-            if (pages() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
+            if (pages() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
-            if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_X, "Optionen")
-            hint(KeyEvent.KEYCODE_BUTTON_Y, "Bearbeiten")
-            hint(KeyEvent.KEYCODE_BUTTON_A, if (adjusting) "Fertig" else "Auswählen")
-            hint(KeyEvent.KEYCODE_BUTTON_B, "Zurück")
+            if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_X, tr("Optionen"))
+            hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Bearbeiten"))
+            hint(KeyEvent.KEYCODE_BUTTON_A, if (adjusting) tr("Fertig") else tr("Auswählen"))
+            hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück"))
         }
     }
 
@@ -491,14 +491,14 @@ class ControlCenter(private val svc: HugminnService) {
         val id = e.id
         if (GridLayout.isSlider(id)) {
             val vertical = e.h > e.w
-            val v = if (id == "brightness") BigSlider(svc, pal, IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
+            val v = if (id == "brightness") BigSlider(svc, pal, IconView.Kind.SUN, tr("Helligkeit"), 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
             else {
                 // Android has only 16 media steps: Hugminn keeps its own 0-100 % (5 % steps) and sets the nearest one
                 val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
                 val idx = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val saved = svc.prefs.volumePct
                 val pct = if (saved >= 0 && Math.round(saved * max / 100f) == idx) saved else Math.round(idx * 100f / max)
-                BigSlider(svc, pal, IconView.Kind.SPEAKER, "Lautstärke", 100, pct, pixel, vertical) { p ->
+                BigSlider(svc, pal, IconView.Kind.SPEAKER, tr("Lautstärke"), 100, pct, pixel, vertical) { p ->
                     svc.prefs.volumePct = p
                     audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(p * max / 100f), 0)
                 }
@@ -566,22 +566,22 @@ class ControlCenter(private val svc: HugminnService) {
         val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
         return when (id) {
             "fps" -> InfoSpec(IconView.Kind.REFRESH, "FPS", { s -> if (s.fps >= 0) "${s.fps}" else "–" },
-                { _ -> "${Math.round(display?.refreshRate ?: 60f)} Hz Modus" }, onA = { overlayMenu() })
-            "perf" -> InfoSpec(IconView.Kind.BOLT, "LEISTUNG", { _ -> Device.perfLabel(svc) }, { s -> "CPU bis %.2f GHz".format(s.cpuMhz / 1000f) },
-                onA = { profileMenu("Leistungsprofil", "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } } })
-            "fan" -> InfoSpec(IconView.Kind.FAN, "LÜFTER", { _ -> Device.fanLabel(svc) },
-                { _ -> if (FanCurve.isRunning()) "${FanCurve.currentPct} % bei ${FanCurve.currentTemp.toInt()} °C" else "Profil" },
-                onA = { profileMenu("Lüfterprofil", "fan_mode", Device.fanProfiles) { v -> chooseFan(v) } })
+                { _ -> t("${Math.round(display?.refreshRate ?: 60f)} Hz Modus", "${Math.round(display?.refreshRate ?: 60f)} Hz mode") }, onA = { overlayMenu() })
+            "perf" -> InfoSpec(IconView.Kind.BOLT, tr("LEISTUNG"), { _ -> Device.perfLabel(svc) }, { s -> t("CPU bis %.2f GHz", "CPU up to %.2f GHz").format(s.cpuMhz / 1000f) },
+                onA = { profileMenu(tr("Leistungsprofil"), "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } } })
+            "fan" -> InfoSpec(IconView.Kind.FAN, tr("LÜFTER"), { _ -> Device.fanLabel(svc) },
+                { _ -> if (FanCurve.isRunning()) t("${FanCurve.currentPct} % bei ${FanCurve.currentTemp.toInt()} °C", "${FanCurve.currentPct} % at ${FanCurve.currentTemp.toInt()} °C") else tr("Profil") },
+                onA = { profileMenu(tr("Lüfterprofil"), "fan_mode", Device.fanProfiles) { v -> chooseFan(v) } })
             "temp" -> InfoSpec(IconView.Kind.THERMO, "TEMP", { s -> if (s.cpuTemp > 0) "${s.cpuTemp.toInt()}°" else "–" },
-                { s -> listOfNotNull(s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()}°" }, s.batTemp.takeIf { it > 0 }?.let { "Akku ${it.toInt()}°" }).joinToString(" · ") },
+                { s -> listOfNotNull(s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()}°" }, s.batTemp.takeIf { it > 0 }?.let { t("Akku ${it.toInt()}°", "Battery ${it.toInt()}°") }).joinToString(" · ") },
                 { s -> (s.cpuTemp - 40f) / 45f }, colorValue = true)
-            "battery" -> InfoSpec(IconView.Kind.PLUG, "AKKU", { s -> "${s.batPct} %" }, { s -> "%.1f W".format(s.watts) + if (s.charging) " · lädt" else "" },
+            "battery" -> InfoSpec(IconView.Kind.PLUG, tr("AKKU"), { s -> "${s.batPct} %" }, { s -> "%.1f W".format(s.watts) + if (s.charging) tr(" · lädt") else "" },
                 { s -> 1f - s.batPct / 100f }, colorValue = true)
             "cpu" -> InfoSpec(IconView.Kind.BOLT, "CPU", { s -> "${s.cpuPct.toInt()} %" }, { s -> "%.2f GHz".format(s.cpuMhz / 1000f) }, { s -> s.cpuPct / 100f })
             "gpu" -> InfoSpec(IconView.Kind.REFRESH, "GPU", { s -> "${s.gpuPct.toInt()} %" }, { s -> "${s.gpuMhz} MHz" }, { s -> s.gpuPct / 100f })
             "ram" -> InfoSpec(IconView.Kind.SCREEN, "RAM", { s -> "%.1f GB".format(s.ramUsedMb / 1024f) },
-                { s -> "von ${Device.ramInstalledGb(s.ramTotalMb)} GB" }, { s -> if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f })
-            "power" -> InfoSpec(IconView.Kind.PLUG, "WATT", { s -> "%.1f W".format(s.watts) }, { s -> if (s.charging) "lädt" else "aus dem Akku" }, { s -> s.watts / 15f })
+                { s -> t("von ${Device.ramInstalledGb(s.ramTotalMb)} GB", "of ${Device.ramInstalledGb(s.ramTotalMb)} GB") }, { s -> if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f })
+            "power" -> InfoSpec(IconView.Kind.PLUG, "WATT", { s -> "%.1f W".format(s.watts) }, { s -> if (s.charging) tr("lädt") else tr("aus dem Akku") }, { s -> s.watts / 15f })
             else -> null
         }
     }
@@ -674,10 +674,10 @@ class ControlCenter(private val svc: HugminnService) {
             when (b) {
                 CcBlock.TILES -> add(tilesBlock(), lp(MATCH, 0, 2.2f * size("tiles")))
                 CcBlock.FPS -> add(fpsBlock(), lp(MATCH, 0, 1.3f * size("fps")))
-                CcBlock.BRIGHTNESS -> add(slider(IconView.Kind.SUN, "Helligkeit", 255, Device.brightness(svc)) { Device.setBrightness(svc, it) }, lp(MATCH, (50 * d * size("brightness")).toInt()))
+                CcBlock.BRIGHTNESS -> add(slider(IconView.Kind.SUN, tr("Helligkeit"), 255, Device.brightness(svc)) { Device.setBrightness(svc, it) }, lp(MATCH, (50 * d * size("brightness")).toInt()))
                 CcBlock.VOLUME -> {
                     val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                    add(slider(IconView.Kind.SPEAKER, "Lautstärke", max, audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
+                    add(slider(IconView.Kind.SPEAKER, tr("Lautstärke"), max, audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
                         audio.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
                     }, lp(MATCH, (50 * d * size("volume")).toInt()))
                 }
@@ -712,13 +712,13 @@ class ControlCenter(private val svc: HugminnService) {
         row.addView(text(" FPS", 18f, pal.onSurfaceVariant, bold = true).apply { setPadding(0, 0, 0, 10 * d) })
         fps.addView(modeChip)
         fps.addView(row)
-        fps.addView(text("Bildrate des Spiels · A: Leistungs-Overlay", 12f, pal.onSurfaceVariant))
+        fps.addView(text(tr("Bildrate des Spiels · A: Leistungs-Overlay"), 12f, pal.onSurfaceVariant))
         fps.setOnClickListener { overlayMenu() }
         cardItems += Item(fps, { overlayMenu() })
         val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
         graphUpdates += { s ->
             value.text = if (s.fps >= 0) "${s.fps}" else "–"
-            modeChip.text = "${Math.round(display?.refreshRate ?: 60f)} Hz Modus"
+            modeChip.text = t("${Math.round(display?.refreshRate ?: 60f)} Hz Modus", "${Math.round(display?.refreshRate ?: 60f)} Hz mode")
         }
         return fps
     }
@@ -769,30 +769,30 @@ class ControlCenter(private val svc: HugminnService) {
             }
         }
         return when (b) {
-            CcBlock.TEMP -> info(IconView.Kind.THERMO, "TEMPERATUR") { big, sub, s ->
+            CcBlock.TEMP -> info(IconView.Kind.THERMO, tr("TEMPERATUR")) { big, sub, s ->
                 big.text = if (s.cpuTemp > 0) "${s.cpuTemp.toInt()} °C" else "–"
                 big.setTextColor(if (s.cpuTemp > 0 && gp != GaugePalette.MONO) GaugeColors.of(pal, gp, (s.cpuTemp - 40f) / 45f) else pal.onSurface)
                 sub.text = listOfNotNull(
                     s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()} °C" },
-                    s.batTemp.takeIf { it > 0 }?.let { "Akku ${it.toInt()} °C" },
+                    s.batTemp.takeIf { it > 0 }?.let { t("Akku ${it.toInt()} °C", "Battery ${it.toInt()} °C") },
                 ).joinToString(" · ")
             }
-            CcBlock.PERF -> info(IconView.Kind.BOLT, "LEISTUNG", onA = {
-                profileMenu("Leistungsprofil", "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
+            CcBlock.PERF -> info(IconView.Kind.BOLT, tr("LEISTUNG"), onA = {
+                profileMenu(tr("Leistungsprofil"), "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
             }) { big, sub, s ->
                 big.text = Device.perfLabel(svc)
-                sub.text = "CPU bis %.2f GHz".format(s.cpuMhz / 1000f)
+                sub.text = t("CPU bis %.2f GHz", "CPU up to %.2f GHz").format(s.cpuMhz / 1000f)
             }
-            CcBlock.FAN -> info(IconView.Kind.FAN, "LÜFTER", onA = {
-                profileMenu("Lüfterprofil", "fan_mode", Device.fanProfiles) { v -> Device.setFan(v) { refreshAll() } }
+            CcBlock.FAN -> info(IconView.Kind.FAN, tr("LÜFTER"), onA = {
+                profileMenu(tr("Lüfterprofil"), "fan_mode", Device.fanProfiles) { v -> Device.setFan(v) { refreshAll() } }
             }) { big, sub, _ ->
                 big.text = Device.fanLabel(svc)
-                sub.text = Device.fanSpeed(svc)?.let { "Drehzahl $it" } ?: ""
+                sub.text = Device.fanSpeed(svc)?.let { t("Drehzahl $it", "Speed $it") } ?: ""
             }
-            CcBlock.BATTERY -> info(IconView.Kind.PLUG, "AKKU") { big, sub, s ->
+            CcBlock.BATTERY -> info(IconView.Kind.PLUG, tr("AKKU")) { big, sub, s ->
                 big.text = "${s.batPct} %"
                 big.setTextColor(if (gp != GaugePalette.MONO) GaugeColors.of(pal, gp, 1f - s.batPct / 100f) else pal.onSurface)
-                sub.text = "%.1f W".format(s.watts) + if (s.charging) " · lädt" else ""
+                sub.text = "%.1f W".format(s.watts) + if (s.charging) tr(" · lädt") else ""
             }
             CcBlock.CPU -> gauge("CPU", IconView.Kind.BOLT, { s ->
                 Triple(s.cpuPct / 100f, "${s.cpuPct.toInt()} %", "%.2f GHz".format(s.cpuMhz / 1000f))
@@ -800,12 +800,12 @@ class ControlCenter(private val svc: HugminnService) {
             CcBlock.GPU -> gauge("GPU", IconView.Kind.REFRESH, { s ->
                 Triple(s.gpuPct / 100f, "${s.gpuPct.toInt()} %", "${s.gpuMhz} MHz")
             }, "GPU")
-            CcBlock.POWER -> gauge("LEISTUNGSAUFNAHME", IconView.Kind.PLUG, { s ->
-                Triple(s.watts / 15f, "%.1f W".format(s.watts), if (s.charging) "lädt" else "aus dem Akku")
+            CcBlock.POWER -> gauge(tr("LEISTUNGSAUFNAHME"), IconView.Kind.PLUG, { s ->
+                Triple(s.watts / 15f, "%.1f W".format(s.watts), if (s.charging) tr("lädt") else tr("aus dem Akku"))
             }, "WATT")
             CcBlock.RAM -> gauge("RAM", IconView.Kind.SCREEN, { s ->
                 val pct = if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f
-                Triple(pct, "%.1f GB".format(s.ramUsedMb / 1024f), "${(pct * 100).toInt()} % von ${Math.round(s.ramTotalMb / 1024f)} GB")
+                Triple(pct, "%.1f GB".format(s.ramUsedMb / 1024f), t("${(pct * 100).toInt()} % von ${Math.round(s.ramTotalMb / 1024f)} GB", "${(pct * 100).toInt()} % of ${Math.round(s.ramTotalMb / 1024f)} GB"))
             }, "RAM")
             else -> View(svc)
         }
@@ -826,67 +826,67 @@ class ControlCenter(private val svc: HugminnService) {
     private fun pageCount() = ((tiles.size + perPage - 1) / perPage).coerceAtLeast(1)
 
     private fun tileFor(id: String, rootOk: Boolean): Tile? = when (id) {
-        "wifi" -> Tile("WLAN", IconView.Kind.WIFI, { if (Device.wifiOn(svc)) Device.wifiName(svc) ?: "An" else "Aus" }, { Device.wifiOn(svc) }, { wifiMenu(rootOk) }) {
+        "wifi" -> Tile(tr("WLAN"), IconView.Kind.WIFI, { if (Device.wifiOn(svc)) Device.wifiName(svc) ?: tr("An") else tr("Aus") }, { Device.wifiOn(svc) }, { wifiMenu(rootOk) }) {
             if (rootOk) Device.setWifi(!Device.wifiOn(svc)) { refreshAll() } else wifiMenu(false)
         }
         "bt" -> Tile("Bluetooth", IconView.Kind.BLUETOOTH, {
-            if (!Device.btOn(svc)) "Aus" else Device.pairedDevices(svc).firstOrNull { it.second }?.first ?: "An"
+            if (!Device.btOn(svc)) tr("Aus") else Device.pairedDevices(svc).firstOrNull { it.second }?.first ?: tr("An")
         }, { Device.btOn(svc) }, { btMenu(rootOk) }) {
             if (rootOk) Device.setBt(!Device.btOn(svc)) { refreshAll() } else btMenu(false)
         }
-        "perf" -> if (rootOk && Device.sys(svc, "performance_mode") != null) Tile("Leistung", IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
-            profileMenu("Leistung", "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
+        "perf" -> if (rootOk && Device.sys(svc, "performance_mode") != null) Tile(tr("Leistung"), IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
+            profileMenu(tr("Leistung"), "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
         } else null
-        "fan" -> if (rootOk && Device.sys(svc, "fan_mode") != null) Tile("Lüfter", IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
-            profileMenu("Lüfter", "fan_mode", Device.fanProfiles) { v -> chooseFan(v) }
+        "fan" -> if (rootOk && Device.sys(svc, "fan_mode") != null) Tile(tr("Lüfter"), IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
+            profileMenu(tr("Lüfter"), "fan_mode", Device.fanProfiles) { v -> chooseFan(v) }
         } else null
         "refresh" -> {
             val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
             if (rootOk && display?.supportedModes?.any { it.refreshRate > 100f } == true)
-                Tile("Bildrate", IconView.Kind.REFRESH, { if (Device.highRefresh(svc)) "120 Hz" else "60 Hz" }, { Device.highRefresh(svc) }) {
+                Tile(tr("Bildrate"), IconView.Kind.REFRESH, { if (Device.highRefresh(svc)) "120 Hz" else "60 Hz" }, { Device.highRefresh(svc) }) {
                     Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
                 } else null
         }
-        "leds" -> if (rootOk && Device.sys(svc, "joystick_light_enabled") != null) Tile("Stick-LEDs", IconView.Kind.LED, { if (Device.stickLeds(svc)) "An" else "Aus" }, { Device.stickLeds(svc) }, { ledMenu() }) { toggleLeds() } else null
-        "dnd" -> if (rootOk) Tile("Nicht stören", IconView.Kind.MOON, { if (Device.dnd(svc)) "An" else "Aus" }, { Device.dnd(svc) }) {
+        "leds" -> if (rootOk && Device.sys(svc, "joystick_light_enabled") != null) Tile(tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.stickLeds(svc)) tr("An") else tr("Aus") }, { Device.stickLeds(svc) }, { ledMenu() }) { toggleLeds() } else null
+        "dnd" -> if (rootOk) Tile(tr("Nicht stören"), IconView.Kind.MOON, { if (Device.dnd(svc)) tr("An") else tr("Aus") }, { Device.dnd(svc) }) {
             Device.setDnd(!Device.dnd(svc)) { refreshAll() }
         } else null
-        "airplane" -> if (rootOk) Tile("Flugmodus", IconView.Kind.AIRPLANE, { if (Device.airplane(svc)) "An" else "Aus" }, { Device.airplane(svc) }) {
+        "airplane" -> if (rootOk) Tile(tr("Flugmodus"), IconView.Kind.AIRPLANE, { if (Device.airplane(svc)) tr("An") else tr("Aus") }, { Device.airplane(svc) }) {
             Device.setAirplane(!Device.airplane(svc)) { refreshAll() }
         } else null
-        "rotation" -> Tile("Drehung sperren", IconView.Kind.ROTATE, { if (Device.rotationLocked(svc)) "Gesperrt" else "Automatisch" }, { Device.rotationLocked(svc) }) {
+        "rotation" -> Tile(tr("Drehung sperren"), IconView.Kind.ROTATE, { if (Device.rotationLocked(svc)) tr("Gesperrt") else tr("Automatisch") }, { Device.rotationLocked(svc) }) {
             Device.setRotationLocked(svc, !Device.rotationLocked(svc)) { refreshAll() }
         }
-        "screen" -> if (rootOk && Device.sys(svc, "keep_screen_on") != null) Tile("Bildschirm an", IconView.Kind.SCREEN, { if (Device.keepScreenOn(svc)) "An" else "Aus" }, { Device.keepScreenOn(svc) }) {
+        "screen" -> if (rootOk && Device.sys(svc, "keep_screen_on") != null) Tile(tr("Bildschirm an"), IconView.Kind.SCREEN, { if (Device.keepScreenOn(svc)) tr("An") else tr("Aus") }, { Device.keepScreenOn(svc) }) {
             Device.setKeepScreenOn(!Device.keepScreenOn(svc)) { refreshAll() }
         } else null
-        "clean" -> if (rootOk) Tile("Speicher leeren", IconView.Kind.BROOM, { null }, { false }) {
+        "clean" -> if (rootOk) Tile(tr("Speicher leeren"), IconView.Kind.BROOM, { null }, { false }) {
             Thread {
                 val mb = Device.cleanMemory(svc)
-                svc.ui.post { android.widget.Toast.makeText(svc, "$mb MB freigegeben", android.widget.Toast.LENGTH_SHORT).show() }
+                svc.ui.post { android.widget.Toast.makeText(svc, t("$mb MB freigegeben", "$mb MB freed"), android.widget.Toast.LENGTH_SHORT).show() }
             }.start()
         } else null
-        "landscape" -> sysTile(rootOk, "Querformat erzwingen", IconView.Kind.SCREEN, "force_landscape")
+        "landscape" -> sysTile(rootOk, tr("Querformat erzwingen"), IconView.Kind.SCREEN, "force_landscape")
         "vibration" -> sysTile(rootOk, "Vibration", IconView.Kind.VIBRATE, "haptic_feedback_enabled")
-        "keymapper" -> sysTile(rootOk, "Tastenzuordnung", IconView.Kind.GAMEPAD, "key_adapter_enable")
-        "mouse" -> sysTile(rootOk, "Mausmodus", IconView.Kind.MOUSE, "global_gamepad_to_mouse_mode")
-        "homelock" -> sysTile(rootOk, "Home-Sperre", IconView.Kind.LOCK, "prevent_press_home_accidentally")
-        "chargesep" -> sysTile(rootOk, "Direkte Stromversorgung", IconView.Kind.PLUG, "is_charging_separation")
-        "trigger" -> if (rootOk && Device.sys(svc, "trigger_input_mode") != null) Tile("Trigger-Modus", IconView.Kind.GAMEPAD, {
+        "keymapper" -> sysTile(rootOk, tr("Tastenzuordnung"), IconView.Kind.GAMEPAD, "key_adapter_enable")
+        "mouse" -> sysTile(rootOk, tr("Mausmodus"), IconView.Kind.MOUSE, "global_gamepad_to_mouse_mode")
+        "homelock" -> sysTile(rootOk, tr("Home-Sperre"), IconView.Kind.LOCK, "prevent_press_home_accidentally")
+        "chargesep" -> sysTile(rootOk, tr("Direkte Stromversorgung"), IconView.Kind.PLUG, "is_charging_separation")
+        "trigger" -> if (rootOk && Device.sys(svc, "trigger_input_mode") != null) Tile(tr("Trigger-Modus"), IconView.Kind.GAMEPAD, {
             Device.profileLabel(svc, "trigger_input_mode", Device.triggerModes)
         }, { false }) {
-            profileMenu("Trigger-Modus", "trigger_input_mode", Device.triggerModes) { v -> Device.setSys("trigger_input_mode", v) { refreshAll() } }
+            profileMenu(tr("Trigger-Modus"), "trigger_input_mode", Device.triggerModes) { v -> Device.setSys("trigger_input_mode", v) { refreshAll() } }
         } else null
-        "controller" -> if (rootOk && Device.sys(svc, "temp_abxy_layout_mode") != null) Tile("Tastenlayout", IconView.Kind.GAMEPAD, {
+        "controller" -> if (rootOk && Device.sys(svc, "temp_abxy_layout_mode") != null) Tile(tr("Tastenlayout"), IconView.Kind.GAMEPAD, {
             if (Glyphs.nintendoLayout()) "Retroid" else "Xbox"
         }, { false }) {
-            showMenu("Tastenlayout", listOf(
-                MenuEntry("Xbox (A unten)", checked = !Glyphs.nintendoLayout()) { Device.setControllerLayout(false) { refreshAll() } },
-                MenuEntry("Retroid / Nintendo (A rechts)", checked = Glyphs.nintendoLayout()) { Device.setControllerLayout(true) { refreshAll() } },
+            showMenu(tr("Tastenlayout"), listOf(
+                MenuEntry(tr("Xbox (A unten)"), checked = !Glyphs.nintendoLayout()) { Device.setControllerLayout(false) { refreshAll() } },
+                MenuEntry(tr("Retroid / Nintendo (A rechts)"), checked = Glyphs.nintendoLayout()) { Device.setControllerLayout(true) { refreshAll() } },
             ))
         } else null
-        "theme" -> Tile("Farbschema", IconView.Kind.PALETTE, { svc.prefs.theme.label }, { false }) {
-            showMenu("Farbschema", Theme.values().map { t ->
+        "theme" -> Tile(tr("Farbschema"), IconView.Kind.PALETTE, { svc.prefs.theme.label }, { false }) {
+            showMenu(tr("Farbschema"), Theme.values().map { t ->
                 MenuEntry(t.label, checked = svc.prefs.theme == t) {
                     svc.prefs.theme = t
                     close()
@@ -899,9 +899,9 @@ class ControlCenter(private val svc: HugminnService) {
             svc.ui.postDelayed({ svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) }, 300)
         }
         "rpsettings" -> svc.packageManager.getLaunchIntentForPackage("com.rp.settings")?.let { i ->
-            Tile("Retroid-Einstellungen", IconView.Kind.GAMEPAD, { null }, { false }) { close(); svc.startApp(i) }
+            Tile(tr("Retroid-Einstellungen"), IconView.Kind.GAMEPAD, { null }, { false }) { close(); svc.startApp(i) }
         }
-        "settings" -> Tile("Android-Einstellungen", IconView.Kind.GEAR, { null }, { false }) { openSystem(Settings.ACTION_SETTINGS) }
+        "settings" -> Tile(tr("Android-Einstellungen"), IconView.Kind.GEAR, { null }, { false }) { openSystem(Settings.ACTION_SETTINGS) }
         "hugminn" -> Tile("Hugminn", IconView.Kind.GEAR, { null }, { false }) {
             close()
             svc.startApp(Intent(svc, MainActivity::class.java))
@@ -912,7 +912,7 @@ class ControlCenter(private val svc: HugminnService) {
     /** On/off tile for a firmware system setting; hidden if this device does not have the setting. */
     private fun sysTile(rootOk: Boolean, title: String, icon: IconView.Kind, key: String): Tile? =
         if (!rootOk || Device.sys(svc, key) == null) null
-        else Tile(title, icon, { if (Device.sysOn(svc, key)) "An" else "Aus" }, { Device.sysOn(svc, key) }) {
+        else Tile(title, icon, { if (Device.sysOn(svc, key)) tr("An") else tr("Aus") }, { Device.sysOn(svc, key) }) {
             Device.setSys(key, if (Device.sysOn(svc, key)) "0" else "1") { refreshAll() }
         }
 
@@ -953,7 +953,7 @@ class ControlCenter(private val svc: HugminnService) {
                 grid.addView(row, lp(MATCH, 0, 1f))
             }
             if (shown.size <= 4) grid.addView(View(svc), lp(MATCH, 0, 1f))
-            if (shown.isEmpty()) grid.addView(text("Keine Kacheln – mit Y auswählen", 14f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
+            if (shown.isEmpty()) grid.addView(text(tr("Keine Kacheln – mit Y auswählen"), 14f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
         }
         dots?.let { dr ->
             dr.removeAllViews()
@@ -1044,18 +1044,18 @@ class ControlCenter(private val svc: HugminnService) {
             elevation = 12f * d
             isClickable = true
         }
-        box.addView(text("Eigene Lüfterkurve", 18f, pal.onSurface, bold = true))
+        box.addView(text(tr("Eigene Lüfterkurve"), 18f, pal.onSurface, bold = true))
         val info = text("", 12f, pal.onSurfaceVariant).apply { setPadding(0, 4 * d, 0, 4 * d) }
         box.addView(info)
         val pts = svc.prefs.fanCurve.toMutableList()
         val view = FanCurveView(svc, pal).apply { points = pts.toList(); selected = 1 }
         box.addView(view, lp(560 * d, 240 * d))
-        box.addView(text("◀ ▶ Punkt · ▲ ▼ Drehzahl · A aktivieren · B zurück", 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
+        box.addView(text(tr("◀ ▶ Punkt · ▲ ▼ Drehzahl · A aktivieren · B zurück"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
         fun refreshInfo() {
             val t = FanCurve.currentTemp.takeIf { it > 0 } ?: 0f
             view.liveTemp = t
-            info.text = if (FanCurve.isRunning()) "Aktiv · jetzt ${t.toInt()} °C → ${FanCurve.currentPct} %" else
-                "Unter ${FanCurve.MIN} % geht es nie, ab ${FanCurve.HOT} °C läuft der Lüfter voll"
+            info.text = if (FanCurve.isRunning()) t("Aktiv · jetzt ${t.toInt()} °C → ${FanCurve.currentPct} %", "Active · now ${t.toInt()} °C → ${FanCurve.currentPct} %") else
+                t("Unter ${FanCurve.MIN} % geht es nie, ab ${FanCurve.HOT} °C läuft der Lüfter voll", "Never below ${FanCurve.MIN} %, from ${FanCurve.HOT} °C the fan runs at full speed")
         }
         refreshInfo()
         val tickInfo = object : Runnable { override fun run() { if (menuView === box) { refreshInfo(); svc.ui.postDelayed(this, 1000) } } }
@@ -1079,7 +1079,7 @@ class ControlCenter(private val svc: HugminnService) {
                     svc.prefs.fanCurve = pts.toList()
                     Thread {
                         if (!FanCurve.available()) {
-                            svc.ui.post { Toast.makeText(svc, "Dieses Gerät erlaubt keine eigene Lüftersteuerung", Toast.LENGTH_LONG).show() }
+                            svc.ui.post { Toast.makeText(svc, tr("Dieses Gerät erlaubt keine eigene Lüftersteuerung"), Toast.LENGTH_LONG).show() }
                         } else {
                             svc.prefs.fanCustom = true
                             FanCurve.start(svc)
@@ -1096,7 +1096,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun profileMenu(title: String, key: String, table: Map<String, String>, set: (String) -> Unit) {
         val cur = Device.sys(svc, key)
         val entries = table.map { (v, name) -> MenuEntry(name, checked = v == cur) { set(v) } }.toMutableList()
-        if (cur != null && cur !in table) entries += MenuEntry("Profil $cur (unbekannt)", checked = true, run = null)
+        if (cur != null && cur !in table) entries += MenuEntry(t("Profil $cur (unbekannt)", "Profile $cur (unknown)"), checked = true, run = null)
         showMenu(title, entries)
     }
 
@@ -1110,19 +1110,19 @@ class ControlCenter(private val svc: HugminnService) {
         val on = Device.wifiOn(svc)
         val cur = Device.wifiName(svc)
         val entries = mutableListOf<MenuEntry>()
-        entries += MenuEntry(if (on) "WLAN ausschalten" else "WLAN einschalten") { Device.setWifi(!on) { refreshAll() } }
+        entries += MenuEntry(if (on) tr("WLAN ausschalten") else tr("WLAN einschalten")) { Device.setWifi(!on) { refreshAll() } }
         if (on) {
-            entries += MenuEntry(if (scanning) "Netzwerke – suche …" else "Netzwerke", header = true, run = null)
+            entries += MenuEntry(if (scanning) tr("Netzwerke – suche …") else tr("Netzwerke"), header = true, run = null)
             val list = nets.orEmpty()
-            if (nets == null) entries += MenuEntry("Wird geladen …", run = null)
-            else if (list.isEmpty()) entries += MenuEntry("Keine Netzwerke gefunden", run = null)
+            if (nets == null) entries += MenuEntry(tr("Wird geladen …"), run = null)
+            else if (list.isEmpty()) entries += MenuEntry(tr("Keine Netzwerke gefunden"), run = null)
             list.take(14).forEach { n ->
                 val connected = n.ssid == cur
                 val known = saved?.containsKey(n.ssid) == true
-                val lock = if (n.security == "open") "offen" else "gesichert"
+                val lock = if (n.security == "open") tr("offen") else tr("gesichert")
                 val hint = "${Wifi.bars(n.level)}  " + when {
-                    connected -> "Verbunden"
-                    known -> "Gespeichert · $lock"
+                    connected -> tr("Verbunden")
+                    known -> t("Gespeichert · $lock", "Saved · $lock")
                     else -> lock
                 }
                 entries += MenuEntry(n.ssid, checked = connected, hint = hint) {
@@ -1131,7 +1131,7 @@ class ControlCenter(private val svc: HugminnService) {
                         n.security == "eap" || n.security == "wep" -> openSystem(Settings.Panel.ACTION_WIFI)
                         known || n.security == "open" || n.security == "owe" -> {
                             val pw = saved?.get(n.ssid)
-                            Toast.makeText(svc, "Verbinde mit ${n.ssid} …", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(svc, t("Verbinde mit ${n.ssid} …", "Connecting to ${n.ssid} …"), Toast.LENGTH_SHORT).show()
                             Thread { Wifi.connect(n.ssid, n.security, pw); svc.ui.postDelayed({ refreshAll() }, 2500) }.start()
                         }
                         else -> {
@@ -1141,21 +1141,21 @@ class ControlCenter(private val svc: HugminnService) {
                     }
                 }
             }
-            entries += MenuEntry("Weitere Einstellungen …") { openSystem(Settings.Panel.ACTION_WIFI) }
+            entries += MenuEntry(tr("Weitere Einstellungen …")) { openSystem(Settings.Panel.ACTION_WIFI) }
         }
-        val again = menuView != null && menuTitle == "WLAN"
-        showMenu("WLAN", entries, if (again) menuSel else -1)
-        menuTitle = "WLAN"
+        val again = menuView != null && menuTitle == tr("WLAN")
+        showMenu(tr("WLAN"), entries, if (again) menuSel else -1)
+        menuTitle = tr("WLAN")
         if (on && nets == null) {
             // results we have now, then a fresh scan
             Thread {
                 val sv = Wifi.saved()
                 val first = Wifi.scanResults()
-                svc.ui.post { if (menuView != null && menuTitle == "WLAN") wifiMenu(true, first, sv, scanning = true) }
+                svc.ui.post { if (menuView != null && menuTitle == tr("WLAN")) wifiMenu(true, first, sv, scanning = true) }
                 Wifi.startScan()
                 Thread.sleep(3500)
                 val fresh = Wifi.scanResults()
-                svc.ui.post { if (menuView != null && menuTitle == "WLAN") wifiMenu(true, fresh, sv, scanning = false) }
+                svc.ui.post { if (menuView != null && menuTitle == tr("WLAN")) wifiMenu(true, fresh, sv, scanning = false) }
             }.start()
         }
     }
@@ -1164,38 +1164,38 @@ class ControlCenter(private val svc: HugminnService) {
     private fun btMenu(rootOk: Boolean, found: List<android.bluetooth.BluetoothDevice>? = null) {
         val on = Device.btOn(svc)
         val entries = mutableListOf<MenuEntry>()
-        entries += MenuEntry(if (on) "Bluetooth ausschalten" else "Bluetooth einschalten") {
+        entries += MenuEntry(if (on) tr("Bluetooth ausschalten") else tr("Bluetooth einschalten")) {
             if (rootOk) Device.setBt(!on) { refreshAll() } else openSystem(Settings.ACTION_BLUETOOTH_SETTINGS)
         }
         if (on) {
             val paired = Bt.paired(svc).sortedByDescending { Bt.isConnected(it) }
-            entries += MenuEntry("Gekoppelte Geräte", header = true, run = null)
-            if (paired.isEmpty()) entries += MenuEntry("Noch keine", run = null)
+            entries += MenuEntry(tr("Gekoppelte Geräte"), header = true, run = null)
+            if (paired.isEmpty()) entries += MenuEntry(tr("Noch keine"), run = null)
             paired.forEach { d ->
                 val connected = Bt.isConnected(d)
-                entries += MenuEntry(Bt.name(d), checked = connected, hint = if (connected) "Verbunden · A trennt" else "Gekoppelt · A verbindet") {
+                entries += MenuEntry(Bt.name(d), checked = connected, hint = if (connected) tr("Verbunden · A trennt") else tr("Gekoppelt · A verbindet")) {
                     stopBtScan()
-                    Toast.makeText(svc, if (connected) "Trenne ${Bt.name(d)} …" else "Verbinde ${Bt.name(d)} …", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(svc, if (connected) t("Trenne ${Bt.name(d)} …", "Disconnecting ${Bt.name(d)} …") else t("Verbinde ${Bt.name(d)} …", "Connecting ${Bt.name(d)} …"), Toast.LENGTH_SHORT).show()
                     Bt.toggle(svc, d, !connected) { svc.ui.postDelayed({ refreshAll() }, 1500) }
                 }
             }
-            entries += MenuEntry(if (found == null) "Neue Geräte" else "Neue Geräte – suche …", header = true, run = null)
-            if (found == null) entries += MenuEntry("Suchen …", hint = "Gerät in den Kopplungsmodus versetzen") {
+            entries += MenuEntry(if (found == null) tr("Neue Geräte") else tr("Neue Geräte – suche …"), header = true, run = null)
+            if (found == null) entries += MenuEntry(tr("Suchen …"), hint = tr("Gerät in den Kopplungsmodus versetzen")) {
                 svc.ui.post { startBtScan(rootOk) }
             } else {
-                if (found.isEmpty()) entries += MenuEntry("Noch nichts gefunden", run = null)
+                if (found.isEmpty()) entries += MenuEntry(tr("Noch nichts gefunden"), run = null)
                 // devices with a name first; nameless ones (often phones, TVs, beacons nearby) only as a count
                 val named = found.filter { runCatching { it.name }.getOrNull() != null }
                 val nameless = found.size - named.size
                 named.forEach { d ->
-                    entries += MenuEntry(Bt.name(d), hint = "A koppelt") {
+                    entries += MenuEntry(Bt.name(d), hint = tr("A koppelt")) {
                         stopBtScan()
-                        Toast.makeText(svc, "Kopple ${Bt.name(d)} …", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(svc, t("Kopple ${Bt.name(d)} …", "Pairing ${Bt.name(d)} …"), Toast.LENGTH_SHORT).show()
                         Bt.pair(svc, d)
                         Bt.confirmPairing(svc, Bt.name(d))
                     }
                 }
-                if (nameless > 0) entries += MenuEntry("$nameless weitere ohne Namen", hint = "Meist Handys, Fernseher oder Sender in der Nähe", run = null)
+                if (nameless > 0) entries += MenuEntry(t("$nameless weitere ohne Namen", "$nameless more without a name"), hint = tr("Meist Handys, Fernseher oder Sender in der Nähe"), run = null)
             }
         }
         val again = menuView != null && menuTitle == "Bluetooth"
@@ -1239,14 +1239,14 @@ class ControlCenter(private val svc: HugminnService) {
         val pkg = svc.prefs.ledApp.takeIf { it.isNotEmpty() }
         val intent = pkg?.let { svc.packageManager.getLaunchIntentForPackage(it) }
         val entries = mutableListOf<MenuEntry>()
-        entries += MenuEntry(if (on) "LEDs ausschalten" else "LEDs einschalten") { Device.setStickLeds(!on) { refreshAll() } }
+        entries += MenuEntry(if (on) tr("LEDs ausschalten") else tr("LEDs einschalten")) { Device.setStickLeds(!on) { refreshAll() } }
         if (intent != null) {
             val label = runCatching { svc.packageManager.getApplicationLabel(svc.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
-            entries += MenuEntry("Farben & Effekte in $label") {
+            entries += MenuEntry(t("Farben & Effekte in $label", "Colours & effects in $label")) {
                 close()
                 svc.startApp(intent)
             }
-            showMenu("Stick-LEDs", entries, select)
+            showMenu(tr("Stick-LEDs"), entries, select)
             return
         }
         ledFocus = "wheel"
@@ -1315,7 +1315,7 @@ class ControlCenter(private val svc: HugminnService) {
             elevation = 12f * d
             isClickable = true
         }
-        box.addView(text("Stick-LEDs", 18f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, 0, 0, 10 * d) }, lp(MATCH, WRAP))
+        box.addView(text(tr("Stick-LEDs"), 18f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, 0, 0, 10 * d) }, lp(MATCH, WRAP))
         val cols = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
         box.addView(cols)
 
@@ -1358,7 +1358,7 @@ class ControlCenter(private val svc: HugminnService) {
 
         side.addView(header("Stick"))
         val targetRow = LinearLayout(svc)
-        listOf(1 to "Links", 2 to "Rechts", 0 to "Beide").forEach { (i, label) ->
+        listOf(1 to tr("Links"), 2 to tr("Rechts"), 0 to tr("Beide")).forEach { (i, label) ->
             val c = chip(label, i == ledTarget)
             val act = { ledTarget = i; ledFocus = "t$i"; ledPicker() }
             c.setOnClickListener { act() }
@@ -1367,7 +1367,7 @@ class ControlCenter(private val svc: HugminnService) {
         }
         side.addView(targetRow)
 
-        side.addView(header("Farben"))
+        side.addView(header(tr("Farben")))
         Device.ledPresets.chunked(6).forEachIndexed { line, list ->
             val row = LinearLayout(svc)
             list.forEachIndexed { j, (name, c) ->
@@ -1385,7 +1385,7 @@ class ControlCenter(private val svc: HugminnService) {
             side.addView(row)
         }
 
-        side.addView(header("Effekt"))
+        side.addView(header(tr("Effekt")))
         val fxRow = LinearLayout(svc)
         LedEffect.values().forEach { ef ->
             val c = chip(ef.label, svc.prefs.ledEffect == ef)
@@ -1421,11 +1421,11 @@ class ControlCenter(private val svc: HugminnService) {
         val sp = svc.prefs.ledSpeed
         val si = LedFx.speeds.indexOfFirst { it >= sp }.coerceAtLeast(0)
         fun again(key: String) { ledFocus = key; ledPicker() }
-        stepper("b", "Helligkeit", "$bright %",
+        stepper("b", tr("Helligkeit"), "$bright %",
             { LedFx.setBrightness(svc, ((bright + 9) / 10 * 10 - 10).coerceAtLeast(10)) { svc.ui.post { again("b-") } } },
             { LedFx.setBrightness(svc, (bright / 10 * 10 + 10).coerceAtMost(100)) { svc.ui.post { again("b+") } } })
         tune.addView(View(svc), lp(14 * d, 1))
-        stepper("s", "Tempo", "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
+        stepper("s", tr("Tempo"), "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
             { LedFx.setSpeed(svc, LedFx.speeds[(si - 1).coerceAtLeast(0)]); again("s-") },
             { LedFx.setSpeed(svc, LedFx.speeds[(si + 1).coerceAtMost(LedFx.speeds.lastIndex)]); again("s+") })
         side.addView(tune)
@@ -1488,7 +1488,7 @@ class ControlCenter(private val svc: HugminnService) {
             elevation = 12f * d
             isClickable = true
         }
-        box.addView(text("Eigene Kachelfarbe", 18f, pal.onSurface, bold = true).apply { setPadding(0, 0, 0, 8 * d) })
+        box.addView(text(tr("Eigene Kachelfarbe"), 18f, pal.onSurface, bold = true).apply { setPadding(0, 0, 0, 8 * d) })
         val wheel = ColorWheel(svc, pal.onSurface).apply {
             select(svc.prefs.tileColor.takeIf { it != 0 } ?: pal.primary)
             active = true
@@ -1503,7 +1503,7 @@ class ControlCenter(private val svc: HugminnService) {
         wheel.onPick = done
         box.addView(wheel, lp(240 * d, 240 * d))
         box.addView(sample, lp(240 * d, 14 * d).apply { topMargin = 10 * d })
-        box.addView(text("Steuerkreuz wählen · A übernehmen · B zurück", 12f, pal.onSurfaceVariant).apply { setPadding(0, 10 * d, 0, 0) })
+        box.addView(text(tr("Steuerkreuz wählen · A übernehmen · B zurück"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 10 * d, 0, 0) })
         r.addView(box, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
         activeWheel = wheel
@@ -1563,7 +1563,7 @@ class ControlCenter(private val svc: HugminnService) {
             list.addView(row, lp(MATCH, WRAP))
             menuRows += row
         }
-        val tall = entries.size > 6 || title == "Bluetooth" || title == "WLAN"
+        val tall = entries.size > 6 || title == "Bluetooth" || title == tr("WLAN")
         val sc = android.widget.ScrollView(svc).apply { addView(list) }
         menuScroll = sc
         box.addView(sc, if (tall) lp(MATCH, 0, 1f) else lp(MATCH, WRAP))
@@ -1786,10 +1786,10 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     private fun sizeLabel(w: Int, h: Int) = "$w×$h" + when {
-        w == 1 && h == 1 -> " (klein)"
-        h > w -> " (hoch)"
-        w > h -> " (breit)"
-        else -> " (groß)"
+        w == 1 && h == 1 -> tr(" (klein)")
+        h > w -> tr(" (hoch)")
+        w > h -> tr(" (breit)")
+        else -> tr(" (groß)")
     }
 
     /** A on an element: move, size, remove. */
@@ -1797,17 +1797,17 @@ class ControlCenter(private val svc: HugminnService) {
         val p = placed.getOrNull(el) ?: return
         val e = p.entry
         showMenu(GridLayout.name(e.id), listOf(
-            MenuEntry("Verschieben", hint = "Mit dem Steuerkreuz, A legt ab") { holding = true; cursorX = p.x; cursorY = p.y; renderGrid() },
-            MenuEntry("Größe", hint = sizeLabel(e.w, e.h)) {
+            MenuEntry(tr("Verschieben"), hint = tr("Mit dem Steuerkreuz, A legt ab")) { holding = true; cursorX = p.x; cursorY = p.y; renderGrid() },
+            MenuEntry(tr("Größe"), hint = sizeLabel(e.w, e.h)) {
                 val options = GridLayout.sizes(e.id, gridCols).filter { (w, h) -> fitsAt(e.copy(w = w, h = h), p.x, p.y, gridPage, el) }
-                showMenu("Größe", options.map { (w, h) ->
+                showMenu(tr("Größe"), options.map { (w, h) ->
                     MenuEntry(sizeLabel(w, h), checked = w == e.w && h == e.h) {
                         entries[el] = e.copy(w = w, h = h, x = p.x, y = p.y, page = gridPage)
                         renderGrid()
                     }
                 })
             },
-            MenuEntry("Entfernen") {
+            MenuEntry(tr("Entfernen")) {
                 entries.removeAt(el)
                 renderGrid()
             },
@@ -1823,11 +1823,11 @@ class ControlCenter(private val svc: HugminnService) {
         val infos = GridLayout.widgetNames.keys.filter { GridLayout.isInfo(it) && it !in present }
         val sliders = GridLayout.widgetNames.keys.filter { GridLayout.isSlider(it) && it !in present }
         val list = mutableListOf<MenuEntry>()
-        if (infos.isNotEmpty()) { list += MenuEntry("Anzeigen", header = true, run = null); infos.forEach { list += entryFor(it) } }
-        if (sliders.isNotEmpty()) { list += MenuEntry("Regler", header = true, run = null); sliders.forEach { list += entryFor(it) } }
-        if (switches.isNotEmpty()) { list += MenuEntry("Schalter", header = true, run = null); switches.forEach { list += entryFor(it) } }
-        if (list.isEmpty()) list += MenuEntry("Alles ist schon im Raster", run = null)
-        showMenu("Hinzufügen", list)
+        if (infos.isNotEmpty()) { list += MenuEntry(tr("Anzeigen"), header = true, run = null); infos.forEach { list += entryFor(it) } }
+        if (sliders.isNotEmpty()) { list += MenuEntry(tr("Regler"), header = true, run = null); sliders.forEach { list += entryFor(it) } }
+        if (switches.isNotEmpty()) { list += MenuEntry(tr("Schalter"), header = true, run = null); switches.forEach { list += entryFor(it) } }
+        if (list.isEmpty()) list += MenuEntry(tr("Alles ist schon im Raster"), run = null)
+        showMenu(tr("Hinzufügen"), list)
     }
 
     /** Puts [id] at the cursor in the largest preferred size that fits there. */
@@ -1851,15 +1851,15 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     private fun editMenu() {
-        showMenu("Bearbeiten", listOf(
-            MenuEntry("Anordnen & Größe", hint = "Elemente verschieben, vergrößern, entfernen") { startEdit() },
-            MenuEntry("Element hinzufügen", hint = "Schalter, Anzeigen und Regler") { addMenu() },
-            MenuEntry("Kachelfarbe", hint = TILE_COLORS[svc.prefs.tileColor] ?: "Eigene") { colorMenu() },
-            MenuEntry("Stil", hint = svc.prefs.uiStyle.label) {
-                showMenu("Stil", UiStyle.values().map { st ->
+        showMenu(tr("Bearbeiten"), listOf(
+            MenuEntry(tr("Anordnen & Größe"), hint = tr("Elemente verschieben, vergrößern, entfernen")) { startEdit() },
+            MenuEntry(tr("Element hinzufügen"), hint = tr("Schalter, Anzeigen und Regler")) { addMenu() },
+            MenuEntry(tr("Kachelfarbe"), hint = TILE_COLORS[svc.prefs.tileColor] ?: tr("Eigene")) { colorMenu() },
+            MenuEntry(tr("Stil"), hint = svc.prefs.uiStyle.label) {
+                showMenu(tr("Stil"), UiStyle.values().map { st ->
                     MenuEntry(when (st) {
-                        UiStyle.PIXEL -> "Pixel (Retroid-Pocket-Classic-Look)"
-                        UiStyle.DOTS -> "Punktmatrix (schwarz-weiß, rot als Akzent)"
+                        UiStyle.PIXEL -> tr("Pixel (Retroid-Pocket-Classic-Look)")
+                        UiStyle.DOTS -> tr("Punktmatrix (schwarz-weiß, rot als Akzent)")
                         else -> "Modern (Material You)"
                     }, checked = svc.prefs.uiStyle == st) {
                         svc.prefs.uiStyle = st
@@ -1867,21 +1867,21 @@ class ControlCenter(private val svc: HugminnService) {
                     }
                 })
             },
-            MenuEntry("Leistungs-Overlay", hint = if (svc.prefs.overlayOn) "An" else "Aus") { overlayMenu() },
-            MenuEntry("Farben der Anzeigen", hint = svc.prefs.gaugePalette.label) {
-                showMenu("Farben der Anzeigen", GaugePalette.values().map { g ->
+            MenuEntry(tr("Leistungs-Overlay"), hint = if (svc.prefs.overlayOn) tr("An") else tr("Aus")) { overlayMenu() },
+            MenuEntry(tr("Farben der Anzeigen"), hint = svc.prefs.gaugePalette.label) {
+                showMenu(tr("Farben der Anzeigen"), GaugePalette.values().map { g ->
                     MenuEntry(g.label, checked = svc.prefs.gaugePalette == g) { svc.prefs.gaugePalette = g; reopen() }
                 })
             },
-            MenuEntry("Farbschema", hint = svc.prefs.theme.label) {
-                showMenu("Farbschema", Theme.values().map { t ->
+            MenuEntry(tr("Farbschema"), hint = svc.prefs.theme.label) {
+                showMenu(tr("Farbschema"), Theme.values().map { t ->
                     MenuEntry(t.label, checked = svc.prefs.theme == t) { svc.prefs.theme = t; reopen() }
                 })
             },
-            MenuEntry("Standard wiederherstellen", hint = "Layout, Kacheln, Größen und Farben zurücksetzen") {
-                showMenu("Wirklich zurücksetzen?", listOf(
-                    MenuEntry("Ja, Standard wiederherstellen") { svc.prefs.resetControlCenter(); reopen() },
-                    MenuEntry("Abbrechen") {},
+            MenuEntry(tr("Standard wiederherstellen"), hint = tr("Layout, Kacheln, Größen und Farben zurücksetzen")) {
+                showMenu(tr("Wirklich zurücksetzen?"), listOf(
+                    MenuEntry(tr("Ja, Standard wiederherstellen")) { svc.prefs.resetControlCenter(); reopen() },
+                    MenuEntry(tr("Abbrechen")) {},
                 ))
             },
         ))
@@ -1889,15 +1889,15 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun overlayMenu(select: Int = -1) {
         val p = svc.prefs
-        showMenu("Leistungs-Overlay", listOf(
-            MenuEntry(if (p.overlayOn) "Overlay ausschalten" else "Overlay einschalten", hint = "Kleine Anzeige über dem Spiel, wie bei Steam") {
+        showMenu(tr("Leistungs-Overlay"), listOf(
+            MenuEntry(if (p.overlayOn) tr("Overlay ausschalten") else tr("Overlay einschalten"), hint = tr("Kleine Anzeige über dem Spiel, wie bei Steam")) {
                 p.overlayOn = !p.overlayOn
                 svc.overlay.refresh()
             },
-            MenuEntry("Angezeigte Werte", hint = p.overlayItems.mapNotNull { OverlayItem.of(it)?.label }.joinToString(", ")) {
-                openEditor("Overlay-Werte", listOf(
-                    EditSection("Angezeigt", p.overlayItems.toMutableList()),
-                    EditSection("Ausgeblendet", OverlayItem.values().map { it.id }.filter { it !in p.overlayItems }.toMutableList()),
+            MenuEntry(tr("Angezeigte Werte"), hint = p.overlayItems.mapNotNull { OverlayItem.of(it)?.label }.joinToString(", ")) {
+                openEditor(tr("Overlay-Werte"), listOf(
+                    EditSection(tr("Angezeigt"), p.overlayItems.toMutableList()),
+                    EditSection(tr("Ausgeblendet"), OverlayItem.values().map { it.id }.filter { it !in p.overlayItems }.toMutableList()),
                 ), enableTo = 0, label = { OverlayItem.of(it)?.label ?: it }, note = { "" }) {
                     p.overlayItems = editSections[0].ids.toList()
                     if (p.overlayOn) svc.overlay.show()
@@ -1908,11 +1908,11 @@ class ControlCenter(private val svc: HugminnService) {
                     MenuEntry(pos.label, checked = p.overlayPos == pos) { p.overlayPos = pos; if (p.overlayOn) svc.overlay.show() }
                 })
             },
-            MenuEntry("Anordnung", hint = if (p.overlayRow) "Nebeneinander" else "Untereinander") {
+            MenuEntry(tr("Anordnung"), hint = if (p.overlayRow) tr("Nebeneinander") else tr("Untereinander")) {
                 p.overlayRow = !p.overlayRow
                 if (p.overlayOn) svc.overlay.show()
             },
-            MenuEntry("Größe", hint = "◀  ${Math.round(p.overlayScale * 100)} %  ▶", side = { dir ->
+            MenuEntry(tr("Größe"), hint = "◀  ${Math.round(p.overlayScale * 100)} %  ▶", side = { dir ->
                 val sizes = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
                 val i = (sizes.indexOfFirst { it >= p.overlayScale - 0.01f }.coerceAtLeast(0) + dir).coerceIn(0, sizes.lastIndex)
                 if (sizes[i] != p.overlayScale) {
@@ -1926,12 +1926,12 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun colorMenu() {
         val own = svc.prefs.tileColor.takeIf { it != 0 && it !in TILE_COLORS }
-        showMenu("Kachelfarbe", TILE_COLORS.map { (c, name) ->
+        showMenu(tr("Kachelfarbe"), TILE_COLORS.map { (c, name) ->
             MenuEntry(name, checked = svc.prefs.tileColor == c, swatch = if (c == 0) pal.primary else c) {
                 svc.prefs.tileColor = c
                 reopen()
             }
-        } + MenuEntry("Eigene Farbe …", checked = own != null, hint = "Aus dem Farbrad wählen", swatch = own ?: 0) { svc.ui.post { tileColorWheel() } })
+        } + MenuEntry(tr("Eigene Farbe …"), checked = own != null, hint = tr("Aus dem Farbrad wählen"), swatch = own ?: 0) { svc.ui.post { tileColorWheel() } })
     }
 
     /** A list split into sections (e.g. left column / right column / hidden); items move across sections. */
@@ -1988,10 +1988,10 @@ class ControlCenter(private val svc: HugminnService) {
             r0.addView(Glyphs.chip(svc, svc.prefs, pal, k, 20))
             r0.addView(text(t, 12f, pal.onSurfaceVariant).apply { setPadding(5 * d, 0, 14 * d, 0) })
         }
-        h(KeyEvent.KEYCODE_BUTTON_A, "ein/aus")
-        if (adjust != null) h(KeyEvent.KEYCODE_DPAD_LEFT, "Größe −/+")
-        h(KeyEvent.KEYCODE_BUTTON_L1, "nach oben")
-        h(KeyEvent.KEYCODE_BUTTON_R1, "nach unten")
+        h(KeyEvent.KEYCODE_BUTTON_A, tr("ein/aus"))
+        if (adjust != null) h(KeyEvent.KEYCODE_DPAD_LEFT, tr("Größe −/+"))
+        h(KeyEvent.KEYCODE_BUTTON_L1, tr("nach oben"))
+        h(KeyEvent.KEYCODE_BUTTON_R1, tr("nach unten"))
         h(KeyEvent.KEYCODE_BUTTON_B, "fertig")
         box.addView(help)
         val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
@@ -2085,12 +2085,12 @@ class ControlCenter(private val svc: HugminnService) {
     private fun layoutEditor() {
         val (left, right) = svc.prefs.ccLayout
         val hidden = CcBlock.values().map { it.id }.filter { it !in left && it !in right }
-        openEditor("Layout anpassen", listOf(
-            EditSection("Linke Spalte", left.toMutableList()),
-            EditSection("Rechte Spalte", right.toMutableList()),
-            EditSection("Ausgeblendet", hidden.toMutableList()),
+        openEditor(tr("Layout anpassen"), listOf(
+            EditSection(tr("Linke Spalte"), left.toMutableList()),
+            EditSection(tr("Rechte Spalte"), right.toMutableList()),
+            EditSection(tr("Ausgeblendet"), hidden.toMutableList()),
         ), enableTo = 1, label = { CcBlock.of(it)?.label ?: it },
-            note = { id -> "Größe ${Math.round(size(id) * 100)} %" },
+            note = { id -> t("Größe ${Math.round(size(id) * 100)} %", "Size ${Math.round(size(id) * 100)} %") },
             adjust = { id, dir ->
                 val m = svc.prefs.ccSizes.toMutableMap()
                 m[id] = ((m[id] ?: 1f) + 0.2f * dir).coerceIn(0.6f, 2.0f)
@@ -2138,14 +2138,14 @@ class ControlCenter(private val svc: HugminnService) {
             isClickable = true
         }
         val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-        head.addView(text("Kacheln bearbeiten", 18f, pal.onSurface, bold = true), lp(0, WRAP, 1f))
+        head.addView(text(tr("Kacheln bearbeiten"), 18f, pal.onSurface, bold = true), lp(0, WRAP, 1f))
         fun h(k: Int, t: String) {
             head.addView(Glyphs.chip(svc, svc.prefs, pal, k, 20))
             head.addView(text(t, 12f, pal.onSurfaceVariant).apply { setPadding(5 * d, 0, 12 * d, 0) })
         }
-        h(KeyEvent.KEYCODE_BUTTON_A, "Hinzufügen / Verschieben")
-        h(KeyEvent.KEYCODE_BUTTON_X, "Entfernen")
-        h(KeyEvent.KEYCODE_BUTTON_B, "Fertig")
+        h(KeyEvent.KEYCODE_BUTTON_A, tr("Hinzufügen / Verschieben"))
+        h(KeyEvent.KEYCODE_BUTTON_X, tr("Entfernen"))
+        h(KeyEvent.KEYCODE_BUTTON_B, tr("Fertig"))
         box.addView(head)
         val content = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         val t1 = text("", 13f, pal.primary, bold = true).apply { setPadding(4 * d, 12 * d, 0, 6 * d) }
@@ -2155,7 +2155,7 @@ class ControlCenter(private val svc: HugminnService) {
         geActiveGrid = g1
         content.addView(g1)
         content.addView(View(svc).apply { setBackgroundColor(pal.outline) }, lp(MATCH, 1 * d).apply { topMargin = 12 * d; bottomMargin = 4 * d })
-        content.addView(text("Zum Hinzufügen auswählen", 13f, pal.primary, bold = true).apply { setPadding(4 * d, 8 * d, 0, 6 * d) })
+        content.addView(text(tr("Zum Hinzufügen auswählen"), 13f, pal.primary, bold = true).apply { setPadding(4 * d, 8 * d, 0, 6 * d) })
         val g2 = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         geAvailGrid = g2
         content.addView(g2)
@@ -2169,7 +2169,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun renderTileGrid() {
         val rootOk = Root.available()
-        geTitle?.text = "Angezeigt (${geActive.size}) · Reihenfolge wie im Control Center"
+        geTitle?.text = t("Angezeigt (${geActive.size}) · Reihenfolge wie im Control Center", "Shown (${geActive.size}) · same order as in the Control Center")
         var selView: View? = null
         fun fill(grid: LinearLayout?, ids: List<String>, offset: Int) {
             grid ?: return

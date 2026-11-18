@@ -56,6 +56,6 @@ object Shot {
     private fun done(svc: HugminnService, ok: Boolean) {
         busy = false
         if (ok) savedAt = System.currentTimeMillis()
-        Notice.show(svc, if (ok) "Screenshot gespeichert" else "Screenshot fehlgeschlagen")
+        Notice.show(svc, if (ok) tr("Screenshot gespeichert") else tr("Screenshot fehlgeschlagen"))
     }
 }

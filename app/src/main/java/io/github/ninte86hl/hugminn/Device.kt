@@ -13,9 +13,9 @@ object Device {
 
     /** Known profiles (value → name). Values not listed yet are shown raw and can still be picked. */
     // Values as used by the shared Retroid/AYN firmware (fan 6 = custom speed from fan_speed).
-    val perfProfiles = linkedMapOf("0" to "Normal", "1" to "Leistung", "2" to "Hohe Leistung")
-    val fanProfiles = linkedMapOf("0" to "Aus", "1" to "Leise", "4" to "Smart", "5" to "Sport", "6" to "Eigene Kurve")
-    val triggerModes = linkedMapOf("2" to "Analog + Digital", "1" to "Nur analog", "0" to "Nur digital")
+    val perfProfiles get() = linkedMapOf("0" to "Normal", "1" to tr("Leistung"), "2" to tr("Hohe Leistung"))
+    val fanProfiles get() = linkedMapOf("0" to tr("Aus"), "1" to tr("Leise"), "4" to "Smart", "5" to "Sport", "6" to tr("Eigene Kurve"))
+    val triggerModes get() = linkedMapOf("2" to tr("Analog + Digital"), "1" to tr("Nur analog"), "0" to tr("Nur digital"))
 
     /** Simple on/off system settings of the firmware (1 = on). */
     fun sysOn(ctx: Context, key: String) = sys(ctx, key)?.trim() == "1"
@@ -31,7 +31,7 @@ object Device {
 
     fun profileLabel(ctx: Context, key: String, table: Map<String, String>): String {
         val v = sys(ctx, key) ?: return "–"
-        return table[v] ?: "Profil $v"
+        return table[v] ?: t("Profil $v", "Profile $v")
     }
 
     fun fanLabel(ctx: Context) = profileLabel(ctx, "fan_mode", fanProfiles)
@@ -96,17 +96,17 @@ object Device {
     fun setLedBrightness(percent: Int, then: () -> Unit) =
         Root.run(Root.putSetting("system", "led_light_brightness_percent", "%.2f".format(java.util.Locale.US, percent / 100f)), then = then)
 
-    val ledPresets = listOf(
-        "Weiß" to 0xFFFFFFFF.toInt(),
-        "Rot" to 0xFFFF0000.toInt(),
+    val ledPresets get() = listOf(
+        tr("Weiß") to 0xFFFFFFFF.toInt(),
+        tr("Rot") to 0xFFFF0000.toInt(),
         "Orange" to 0xFFFF6600.toInt(),
-        "Gelb" to 0xFFFFDD00.toInt(),
-        "Limette" to 0xFF99FF00.toInt(),
-        "Grün" to 0xFF00FF00.toInt(),
-        "Türkis" to 0xFF00FF99.toInt(),
+        tr("Gelb") to 0xFFFFDD00.toInt(),
+        tr("Limette") to 0xFF99FF00.toInt(),
+        tr("Grün") to 0xFF00FF00.toInt(),
+        tr("Türkis") to 0xFF00FF99.toInt(),
         "Cyan" to 0xFF00FFFF.toInt(),
-        "Blau" to 0xFF0000FF.toInt(),
-        "Lila" to 0xFF8800FF.toInt(),
+        tr("Blau") to 0xFF0000FF.toInt(),
+        tr("Lila") to 0xFF8800FF.toInt(),
         "Magenta" to 0xFFFF00FF.toInt(),
         "Pink" to 0xFFFF0077.toInt(),
     )

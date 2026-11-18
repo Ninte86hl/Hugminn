@@ -19,18 +19,18 @@ object GridLayout {
     private val infoIds = setOf("fps", "perf", "fan", "temp", "battery", "cpu", "gpu", "ram", "power")
     private val sliderIds = setOf("brightness", "volume")
 
-    val widgetNames = linkedMapOf(
-        "fps" to "Bildrate (FPS)",
-        "perf" to "Leistungsprofil",
-        "fan" to "Lüfter",
-        "temp" to "Temperatur",
-        "battery" to "Akku",
+    val widgetNames get() = linkedMapOf(
+        "fps" to tr("Bildrate (FPS)"),
+        "perf" to tr("Leistungsprofil"),
+        "fan" to tr("Lüfter"),
+        "temp" to tr("Temperatur"),
+        "battery" to tr("Akku"),
         "cpu" to "CPU",
         "gpu" to "GPU",
         "ram" to "RAM",
-        "power" to "Leistungsaufnahme",
-        "brightness" to "Helligkeit",
-        "volume" to "Lautstärke",
+        "power" to tr("Leistungsaufnahme"),
+        "brightness" to tr("Helligkeit"),
+        "volume" to tr("Lautstärke"),
     )
 
     fun name(id: String) = widgetNames[id] ?: TileCatalog.all[id] ?: id

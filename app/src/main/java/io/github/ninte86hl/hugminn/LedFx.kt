@@ -7,12 +7,14 @@ import kotlin.math.max
 import kotlin.math.sin
 
 /** Light effects for the stick LEDs. */
-enum class LedEffect(val label: String) {
+enum class LedEffect(private val labelDe: String) {
     NONE("Statisch"),
     RAINBOW("Farbwechsel"),
     RING("Regenbogen versetzt"),
     BREATHE("Atmen"),
-    PULSE("Pulsieren"),
+    PULSE("Pulsieren");
+
+    val label get() = tr(labelDe)
 }
 
 /**
@@ -206,7 +208,7 @@ object LedFx {
             diag += "\nZone $i: " + (err?.takeIf { it.isNotBlank() } ?: "ok")
             Thread.sleep(1_500)
         }
-        show("Test fertig – Farben werden wiederhergestellt")
+        show(tr("Test fertig – Farben werden wiederhergestellt"))
     }
 
     private fun beat(p: Float, at: Float): Float {

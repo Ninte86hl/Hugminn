@@ -4,47 +4,59 @@ import android.content.Context
 import android.content.SharedPreferences
 
 /** What a Home gesture does. */
-enum class Action(val label: String) {
+enum class Action(private val labelDe: String) {
     NONE("Nichts"),
     HOME("Startbildschirm"),
     SWITCHER("Game Switcher"),
     CONTROL_CENTER("Control Center"),
     RECENTS("Android-Übersicht"),
-    LAST_APP("Letzte App"),
+    LAST_APP("Letzte App");
+
+    val label get() = tr(labelDe)
 }
 
 /** What the switcher frame shows where the status bar is. */
-enum class StatusBar(val label: String) {
+enum class StatusBar(private val labelDe: String) {
     OVERLAY("Eigene Anzeige"),
     HIDDEN("Ausblenden"),
-    SYSTEM("Android-Statusleiste"),
+    SYSTEM("Android-Statusleiste");
+
+    val label get() = tr(labelDe)
 }
 
-enum class Theme(val label: String) {
+enum class Theme(private val labelDe: String) {
     SYSTEM("System"),
     LIGHT("Hell"),
     DARK("Dunkel"),
-    OLED("OLED-Schwarz"),
+    OLED("OLED-Schwarz");
+
+    val label get() = tr(labelDe)
 }
 
 /** Colours of the performance gauges. */
-enum class GaugePalette(val label: String) {
+enum class GaugePalette(private val labelDe: String) {
     TRAFFIC("Ampel (grün → rot)"),
     COOL_WARM("Kalt → warm"),
     ACCENT("Akzentfarbe"),
-    MONO("Einfarbig"),
+    MONO("Einfarbig");
+
+    val label get() = tr(labelDe)
 }
 
-enum class TileShape(val label: String) {
+enum class TileShape(private val labelDe: String) {
     ROUND("Rund"),
-    SQUARE("Abgerundetes Quadrat"),
+    SQUARE("Abgerundetes Quadrat");
+
+    val label get() = tr(labelDe)
 }
 
-enum class GlyphStyle(val label: String) {
+enum class GlyphStyle(private val labelDe: String) {
     AUTO("Automatisch"),
     XBOX("Xbox"),
     NINTENDO("Nintendo"),
-    PLAYSTATION("PlayStation"),
+    PLAYSTATION("PlayStation");
+
+    val label get() = tr(labelDe)
 }
 
 class Prefs(ctx: Context) {
@@ -87,6 +99,10 @@ class Prefs(ctx: Context) {
 
     /** Removes values of test versions (the old feedback token never stays on the device). */
     fun forgetOld() = p.edit().remove("githubToken").remove("pixelNf").apply()
+
+    var language: Language
+        get() = enumOr(p.getString("language", null), Language.AUTO)
+        set(v) = p.edit().putString("language", v.name).apply()
 
     var uiStyle: UiStyle
         get() = enumOr(p.getString("uiStyle", null), UiStyle.MODERN)

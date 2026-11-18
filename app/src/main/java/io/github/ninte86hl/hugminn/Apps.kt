@@ -7,7 +7,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 
-enum class AppType(val label: String) { APP("App"), RETROARCH("RetroArch"), EMULATOR("Emulator") }
+enum class AppType(private val labelDe: String) { APP("App"), RETROARCH("RetroArch"), EMULATOR("Emulator");
+
+    val label get() = tr(labelDe)
+}
 
 /** Resolves labels from the recents view to packages and tells apps, RetroArch and emulators apart. */
 object Apps {

@@ -55,10 +55,10 @@ class WifiPasswordActivity : Activity() {
             background = Look.shape(this@WifiPasswordActivity, pixel, pal.surfaceHigh, dp(24).toFloat(), dp(1), pal.outline)
             setPadding(dp(20), dp(14), dp(20), dp(12))
         }
-        box.addView(label("WLAN verbinden", 20f, pal.onSurface, bold = true))
+        box.addView(label(tr("WLAN verbinden"), 20f, pal.onSurface, bold = true))
         box.addView(label(ssid, 14f, pal.onSurfaceVariant).apply { setPadding(0, dp(4), 0, dp(12)) })
         val input = EditText(this).apply {
-            hint = "Passwort"
+            hint = tr("Passwort")
             setHintTextColor(pal.onSurfaceVariant)
             setTextColor(pal.onSurface)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
@@ -82,20 +82,20 @@ class WifiPasswordActivity : Activity() {
         val connect = {
             val pw = input.text.toString()
             if (pw.length < 8 && sec != "open") {
-                Toast.makeText(this, "Das Passwort hat mindestens 8 Zeichen", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, tr("Das Passwort hat mindestens 8 Zeichen"), Toast.LENGTH_SHORT).show()
             } else {
                 val app = applicationContext
                 thread {
                     val out = Wifi.connect(ssid, sec, pw)
                     android.os.Handler(mainLooper).post {
-                        Toast.makeText(app, if (out == null || out.contains("rror", true)) "Verbinden fehlgeschlagen: ${out ?: "keine Antwort"}" else "Verbinde mit $ssid …", Toast.LENGTH_LONG).show()
+                        Toast.makeText(app, if (out == null || out.contains("rror", true)) "Verbinden fehlgeschlagen: ${out ?: "keine Antwort"}" else t("Verbinde mit $ssid …", "Connecting to $ssid …"), Toast.LENGTH_LONG).show()
                     }
                 }
                 finish()
             }
         }
         input.setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_DONE) { connect(); true } else false }
-        buttons.addView(button("Abbrechen", false) { finish() })
+        buttons.addView(button(tr("Abbrechen"), false) { finish() })
         buttons.addView(View(this), LinearLayout.LayoutParams(dp(10), 1))
         buttons.addView(button("Verbinden", true) { connect() })
         box.addView(buttons, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))

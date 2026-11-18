@@ -10,7 +10,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /** Values the performance overlay can show (like Steam's performance overlay, but chosen freely). */
-enum class OverlayItem(val id: String, val label: String) {
+enum class OverlayItem(val id: String, private val labelDe: String) {
     FPS("fps", "Bildrate (FPS)"),
     FRAMETIME("frametime", "Frametime-Graph"),
     CPU("cpu", "CPU"),
@@ -21,18 +21,23 @@ enum class OverlayItem(val id: String, val label: String) {
     BATTERY("battery", "Akku"),
     CLOCK("clock", "Uhrzeit");
 
+    val label get() = tr(labelDe)
+
+
     companion object {
         val defaults = listOf("fps", "frametime", "cpu", "gpu", "temp", "battery")
         fun of(id: String) = values().firstOrNull { it.id == id }
     }
 }
 
-enum class OverlayPos(val label: String, val gravity: Int) {
+enum class OverlayPos(private val labelDe: String, val gravity: Int) {
     TOP_LEFT("Oben links", Gravity.TOP or Gravity.START),
     TOP_CENTER("Oben Mitte", Gravity.TOP or Gravity.CENTER_HORIZONTAL),
     TOP_RIGHT("Oben rechts", Gravity.TOP or Gravity.END),
     BOTTOM_LEFT("Unten links", Gravity.BOTTOM or Gravity.START),
-    BOTTOM_RIGHT("Unten rechts", Gravity.BOTTOM or Gravity.END),
+    BOTTOM_RIGHT("Unten rechts", Gravity.BOTTOM or Gravity.END);
+
+    val label get() = tr(labelDe)
 }
 
 /**

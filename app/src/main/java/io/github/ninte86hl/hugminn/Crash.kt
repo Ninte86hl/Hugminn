@@ -20,14 +20,14 @@ object Crash {
 
     private class Handler(val ctx: Context, val previous: Thread.UncaughtExceptionHandler?) : Thread.UncaughtExceptionHandler {
         override fun uncaughtException(t: Thread, e: Throwable) {
-            save(ctx, "Absturz im Thread ${t.name}", e)
+            save(ctx, t("Absturz im Thread ${t.name}", "Crash in thread ${t.name}"), e)
             previous?.uncaughtException(t, e)
         }
     }
 
     /** A caught error: remembered (shown in the settings and added to a bug report). */
     fun note(ctx: Context, e: Throwable) {
-        save(ctx, "Fehler (abgefangen)", e)
+        save(ctx, tr("Fehler (abgefangen)"), e)
     }
 
     private fun save(ctx: Context, what: String, e: Throwable) {

@@ -30,6 +30,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         Crash.install(this)
         prefs = Prefs(this)
+        Lang.init(this)
         if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED && !Root.available()) {
             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
         }
@@ -42,7 +43,7 @@ class MainActivity : Activity() {
         if (HugminnService.instance == null && Root.available() && Device.whitelisted(this)) {
             thread {
                 if (Device.restartService(this)) runOnUiThread {
-                    Toast.makeText(this, "Hugminn wurde neu gestartet", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, tr("Hugminn wurde neu gestartet"), Toast.LENGTH_SHORT).show()
                     build()
                 }
             }
@@ -128,7 +129,7 @@ class MainActivity : Activity() {
             setPadding(d(14), 0, 0, 0)
         }
         hc.addView(text("Hugminn", 26f, pal.onSurface, bold = true))
-        hc.addView(text("Huginn denkt mit (Control Center) · Muninn erinnert sich (Game Switcher)", 13f, pal.onSurfaceVariant))
+        hc.addView(text(tr("Huginn denkt mit (Control Center) · Muninn erinnert sich (Game Switcher)"), 13f, pal.onSurfaceVariant))
         head.addView(hc)
         content.addView(head)
 
@@ -136,24 +137,24 @@ class MainActivity : Activity() {
         val running = HugminnService.instance != null
         val rootOk = Root.available()
         val st = section("Status")
-        st.addView(text(if (running) "✓ Hugminn ist aktiv" else "✕ Hugminn ist noch nicht aktiv", 16f, pal.onSurface, bold = true).apply {
+        st.addView(text(if (running) tr("✓ Hugminn ist aktiv") else tr("✕ Hugminn ist noch nicht aktiv"), 16f, pal.onSurface, bold = true).apply {
             setPadding(0, d(6), 0, d(2))
         })
         st.addView(text(
-            if (rootOk) "Root-Dienst des Handhelds gefunden: Schalter für Leistung, Lüfter, LEDs usw. funktionieren."
-            else "Kein Root-Dienst gefunden: Game Switcher und Graphen gehen, Geräteschalter öffnen die Android-Einstellungen.",
+            if (rootOk) tr("Root-Dienst des Handhelds gefunden: Schalter für Leistung, Lüfter, LEDs usw. funktionieren.")
+            else tr("Kein Root-Dienst gefunden: Game Switcher und Graphen gehen, Geräteschalter öffnen die Android-Einstellungen."),
             12f, pal.onSurfaceVariant,
         ))
         if (Device.hasWhitelist(this)) {
             val wl = Device.whitelisted(this)
             st.addView(text(
-                if (wl) "✓ Auf der Hintergrund-Whitelist: Das System beendet Hugminn nicht."
-                else "✕ Nicht auf der Hintergrund-Whitelist: Das System kann Hugminn im Hintergrund beenden.",
+                if (wl) tr("✓ Auf der Hintergrund-Whitelist: Das System beendet Hugminn nicht.")
+                else tr("✕ Nicht auf der Hintergrund-Whitelist: Das System kann Hugminn im Hintergrund beenden."),
                 13f, pal.onSurface,
             ).apply { setPadding(0, d(8), 0, 0) })
             if (!wl && rootOk) {
                 val b = LinearLayout(this).apply { setPadding(0, d(8), 0, d(4)) }
-                b.addView(button("Zur Whitelist hinzufügen") {
+                b.addView(button(tr("Zur Whitelist hinzufügen")) {
                     thread {
                         Device.ensureWhitelist(this)
                         runOnUiThread { build() }
@@ -163,138 +164,144 @@ class MainActivity : Activity() {
             }
         }
         Crash.last(this)?.let { crash ->
-            st.addView(text("Letzter Fehler (wird mit dem Feedback gesendet):", 13f, pal.onSurface, bold = true).apply { setPadding(0, d(10), 0, d(2)) })
+            st.addView(text(t("Letzter Fehler:", "Last error:"), 13f, pal.onSurface, bold = true).apply { setPadding(0, d(10), 0, d(2)) })
             st.addView(text(crash.lines().take(6).joinToString("\n"), 11f, pal.onSurfaceVariant).apply {
                 maxLines = 6
                 typeface = android.graphics.Typeface.MONOSPACE
             })
             val cb = LinearLayout(this).apply { setPadding(0, d(6), 0, d(4)) }
-            cb.addView(button("Fehler löschen") { Crash.clear(this); build() })
+            cb.addView(button(tr("Fehler löschen")) { Crash.clear(this); build() })
             st.addView(cb)
         }
         if (!running) {
             val b = LinearLayout(this).apply { setPadding(0, d(8), 0, d(4)) }
-            b.addView(button("Aktivieren") { enable(rootOk) })
+            b.addView(button(tr("Aktivieren")) { enable(rootOk) })
             st.addView(b)
         }
 
         // Gestures
-        val g = section("Home-Taste")
+        val g = section(tr("Home-Taste"))
         val actions = Action.values().toList()
-        row(g, "Einmal drücken", null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
-        row(g, "Zweimal drücken", null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
-        row(g, "Lange drücken", null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
-        row(g, "Zeit für Doppeldruck", "Kürzer = einfacher Druck reagiert schneller", { "${prefs.doubleMs} ms" }) {
+        row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
+        row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
+        row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
+        row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
             prefs.doubleMs = cycle(listOf(220, 260, 300, 350, 400), prefs.doubleMs)
         }
-        row(g, "Zeit für langen Druck", null, { "${prefs.longMs} ms" }) {
+        row(g, tr("Zeit für langen Druck"), null, { "${prefs.longMs} ms" }) {
             prefs.longMs = cycle(listOf(350, 450, 600, 800), prefs.longMs)
         }
 
-        val look = section("Darstellung")
-        row(look, "Stil", "Gilt überall: Control Center, Game Switcher, Overlay und diese Einstellungen", { prefs.uiStyle.label }) {
+        val look = section(tr("Darstellung"))
+        row(look, t("Sprache", "Language"), null, { prefs.language.label }) {
+            prefs.language = cycle(Language.values().toList(), prefs.language)
+            Lang.init(this)
+            HugminnService.instance?.overlay?.refresh()
+            content.post { build() }
+        }
+        row(look, tr("Stil"), tr("Gilt überall: Control Center, Game Switcher, Overlay und diese Einstellungen"), { prefs.uiStyle.label }) {
             prefs.uiStyle = cycle(UiStyle.values().toList(), prefs.uiStyle)
             content.post { build() }
         }
-        row(look, "Kachelfarbe", "Farbe aktiver Kacheln im Control Center", { TILE_COLORS[prefs.tileColor] ?: "" }) {
+        row(look, tr("Kachelfarbe"), tr("Farbe aktiver Kacheln im Control Center"), { TILE_COLORS[prefs.tileColor] ?: "" }) {
             prefs.tileColor = cycle(TILE_COLORS.keys.toList(), prefs.tileColor)
         }
-        row(look, "Farbschema", "OLED-Schwarz: echtes Schwarz als Hintergrund, spart auf OLED-Bildschirmen Strom", { prefs.theme.label }) {
+        row(look, tr("Farbschema"), tr("OLED-Schwarz: echtes Schwarz als Hintergrund, spart auf OLED-Bildschirmen Strom"), { prefs.theme.label }) {
             prefs.theme = cycle(Theme.values().toList(), prefs.theme)
             content.post { build() } // all colours change
         }
 
         // Switcher look
         val sw = section("Game Switcher")
-        row(sw, "Eigene Übersicht", "An: Hugminn zeigt die letzten Apps selbst (mit eigenen Vorschaubildern), Androids Übersicht bleibt zu. Aus: Rahmen über Androids Übersicht", { if (prefs.ownSwitcher) "An" else "Aus" }) {
+        row(sw, tr("Eigene Übersicht"), tr("An: Hugminn zeigt die letzten Apps selbst (mit eigenen Vorschaubildern), Androids Übersicht bleibt zu. Aus: Rahmen über Androids Übersicht"), { if (prefs.ownSwitcher) tr("An") else tr("Aus") }) {
             prefs.ownSwitcher = !prefs.ownSwitcher
         }
-        row(sw, "Spiel pausieren", "Solange die eigene Übersicht offen ist, wird die App dahinter verdeckt und hält an (auch der Ton)", { if (prefs.pauseInSwitcher) "An" else "Aus" }) {
+        row(sw, tr("Spiel pausieren"), tr("Solange die eigene Übersicht offen ist, wird die App dahinter verdeckt und hält an (auch der Ton)"), { if (prefs.pauseInSwitcher) tr("An") else tr("Aus") }) {
             prefs.pauseInSwitcher = !prefs.pauseInSwitcher
         }
-        row(sw, "Auch bei Wischgeste", "Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird", { if (prefs.autoSwitcher) "An" else "Aus" }) {
+        row(sw, tr("Auch bei Wischgeste"), tr("Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird"), { if (prefs.autoSwitcher) tr("An") else tr("Aus") }) {
             prefs.autoSwitcher = !prefs.autoSwitcher
         }
-        row(sw, "Statusleiste", "Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste", { prefs.statusBar.label }) {
+        row(sw, tr("Statusleiste"), tr("Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
         }
 
         val ccs = section("Control Center")
-        row(ccs, "Statusleiste", "Oben im Control Center: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste", { prefs.ccStatusBar.label }) {
+        row(ccs, tr("Statusleiste"), tr("Oben im Control Center: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.ccStatusBar.label }) {
             prefs.ccStatusBar = cycle(StatusBar.values().toList(), prefs.ccStatusBar)
         }
-        row(ccs, "LED-App", "Wer die Farben der Stick-LEDs einstellt: Hugminn selbst (wie Retroids LED-Fenster) oder eine installierte LED-App", {
+        row(ccs, tr("LED-App"), tr("Wer die Farben der Stick-LEDs einstellt: Hugminn selbst (wie Retroids LED-Fenster) oder eine installierte LED-App"), {
             val cur = prefs.ledApp
-            if (cur.isEmpty()) "Hugminn" else Apps.ledApps(this).firstOrNull { it.second == cur }?.first ?: "Nicht installiert"
+            if (cur.isEmpty()) "Hugminn" else Apps.ledApps(this).firstOrNull { it.second == cur }?.first ?: tr("Nicht installiert")
         }) {
             val options = listOf("") + Apps.ledApps(this).map { it.second }
             prefs.ledApp = cycle(options, prefs.ledApp.takeIf { it in options } ?: "")
         }
-        row(ccs, "Farben der Anzeigen", "Färbt CPU, GPU, Leistung, RAM und Temperatur nach Auslastung", { prefs.gaugePalette.label }) {
+        row(ccs, tr("Farben der Anzeigen"), tr("Färbt CPU, GPU, Leistung, RAM und Temperatur nach Auslastung"), { prefs.gaugePalette.label }) {
             prefs.gaugePalette = cycle(GaugePalette.values().toList(), prefs.gaugePalette)
         }
-        ccs.addView(text("Angezeigte Kacheln. Layout, Reihenfolge und Farben: im Control Center Y drücken. Mehr als 8 werden auf Seiten verteilt (LB/RB).", 13f, pal.onSurfaceVariant).apply {
+        ccs.addView(text(tr("Angezeigte Kacheln. Layout, Reihenfolge und Farben: im Control Center Y drücken. Mehr als 8 werden auf Seiten verteilt (LB/RB)."), 13f, pal.onSurfaceVariant).apply {
             setPadding(0, d(10), 0, d(2))
         })
         TileCatalog.all.forEach { (id, name) ->
-            row(ccs, name, null, { if (id in prefs.ccTiles) "An" else "Aus" }) {
+            row(ccs, name, null, { if (id in prefs.ccTiles) tr("An") else tr("Aus") }) {
                 val cur = prefs.ccTiles
                 prefs.ccTiles = if (id in cur) cur - id else cur + id
             }
         }
 
         // Glyphs
-        val gl = section("Tastensymbole")
-        row(gl, "Stil", "Automatisch folgt dem Layout in den Retroid-Einstellungen", { prefs.glyphStyle.label }) {
+        val gl = section(tr("Tastensymbole"))
+        row(gl, tr("Stil"), tr("Automatisch folgt dem Layout in den Retroid-Einstellungen"), { prefs.glyphStyle.label }) {
             prefs.glyphStyle = cycle(GlyphStyle.values().toList(), prefs.glyphStyle)
         }
-        row(gl, "Farbig", null, { if (prefs.glyphColored) "An" else "Aus" }) { prefs.glyphColored = !prefs.glyphColored }
+        row(gl, tr("Farbig"), null, { if (prefs.glyphColored) tr("An") else tr("Aus") }) { prefs.glyphColored = !prefs.glyphColored }
         val preview = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, d(6), 0, d(8))
         }
         val fillPreview = {
             preview.removeAllViews()
-            preview.addView(text("Vorschau:  ", 13f, pal.onSurfaceVariant))
+            preview.addView(text(tr("Vorschau:  "), 13f, pal.onSurfaceVariant))
             listOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y).forEach { k ->
                 preview.addView(Glyphs.chip(this, prefs, pal, k), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = d(8) })
             }
-            preview.addView(text(if (Glyphs.nintendoLayout()) "  (Gerät im Retroid-/Nintendo-Layout)" else "  (Gerät im Xbox-Layout)", 12f, pal.onSurfaceVariant))
+            preview.addView(text(if (Glyphs.nintendoLayout()) tr("  (Gerät im Retroid-/Nintendo-Layout)") else tr("  (Gerät im Xbox-Layout)"), 12f, pal.onSurfaceVariant))
         }
         fillPreview()
         afterChange += fillPreview
         gl.addView(preview)
 
         // Try it
-        val t = section("Ausprobieren")
+        val t = section(tr("Ausprobieren"))
         val tr = LinearLayout(this).apply { setPadding(0, d(6), 0, d(6)) }
-        tr.addView(button("Game Switcher öffnen") { HugminnService.instance?.perform(Action.SWITCHER) ?: notRunning() })
+        tr.addView(button(tr("Game Switcher öffnen")) { HugminnService.instance?.perform(Action.SWITCHER) ?: notRunning() })
         tr.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
-        tr.addView(button("Control Center öffnen") { HugminnService.instance?.perform(Action.CONTROL_CENTER) ?: notRunning() })
+        tr.addView(button(tr("Control Center öffnen")) { HugminnService.instance?.perform(Action.CONTROL_CENTER) ?: notRunning() })
         t.addView(tr)
 
         // Report a problem: a prefilled GitHub issue (nothing is sent by Hugminn itself)
-        val bug = section("Fehler melden")
+        val bug = section(tr("Fehler melden"))
         bug.addView(text(
-            "Öffnet auf GitHub eine neue Fehlermeldung, schon ausgefüllt mit Version, Gerät und dem letzten Fehler. " +
-                "Beschreib kurz, was passiert ist, und schick sie ab (dafür brauchst du ein GitHub-Konto).",
+            tr("Öffnet auf GitHub eine neue Fehlermeldung, schon ausgefüllt mit Version, Gerät und dem letzten Fehler. ") +
+                tr("Beschreib kurz, was passiert ist, und schick sie ab (dafür brauchst du ein GitHub-Konto)."),
             12f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(6), 0, d(6)) })
         val lastError = Crash.last(this)
-        if (lastError != null) bug.addView(text("Letzter Fehler: " + lastError.lineSequence().first(), 12f, pal.onSurface).apply { setPadding(0, 0, 0, d(6)) })
+        if (lastError != null) bug.addView(text(tr("Letzter Fehler: ") + lastError.lineSequence().first(), 12f, pal.onSurface).apply { setPadding(0, 0, 0, d(6)) })
         val bb = LinearLayout(this).apply { setPadding(0, 0, 0, d(6)) }
-        bb.addView(button("Fehler auf GitHub melden") { reportBug() })
+        bb.addView(button(tr("Fehler auf GitHub melden")) { reportBug() })
         if (lastError != null) {
             bb.addView(View(this), LinearLayout.LayoutParams(d(12), 1))
-            bb.addView(button("Fehler vergessen") { Crash.clear(this); build() })
+            bb.addView(button(tr("Fehler vergessen")) { Crash.clear(this); build() })
         }
         bug.addView(bb)
 
         // About
-        val a = section("Über")
+        val a = section(tr("Über"))
         a.addView(text(
-            "In der nordischen Sage hat Odin zwei Raben: Huginn (Gedanke) und Muninn (Erinnerung). " +
-                "Hugminn vereint beide: das Control Center denkt für dich mit, der Game Switcher merkt sich deine Spiele.",
+            tr("In der nordischen Sage hat Odin zwei Raben: Huginn (Gedanke) und Muninn (Erinnerung). ") +
+                tr("Hugminn vereint beide: das Control Center denkt für dich mit, der Game Switcher merkt sich deine Spiele."),
             13f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(6), 0, d(4)) })
         a.addView(text("Version ${packageManager.getPackageInfo(packageName, 0).versionName} · ${android.os.Build.MODEL}", 12f, pal.outline).apply {
@@ -314,12 +321,12 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun notRunning() = Toast.makeText(this, "Bitte zuerst Hugminn aktivieren", Toast.LENGTH_SHORT).show()
+    private fun notRunning() = Toast.makeText(this, tr("Bitte zuerst Hugminn aktivieren"), Toast.LENGTH_SHORT).show()
 
     private fun enable(rootOk: Boolean) {
         if (!rootOk) {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            Toast.makeText(this, "„Hugminn“ in der Liste einschalten", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, tr("„Hugminn“ in der Liste einschalten"), Toast.LENGTH_LONG).show()
             return
         }
         thread {
@@ -331,7 +338,7 @@ class MainActivity : Activity() {
                     window.decorView.postDelayed({ build() }, 600)
                 } else {
                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    Toast.makeText(this, "„Hugminn“ in der Liste einschalten", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, tr("„Hugminn“ in der Liste einschalten"), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -341,30 +348,31 @@ class MainActivity : Activity() {
         val version = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "?"
         val error = Crash.last(this)
         val body = buildString {
-            appendLine("**Was ist passiert?**")
+            appendLine(t("**Was ist passiert?**", "**What happened?**"))
             appendLine()
-            appendLine("<!-- Kurz beschreiben: was hast du gemacht, was ist passiert, was hättest du erwartet? -->")
+            appendLine(t("<!-- Kurz beschreiben: was hast du gemacht, was ist passiert, was hättest du erwartet? -->",
+                "<!-- Briefly: what did you do, what happened, what did you expect? -->"))
             appendLine()
-            appendLine("**Gerät**")
+            appendLine(t("**Gerät**", "**Device**"))
             appendLine("- Hugminn $version")
             appendLine("- ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}")
-            appendLine("- Stil: ${prefs.uiStyle.label} · Root-Dienst: ${if (Root.available()) "ja" else "nein"}")
+            appendLine("- Style: ${prefs.uiStyle.name.lowercase()} · Root service: ${if (Root.available()) "yes" else "no"} · Language: ${prefs.language.name.lowercase()}")
             if (error != null) {
                 appendLine()
-                appendLine("**Letzter Fehler**")
+                appendLine(t("**Letzter Fehler**", "**Last error**"))
                 appendLine("```")
                 appendLine(error.lines().take(18).joinToString("\n"))
                 appendLine("```")
             }
         }
         val uri = android.net.Uri.parse("https://github.com/Ninte86hl/Hugminn/issues/new").buildUpon()
-            .appendQueryParameter("title", "Fehler: ")
+            .appendQueryParameter("title", tr("Fehler: "))
             .appendQueryParameter("body", body.take(6000))
             .build()
         try {
             startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (t: Throwable) {
-            Toast.makeText(this, "Kein Browser gefunden", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, tr("Kein Browser gefunden"), Toast.LENGTH_LONG).show()
         }
     }
 
