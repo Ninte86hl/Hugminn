@@ -246,6 +246,7 @@ object Feedback {
         }
         runCatching { svc.own.diag + svc.own.removeDiag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
         appendLine(); appendLine("Spieltitel: ${GameTitle.titles}"); if (GameTitle.diag.isNotEmpty()) appendLine(GameTitle.diag)
+        appendLine(); appendLine("Musik: Listener ${Media.listenerInfo} · spielt=${Media.playing} · app=${Media.app} · titel=${Media.title} · cover=${Media.art != null}"); if (Media.diag.isNotEmpty()) appendLine(Media.diag)
         if (FrameRate.diag.isNotEmpty()) { appendLine(); appendLine("FPS (${svc.foregroundPkg}):"); appendLine(FrameRate.diag) }
         if (Wifi.diag.isNotEmpty() || Bt.diag.isNotEmpty()) { appendLine(); appendLine("WLAN/Bluetooth:"); appendLine(Wifi.diag); appendLine(Bt.diag) }
         if (LedFx.diag.isNotEmpty()) { appendLine(); appendLine("LED-Effekte (${LedFx.current()}, Akku-Warnung=${LedFx.lowBattery}):"); appendLine(LedFx.diag) }
