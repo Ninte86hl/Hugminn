@@ -14,8 +14,10 @@ object FrameRate {
     private fun findLayer(pkg: String): String? {
         val now = System.currentTimeMillis()
         if (pkg == layerPkg && now - layerAt < 8_000) return layer
-        val list = Root.execLong("dumpsys SurfaceFlinger --list", 6_000) ?: return null
+        val list = Root.execLong("dumpsys SurfaceFlinger --list | grep -F ${Root.quote(pkg)}", 6_000)
+        if (list == null) { diag += " · Ebenenliste: keine Antwort"; return null }
         val candidates = list.lines().map { it.trim() }.filter { it.contains(pkg) && !it.startsWith("ActivityRecord") && !it.contains("ActivityRecordInputSink") }
+        diag += " · Ebenen: ${candidates.size}" + (candidates.firstOrNull()?.let { " (z. B. ${it.take(90)})" } ?: "")
         // Games draw into a SurfaceView; otherwise the app window itself.
         val found = candidates.firstOrNull { it.startsWith("SurfaceView") && !it.contains("BLAST") && !it.contains("Background") }
             ?: candidates.firstOrNull { it.startsWith("SurfaceView") }
@@ -44,15 +46,17 @@ object FrameRate {
             statsOn = true
             return null
         }
-        val script = "dumpsys SurfaceFlinger --timestats -dump 2>/dev/null | awk '" +
+        val script = "dumpsys SurfaceFlinger --timestats -dump | awk '" +
             "/layerName =/ { exit } " +
             "\$1==\"displayRefreshRate\" { rr=\$3 } " +
             "/presentToPresent histogram/ { h=1; next } " +
             "h==1 { for (i=1;i<=NF;i++) { if (split(\$i,kv,\"=\")==2) { ms=kv[1]+0; c=kv[2]+0; if (c>0 && ms<100) { n+=c; t+=ms*c } } } h=0 } " +
             "END { f=(t>0)?1000*n/t:0; if (rr>0 && f>rr) f=rr; printf \"HFPS %d %d\\n\", f+0.5, n }'; " +
             "dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1"
-        val out = Root.exec("sh -c " + Root.quote(script), 3_000)
-        diag = "TimeStats: ${out ?: "keine Antwort"}"
+        // through a scratch file: the root service's direct answer is only one line and may come back empty
+        val raw = Root.execLong(script, 4_000)
+        val out = raw?.lines()?.lastOrNull { it.isNotBlank() }
+        diag = "TimeStats: ${raw?.replace('\n', ' ')?.take(240) ?: "keine Antwort"}"
         val m = out?.let { Regex("""HFPS (\d+) (\d+)""").find(it) } ?: return null
         val fps = m.groupValues[1].toInt()
         val frames = m.groupValues[2].toInt()
