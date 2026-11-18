@@ -192,6 +192,19 @@ class Prefs(ctx: Context) {
 
     /** Hugminn's own switcher instead of an overlay on Android's recents view. */
     /** Pause the app in front (cover it) while the own game switcher is open. */
+    /** The introduction was shown (or skipped). */
+    var setupDone: Boolean
+        get() = p.getBoolean("setupDone", false)
+        set(v) = p.edit().putBoolean("setupDone", v).apply()
+
+    /** Control Center grid: rows (2–6) and columns (0 = as many as fit). */
+    var gridRows: Int
+        get() = p.getInt("gridRows", 4)
+        set(v) = p.edit().putInt("gridRows", v).apply()
+    var gridCols: Int
+        get() = p.getInt("gridCols", 0)
+        set(v) = p.edit().putInt("gridCols", v).apply()
+
     /** Pause the app in front while the Control Center is open. */
     var pauseInCc: Boolean
         get() = p.getBoolean("pauseInCc", true)

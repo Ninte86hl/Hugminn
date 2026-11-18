@@ -75,7 +75,7 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 
 ### Huginn – Control Center
 
-- Full-screen grid of square tiles with several pages; free cells open a picker sorted by type (displays, sliders, switches)
+- Full-screen grid of square tiles with several pages (rows and columns adjustable in the settings); free cells open a picker sorted by type (displays, sliders, switches)
 - Edit mode: hold A (or long-press) to move, resize and remove tiles by drag & drop or D-pad; tile colour; reset to default
 - D-pad navigation follows the grid; nothing is preselected until you press a direction
 - Switches (A toggles, □ opens the tile's submenu): WLAN, Bluetooth, stick LEDs, 60/120 Hz, Do not disturb, airplane mode, rotation lock, screen always on and more
@@ -142,7 +142,7 @@ Every release is published under **Releases**, built and signed automatically by
 - **With [Obtainium](https://github.com/ImranR98/Obtainium) (recommended, keeps Hugminn up to date):** download [obtainium.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium.json) (also attached to every release) and import it in Obtainium under *Import/Export → Obtainium Import*.
   Manual setup works too: just add `https://github.com/Ninte86hl/Hugminn` as source.
 
-After installing, open Hugminn and tap **Aktivieren** to turn on its accessibility service.
+After installing, open Hugminn: a short introduction explains the Game Switcher and the Control Center, turns on the accessibility service and lets you switch off what you don't need.
 
 **Test builds** from the `test` branch (with extra diagnostic tools) are published as pre-releases named *Hugminn Test*. They are signed with the same key, so you can switch between test and release builds without reinstalling.
 

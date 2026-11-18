@@ -14,7 +14,8 @@ data class GridEntry(val id: String, val w: Int, val h: Int, val x: Int = -1, va
 data class Placed(val entry: GridEntry, val page: Int, val x: Int, val y: Int)
 
 object GridLayout {
-    const val ROWS = 4
+    /** Rows of the grid (set from the settings before each layout). */
+    @Volatile var ROWS = 4
 
     private val infoIds = setOf("fps", "perf", "fan", "temp", "battery", "cpu", "gpu", "ram", "power")
     private val sliderIds = setOf("brightness", "volume")

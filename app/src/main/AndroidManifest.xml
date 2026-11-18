@@ -29,6 +29,12 @@
         </activity>
 
         <activity
+            android:name=".SetupActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
+        <activity
             android:name=".PauseActivity"
             android:autoRemoveFromRecents="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
