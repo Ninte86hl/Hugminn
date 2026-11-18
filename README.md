@@ -15,6 +15,11 @@
 
 ## What is Hugminn?
 
+<p align="center">
+  <img src="docs/screenshots/styles.gif" alt="Control Center in all styles: Modern, Pixel, Dot matrix and Cocoon, light and dark" width="100%">
+</p>
+<p align="center"><sub>The Control Center in all four styles, light and dark</sub></p>
+
 Hugminn adds two console-style overlays to the Retroid Pocket 6, Pocket Nova and Pocket 5 without replacing your launcher. You keep your favourite frontend (such as Cocoon) for your library; Hugminn sits on top and is always one button press away.
 
 ### Why Hugminn?
@@ -31,10 +36,6 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 - **Muninn** ("memory") is the **Game Switcher**. It remembers what you played last and takes you straight back to it.
 
 ## Screenshots
-
-<p align="center">
-  <img src="docs/screenshots/styles.gif" alt="Control Center in all styles: Modern, Pixel, Dot matrix and Cocoon, light and dark" width="100%">
-</p>
 
 | Dark | Light |
 | --- | --- |
