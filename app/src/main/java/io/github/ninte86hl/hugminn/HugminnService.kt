@@ -144,7 +144,7 @@ class HugminnService : AccessibilityService() {
                     }
                 }
             }
-            if (pkg != null && pkg != packageName && pkg !in notApps && !pkg.contains("launcher", true) && !pkg.contains("inputmethod", true)) {
+            if (pkg != null && pkg != packageName && pkg !in notApps && !Apps.isHome(this, pkg) && !pkg.contains("inputmethod", true)) {
                 if (foregroundPkg != pkg && ::own.isInitialized) own.touch(pkg)
                 foregroundPkg = pkg
             }

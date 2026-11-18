@@ -163,7 +163,7 @@ class OwnSwitcher(private val svc: HugminnService) {
                 ?: Regex("""I=([\w.]+)/""").find(head)?.groupValues?.get(1)
                 ?: Regex("""A=\d+:([\w.]+)""").find(head)?.groupValues?.get(1)
                 ?: return@forEachIndexed
-            if (pkg.contains("launcher", true)) return@forEachIndexed
+            if (Apps.isHome(svc, pkg)) return@forEachIndexed
             // Hugminn's helper screens (black pause screen, Wi-Fi password) are not apps to switch to;
             // Hugminn itself counts only with its settings open
             if (pkg == svc.packageName && !block.contains("MainActivity")) return@forEachIndexed
@@ -189,10 +189,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         fromSwipe = swipe
         val front = runCatching { svc.rootInActiveWindow?.packageName?.toString() }.getOrNull()
         fromPkg = if (swipe) svc.foregroundPkg?.takeIf { svc.appRecentlyInFront() }
-            else if (front == null || front.contains("launcher", true)) null else svc.foregroundPkg
+            else if (front == null || Apps.isHome(svc, front)) null else svc.foregroundPkg
         // without root there is no task list: the usage history is the best guess (with root it would
         // bring back apps that are long closed)
-        if (known.isEmpty() && !Root.available()) Apps.recentPackages(svc).filter { it != svc.packageName && !it.contains("launcher", true) && it in Apps.labels(svc).values }
+        if (known.isEmpty() && !Root.available()) Apps.recentPackages(svc).filter { it != svc.packageName && !Apps.isHome(svc, it) && it in Apps.labels(svc).values }
             .take(12).forEach { p -> known += RecentApp(p, -1) }
         fromPkg?.let { touch(it) }
         val show = {
