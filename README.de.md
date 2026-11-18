@@ -9,6 +9,10 @@
   Android 13 · für den Controller gemacht · Material Design
 </p>
 
+<p align="center">
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22io.github.ninte86hl.hugminn%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FNinte86hl%2FHugminn%22%2C%22author%22%3A%22Ninte86hl%22%2C%22name%22%3A%22Hugminn%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%2C%20%5C%22filterReleaseTitlesByRegEx%5C%22%3A%20%5C%22%5EHugminn%20v%5C%5C%5C%5Cd%5C%22%2C%20%5C%22filterReleaseNotesByRegEx%5C%22%3A%20%5C%22%5C%22%2C%20%5C%22verifyLatestTag%5C%22%3A%20false%2C%20%5C%22sortMethodChoice%5C%22%3A%20%5C%22date%5C%22%2C%20%5C%22useLatestAssetDateAsReleaseDate%5C%22%3A%20false%2C%20%5C%22releaseTitleAsVersion%5C%22%3A%20false%2C%20%5C%22trackOnly%5C%22%3A%20false%2C%20%5C%22versionExtractionRegEx%5C%22%3A%20%5C%22%5C%22%2C%20%5C%22matchGroupToUse%5C%22%3A%20%5C%22%5C%22%2C%20%5C%22versionDetection%5C%22%3A%20true%2C%20%5C%22releaseDateAsVersion%5C%22%3A%20false%2C%20%5C%22useVersionCodeAsOSVersion%5C%22%3A%20false%2C%20%5C%22apkFilterRegEx%5C%22%3A%20%5C%22%5Ehugminn%5C%5C%5C%5C.apk%24%5C%22%2C%20%5C%22invertAPKFilter%5C%22%3A%20false%2C%20%5C%22autoApkFilterByArch%5C%22%3A%20true%2C%20%5C%22appName%5C%22%3A%20%5C%22Hugminn%5C%22%2C%20%5C%22appAuthor%5C%22%3A%20%5C%22Ninte86hl%5C%22%2C%20%5C%22shizukuPretendToBeGooglePlay%5C%22%3A%20false%2C%20%5C%22allowInsecure%5C%22%3A%20false%2C%20%5C%22exemptFromBackgroundUpdates%5C%22%3A%20false%2C%20%5C%22skipUpdateNotifications%5C%22%3A%20false%2C%20%5C%22about%5C%22%3A%20%5C%22Game%20Switcher%20%28Muninn%29%20and%20Control%20Center%20%28Huginn%29%20for%20Retroid%20and%20AYN%20handhelds.%5C%22%2C%20%5C%22refreshBeforeDownload%5C%22%3A%20false%7D%22%2C%22overrideSource%22%3A%22GitHub%22%7D"><img src="docs/badges/obtainium.png" alt="Mit Obtainium holen" height="54"></a>
+</p>
+
 <p align="center"><a href="README.md">English</a> · <b>Deutsch</b></p>
 
 ---
@@ -91,7 +95,7 @@ Hugminn erkennt das Gerät und zeigt nur, was es kann – zum Beispiel keinen 12
 Jede Version erscheint unter **Releases**, automatisch gebaut und signiert von GitHub Actions.
 
 - **Direkter Download:** [hugminn.apk](https://github.com/Ninte86hl/Hugminn/releases/latest/download/hugminn.apk) (immer die neueste Version)
-- **Mit [Obtainium](https://github.com/ImranR98/Obtainium) (empfohlen, hält Hugminn aktuell):** [obtainium.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium.json) herunterladen (hängt auch an jeder Version) und in Obtainium unter *Import/Export → Obtainium Import* importieren.
+- **Mit [Obtainium](https://github.com/ImranR98/Obtainium) (empfohlen, hält Hugminn aktuell):** am Handheld [Zu Obtainium hinzufügen](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22io.github.ninte86hl.hugminn%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FNinte86hl%2FHugminn%22%2C%22author%22%3A%22Ninte86hl%22%2C%22name%22%3A%22Hugminn%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%2C%20%5C%22filterReleaseTitlesByRegEx%5C%22%3A%20%5C%22%5EHugminn%20v%5C%5C%5C%5Cd%5C%22%2C%20%5C%22filterReleaseNotesByRegEx%5C%22%3A%20%5C%22%5C%22%2C%20%5C%22verifyLatestTag%5C%22%3A%20false%2C%20%5C%22sortMethodChoice%5C%22%3A%20%5C%22date%5C%22%2C%20%5C%22useLatestAssetDateAsReleaseDate%5C%22%3A%20false%2C%20%5C%22releaseTitleAsVersion%5C%22%3A%20false%2C%20%5C%22trackOnly%5C%22%3A%20false%2C%20%5C%22versionExtractionRegEx%5C%22%3A%20%5C%22%5C%22%2C%20%5C%22matchGroupToUse%5C%22%3A%20%5C%22%5C%22%2C%20%5C%22versionDetection%5C%22%3A%20true%2C%20%5C%22releaseDateAsVersion%5C%22%3A%20false%2C%20%5C%22useVersionCodeAsOSVersion%5C%22%3A%20false%2C%20%5C%22apkFilterRegEx%5C%22%3A%20%5C%22%5Ehugminn%5C%5C%5C%5C.apk%24%5C%22%2C%20%5C%22invertAPKFilter%5C%22%3A%20false%2C%20%5C%22autoApkFilterByArch%5C%22%3A%20true%2C%20%5C%22appName%5C%22%3A%20%5C%22Hugminn%5C%22%2C%20%5C%22appAuthor%5C%22%3A%20%5C%22Ninte86hl%5C%22%2C%20%5C%22shizukuPretendToBeGooglePlay%5C%22%3A%20false%2C%20%5C%22allowInsecure%5C%22%3A%20false%2C%20%5C%22exemptFromBackgroundUpdates%5C%22%3A%20false%2C%20%5C%22skipUpdateNotifications%5C%22%3A%20false%2C%20%5C%22about%5C%22%3A%20%5C%22Game%20Switcher%20%28Muninn%29%20and%20Control%20Center%20%28Huginn%29%20for%20Retroid%20and%20AYN%20handhelds.%5C%22%2C%20%5C%22refreshBeforeDownload%5C%22%3A%20false%7D%22%2C%22overrideSource%22%3A%22GitHub%22%7D) antippen – Obtainium öffnet sich mit Hugminn zum Hinzufügen. Oder [obtainium.json](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/obtainium.json) herunterladen (hängt auch an jeder Version) und in Obtainium unter *Import/Export → Obtainium Import* importieren.
   Es geht auch von Hand: einfach `https://github.com/Ninte86hl/Hugminn` als Quelle hinzufügen.
 
 Nach der Installation Hugminn öffnen: eine kurze [Einführung](https://github.com/Ninte86hl/Hugminn/wiki/Einrichtungsassistent) erklärt Game Switcher und Control Center, schaltet die Bedienungshilfe ein und lässt dich abschalten, was du nicht brauchst.
@@ -118,11 +122,12 @@ Diese Projekte haben gezeigt, was auf AYN- und Retroid-Handhelds möglich ist, u
 
 Hugminn ist ein unabhängiges Projekt und gehört weder zu Retroid, AYN noch zu einem der Projekte oben.
 
-## Schriften von Dritten
+## Fremde Inhalte
 
 - [Inter](https://github.com/rsms/inter) von The Inter Project Authors, SIL Open Font License 1.1 (siehe `app/src/main/assets/fonts/Inter-OFL.txt`)
 - [NF Pixels](https://github.com/sgigou/NF-Pixels) Pixelschrift von Steve Gigou, SIL Open Font License 1.1 (siehe `app/src/main/assets/fonts/NFPixels-OFL.txt`)
 - [Doto](https://github.com/oliverlalan/Doto) Punktmatrix-Schrift von Óliver Lalan, SIL Open Font License 1.1 (siehe `app/src/main/assets/fonts/Doto-OFL.txt`)
+- „Get it on Obtainium“-Badge vom [Obtainium](https://github.com/ImranR98/Obtainium)-Projekt, das ihn zum Verlinken von Apps bereitstellt
 
 ## Autor
 
