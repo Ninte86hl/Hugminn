@@ -128,7 +128,8 @@ class HugminnService : AccessibilityService() {
         private set
     /** Last opened windows (package/class), for finding firmware dialogs in feedback reports. */
     val windowLog: MutableList<String> = mutableListOf()
-    private val notApps = setOf("com.android.systemui", "com.android.launcher3", "com.google.android.inputmethod.latin")
+    // Retroid's game assistant (its overlay pops up over games) is not an app the user switches to
+    private val notApps = setOf("com.android.systemui", "com.android.launcher3", "com.google.android.inputmethod.latin", "com.rp.gameassistant")
 
         override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {

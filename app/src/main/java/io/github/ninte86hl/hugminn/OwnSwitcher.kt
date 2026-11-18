@@ -181,7 +181,9 @@ class OwnSwitcher(private val svc: HugminnService) {
         val front = runCatching { svc.rootInActiveWindow?.packageName?.toString() }.getOrNull()
         fromPkg = if (swipe) svc.foregroundPkg?.takeIf { svc.appRecentlyInFront() }
             else if (front == null || front.contains("launcher", true)) null else svc.foregroundPkg
-        if (known.isEmpty()) Apps.recentPackages(svc).filter { it != svc.packageName && !it.contains("launcher", true) && it in Apps.labels(svc).values }
+        // without root there is no task list: the usage history is the best guess (with root it would
+        // bring back apps that are long closed)
+        if (known.isEmpty() && !Root.available()) Apps.recentPackages(svc).filter { it != svc.packageName && !it.contains("launcher", true) && it in Apps.labels(svc).values }
             .take(12).forEach { p -> known += RecentApp(p, -1) }
         fromPkg?.let { touch(it) }
         val show = {
