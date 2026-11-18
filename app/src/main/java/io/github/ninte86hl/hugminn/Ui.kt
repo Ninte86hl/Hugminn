@@ -171,21 +171,63 @@ class GlyphView(ctx: Context, private val g: Glyphs.Glyph, pal: Palette, private
         setMeasuredDimension(if (wide) (s * 1.5f).toInt() else s, s)
     }
 
+    private val style = Prefs(ctx).uiStyle
+
     override fun onDraw(c: android.graphics.Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
         val r = h / 2f
-        c.drawRoundRect(0f, 0f, w, h, r, r, cap)
         val cx = w / 2f
         val cy = h / 2f
         val s = h * 0.24f // half size of the symbol
-        stroke.strokeWidth = h * 0.09f
+        val pixel = style == UiStyle.PIXEL
+        val dots = style == UiStyle.DOTS
+        // the button cap in the chosen style
+        when {
+            pixel -> {
+                cap.isAntiAlias = false
+                c.drawPath(pixelPath(android.graphics.RectF(0f, 0f, w, h), h / 8f, 2), cap)
+            }
+            dots -> {
+                // ring of dots instead of a filled cap; the symbol takes the cap's colour
+                val ring = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    style = android.graphics.Paint.Style.STROKE
+                    strokeWidth = h * 0.09f
+                    strokeCap = android.graphics.Paint.Cap.ROUND
+                    color = if (g.color != 0) g.color else cap.color
+                    pathEffect = android.graphics.DashPathEffect(floatArrayOf(0.1f, h * 0.17f), 0f)
+                }
+                c.drawRoundRect(h * 0.06f, h * 0.06f, w - h * 0.06f, h - h * 0.06f, r, r, ring)
+            }
+            else -> c.drawRoundRect(0f, 0f, w, h, r, r, cap)
+        }
+        stroke.strokeWidth = h * if (pixel) 0.11f else 0.09f
+        if (pixel) {
+            stroke.isAntiAlias = false
+            stroke.strokeCap = android.graphics.Paint.Cap.SQUARE
+            stroke.strokeJoin = android.graphics.Paint.Join.MITER
+        }
+        if (dots) {
+            stroke.color = if (g.color != 0) g.color else cap.color
+            textPaint.color = stroke.color
+            stroke.strokeWidth = h * 0.1f
+            stroke.strokeCap = android.graphics.Paint.Cap.ROUND
+            stroke.pathEffect = android.graphics.DashPathEffect(floatArrayOf(0.1f, h * 0.13f), 0f)
+        }
         when (g.shape) {
             Glyphs.Shape.CROSS -> {
                 c.drawLine(cx - s, cy - s, cx + s, cy + s, stroke)
                 c.drawLine(cx - s, cy + s, cx + s, cy - s, stroke)
             }
-            Glyphs.Shape.CIRCLE -> c.drawCircle(cx, cy, s * 1.05f, stroke)
+            Glyphs.Shape.CIRCLE -> if (pixel) {
+                // octagon: a circle drawn with pixels
+                val k = s * 1.05f
+                val e = k * 0.42f
+                c.drawPath(android.graphics.Path().apply {
+                    moveTo(cx - e, cy - k); lineTo(cx + e, cy - k); lineTo(cx + k, cy - e); lineTo(cx + k, cy + e)
+                    lineTo(cx + e, cy + k); lineTo(cx - e, cy + k); lineTo(cx - k, cy + e); lineTo(cx - k, cy - e); close()
+                }, stroke)
+            } else c.drawCircle(cx, cy, s * 1.05f, stroke)
             Glyphs.Shape.SQUARE -> c.drawRect(cx - s * 0.92f, cy - s * 0.92f, cx + s * 0.92f, cy + s * 0.92f, stroke)
             Glyphs.Shape.TRIANGLE -> {
                 val t = android.graphics.Path().apply {
@@ -198,7 +240,8 @@ class GlyphView(ctx: Context, private val g: Glyphs.Glyph, pal: Palette, private
             }
             null -> {
                 val text = g.text ?: return
-                textPaint.textSize = h * (if (text.length > 1) 0.42f else 0.56f)
+                textPaint.textSize = h * (if (text.length > 1) 0.42f else if (pixel) 0.66f else 0.56f)
+                if (pixel) textPaint.isAntiAlias = false
                 val b = Rect().also { textPaint.getTextBounds(text, 0, text.length, it) }
                 c.drawText(text, cx, cy + b.height() / 2f - b.bottom.coerceAtLeast(0) / 2f, textPaint)
             }
@@ -216,12 +259,33 @@ class DpadView(ctx: Context, pal: Palette, private val sizeDp: Int) : View(ctx) 
         setMeasuredDimension(s, s)
     }
 
+    private val style = Prefs(ctx).uiStyle
+
     override fun onDraw(c: android.graphics.Canvas) {
         val s = height.toFloat()
         val a = s * 0.33f
         val r = s * 0.08f
-        c.drawRoundRect(a, 0f, s - a, s, r, r, p)
-        c.drawRoundRect(0f, a, s, s - a, r, r, p)
+        if (style == UiStyle.DOTS) {
+            // cross made of dots, arrows left/right brighter
+            val n = 5
+            val step = s / n
+            for (y in 0 until n) for (x in 0 until n) {
+                val inCross = x == 2 || y == 2
+                if (!inCross) continue
+                p.alpha = if (y == 2 && (x == 0 || x == 4)) 255 else 150
+                c.drawCircle(step * (x + 0.5f), step * (y + 0.5f), step * 0.32f, p)
+            }
+            p.alpha = 255
+            return
+        }
+        if (style == UiStyle.PIXEL) {
+            p.isAntiAlias = false
+            c.drawRect(a, 0f, s - a, s, p)
+            c.drawRect(0f, a, s, s - a, p)
+        } else {
+            c.drawRoundRect(a, 0f, s - a, s, r, r, p)
+            c.drawRoundRect(0f, a, s, s - a, r, r, p)
+        }
         // highlight left/right arms
         val t = android.graphics.Path().apply {
             moveTo(s * 0.08f, s / 2); lineTo(s * 0.24f, s * 0.38f); lineTo(s * 0.24f, s * 0.62f); close()
