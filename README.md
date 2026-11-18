@@ -42,6 +42,8 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 | Performance profiles | Fan profiles and custom fan curve |
 | ![Performance overlay settings](docs/screenshots/performance-overlay-menu.png) | ![Edit menu](docs/screenshots/edit-menu.png) |
 | Performance overlay settings | Edit: layout, tile colour, style |
+| ![Edit mode](docs/screenshots/edit-mode.png) | ![Add element](docs/screenshots/add-element.png) |
+| Edit mode: move and resize elements on a grid with pages | Add displays, switches and sliders |
 
 ## Features
 
