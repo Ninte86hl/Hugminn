@@ -11,11 +11,17 @@
 
 ---
 
-> **Status:** in active testing on the Retroid Pocket 6 (current version: see Releases). Features marked are built but not yet confirmed on the device.
+> **Status:** tested on the Retroid Pocket 6. Pocket Nova and Pocket 5 support is planned.
 
 ## What is Hugminn?
 
 Hugminn adds two console-style overlays to the Retroid Pocket 6, Pocket Nova and Pocket 5 without replacing your launcher. You keep your favourite frontend (such as Cocoon) for your library; Hugminn sits on top and is always one button press away.
+
+### Why Hugminn?
+
+Android was made for touch screens. On a handheld you hold a controller, yet switching between games or changing the fan, the performance profile or the Wi-Fi still means reaching for the screen, digging through Android's settings or waiting for a quick settings panel that was never designed for a D-pad.
+
+The goal of Hugminn is a **controller-friendly control center and game switcher for Android**, the way consoles have one: everything reachable with the buttons you are already holding, readable at a glance, and without leaving your game for longer than a button press. Touch still works, but you never need it.
 
 ### The name
 
