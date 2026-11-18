@@ -20,6 +20,14 @@ class GraphView(ctx: Context, private val color: Int, private val max: Float = 1
     }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val path = Path()
+    /** Colours from the bottom (0) to the top ([max]) of the graph, or null for the single [color]. */
+    private var stops: IntArray? = null
+
+    /** Colours the line by height, like the gauges (e.g. green low, red high). */
+    fun setColors(c: IntArray?) {
+        stops = c?.takeIf { it.size >= 2 }
+        invalidate()
+    }
 
     fun push(v: Float) {
         if (values.isEmpty()) repeat(capacity - 1) { values.addLast(v.coerceIn(0f, max)) }
@@ -45,7 +53,15 @@ class GraphView(ctx: Context, private val color: Int, private val max: Float = 1
             lineTo(start, h)
             close()
         }
-        fill.shader = LinearGradient(0f, 0f, 0f, h, (color and 0x00FFFFFF) or 0x55000000, color and 0x00FFFFFF, Shader.TileMode.CLAMP)
+        val st = stops
+        if (st != null) {
+            // line and area take the colour of their height
+            line.shader = LinearGradient(0f, h, 0f, 0f, st, null, Shader.TileMode.CLAMP)
+            fill.shader = LinearGradient(0f, h, 0f, 0f, st.map { (it and 0x00FFFFFF) or 0x40000000 }.toIntArray(), null, Shader.TileMode.CLAMP)
+        } else {
+            line.shader = null
+            fill.shader = LinearGradient(0f, 0f, 0f, h, (color and 0x00FFFFFF) or 0x55000000, color and 0x00FFFFFF, Shader.TileMode.CLAMP)
+        }
         c.drawPath(area, fill)
         c.drawPath(path, line)
     }
