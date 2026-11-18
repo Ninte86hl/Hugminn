@@ -6,6 +6,10 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Music tile reads the player's song from the same place as Android's own media notification.
 - Musik-Kachel liest den Titel des Players von derselben Stelle wie Androids eigene Medien-Benachrichtigung.
 
+## 1.9.1
+- Music tile: song and artist also from players with their own notification layout (such as Android's own music app).
+- Musik-Kachel: Titel und Interpret auch von Playern mit eigenem Benachrichtigungs-Layout (wie Androids eigene Musik-App).
+
 ## 1.9.0
 - Music tile also works with players that publish no song information (such as Android's own music app): app, playing state, and title and picture from the player's notification.
 - Musik-Kachel funktioniert auch mit Playern, die keine Titel-Infos melden (wie Androids eigene Musik-App): App, Wiedergabe-Status sowie Titel und Bild aus der Benachrichtigung des Players.
