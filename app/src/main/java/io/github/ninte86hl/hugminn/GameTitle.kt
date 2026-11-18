@@ -31,7 +31,7 @@ object GameTitle {
             if (res.containsKey(pkg)) continue
             if (Apps.typeOf(pkg) == AppType.APP) continue
             d.append(pkg).append(": dat=").append(dat?.take(160)).append('\n')
-            val title = dat?.let { fromPath(it, folderOk = true) } ?: fromLog(pkg, d) ?: fromOpenFiles(pkg, d)
+            val title = dat?.let { fromPath(it, folderOk = true) } ?: fromOpenFiles(pkg, d) ?: fromRetroArchHistory(pkg, d) ?: fromLog(pkg, d)
             d.append("  → ").append(title).append('\n')
             if (title != null) res[pkg] = title
         }
@@ -59,12 +59,35 @@ object GameTitle {
      */
     private fun fromLog(pkg: String, d: StringBuilder?): String? {
         val exts = romExt.joinToString("|")
-        val out = Root.execLong("logcat -d -v brief -t 4000 --pid=\$(pidof -s ${Root.quote(pkg)}) 2>/dev/null | grep -iE '\\.($exts)([^a-z0-9]|\$)' | tail -n 5", 4_000)
+        // long commands come back empty from the root service: the search runs as a small script
+        val cmd = Root.script("gamelog", "logcat -d -v brief -t 6000 --pid=\$(pidof -s \"\$1\") 2>/dev/null | grep -iE '\\.($exts)([^a-z0-9]|\$)' | tail -n 5\n")
             ?: return null
+        val out = Root.execLong("$cmd ${Root.quote(pkg)}", 4_000) ?: return null
         val rx = Regex("""((?:/storage/|/sdcard/|/mnt/|content://)[^"'\n]*?\.(?:$exts))(?=[^A-Za-z0-9]|$)""", RegexOption.IGNORE_CASE)
         val hit = out.lines().asReversed().firstNotNullOfOrNull { l -> rx.findAll(l).lastOrNull()?.groupValues?.get(1) }
         d?.append("  Log: ")?.append(hit ?: out.lines().lastOrNull()?.take(160))?.append('\n')
         return hit?.let { fromPath(it) }
+    }
+
+    /** RetroArch keeps a history of started games; the newest entry is the running one. */
+    private fun fromRetroArchHistory(pkg: String, d: StringBuilder?): String? {
+        if (!pkg.startsWith("com.retroarch")) return null
+        for (f in listOf(
+            "/storage/emulated/0/RetroArch/playlists/builtin/content_history.lpl",
+            "/storage/emulated/0/Android/data/$pkg/files/playlists/builtin/content_history.lpl",
+            "/data/data/$pkg/playlists/builtin/content_history.lpl",
+            "/data/data/$pkg/files/playlists/builtin/content_history.lpl",
+        )) {
+            val out = Root.execLong("head -c 3000 ${Root.quote(f)} 2>/dev/null", 3_000) ?: continue
+            if (!out.contains("\"path\"")) continue
+            val path = Regex("\"path\"\\s*:\\s*\"([^\"]+)\"").find(out)?.groupValues?.get(1)
+            val label = Regex("\"label\"\\s*:\\s*\"([^\"]*)\"").find(out)?.groupValues?.get(1)
+            d?.append("  RetroArch-Verlauf: ")?.append(label)?.append(" | ")?.append(path?.takeLast(120))?.append('\n')
+            val fromLabel = label?.takeIf { it.isNotBlank() && it != "N/A" }?.let { clean(it) }
+            return fromLabel ?: path?.substringBefore('#')?.let { fromPath(it) }
+        }
+        d?.append("  RetroArch-Verlauf: nicht gefunden\n")
+        return null
     }
 
     private fun ext(p: String) = p.substringAfterLast('/').substringAfterLast('.', "").lowercase()
@@ -77,7 +100,14 @@ object GameTitle {
         // a game folder (Wii U, PS3 …) has no extension: its name is the title
         if (e in romExt) s = s.substringBeforeLast('.')
         else if (!folderOk || (e.isNotEmpty() && e.length <= 4 && e.all { it.isLetterOrDigit() })) return null
-        s = s.replace(Regex("""\s*[(\[][^)\]]*[)\]]"""), "") // (USA), [!], (Rev 1) …
+        // a second extension like ".xiso" in "Game.xiso.iso"
+        if (s.substringAfterLast('.', "").lowercase() in setOf("xiso", "nkit", "iso", "dec")) s = s.substringBeforeLast('.')
+        return clean(s)
+    }
+
+    /** "Metroid Fusion (USA) [!]" → "Metroid Fusion". */
+    private fun clean(name: String): String? {
+        val s = name.replace(Regex("""\s*[(\[][^)\]]*[)\]]"""), "") // (USA), [!], (Rev 1) …
             .replace('_', ' ')
             .replace(Regex("""\s+"""), " ")
             .trim()
