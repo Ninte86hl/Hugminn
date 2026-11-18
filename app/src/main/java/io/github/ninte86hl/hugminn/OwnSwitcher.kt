@@ -145,12 +145,13 @@ class OwnSwitcher(private val svc: HugminnService) {
      * is taken from the activity it really runs (realActivity / the start intent), not its affinity.
      */
     private fun loadTasks(): List<RecentApp>? {
-        val out = Root.execLong("dumpsys activity recents | grep -E 'Recent #|realActivity=|cmp='") ?: run { diag = "Taskliste: keine Antwort"; return null }
+        val out = Root.execLong("dumpsys activity recents | grep -E 'Recent #|realActivity=|cmp=|dat='") ?: run { diag = "Taskliste: keine Antwort"; return null }
         val starts = Regex("""\* Recent #\d+: Task\{\S+ #(\d+)[^\n]*""").findAll(out).toList()
         if (starts.isEmpty()) { diag = "Taskliste: nicht lesbar"; return null }
         val launchable = Apps.labels(svc).values.toSet()
         val res = mutableListOf<RecentApp>()
         val skipped = mutableListOf<String>()
+        val data = mutableListOf<Pair<String, String?>>()
         starts.forEachIndexed { i, m ->
             val block = out.substring(m.range.first, if (i + 1 < starts.size) starts[i + 1].range.first else out.length)
             val head = m.value
@@ -170,8 +171,13 @@ class OwnSwitcher(private val svc: HugminnService) {
             // only system parts without a window of their own are left out
             if (pkg !in launchable && (pkg == "com.android.systemui" || pkg.startsWith("com.android.permissioncontroller") ||
                     runCatching { svc.packageManager.getApplicationInfo(pkg, 0) }.isFailure)) { skipped += pkg; return@forEachIndexed }
-            if (res.none { it.pkg == pkg }) res += RecentApp(pkg, id)
+            if (res.none { it.pkg == pkg }) {
+                res += RecentApp(pkg, id)
+                data += pkg to Regex("""dat=(\S+)""").find(block)?.groupValues?.get(1)
+            }
         }
+        // the game titles need a few more root calls: in the background, the list is shown at once
+        thread { runCatching { GameTitle.update(svc, data) }; svc.ui.post { renderTitle() } }
         diag = "Taskliste: ${starts.size} Tasks, ${res.size} Apps: ${res.joinToString { it.pkg }}" +
             (if (skipped.isNotEmpty()) "\nÜbergangen: ${skipped.distinct().joinToString()}" else "")
         return res
@@ -245,6 +251,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         val r = root
         root = null
         carousel = null
+        titleView = null
         bar = null
         // removed at once: a fade-out left a ghost of the cards over the home screen
         r?.let { runCatching { wm.removeViewImmediate(it) } }
@@ -458,8 +465,13 @@ class OwnSwitcher(private val svc: HugminnService) {
             onScroll = { i -> sel = i; carousel?.set(apps, sel, true); renderBar() },
             onSwipeUp = { i -> sel = i; closeSelected() },
         )
+        // the game the selected emulator is running, above the cards
+        val titleH = svc.dp(44)
+        val tv = text("", 22f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER; setPadding(svc.dp(24), 0, svc.dp(24), 0) }
+        r.addView(tv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, titleH, Gravity.TOP).apply { topMargin = top + svc.dp(8) })
+        titleView = tv
         r.addView(c, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
-            topMargin = top
+            topMargin = top + titleH
             bottomMargin = barH
         })
         val b = LinearLayout(svc).apply {
@@ -506,7 +518,19 @@ class OwnSwitcher(private val svc: HugminnService) {
         addView(text(label, 13f, pal.onSurfaceVariant).apply { setPadding(svc.dp(7), 0, svc.dp(16), 0) })
     }
 
+    private var titleView: TextView? = null
+
+    /** Shows the game of the selected card (if Hugminn could find out which one it is). */
+    private fun renderTitle() {
+        val tv = titleView ?: return
+        val pkg = apps.getOrNull(sel)?.pkg
+        val title = pkg?.let { GameTitle.titles[it] }
+        tv.text = title ?: ""
+        tv.visibility = if (title == null || menu != null) View.INVISIBLE else View.VISIBLE
+    }
+
     private fun renderBar() {
+        renderTitle()
         val b = bar ?: return
         b.removeAllViews()
         val m = menu

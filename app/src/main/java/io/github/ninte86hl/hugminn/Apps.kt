@@ -21,6 +21,7 @@ object Apps {
         "org.mupen64plusae", "io.recompiled.redream", "com.flycast", "com.explusalpha", "com.fms.",
         "skyline.emu", "org.vita3k", "info.cemu", "com.swordfish.lemuroid", "org.scummvm", "com.winlator",
         "app.gamenative", "com.github.stenzek.aethersx2", "net.rpcs3", "ru.vita3k", "org.mozilla.dosbox",
+        "com.armsx2", "it.dbtecno.pizzaboy", "com.retroarch",
     )
 
     fun typeOf(pkg: String?): AppType = when {
