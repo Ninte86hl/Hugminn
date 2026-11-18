@@ -11,7 +11,6 @@ import android.view.View
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import kotlin.concurrent.thread
@@ -25,7 +24,7 @@ class SetupActivity : Activity() {
     private lateinit var pal: Palette
     private var step = 0
     private val steps = 6
-    private val buttons = mutableListOf<Button>()
+    private val buttons = mutableListOf<View>()
 
     private fun d(v: Int) = dp(v)
     private val pixel get() = prefs.uiStyle == UiStyle.PIXEL
@@ -76,7 +75,7 @@ class SetupActivity : Activity() {
         buttons += this
     }
 
-    private fun picture(name: String, off: Boolean = false): View? = runCatching {
+    private fun picture(name: String, off: Boolean = false, heightDp: Int = 190): View? = runCatching {
         val bmp = assets.open("wizard/$name.jpg").use { BitmapFactory.decodeStream(it) }
         ImageView(this).apply {
             setImageBitmap(bmp)
@@ -91,18 +90,31 @@ class SetupActivity : Activity() {
     }.getOrNull()
 
     /**
-     * A line "label + what the current value does ……… [value]". Changing it rebuilds the page, so
-     * the picture and the description follow the choice; the focus stays on the button.
+     * One setting as a large card (the whole card is the button): name, what the current value does,
+     * and the value on the right. Changing it rebuilds the page, so picture and text follow the
+     * choice; the focus stays on the card. Nothing on these pages scrolls.
      */
     private fun option(parent: LinearLayout, label: String, sub: () -> String, value: () -> String, click: () -> Unit) {
-        val r = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, d(4), 0, d(4)) }
+        val idx = buttons.size
+        val card = LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(d(16), d(6), d(12), d(6))
+            background = Look.shape(this@SetupActivity, pixel, pal.surfaceHigh, d(16).toFloat())
+            isFocusable = true
+            isClickable = true
+            setOnClickListener { click(); focusAfter = idx; build() }
+            setOnFocusChangeListener { v, f -> v.foreground = if (f) Look.shape(this@SetupActivity, pixel, 0, d(16).toFloat(), d(3), pal.primary) else null }
+        }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.addView(text(label, 15f, pal.onSurface, bold = true))
-        col.addView(text(sub(), 12f, pal.onSurfaceVariant))
-        r.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = d(12) })
-        val idx = buttons.size
-        r.addView(button(value()) { click(); focusAfter = idx; build() }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, d(44)))
-        parent.addView(r)
+        col.addView(text(sub(), 12f, pal.onSurfaceVariant).apply { maxLines = 2 })
+        card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = d(10) })
+        card.addView(text(value(), 14f, pal.onPrimaryContainer, bold = true).apply {
+            background = Look.shape(this@SetupActivity, pixel, pal.primaryContainer, d(14).toFloat())
+            setPadding(d(14), d(6), d(14), d(6))
+        })
+        buttons += card
+        parent.addView(card, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = d(6) })
     }
 
     /** Button to focus after a rebuild (-1: "next"). */
@@ -160,9 +172,8 @@ class SetupActivity : Activity() {
             4 -> lookPage(body)
             else -> donePage(body)
         }
-        // only the middle scrolls (if at all): the buttons below always stay on screen
-        root.addView(ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = true },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        // nothing scrolls (awkward with a controller): the page fits, the buttons stay at the bottom
+        root.addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         // navigation
         val nav = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, d(8), 0, 0) }
@@ -181,15 +192,17 @@ class SetupActivity : Activity() {
         root.post { (buttons.getOrNull(f) ?: next).requestFocus() }
     }
 
-    /** Text on the left, picture (and the options under it) on the right. */
+    /** Text on the left; picture (limited height) and the setting cards on the right. */
     private fun twoColumns(parent: LinearLayout, pic: String?, off: Boolean = false, right: ((LinearLayout) -> Unit)? = null, fill: (LinearLayout) -> Unit) {
         val row = LinearLayout(this).apply { gravity = Gravity.TOP }
         val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         fill(left)
         row.addView(left, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = d(28) })
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        pic?.let { picture(it, off) }?.let { col.addView(it) }
-        right?.let { col.addView(View(this), LinearLayout.LayoutParams(1, d(8))); it(col) }
+        val picH = if (right == null) 260 else 180
+        // fixed height, width from the picture: it never pushes the cards off the screen
+        pic?.let { picture(it, off) }?.let { col.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, d(picH)).apply { bottomMargin = d(4) }) }
+        right?.invoke(col)
         row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         parent.addView(row)
     }
@@ -206,7 +219,7 @@ class SetupActivity : Activity() {
             Lang.init(this)
         }
     }) { c ->
-        c.addView(text(t("Willkommen bei Hugminn", "Welcome to Hugminn"), 28f, pal.onSurface, bold = true))
+        c.addView(text(t("Willkommen bei Hugminn", "Welcome to Hugminn"), 26f, pal.onSurface, bold = true))
         c.addView(text(
             t("Ein Control Center und ein Game Switcher für deinen Handheld, ganz mit den Tasten bedienbar – ohne deinen Launcher zu ersetzen.\n\n" +
                 "Huginn (Gedanke) ist das Control Center, Muninn (Erinnerung) der Game Switcher. In ein paar Schritten zeige ich dir beide und du stellst ein, was du brauchst.",
@@ -219,7 +232,7 @@ class SetupActivity : Activity() {
     private fun activate(b: LinearLayout) {
         val running = HugminnService.instance != null
         val rootOk = Root.available()
-        b.addView(text(t("Hugminn einschalten", "Turn Hugminn on"), 28f, pal.onSurface, bold = true))
+        b.addView(text(t("Hugminn einschalten", "Turn Hugminn on"), 26f, pal.onSurface, bold = true))
         b.addView(text(
             t("Hugminn arbeitet als Bedienungshilfe: nur so kann es die Home-Taste und den Controller abfangen und sich über Spiele legen. " +
                 "Hugminn liest nicht mit, was du tippst, und hat keine Internet-Berechtigung.",
@@ -260,7 +273,7 @@ class SetupActivity : Activity() {
                 }, { onOff(prefs.autoSwitcher) }) { prefs.autoSwitcher = !prefs.autoSwitcher }
             }
         }) { c ->
-            c.addView(text("Muninn · Game Switcher", 26f, pal.onSurface, bold = true))
+            c.addView(text("Muninn · Game Switcher", 24f, pal.onSurface, bold = true))
             c.addView(text(
                 t("Deine zuletzt geöffneten Spiele und Apps als große Karten, mit dem Spieltitel darüber.",
                     "Your recently opened games and apps as large cards, with the game's title above."),
@@ -300,7 +313,7 @@ class SetupActivity : Activity() {
                 }
             }
         }) { c ->
-            c.addView(text("Huginn · Control Center", 26f, pal.onSurface, bold = true))
+            c.addView(text("Huginn · Control Center", 24f, pal.onSurface, bold = true))
             c.addView(text(
                 t("Leistung, Lüfter, WLAN, Bluetooth, LEDs, Helligkeit, Lautstärke und Live-Werte auf einen Blick. Das Raster ordnest du selbst an.",
                     "Performance, fan, Wi-Fi, Bluetooth, LEDs, brightness, volume and live values at a glance. You arrange the grid yourself."),
