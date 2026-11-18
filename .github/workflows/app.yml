@@ -74,6 +74,18 @@ jobs:
           body: |
             Hugminn ${{ steps.ver.outputs.name }}. Install `hugminn.apk` on the handheld, or keep it up to date with Obtainium.
 
+      - name: Remove older test builds (only the newest one stays)
+        if: github.ref == 'refs/heads/test' && env.HAS_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list -R "$GITHUB_REPOSITORY" -L 1000 --json tagName --jq '.[].tagName' | while read -r tag; do
+            case "$tag" in
+              test-v${{ steps.ver.outputs.name }}) ;;
+              test-*) gh release delete "$tag" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag ;;
+            esac
+          done
+
       - name: Publish test build
         if: github.ref == 'refs/heads/test' && env.HAS_KEY == 'true'
         uses: softprops/action-gh-release@v2
