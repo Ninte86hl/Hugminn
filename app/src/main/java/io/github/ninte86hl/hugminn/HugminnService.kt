@@ -100,6 +100,7 @@ class HugminnService : AccessibilityService() {
                 if (checkSelfPermission(perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) Root.exec("pm grant $packageName $perm")
             }
         }.start()
+        Bt.listenBattery(this)
         // Low battery: the sticks pulse red
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {

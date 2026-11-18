@@ -95,6 +95,48 @@ object Bt {
 
     fun name(d: BluetoothDevice) = runCatching { d.name }.getOrNull() ?: d.address
 
+    /** Battery levels the system announced per device address (hidden broadcast of Android). */
+    private val levels = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    @Volatile private var listening = false
+
+    /** Starts listening for battery reports of Bluetooth devices (once, in the service). */
+    fun listenBattery(ctx: Context) {
+        if (listening) return
+        listening = true
+        runCatching {
+            ctx.registerReceiver(object : BroadcastReceiver() {
+                override fun onReceive(c: Context, i: Intent) {
+                    val d = i.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE) ?: return
+                    val l = i.getIntExtra("android.bluetooth.device.extra.BATTERY_LEVEL", -1)
+                    if (l in 0..100) levels[d.address] = l else levels.remove(d.address)
+                }
+            }, IntentFilter("android.bluetooth.device.action.BATTERY_LEVEL_CHANGED"))
+        }
+    }
+
+    /**
+     * Battery of a connected device in percent, or null if it does not report one. Headphones and
+     * many controllers report it to Bluetooth; game controllers often only to the input system.
+     */
+    fun battery(d: BluetoothDevice): Int? {
+        runCatching { (d.javaClass.getMethod("getBatteryLevel").invoke(d) as Int).takeIf { it in 0..100 } }.getOrNull()?.let { return it }
+        levels[d.address]?.let { return it }
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            val n = name(d)
+            for (id in android.view.InputDevice.getDeviceIds()) {
+                val dev = android.view.InputDevice.getDevice(id) ?: continue
+                if (!dev.isExternal || dev.name != n) continue
+                val st = runCatching { dev.batteryState }.getOrNull() ?: continue
+                if (st.isPresent && !st.capacity.isNaN()) return (st.capacity * 100).toInt().coerceIn(0, 100)
+            }
+        }
+        return null
+    }
+
+    /** Connected devices that report a battery level: name to percent. */
+    fun batteries(ctx: Context): List<Pair<String, Int>> =
+        paired(ctx).filter { isConnected(it) }.mapNotNull { d -> battery(d)?.let { name(d) to it } }
+
     /**
      * Connects (or disconnects) a paired device. Android allows this only to system apps; if it is
      * refused, Hugminn opens the Bluetooth settings and taps the device there itself.

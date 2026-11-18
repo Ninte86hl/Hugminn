@@ -994,6 +994,20 @@ class ControlCenter(private val svc: HugminnService) {
             close()
             svc.ui.postDelayed({ svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN) }, 250)
         }
+        // battery of connected Bluetooth devices (controllers, headphones) that report one
+        "devbat" -> Tile(t("Geräte-Akku", "Device battery"), IconView.Kind.BATTERY, {
+            val list = Bt.batteries(svc)
+            when {
+                list.isEmpty() -> t("Kein Gerät meldet Akku", "No device reports battery")
+                list.size == 1 -> "${list[0].first} · ${list[0].second} %"
+                else -> list.joinToString(" · ") { "${it.second} %" }
+            }
+        }, { Bt.batteries(svc).isNotEmpty() }) {
+            val list = Bt.batteries(svc)
+            showMenu(t("Geräte-Akku", "Device battery"),
+                if (list.isEmpty()) listOf(MenuEntry(t("Kein verbundenes Gerät meldet seinen Akku", "No connected device reports its battery"), run = null))
+                else list.map { (n, l) -> MenuEntry(n, hint = "$l %", run = null) })
+        }
         "rpsettings" -> svc.packageManager.getLaunchIntentForPackage("com.rp.settings")?.let { i ->
             Tile(tr("Retroid-Einstellungen"), IconView.Kind.GAMEPAD, { null }, { false }) { close(); svc.startApp(i) }
         }
@@ -1288,7 +1302,11 @@ class ControlCenter(private val svc: HugminnService) {
             if (paired.isEmpty()) entries += MenuEntry(tr("Noch keine"), run = null)
             paired.forEach { d ->
                 val connected = Bt.isConnected(d)
-                entries += MenuEntry(Bt.name(d), checked = connected, hint = if (connected) tr("Verbunden · A trennt") else tr("Gekoppelt · A verbindet")) {
+                val bat = if (connected) Bt.battery(d) else null
+                val hint = if (!connected) tr("Gekoppelt · A verbindet")
+                    else if (bat != null) t("Verbunden · Akku $bat % · A trennt", "Connected · battery $bat % · A disconnects")
+                    else tr("Verbunden · A trennt")
+                entries += MenuEntry(Bt.name(d), checked = connected, hint = hint) {
                     stopBtScan()
                     Toast.makeText(svc, if (connected) t("Trenne ${Bt.name(d)} …", "Disconnecting ${Bt.name(d)} …") else t("Verbinde ${Bt.name(d)} …", "Connecting ${Bt.name(d)} …"), Toast.LENGTH_SHORT).show()
                     Bt.toggle(svc, d, !connected) { svc.ui.postDelayed({ refreshAll() }, 1500) }
