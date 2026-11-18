@@ -71,8 +71,63 @@ object FrameRate {
         return layer
     }
 
+    // ---- SurfaceFlinger TimeStats: how often the display really presents a new picture ----
+    // (technique as used by PULSE: enable TimeStats, read the global presentToPresent histogram, clear)
+    @Volatile private var tsOn = false
+    private var tsFails = 0
+
+    private val TS = """dumpsys SurfaceFlinger --timestats -dump -maxlayers 24 2>/dev/null | awk -v P="${'$'}1" '
+/layerName =/ { g = 0; mine = index(${'$'}0, P) > 0; next }
+g != 0 && ${'$'}1 == "displayRefreshRate" { rr = ${'$'}3 + 0 }
+g != 0 && /presentToPresent histogram/ { h = 1; next }
+g != 0 && h == 1 { h = 0; for (i = 1; i <= NF; i++) { split(${'$'}i, a, "="); ms = a[1] + 0; c = a[2] + 0; if (c > 0 && ms < 100) { n += c; sum += ms * c; if (ms > w) w = ms } } }
+g == 0 && mine && ${'$'}1 == "totalFrames" { lf = ${'$'}3 + 0; if (lf > blf) cand = 1; else cand = 0 }
+g == 0 && mine && cand && ${'$'}1 == "averageFPS" { blf = lf; bla = ${'$'}3 + 0 }
+BEGIN { g = 1 }
+END { f = (sum > 0) ? 1000 * n / sum : 0; if (rr > 0 && f > rr) f = rr; printf "TS %d %.1f %d %d %.1f", n, f, w, blf, bla }'
+dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
+"""
+
+    /** FPS from TimeStats, or null when it has nothing (then the layer method below is used). */
+    private fun timeStats(pkg: String): Int? {
+        if (tsFails > 5) return null
+        if (!tsOn) {
+            Root.exec("dumpsys SurfaceFlinger --timestats -enable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1; echo ok")
+            tsOn = true
+            return null
+        }
+        val cmd = Root.script("fps", TS) ?: return null
+        val out = Root.exec("$cmd ${Root.quote(pkg)}", 4_000)
+        val p = out?.trim()?.split(' ')
+        diag = "TimeStats: ${out ?: "keine Antwort"}"
+        if (p == null || p.size < 6 || p[0] != "TS") { tsFails++; return null }
+        val frames = p[1].toIntOrNull() ?: 0
+        val fps = p[2].toFloatOrNull() ?: 0f
+        val layerFrames = p[4].toIntOrNull() ?: 0
+        val layerFps = p[5].toFloatOrNull() ?: 0f
+        tsFails = 0
+        return when {
+            frames >= 5 && fps > 0 -> Math.round(fps)
+            layerFrames >= 5 && layerFps > 0 -> Math.round(layerFps)
+            else -> 0
+        }
+    }
+
+    /** Switches TimeStats off again when nothing measures any more. */
+    fun stop() {
+        if (!tsOn) return
+        tsOn = false
+        Root.run("dumpsys SurfaceFlinger --timestats -disable >/dev/null 2>&1; dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1")
+    }
+
     fun sample(pkg: String?): Result? {
         if (pkg == null || !Root.available()) return null
+        val ts = timeStats(pkg)
+        if (ts != null) {
+            val shown = ts.coerceIn(0, 240)
+            if (shown > 0) { recent.addLast(1000f / shown); while (recent.size > 60) recent.removeFirst() }
+            return Result(shown, recent.toList())
+        }
         val l = findLayer(pkg)
         if (l == null) {
             val f = displayFps()

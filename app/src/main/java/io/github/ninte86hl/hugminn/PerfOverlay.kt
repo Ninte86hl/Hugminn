@@ -159,6 +159,7 @@ class PerfOverlay(private val svc: HugminnService) {
         view?.let { runCatching { wm.removeView(it) } }
         view = null
         metrics = null
+        Thread { FrameRate.stop() }.start()
     }
 
     /** Applies changed settings. */
