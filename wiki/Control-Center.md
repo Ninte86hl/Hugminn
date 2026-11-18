@@ -15,11 +15,13 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - **Cards:** performance and fan profile, CPU, GPU, RAM, temperatures, battery and FPS. Gauges are coloured by load.
 - **Battery:** shows the time left, or the time until full while charging.
 - **Music:** what is playing, play/pause, next and previous track for any music app.
+- **Screen off:** puts the handheld to sleep like the power button; the game pauses until you wake it.
+- **Device battery:** battery level of connected Bluetooth controllers and headphones that report one.
 - **Settings:** opens Android's settings.
 
 ## Submenus
 - **Wi-Fi:** networks in range with their signal; saved networks connect directly, new ones open a password window you can fill in with the controller.
-- **Bluetooth:** paired devices (connect / disconnect), search and pair new devices. Hugminn confirms the pairing dialog for you.
+- **Bluetooth:** paired devices (connect / disconnect) with the battery level of connected devices, search and pair new devices. Hugminn confirms the pairing dialog for you.
 - **Performance and fan:** see [Performance and fan](Performance-and-Fan).
 - **Stick LEDs:** see [Stick LEDs](Stick-LEDs).
 

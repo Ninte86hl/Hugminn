@@ -18,7 +18,13 @@
 
 Five points set the fan speed for each temperature. Choose a point with ◀ ▶, change its speed with ▲ ▼, apply with A and leave with B. Hugminn always keeps a minimum speed and runs the fan at full speed from 90 °C, so the handheld cannot overheat.
 
-## Profiles per emulator
-While a game or emulator is running, both menus offer **"Remember for …"** (for example *Remember for Eden Nightly*). From then on that app always starts with this profile. When you leave it (home screen or an app without its own profile), the previous setting comes back.
+## Profiles per emulator and per game
+While a game or emulator is running, both menus offer **"Remember for …"**:
+- **for the emulator** (e.g. *Remember for Cemu*): the emulator always starts with this profile.
+- **for the game** (e.g. *Remember for The Wind Waker*), as soon as Hugminn has recognised the running game: only this game gets the profile.
+
+A game's profile beats the emulator's; whatever it leaves open (for example only the fan is set) comes from the emulator's profile. Because the game is recognised a few seconds after it starts, the emulator's profile applies first and the game's follows. Switching games inside the emulator is noticed too. When you leave (home screen or an app without its own profile), the previous setting comes back.
+
+Game profiles work for emulators whose game title Hugminn can see. For Android games the app itself is the game, so the profile per app is all you need.
 
 All saved profiles are listed in the [settings](Settings) → *Profiles per app*, where you can remove them.

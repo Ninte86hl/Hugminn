@@ -36,7 +36,7 @@ Action for a single, double and long press, and the times for double and long pr
 | Tiles | Which tiles are shown. Layout and order are changed in the Control Center itself ([Editing](Editing-the-Control-Center)) |
 
 ## Profiles per app
-Every app with a remembered performance or fan profile, with a button to remove it. See [Performance and fan](Performance-and-Fan).
+Every app and game with a remembered performance or fan profile (games as "Title · Emulator"), with a button to remove it. See [Performance and fan](Performance-and-Fan).
 
 ## Backup
 Save all settings (layout, tiles, colours, profiles …) to a file and restore them later, for example after reinstalling or on a second device.

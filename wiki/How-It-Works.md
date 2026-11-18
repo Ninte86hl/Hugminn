@@ -33,8 +33,14 @@ Hugminn uses Android's SurfaceFlinger *TimeStats* (the idea comes from P.U.L.S.E
 
 CPU and GPU load, RAM, temperatures and power are read from the kernel; the battery estimate divides the remaining charge by the average power draw.
 
-## Profiles per app
-When the app in the foreground changes, Hugminn checks whether it has a remembered profile and sets it. When you go home or to an app without a profile, the previous setting is restored.
+## Profiles per app and per game
+When the app in the foreground changes, Hugminn checks whether it has a remembered profile and sets it. If an emulator has profiles for single games, Hugminn looks up the running game every few seconds while the emulator is in front (the same way as for the [switcher's titles](#game-titles)) and switches to the game's profile. When you go home or to an app without a profile, the previous setting is restored.
+
+## Battery of Bluetooth devices
+Android reports the battery of Bluetooth devices that send it (most headphones, many controllers). Game controllers often report it only to the input system, so Hugminn also asks there. Devices that report nothing show no value.
+
+## Stick LEDs as a display
+In *Battery* or *Temperature* mode, Hugminn writes a status colour to the sticks every few seconds instead of running an effect. The low-battery warning (pulsing red at 10 %) still takes priority.
 
 ## Backup
 Settings are stored in Android's shared preferences and can be exported as a JSON file through Android's file picker. Private values (such as the last error message) are left out.
