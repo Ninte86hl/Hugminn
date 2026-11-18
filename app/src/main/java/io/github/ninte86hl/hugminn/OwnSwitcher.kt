@@ -453,7 +453,7 @@ class OwnSwitcher(private val svc: HugminnService) {
                 return true
             }
         }.apply {
-            setBackgroundColor(pal.surface)
+            background = Look.ground(svc, pal)
             isFocusable = true
             isFocusableInTouchMode = true
         }
@@ -589,7 +589,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         private val style = Prefs(ctx).uiStyle
         private val pixel = style == UiStyle.PIXEL
         private val dots = style == UiStyle.DOTS
-        private val radius = ctx.dp(if (dots) 10 else 18).toFloat()
+        private val cocoon = style == UiStyle.COCOON
+        private val radius = ctx.dp(if (dots) 10 else if (cocoon) 22 else 18).toFloat()
+        /** Cocoon: every card sits in a white frame. */
+        private val framePad = if (cocoon) ctx.dp(8).toFloat() else 0f
         private val unit = ctx.dp(3).toFloat()
         private val bmpPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         private val cardFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh }
@@ -604,6 +607,7 @@ class OwnSwitcher(private val svc: HugminnService) {
                     pathEffect = android.graphics.DashPathEffect(floatArrayOf(0.1f, ctx.dp(8).toFloat()), 0f)
                 }
                 pixel -> { isAntiAlias = false; strokeWidth = unit; color = pal.onSurface }
+                cocoon -> { strokeWidth = ctx.dp(4).toFloat(); color = pal.primary }
                 else -> { strokeWidth = ctx.dp(2).toFloat(); color = (pal.onSurface and 0x00FFFFFF) or 0xAA000000.toInt() }
             }
         }
@@ -668,6 +672,10 @@ class OwnSwitcher(private val svc: HugminnService) {
                 val (r, scale) = frame(i)
                 if (i == liftIndex && lift < 0f) r.offset(0f, lift)
                 if (r.right < 0 || r.left > width) continue
+                if (cocoon) {
+                    val o = RectF(r).apply { inset(-framePad * scale, -framePad * scale) }
+                    c.drawRoundRect(o, radius + framePad, radius + framePad, cardFill)
+                }
                 val path = shape(r)
                 val shot = Snapshots.get(context, apps[i].pkg)
                 c.save()
@@ -698,7 +706,12 @@ class OwnSwitcher(private val svc: HugminnService) {
                     c.drawRect(r, dim)
                 }
                 c.restore()
-                if (abs(i - pos) < 0.5f) c.drawPath(shape(r), edge)
+                if (abs(i - pos) < 0.5f) {
+                    if (cocoon) {
+                        val o = RectF(r).apply { inset(-framePad - edge.strokeWidth / 2, -framePad - edge.strokeWidth / 2) }
+                        c.drawRoundRect(o, radius + framePad + edge.strokeWidth / 2, radius + framePad + edge.strokeWidth / 2, edge)
+                    } else c.drawPath(shape(r), edge)
+                }
                 else {
                     // name under the card, only for the part of the card that is on screen
                     val pad = context.dp(12).toFloat()

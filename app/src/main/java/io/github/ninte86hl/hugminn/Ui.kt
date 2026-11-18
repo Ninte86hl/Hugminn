@@ -19,6 +19,8 @@ class Palette(private val ctx: Context) {
     private val theme = Prefs(ctx).theme
     /** Dot-matrix style: monochrome with one red accent (Nothing-Phone-like). */
     val dots = Prefs(ctx).uiStyle == UiStyle.DOTS
+    /** Cocoon style: soft grey ground, white cards, colourful icon badges, mint green accent. */
+    val cocoon = Prefs(ctx).uiStyle == UiStyle.COCOON
     /** OLED: dark with pure black backgrounds. */
     val oled = theme == Theme.OLED
     val dark: Boolean = when (theme) {
@@ -43,9 +45,10 @@ class Palette(private val ctx: Context) {
     /** Chosen tile colour (0 = style default); it becomes the accent of every style. */
     private val chosen = Prefs(ctx).tileColor.takeIf { it != 0 }
     /** Dot-matrix accent: the chosen tile colour, otherwise Nothing-like red. */
-    private val dotAccent = chosen ?: if (dark) 0xFFE5262E.toInt() else 0xFFD71920.toInt()
+    private val dotAccent = chosen ?: if (cocoon) (if (dark) 0xFF6CCB72.toInt() else 0xFF3FA348.toInt())
+        else if (dark) 0xFFE5262E.toInt() else 0xFFD71920.toInt()
     /** Styles other than dot matrix use the chosen colour like the dot matrix does, else Material You. */
-    private val useDot = dots || chosen != null
+    private val useDot = dots || cocoon || chosen != null
     private fun mix(a: Int, b: Int, t: Float) = Color.rgb(
         (Color.red(a) + (Color.red(b) - Color.red(a)) * t).toInt(),
         (Color.green(a) + (Color.green(b) - Color.green(a)) * t).toInt(),
@@ -56,14 +59,15 @@ class Palette(private val ctx: Context) {
     val onPrimary = if (useDot) onColor(dotAccent) else if (dark) sys("system_accent1_800", 0xFF680003.toInt()) else sys("system_accent1_0", Color.WHITE)
     val primaryContainer = if (useDot) (if (dark) mix(Color.BLACK, dotAccent, 0.18f) else mix(Color.WHITE, dotAccent, 0.14f)) else if (dark) sys("system_accent1_700", 0xFF8C1D18.toInt()) else sys("system_accent1_100", 0xFFFFDAD6.toInt())
     val onPrimaryContainer = if (useDot) (if (dark) mix(Color.WHITE, dotAccent, 0.35f) else mix(Color.BLACK, dotAccent, 0.45f)) else if (dark) sys("system_accent1_100", 0xFFFFDAD6.toInt()) else sys("system_accent1_900", 0xFF410002.toInt())
-    val secondaryContainer = if (dots) (if (dark) 0xFF262626.toInt() else 0xFFE4E4E4.toInt()) else if (dark) sys("system_accent2_700", 0xFF5D3F3C.toInt()) else sys("system_accent2_100", 0xFFFFDAD6.toInt())
-    val onSecondaryContainer = if (dots) (if (dark) Color.WHITE else Color.BLACK) else if (dark) sys("system_accent2_100", 0xFFFFDAD6.toInt()) else sys("system_accent2_900", 0xFF2C1513.toInt())
-    val surface = if (dots) (if (dark) Color.BLACK else 0xFFF3F3F3.toInt()) else if (oled) Color.BLACK else if (dark) sys("system_neutral1_900", 0xFF201A19.toInt()) else sys("system_neutral1_10", 0xFFFFFBFF.toInt())
-    val surfaceHigh = if (dots) (if (dark) 0xFF101010.toInt() else Color.WHITE) else if (oled) 0xFF111111.toInt() else if (dark) sys("system_neutral1_800", 0xFF362F2E.toInt()) else sys("system_neutral1_50", 0xFFFBEEEC.toInt())
-    val surfaceHighest = if (dots) (if (dark) 0xFF242424.toInt() else 0xFFE2E2E2.toInt()) else if (oled) 0xFF1F1F1F.toInt() else if (dark) sys("system_neutral2_700", 0xFF534341.toInt()) else sys("system_neutral2_100", 0xFFF5DDDA.toInt())
-    val onSurface = if (dots) (if (dark) Color.WHITE else Color.BLACK) else if (dark) sys("system_neutral1_100", 0xFFEDE0DE.toInt()) else sys("system_neutral1_900", 0xFF201A19.toInt())
-    val onSurfaceVariant = if (dots) (if (dark) 0xFF8C8C8C.toInt() else 0xFF6B6B6B.toInt()) else if (dark) sys("system_neutral2_200", 0xFFD8C2BF.toInt()) else sys("system_neutral2_700", 0xFF534341.toInt())
-    val outline = if (dots) (if (dark) 0xFF3C3C3C.toInt() else 0xFFBDBDBD.toInt()) else if (dark) sys("system_neutral2_400", 0xFFA08C8A.toInt()) else sys("system_neutral2_500", 0xFF857371.toInt())
+    private val c = cocoon && !oled
+    val secondaryContainer = if (c) (if (dark) 0xFF363B45.toInt() else 0xFFE6E9EF.toInt()) else if (dots) (if (dark) 0xFF262626.toInt() else 0xFFE4E4E4.toInt()) else if (dark) sys("system_accent2_700", 0xFF5D3F3C.toInt()) else sys("system_accent2_100", 0xFFFFDAD6.toInt())
+    val onSecondaryContainer = if (c) (if (dark) 0xFFF2F4F7.toInt() else 0xFF1F2328.toInt()) else if (dots) (if (dark) Color.WHITE else Color.BLACK) else if (dark) sys("system_accent2_100", 0xFFFFDAD6.toInt()) else sys("system_accent2_900", 0xFF2C1513.toInt())
+    val surface = if (c) (if (dark) 0xFF181B21.toInt() else 0xFFECEEF3.toInt()) else if (dots) (if (dark) Color.BLACK else 0xFFF3F3F3.toInt()) else if (oled) Color.BLACK else if (dark) sys("system_neutral1_900", 0xFF201A19.toInt()) else sys("system_neutral1_10", 0xFFFFFBFF.toInt())
+    val surfaceHigh = if (c) (if (dark) 0xFF272B33.toInt() else Color.WHITE) else if (dots) (if (dark) 0xFF101010.toInt() else Color.WHITE) else if (oled) 0xFF111111.toInt() else if (dark) sys("system_neutral1_800", 0xFF362F2E.toInt()) else sys("system_neutral1_50", 0xFFFBEEEC.toInt())
+    val surfaceHighest = if (c) (if (dark) 0xFF363B45.toInt() else 0xFFE3E6EC.toInt()) else if (dots) (if (dark) 0xFF242424.toInt() else 0xFFE2E2E2.toInt()) else if (oled) 0xFF1F1F1F.toInt() else if (dark) sys("system_neutral2_700", 0xFF534341.toInt()) else sys("system_neutral2_100", 0xFFF5DDDA.toInt())
+    val onSurface = if (c) (if (dark) 0xFFF2F4F7.toInt() else 0xFF1F2328.toInt()) else if (dots) (if (dark) Color.WHITE else Color.BLACK) else if (dark) sys("system_neutral1_100", 0xFFEDE0DE.toInt()) else sys("system_neutral1_900", 0xFF201A19.toInt())
+    val onSurfaceVariant = if (c) (if (dark) 0xFFA7AEBA.toInt() else 0xFF596070.toInt()) else if (dots) (if (dark) 0xFF8C8C8C.toInt() else 0xFF6B6B6B.toInt()) else if (dark) sys("system_neutral2_200", 0xFFD8C2BF.toInt()) else sys("system_neutral2_700", 0xFF534341.toInt())
+    val outline = if (c) (if (dark) 0xFF4A505C.toInt() else 0xFFC9CED8.toInt()) else if (dots) (if (dark) 0xFF3C3C3C.toInt() else 0xFFBDBDBD.toInt()) else if (dark) sys("system_neutral2_400", 0xFFA08C8A.toInt()) else sys("system_neutral2_500", 0xFF857371.toInt())
     val scrim = 0x99000000.toInt()
 
     // Dot-matrix style overrides: black/white/grey, red as the only colour
@@ -296,7 +300,7 @@ class DpadView(ctx: Context, pal: Palette, private val sizeDp: Int) : View(ctx) 
 }
 
 /** Visual style of Hugminn's own screens. */
-enum class UiStyle(private val labelDe: String) { MODERN("Modern"), PIXEL("Pixel"), DOTS("Punktmatrix");
+enum class UiStyle(private val labelDe: String) { MODERN("Modern"), PIXEL("Pixel"), DOTS("Punktmatrix"), COCOON("Cocoon");
 
     val label get() = tr(labelDe)
 }
@@ -338,9 +342,48 @@ object Look {
         return tf
     }
 
+    @Volatile private var interRegular: Typeface? = null
+    @Volatile private var interBold: Typeface? = null
+
+    private fun interFont(ctx: Context, b: Boolean): Typeface {
+        val cached = if (b) interBold else interRegular
+        if (cached != null) return cached
+        val tf = try {
+            // Inter (SIL Open Font License): clean and friendly, close to Cocoon's look
+            Typeface.createFromAsset(ctx.assets, if (b) "fonts/Inter-ExtraBold.otf" else "fonts/Inter-Medium.otf")
+        } catch (t: Throwable) {
+            Typeface.create(Typeface.DEFAULT, if (b) Typeface.BOLD else Typeface.NORMAL)
+        }
+        if (b) interBold = tf else interRegular = tf
+        return tf
+    }
+
+    fun cocoon(ctx: Context) = Prefs(ctx).uiStyle == UiStyle.COCOON
+
+    /** Background of a whole screen: plain, or Cocoon's soft diagonal stripes. */
+    fun ground(ctx: Context, pal: Palette): android.graphics.drawable.Drawable =
+        if (pal.cocoon && !pal.oled) Stripes(pal.surface, if (pal.dark) 0xFF1C1F26.toInt() else 0xFFE5E8EE.toInt(), ctx.dp(34).toFloat())
+        else android.graphics.drawable.ColorDrawable(pal.surface)
+
+    /** Icon badge colours of the Cocoon style, per tile. */
+    fun badge(id: String, accent: Int): IntArray = when (id) {
+        "wifi" -> intArrayOf(0xFF7CC4FF.toInt(), 0xFF3D8BFD.toInt())
+        "bt" -> intArrayOf(0xFF9FA8FF.toInt(), 0xFF5865F2.toInt())
+        "leds" -> intArrayOf(0xFFFF9EC0.toInt(), 0xFFF2558A.toInt())
+        "dnd", "theme" -> intArrayOf(0xFFB49CFF.toInt(), 0xFF7C5CF2.toInt())
+        "perf", "chargesep" -> intArrayOf(0xFFFFB37A.toInt(), 0xFFFF7A3D.toInt())
+        "fan", "clean" -> intArrayOf(0xFF6EE3D3.toInt(), 0xFF1FB5A1.toInt())
+        "airplane", "mouse" -> intArrayOf(0xFF8FD8FF.toInt(), 0xFF2EA8E6.toInt())
+        "rotation", "landscape", "screen" -> intArrayOf(0xFFFFD36E.toInt(), 0xFFF5A623.toInt())
+        "refresh", "controller", "trigger", "keymapper" -> intArrayOf(0xFF8DE08F.toInt(), 0xFF43A047.toInt())
+        "screenshot", "homelock", "vibration" -> intArrayOf(0xFFFFA3A3.toInt(), 0xFFE5484D.toInt())
+        else -> intArrayOf(accent, accent)
+    }
+
     fun font(ctx: Context, pixel: Boolean, b: Boolean): Typeface = when {
         pixel -> pixelFont(ctx, b)
         Prefs(ctx).uiStyle == UiStyle.DOTS -> dotFont(ctx, b)
+        Prefs(ctx).uiStyle == UiStyle.COCOON -> interFont(ctx, b)
         else -> Typeface.create(Typeface.DEFAULT, if (b) Typeface.BOLD else Typeface.NORMAL)
     }
 
@@ -348,7 +391,34 @@ object Look {
     fun shape(ctx: Context, pixel: Boolean, color: Int, radius: Float, stroke: Int = 0, strokeColor: Int = 0): android.graphics.drawable.Drawable =
         if (pixel) PixelShape(color, ctx.dp(3).toFloat(), if (radius > ctx.dp(20)) 3 else 2, stroke.toFloat(), strokeColor)
         else if (stroke > 0 && Prefs(ctx).uiStyle == UiStyle.DOTS) DotOutline(color, radius, stroke.toFloat(), strokeColor)
+        else if (Prefs(ctx).uiStyle == UiStyle.COCOON) rounded(color, if (radius >= 999f) radius else radius * 1.35f, stroke, strokeColor)
         else rounded(color, radius, stroke, strokeColor)
+}
+
+/** Cocoon-like background: soft diagonal stripes. */
+class Stripes(private val bg: Int, private val stripe: Int, private val width: Float) : android.graphics.drawable.Drawable() {
+    private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = stripe; strokeWidth = width }
+
+    override fun draw(c: android.graphics.Canvas) {
+        val b = bounds
+        c.drawColor(bg)
+        c.save()
+        c.clipRect(b)
+        // lines at 60°, every two widths
+        val h = b.height().toFloat()
+        val dx = h / Math.tan(Math.toRadians(60.0)).toFloat()
+        var x = b.left - dx - width
+        while (x < b.right + width) {
+            c.drawLine(x, b.bottom.toFloat(), x + dx, b.top.toFloat(), p)
+            x += width * 2.6f
+        }
+        c.restore()
+    }
+
+    override fun setAlpha(alpha: Int) {}
+    override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {}
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity() = android.graphics.PixelFormat.OPAQUE
 }
 
 /** Rectangle with stepped corners like pixel art; [steps] pixel steps of [unit] size per corner. */

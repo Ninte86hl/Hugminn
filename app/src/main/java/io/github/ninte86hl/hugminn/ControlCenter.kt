@@ -4,6 +4,8 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.widget.Toast
 import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.media.AudioManager
@@ -215,7 +217,7 @@ class ControlCenter(private val svc: HugminnService) {
         pixel = svc.prefs.uiStyle == UiStyle.PIXEL
         val panel = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(pal.surface)
+            background = Look.ground(svc, pal)
             setPadding(28 * d, 14 * d, 28 * d, 12 * d)
             isClickable = true
         }
@@ -517,6 +519,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** Quick toggle: 1×1 only the icon, larger with name and state. */
     private fun toggleElement(t: Tile, e: GridEntry): View {
+        if (pal.cocoon) return cocoonToggle(t, e)
         val round = pal.dots
         val icon = IconView(svc, t.icon, if (e.w == 1) 30 else 24)
         val v: ViewGroup
@@ -549,6 +552,56 @@ class ControlCenter(private val svc: HugminnService) {
             title?.setTextColor(fg)
             state?.setTextColor(if (on) fg else pal.onSurfaceVariant)
             state?.text = t.state() ?: ""
+        }
+        refresh()
+        refreshers += refresh
+        return v
+    }
+
+    /**
+     * Cocoon style: the tile stays white, the icon sits in a colourful badge (grey while off),
+     * small tiles show their name under the badge.
+     */
+    private fun cocoonToggle(t: Tile, e: GridEntry): View {
+        val small = e.w == 1 && e.h == 1
+        val icon = IconView(svc, t.icon, if (small) 28 else 24)
+        val badge = FrameLayout(svc).apply {
+            addView(icon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        }
+        val title = text(t.title, if (small) 12f else 15f, pal.onSurface, bold = true).apply {
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            if (small) gravity = Gravity.CENTER
+        }
+        val state = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
+        val bs = if (small) 54 * d else 46 * d
+        val v: ViewGroup = if (small) LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(6 * d, 6 * d, 6 * d, 6 * d)
+            addView(badge, lp(bs, bs))
+            addView(title, lp(MATCH, WRAP).apply { topMargin = 8 * d })
+            contentDescription = t.title
+        } else LinearLayout(svc).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(16 * d, 0, 12 * d, 0)
+            addView(badge, lp(bs, bs))
+            val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+            col.addView(title)
+            col.addView(state)
+            addView(col, lp(0, WRAP, 1f).apply { marginStart = 14 * d })
+        }
+        v.background = shape(pal.surfaceHigh, 22f * d)
+        v.elevation = 3f * d
+        v.setOnClickListener { if (!editing) t.act() }
+        val colors = Look.badge(e.id, pal.primary).let { c -> if (svc.prefs.tileColor != 0) intArrayOf(svc.prefs.tileColor, svc.prefs.tileColor) else c }
+        val refresh = {
+            val on = t.on()
+            badge.background = if (on) GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply { cornerRadius = bs * 0.33f }
+            else rounded(pal.surfaceHighest, bs * 0.33f)
+            icon.setColor(if (on) Color.WHITE else pal.onSurfaceVariant)
+            title.setTextColor(if (on || !small) pal.onSurface else pal.onSurfaceVariant)
+            state.text = t.state() ?: ""
         }
         refresh()
         refreshers += refresh
@@ -1649,6 +1702,12 @@ class ControlCenter(private val svc: HugminnService) {
             val circle = round && it.round && v.width > 0
             val r = if (circle) v.width / 2f else 22f * d
             val adj = adjusting && i == focus && it.onAdjust != null
+            if (pal.cocoon) {
+                // Cocoon: a thick accent ring and the selected element lifts a little
+                v.foreground = if (i == focus) shape(0, r, (if (adj) 6 else 4) * d, pal.primary) else null
+                val sc = if (i == focus && !adj && v.width < 420 * d) 1.04f else 1f
+                v.animate().scaleX(sc).scaleY(sc).setDuration(120).start()
+            } else
             v.foreground = if (i == focus) shape(0, r, (if (adj) 5 else 3) * d, if (adj) tileOn() else pal.onSurface) else null
         }
     }
@@ -1860,6 +1919,7 @@ class ControlCenter(private val svc: HugminnService) {
                     MenuEntry(when (st) {
                         UiStyle.PIXEL -> tr("Pixel (Retroid-Pocket-Classic-Look)")
                         UiStyle.DOTS -> tr("Punktmatrix (schwarz-weiß, rot als Akzent)")
+                        UiStyle.COCOON -> t("Cocoon (hell, verspielt, bunte Symbole)", "Cocoon (light, playful, colourful icons)")
                         else -> "Modern (Material You)"
                     }, checked = svc.prefs.uiStyle == st) {
                         svc.prefs.uiStyle = st
