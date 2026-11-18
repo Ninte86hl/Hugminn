@@ -41,7 +41,29 @@ class MediaListener : NotificationListenerService() {
                 (x.getParcelable(android.app.Notification.EXTRA_LARGE_ICON_BIG) as? android.graphics.Bitmap)
                     ?: (n.notification.getLargeIcon()?.loadDrawable(l) as? android.graphics.drawable.BitmapDrawable)?.bitmap
             }.getOrNull()
-            return Triple(title, text, pic)
+            if (title != null) return Triple(title, text, pic)
+            // old players draw their own notification layout (no title in the extras): read its texts
+            val rv = n.notification.bigContentView ?: n.notification.contentView ?: return Triple(null, null, pic)
+            val texts = mutableListOf<String>()
+            var img: android.graphics.Bitmap? = null
+            val done = java.util.concurrent.CountDownLatch(1)
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                runCatching {
+                    val v = rv.apply(l, android.widget.FrameLayout(l))
+                    fun walk(x: android.view.View) {
+                        when (x) {
+                            is android.widget.TextView -> x.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { texts += it }
+                            is android.widget.ImageView -> if (img == null) (x.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                                ?.takeIf { it.width >= 64 && it.height >= 64 }?.let { img = it }
+                        }
+                        if (x is android.view.ViewGroup) for (i in 0 until x.childCount) walk(x.getChildAt(i))
+                    }
+                    walk(v)
+                }
+                done.countDown()
+            }
+            done.await(1500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            return Triple(texts.getOrNull(0), texts.getOrNull(1), pic ?: img)
         }
     }
 }
