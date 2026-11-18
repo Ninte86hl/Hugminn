@@ -277,6 +277,31 @@ class MainActivity : Activity() {
         tr.addView(button(tr("Control Center öffnen")) { HugminnService.instance?.perform(Action.CONTROL_CENTER) ?: notRunning() })
         t.addView(tr)
 
+        // Performance and fan per app
+        HugminnService.instance?.let { svc ->
+            val profiles = AppProfiles.all(svc)
+            val ap = section(t("Profile pro App", "Profiles per app"))
+            ap.addView(text(
+                t("Im Control Center bei Leistung oder Lüfter „Für … merken“ wählen, während das Spiel läuft: " +
+                    "die App startet dann immer mit diesem Profil, danach kommt die vorige Einstellung zurück.",
+                    "In the Control Center, choose “Remember for …” under performance or fan while the game runs: " +
+                        "the app then always starts with that profile, afterwards the previous setting comes back."),
+                12f, pal.onSurfaceVariant,
+            ).apply { setPadding(0, d(6), 0, d(6)) })
+            if (profiles.isEmpty()) ap.addView(text(t("Noch keine gespeichert", "None saved yet"), 14f, pal.onSurface))
+            profiles.forEach { (pkg, p) ->
+                val parts = listOfNotNull(
+                    p.perf?.let { Device.perfProfiles[it] ?: it },
+                    p.fan?.let { t("Lüfter: ", "Fan: ") + (Device.fanProfiles[it] ?: it) },
+                ).joinToString(" · ")
+                row(ap, Apps.label(this, pkg), parts, { t("Entfernen", "Remove") }) {
+                    AppProfiles.set(svc, pkg, "perf", null)
+                    AppProfiles.set(svc, pkg, "fan", null)
+                    content.post { build() }
+                }
+            }
+        }
+
         // Report a problem: a prefilled GitHub issue (nothing is sent by Hugminn itself)
         val bug = section(tr("Fehler melden"))
         bug.addView(text(

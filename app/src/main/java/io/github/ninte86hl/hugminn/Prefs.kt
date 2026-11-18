@@ -105,6 +105,11 @@ class Prefs(ctx: Context) {
         get() = p.getString("githubToken", null)
         set(v) = p.edit().putString("githubToken", v).apply()
 
+    /** Performance/fan profile per app: "pkg=perf|fan;…" (empty part = not set). */
+    var appProfiles: String?
+        get() = p.getString("appProfiles", null)
+        set(v) = p.edit().putString("appProfiles", v).apply()
+
     var language: Language
         get() = enumOr(p.getString("language", null), Language.AUTO)
         set(v) = p.edit().putString("language", v.name).apply()

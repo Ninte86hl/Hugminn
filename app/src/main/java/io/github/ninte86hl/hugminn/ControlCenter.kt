@@ -1148,11 +1148,30 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
-    private fun profileMenu(title: String, key: String, table: Map<String, String>, set: (String) -> Unit) {
+    private fun profileMenu(title: String, key: String, table: Map<String, String>, sel: Int = -1, set: (String) -> Unit) {
         val cur = Device.sys(svc, key)
         val entries = table.map { (v, name) -> MenuEntry(name, checked = v == cur) { set(v) } }.toMutableList()
         if (cur != null && cur !in table) entries += MenuEntry(t("Profil $cur (unbekannt)", "Profile $cur (unknown)"), checked = true, run = null)
-        showMenu(title, entries)
+        // per app: remember the current profile for the app under the Control Center (e.g. an emulator)
+        val app = svc.foregroundPkg
+        val kind = if (key == "fan_mode") "fan" else "perf"
+        if (app != null && Root.available() && (key == "fan_mode" || key == "performance_mode")) {
+            val name = Apps.label(svc, app)
+            val saved = AppProfiles.of(svc, app)?.let { if (kind == "fan") it.fan else it.perf }
+            val now = if (kind == "fan" && svc.prefs.fanCustom) "6" else cur
+            entries += MenuEntry(name, header = true, run = null)
+            entries += MenuEntry(
+                if (saved != null) t("Für $name gespeichert", "Saved for $name") else t("Für $name merken", "Remember for $name"),
+                checked = saved != null,
+                hint = if (saved != null) t("${table[saved] ?: saved} · A entfernt", "${table[saved] ?: saved} · A removes")
+                else t("Startet $name immer mit „${table[now] ?: now}“", "$name always starts with “${table[now] ?: now}”"),
+            ) {
+                AppProfiles.set(svc, app, kind, if (saved != null) null else now)
+                val at = entries.size - 1
+                svc.ui.post { profileMenu(title, key, table, at, set) }
+            }
+        }
+        showMenu(title, entries, sel)
     }
 
     /** Title of the menu on screen (lists that refresh themselves check it). */

@@ -146,7 +146,11 @@ class HugminnService : AccessibilityService() {
             }
             if (pkg != null && pkg != packageName && pkg !in notApps && !Apps.isHome(this, pkg) && !pkg.contains("inputmethod", true)) {
                 if (foregroundPkg != pkg && ::own.isInitialized) own.touch(pkg)
+                AppProfiles.onForeground(this, pkg)
                 foregroundPkg = pkg
+            } else if (pkg != null && Apps.isHome(this, pkg)) {
+                // back on the home screen: profiles of the last app end
+                AppProfiles.onForeground(this, null)
             }
         }
         if (event.packageName?.toString() == foregroundPkg) appEventAt = SystemClock.uptimeMillis()
