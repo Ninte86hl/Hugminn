@@ -38,8 +38,9 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 | --- | --- |
 | A | Open the app (its running task comes back to the front) |
 | □ / X | Close the app, also removing it from Android's recent apps |
-| △ / Y | Options: App info, close all others; for RetroArch: save state, load state, RetroArch menu |
+| △ / Y | Options: App info, close all others |
 | ○ / B | Back to where you were |
+| Select | Screenshot with the overlay (also in the Control Center), saved to Pictures/Screenshots |
 
 - The system's swipe-up gesture is covered by the switcher as soon as Android's view settles
 - Classic mode (a frame over Android's own recent-apps view) remains available in the settings

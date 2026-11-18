@@ -165,6 +165,11 @@ class HugminnService : AccessibilityService() {
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
         // the device's own keys always reach Android (volume, power, screenshot with Power + Volume down)
         if (event.keyCode in systemKeys) return false
+        // Select: screenshot with the overlays (Android's key combination cannot reach them)
+        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || anySwitcherOpen)) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) Shot.take(this)
+            return true
+        }
         return try {
             when {
                 controlCenter.isOpen -> controlCenter.onKey(event)

@@ -467,6 +467,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
             hint(KeyEvent.KEYCODE_BUTTON_B, "Fertig")
         } else {
+            hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Screenshot")
             if (pages() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, "Seite")
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
             if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_X, "Optionen")
