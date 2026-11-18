@@ -1,7 +1,7 @@
 name: Remove old test releases
 
 # Run by hand (Actions → "Remove old test releases" → Run workflow): deletes every release and tag
-# from before 1.0.0 (v0.x and the old "latest" test build). Releases from 1.0.0 on stay.
+# from before 1.0.0 (v0.x and the old "latest" test build) and the old feedback branch. Releases from 1.0.0 on stay.
 on:
   workflow_dispatch:
 
@@ -23,3 +23,9 @@ jobs:
               *) echo "keep $tag" ;;
             esac
           done
+
+      - name: Delete the old feedback branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: gh api -X DELETE "repos/$REPO/git/refs/heads/feedback" || echo "feedback branch already gone"
