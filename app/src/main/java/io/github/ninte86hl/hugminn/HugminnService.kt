@@ -155,9 +155,16 @@ class HugminnService : AccessibilityService() {
         }
     }
 
+    private val systemKeys = setOf(
+        KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE,
+        KeyEvent.KEYCODE_POWER, KeyEvent.KEYCODE_SYSRQ, KeyEvent.KEYCODE_CAMERA,
+    )
+
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
+        // the device's own keys always reach Android (volume, power, screenshot with Power + Volume down)
+        if (event.keyCode in systemKeys) return false
         return try {
             when {
                 controlCenter.isOpen -> controlCenter.onKey(event)
