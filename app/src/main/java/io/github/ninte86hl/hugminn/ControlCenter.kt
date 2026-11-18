@@ -523,8 +523,137 @@ class ControlCenter(private val svc: HugminnService) {
         }
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
+        if (id == "media" && e.w >= 2 && e.h >= 2) return mediaElement(e, t)
         val v = toggleElement(t, e)
         return v to Item(v, t.act, onY = t.menu, round = e.w == 1 && e.h == 1)
+    }
+
+    /** Square whose side is the height it gets (cover next to the text in a wide music tile). */
+    private class SquareByHeight(ctx: android.content.Context) : FrameLayout(ctx) {
+        override fun onMeasure(w: Int, h: Int) = super.onMeasure(h, h)
+    }
+
+    /**
+     * Large music tile (2×2 and up): cover (from 3 cells on), song, artist, progress and buttons.
+     * A plays/pauses, X opens the music menu; touch on the buttons works too.
+     */
+    private fun mediaElement(e: GridEntry, tile: Tile): Pair<View, Item?> {
+        val wide = e.w > e.h
+        val withArt = e.w >= 3 || e.h >= 3
+        val big = e.w >= 4 || e.h >= 4
+        val c = card().apply {
+            orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+            setPadding(16 * d, 14 * d, 16 * d, 14 * d)
+        }
+        val art = android.widget.ImageView(svc).apply { scaleType = android.widget.ImageView.ScaleType.CENTER_CROP }
+        val artIcon = IconView(svc, IconView.Kind.MUSIC, if (big) 64 else 44).apply { setColor(pal.onSurfaceVariant) }
+        if (withArt) {
+            val box = (if (wide) SquareByHeight(svc) else FrameLayout(svc)).apply {
+                background = rounded(pal.surfaceHighest, 18f * d)
+                clipToOutline = true
+                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                addView(art, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                addView(artIcon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+            }
+            c.addView(box, if (wide) lp(WRAP, MATCH).apply { marginEnd = 16 * d } else lp(MATCH, 0, 1f).apply { bottomMargin = 12 * d })
+        }
+        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        c.addView(col, if (wide) lp(0, MATCH, 1f) else lp(MATCH, WRAP))
+        val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+        if (!withArt) head.addView(IconView(svc, IconView.Kind.MUSIC, 16).apply { setColor(pal.onSurfaceVariant) })
+        val appName = text("", 11f, pal.onSurfaceVariant, bold = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(if (withArt) 0 else 6 * d, 0, 0, 0) }
+        head.addView(appName, lp(0, WRAP, 1f))
+        col.addView(head)
+        val song = text("", if (big) 22f else 17f, pal.onSurface, bold = true).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, 4 * d, 0, 0) }
+        val artist = text("", if (big) 15f else 13f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+        col.addView(song)
+        col.addView(artist)
+        if (wide || !withArt) col.addView(View(svc), lp(MATCH, 0, 1f))
+        // progress: thin bar and times
+        val bar = object : View(svc) {
+            var f = -1f
+            val bg = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHighest }
+            val fg = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = tileOn() }
+            override fun onDraw(cv: android.graphics.Canvas) {
+                if (f < 0f) return
+                val r = height / 2f
+                cv.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), r, r, bg)
+                if (f > 0f) cv.drawRoundRect(0f, 0f, maxOf(width * f, height.toFloat()), height.toFloat(), r, r, fg)
+            }
+        }
+        col.addView(bar, lp(MATCH, 4 * d).apply { topMargin = 8 * d })
+        val times = LinearLayout(svc)
+        val posT = text("", 10f, pal.onSurfaceVariant)
+        val durT = text("", 10f, pal.onSurfaceVariant).apply { gravity = Gravity.END }
+        times.addView(posT, lp(0, WRAP, 1f))
+        times.addView(durT, lp(0, WRAP, 1f))
+        col.addView(times, lp(MATCH, WRAP).apply { topMargin = 2 * d })
+        // buttons
+        val btnSize = (if (big) 52 else 42) * d
+        val ctrl = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+        fun btn(kind: IconView.Kind, main: Boolean, run: () -> Unit): IconView {
+            val ic = IconView(svc, kind, if (main) 24 else 20).apply { setColor(if (main) tileOnFg() else pal.onSurface) }
+            val f = FrameLayout(svc).apply {
+                background = if (main) rounded(tileOn(), btnSize / 2f) else null
+                addView(ic, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+                setOnClickListener { if (!editing) run() }
+            }
+            ctrl.addView(f, lp(btnSize, btnSize).apply { marginStart = 6 * d; marginEnd = 6 * d })
+            return ic
+        }
+        val again = { svc.ui.postDelayed({ thread { Media.refresh(svc); refreshAll() } }, 400) }
+        btn(IconView.Kind.PREV, false) { Media.key(svc, KeyEvent.KEYCODE_MEDIA_PREVIOUS); again() }
+        val playBox = FrameLayout(svc)
+        val play = IconView(svc, IconView.Kind.PLAY, 24).apply { setColor(tileOnFg()) }
+        val pause = IconView(svc, IconView.Kind.PAUSE, 24).apply { setColor(tileOnFg()) }
+        playBox.background = rounded(tileOn(), btnSize / 2f)
+        playBox.addView(play, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        playBox.addView(pause, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        playBox.setOnClickListener { if (!editing) tile.act() }
+        ctrl.addView(playBox, lp(btnSize, btnSize).apply { marginStart = 6 * d; marginEnd = 6 * d })
+        btn(IconView.Kind.NEXT, false) { Media.key(svc, KeyEvent.KEYCODE_MEDIA_NEXT); again() }
+        col.addView(ctrl, lp(MATCH, WRAP).apply { topMargin = 6 * d })
+
+        fun mmss(ms: Long) = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
+        fun tick() {
+            val dur = Media.duration
+            val pos = Media.positionNow()
+            val known = dur > 0 && pos >= 0
+            bar.f = if (known) (pos.toFloat() / dur).coerceIn(0f, 1f) else -1f
+            bar.invalidate()
+            bar.visibility = if (known) View.VISIBLE else View.INVISIBLE
+            posT.text = if (known) mmss(pos) else ""
+            durT.text = if (known) mmss(dur) else ""
+        }
+        val refresh = {
+            appName.text = Media.app?.let { Apps.label(svc, it) }?.uppercase() ?: t("MUSIK", "MUSIC")
+            song.text = Media.song ?: Media.title ?: t("Nichts läuft", "Nothing playing")
+            artist.text = if (Media.song != null) Media.artist ?: "" else ""
+            artist.visibility = if (artist.text.isNullOrEmpty()) View.GONE else View.VISIBLE
+            val a = Media.art
+            art.setImageBitmap(a)
+            artIcon.visibility = if (a == null) View.VISIBLE else View.GONE
+            play.visibility = if (Media.playing) View.GONE else View.VISIBLE
+            pause.visibility = if (Media.playing) View.VISIBLE else View.GONE
+            tick()
+        }
+        refresh()
+        refreshers += refresh
+        // position every second; what is playing every few seconds (song changes by itself)
+        var n = 0
+        val ticker = object : Runnable {
+            override fun run() {
+                if (!c.isAttachedToWindow) return
+                tick()
+                if (++n % 5 == 0) thread { Media.refresh(svc); svc.ui.post { if (c.isAttachedToWindow) refresh() } }
+                svc.ui.postDelayed(this, 1000)
+            }
+        }
+        c.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) { svc.ui.postDelayed(ticker, 1000) }
+            override fun onViewDetachedFromWindow(v: View) { svc.ui.removeCallbacks(ticker) }
+        })
+        return c to Item(c, tile.act, onY = tile.menu)
     }
 
     /** Quick toggle: 1×1 only the icon, larger with name and state. */
@@ -623,7 +752,7 @@ class ControlCenter(private val svc: HugminnService) {
         val entries = mutableListOf<MenuEntry>()
         Media.title?.let { entries += MenuEntry(it, header = true, run = null) }
         Media.app?.let { entries += MenuEntry(Apps.label(svc, it), run = null) }
-        val again = { i: Int -> svc.ui.postDelayed({ thread { if (Root.available()) Media.refresh(); svc.ui.post { refreshAll(); mediaMenu(i) } } }, 400) }
+        val again = { i: Int -> svc.ui.postDelayed({ thread { Media.refresh(svc); svc.ui.post { refreshAll(); mediaMenu(i) } } }, 400) }
         entries += MenuEntry(if (Media.playing) t("Pause", "Pause") else t("Abspielen", "Play")) {
             Media.key(svc, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE); again(entries.size - 3)
         }
@@ -979,12 +1108,12 @@ class ControlCenter(private val svc: HugminnService) {
             })
         }
         "media" -> {
-            if (Root.available()) thread { Media.refresh(); refreshAll() }
+            thread { Media.refresh(svc); refreshAll() }
             Tile(t("Musik", "Music"), IconView.Kind.MUSIC,
                 { Media.title ?: if (Media.playing) t("Spielt", "Playing") else t("Nichts läuft", "Nothing playing") },
                 { Media.playing }, menu = { mediaMenu() }) {
                 Media.key(svc, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-                if (Root.available()) svc.ui.postDelayed({ thread { Media.refresh(); refreshAll() } }, 500)
+                svc.ui.postDelayed({ thread { Media.refresh(svc); refreshAll() } }, 500)
             }
         }
         "screenshot" -> Tile("Screenshot", IconView.Kind.CAMERA, { null }, { false }) {

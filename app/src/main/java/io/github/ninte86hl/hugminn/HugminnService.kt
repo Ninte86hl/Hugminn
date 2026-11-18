@@ -100,6 +100,7 @@ class HugminnService : AccessibilityService() {
             }
         }.start()
         Bt.listenBattery(this)
+        Thread { runCatching { if (Root.available()) Media.enableListener(this) } }.start()
         // Low battery: the sticks pulse red
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {
