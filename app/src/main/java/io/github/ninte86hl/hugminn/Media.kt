@@ -59,7 +59,7 @@ object Media {
             "${m.packageName} state=${m.playbackState?.state} title=${m.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)} art=${m.metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) != null}"
         }.ifEmpty { "keine" }
         val mc = list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING }
-            ?: list.firstOrNull { it.metadata != null }
+            ?: list.firstOrNull { it.metadata != null } ?: list.firstOrNull()
         val md = mc?.metadata
         val st = mc?.playbackState
         playing = st?.state == android.media.session.PlaybackState.STATE_PLAYING
@@ -71,6 +71,12 @@ object Media {
         position = st?.position?.takeIf { it >= 0 } ?: -1L
         positionAt = st?.lastPositionUpdateTime?.takeIf { it > 0 } ?: SystemClock.elapsedRealtime()
         speed = st?.playbackSpeed?.takeIf { it > 0f } ?: 1f
+        // players that only open a session (e.g. Android's own music app): sound and their notification
+        if (mc != null && st == null) playing = ctx.getSystemService(AudioManager::class.java)?.isMusicActive == true
+        if (mc != null && song == null) MediaListener.playerNotice(mc.packageName)?.let { (t, x, pic) ->
+            song = t; artist = x; if (art == null) art = pic
+            diag += " · Benachrichtigung: $t / $x / Bild=${pic != null}"
+        }
         title = listOfNotNull(song, artist).joinToString(" – ").ifBlank { null }
         return true
     }
