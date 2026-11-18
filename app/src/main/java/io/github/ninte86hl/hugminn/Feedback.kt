@@ -28,7 +28,8 @@ object Feedback {
     private const val BRANCH = "feedback"
     @Volatile private var busy = false
 
-    fun capture(svc: HugminnService, where: String) {
+    /** [quick]: upload right away without asking for a description (the game keeps running). */
+    fun capture(svc: HugminnService, where: String, quick: Boolean = false) {
         val token = svc.prefs.githubToken
         if (token.isNullOrBlank()) {
             toast(svc, "Feedback: Bitte zuerst in den Hugminn-Einstellungen einen GitHub-Token eintragen")
@@ -42,11 +43,13 @@ object Feedback {
                 val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
                 val bmp = hw?.copy(Bitmap.Config.ARGB_8888, false)
                 result.hardwareBuffer.close()
-                ask(svc, Pending(token, where, bmp, info))
+                val p = Pending(token, where, bmp, info)
+                if (quick) { pending = p; sendPending(svc, "[Schnellbericht aus dem Overlay]") } else ask(svc, p)
             }
 
             override fun onFailure(errorCode: Int) {
-                ask(svc, Pending(token, where, null, "$info\n\nScreenshot fehlgeschlagen (Code $errorCode)"))
+                val p = Pending(token, where, null, "$info\n\nScreenshot fehlgeschlagen (Code $errorCode)")
+                if (quick) { pending = p; sendPending(svc, "[Schnellbericht aus dem Overlay]") } else ask(svc, p)
             }
         })
     }

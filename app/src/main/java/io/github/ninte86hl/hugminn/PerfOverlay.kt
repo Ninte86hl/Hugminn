@@ -113,10 +113,32 @@ class PerfOverlay(private val svc: HugminnService) {
             }
         }
         if (box.childCount == 0) return
+        // while developing: a small ⓘ that sends a report (screenshot + measurements) right away
+        if (!p.githubToken.isNullOrBlank()) {
+            val info = object : View(svc) {
+                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+                override fun onDraw(c: android.graphics.Canvas) {
+                    val r = width / 2f
+                    paint.style = android.graphics.Paint.Style.FILL
+                    paint.color = 0xCCFFFFFF.toInt()
+                    c.drawCircle(r, r, r, paint)
+                    paint.color = 0xFF000000.toInt()
+                    c.drawCircle(r, r * 0.55f, r * 0.13f, paint)
+                    c.drawRoundRect(r - r * 0.12f, r * 0.82f, r + r * 0.12f, r * 1.55f, r * 0.08f, r * 0.08f, paint)
+                }
+            }.apply {
+                setOnClickListener {
+                    android.widget.Toast.makeText(svc, "Bericht wird gesendet …", android.widget.Toast.LENGTH_SHORT).show()
+                    Feedback.capture(svc, "overlay", quick = true)
+                }
+            }
+            box.addView(info, LinearLayout.LayoutParams(sz(20), sz(20)).apply { if (row) marginStart = sz(12) else topMargin = sz(4) })
+        }
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+            // touchable only while the ⓘ is shown (touches outside the small box still reach the game)
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or (if (p.githubToken.isNullOrBlank()) WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE else 0) or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
         ).apply {
