@@ -19,7 +19,7 @@ jobs:
         run: |
           gh release list -R "$REPO" -L 1000 --json tagName --jq '.[].tagName' | while read -r tag; do
             case "$tag" in
-              v0.*|latest) echo "delete $tag"; gh release delete "$tag" -R "$REPO" --yes --cleanup-tag ;;
+              v0.*|latest|probe-*) echo "delete $tag"; gh release delete "$tag" -R "$REPO" --yes --cleanup-tag ;;
               *) echo "keep $tag" ;;
             esac
           done
