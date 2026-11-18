@@ -19,6 +19,21 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - **Device battery:** battery level of connected Bluetooth controllers and headphones that report one.
 - **Settings:** opens Android's settings.
 
+## Large tiles
+Several elements can be made bigger in [edit mode](Editing-the-Control-Center) (A → Size):
+
+| Element | Large sizes | What it shows |
+| --- | --- | --- |
+| System overview | 4×2, 4×4 | FPS, CPU, GPU, RAM, battery and power draw as rings; 4×4 adds frame time and temperature graphs |
+| Music | 2×2, 4×2, 2×4, 4×4 | Song, artist, cover, progress and ⏮ ⏯ ⏭ buttons |
+| Wi-Fi | 2×2, 4×2 | Current network and the strongest ones in range; tap one to connect |
+| Bluetooth | 2×2, 4×2 | Paired devices with battery level; tap one to connect or disconnect |
+| Performance / Fan | 2×2 | Current profile with details, every profile to tap |
+| Battery | 2×2 | Ring with charge, time left, power draw and temperature |
+| FPS | 2×2, 4×2, 4×4 | Frame rate with frame time graph |
+
+On large tiles, A does the same as on the small one (switch, play/pause, open the menu) and □ / X opens the submenu.
+
 ## Submenus
 - **Wi-Fi:** networks in range with their signal; saved networks connect directly, new ones open a password window you can fill in with the controller.
 - **Bluetooth:** paired devices (connect / disconnect) with the battery level of connected devices, search and pair new devices. Hugminn confirms the pairing dialog for you.

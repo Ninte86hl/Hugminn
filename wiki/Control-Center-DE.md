@@ -19,6 +19,21 @@ Halte **Home** gedrückt, um das Control Center zu öffnen: ein Raster aus Kache
 - **Geräte-Akku:** Akkustand verbundener Bluetooth-Controller und -Kopfhörer, sofern sie ihn melden.
 - **Android-Einstellungen:** öffnet Androids Einstellungen.
 
+## Große Kacheln
+Mehrere Elemente lassen sich im [Bearbeitungsmodus](Control-Center-bearbeiten) vergrößern (A → Größe):
+
+| Element | Große Größen | Was es zeigt |
+| --- | --- | --- |
+| System-Übersicht | 4×2, 4×4 | FPS, CPU, GPU, RAM, Akku und Leistungsaufnahme als Ringe; 4×4 zusätzlich Frametime- und Temperatur-Graph |
+| Musik | 2×2, 4×2, 2×4, 4×4 | Titel, Interpret, Cover, Fortschritt und Tasten ⏮ ⏯ ⏭ |
+| WLAN | 2×2, 4×2 | Aktuelles Netz und die stärksten in Reichweite; antippen verbindet |
+| Bluetooth | 2×2, 4×2 | Gekoppelte Geräte mit Akkustand; antippen verbindet oder trennt |
+| Leistung / Lüfter | 2×2 | Aktuelles Profil mit Details, alle Profile zum Antippen |
+| Akku | 2×2 | Ring mit Ladung, Restzeit, Leistungsaufnahme und Temperatur |
+| FPS | 2×2, 4×2, 4×4 | Bildrate mit Frametime-Graph |
+
+Auf großen Kacheln macht A dasselbe wie auf der kleinen (schalten, Play/Pause, Menü öffnen), □ / X öffnet das Untermenü.
+
 ## Untermenüs
 - **WLAN:** Netze in Reichweite mit Signalstärke; gespeicherte Netze verbinden sich direkt, für neue öffnet sich ein Passwortfenster, das du mit dem Controller ausfüllen kannst.
 - **Bluetooth:** gekoppelte Geräte (verbinden / trennen) mit dem Akkustand verbundener Geräte, neue Geräte suchen und koppeln. Hugminn bestätigt den Kopplungsdialog für dich.
