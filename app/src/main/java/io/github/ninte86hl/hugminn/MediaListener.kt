@@ -14,10 +14,26 @@ class MediaListener : NotificationListenerService() {
     companion object {
         @Volatile var instance: MediaListener? = null
 
-        /** Title, text and picture of [pkg]'s ongoing notification (its player), if any. */
+        /**
+         * Media sessions that players attach to their notification (what Android's own media
+         * notification shows); some players publish their song only there.
+         */
+        fun notificationSessions(ctx: android.content.Context): List<android.media.session.MediaController> {
+            val l = instance ?: return emptyList()
+            return runCatching { l.activeNotifications }.getOrNull().orEmpty().mapNotNull { n ->
+                val token = runCatching {
+                    n.notification.extras.getParcelable<android.media.session.MediaSession.Token>(android.app.Notification.EXTRA_MEDIA_SESSION)
+                }.getOrNull() ?: return@mapNotNull null
+                runCatching { android.media.session.MediaController(ctx, token) }.getOrNull()
+            }
+        }
+
+        /** Title, text and picture of [pkg]'s player notification, if any. */
         fun playerNotice(pkg: String): Triple<String?, String?, android.graphics.Bitmap?>? {
             val l = instance ?: return null
-            val n = runCatching { l.activeNotifications }.getOrNull()?.firstOrNull { it.packageName == pkg && it.isOngoing } ?: return null
+            val all = runCatching { l.activeNotifications }.getOrNull().orEmpty().filter { it.packageName == pkg }
+            val n = all.firstOrNull { it.notification.extras.containsKey(android.app.Notification.EXTRA_MEDIA_SESSION) }
+                ?: all.firstOrNull { it.notification.extras.getCharSequence(android.app.Notification.EXTRA_TITLE) != null } ?: return null
             val x = n.notification.extras
             val title = x.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString()?.takeIf { it.isNotBlank() }
             val text = x.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString()?.takeIf { it.isNotBlank() }

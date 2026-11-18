@@ -53,12 +53,19 @@ object Media {
     private fun fromSessions(ctx: Context): Boolean {
         val msm = ctx.getSystemService(android.media.session.MediaSessionManager::class.java) ?: return false
         val res = runCatching { msm.getActiveSessions(component(ctx)) }
-        val list = res.getOrNull()
-        if (list == null) { diag = "Sessions: nicht erlaubt (${res.exceptionOrNull()?.javaClass?.simpleName})"; return false }
-        diag = "Sessions: " + list.joinToString(" | ") { m ->
+        val active = res.getOrNull()
+        if (active == null) { diag = "Sessions: nicht erlaubt (${res.exceptionOrNull()?.javaClass?.simpleName})"; return false }
+        // the listener should be connected; if Android has not bound it yet, ask for it
+        if (MediaListener.instance == null) runCatching { android.service.notification.NotificationListenerService.requestRebind(component(ctx)) }
+        // sessions from player notifications first: they are the ones Android's media notification shows
+        val fromNotes = MediaListener.notificationSessions(ctx)
+        val list = (fromNotes + active).distinctBy { it.sessionToken }
+        diag = "Listener verbunden=${MediaListener.instance != null} · aus Benachrichtigungen ${fromNotes.size}\n"
+        diag += "Sessions: " + list.joinToString(" | ") { m ->
             "${m.packageName} state=${m.playbackState?.state} title=${m.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)} art=${m.metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) != null}"
         }.ifEmpty { "keine" }
-        val mc = list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING }
+        val mc = list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING && it.metadata != null }
+            ?: list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING }
             ?: list.firstOrNull { it.metadata != null } ?: list.firstOrNull()
         val md = mc?.metadata
         val st = mc?.playbackState
@@ -76,7 +83,7 @@ object Media {
         if (mc != null && song == null) MediaListener.playerNotice(mc.packageName)?.let { (t, x, pic) ->
             song = t; artist = x; if (art == null) art = pic
             diag += " · Benachrichtigung: $t / $x / Bild=${pic != null}"
-        }
+        } ?: run { if (mc != null && song == null) diag += " · keine Benachrichtigung gefunden" }
         title = listOfNotNull(song, artist).joinToString(" – ").ifBlank { null }
         return true
     }
