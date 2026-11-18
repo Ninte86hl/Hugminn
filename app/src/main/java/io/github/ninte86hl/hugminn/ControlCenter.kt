@@ -548,10 +548,29 @@ class ControlCenter(private val svc: HugminnService) {
         })
     }
 
-    /** Header of a large card: icon, title, optional right-hand text. */
-    private fun cardHead(icon: IconView.Kind, title: String): Pair<LinearLayout, TextView> {
+    /**
+     * Surface inside a large card (cover, list line, chip, button) in the style's own way:
+     * dot matrix: a ring of dots while off, pixel: stepped corners, cocoon: rounder, modern: rounded.
+     */
+    private fun inner(on: Boolean, radius: Float, fill: Int = pal.surfaceHighest): android.graphics.drawable.Drawable =
+        if (pal.dots && !on) DotOutline(0, radius, 2f * d, pal.outline)
+        else shape(if (on) tileOn() else fill, radius)
+
+    /** Icon badge of the Cocoon style for large cards (colourful square with a white icon). */
+    private fun cocoonBadge(id: String, icon: IconView.Kind, size: Int): View {
+        val colors = Look.badge(id, pal.primary).let { c -> if (svc.prefs.tileColor != 0) intArrayOf(svc.prefs.tileColor, svc.prefs.tileColor) else c }
+        return FrameLayout(svc).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply { cornerRadius = size * 0.33f }
+            addView(IconView(svc, icon, (size / d * 0.55f).toInt()).apply { setColor(Color.WHITE) },
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        }
+    }
+
+    /** Header of a large card: icon (Cocoon: colourful badge), title, optional right-hand text. */
+    private fun cardHead(icon: IconView.Kind, title: String, id: String = ""): Pair<LinearLayout, TextView> {
         val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-        head.addView(IconView(svc, icon, 16).apply { setColor(pal.onSurfaceVariant) })
+        if (pal.cocoon) head.addView(cocoonBadge(id, icon, 26 * d), lp(26 * d, 26 * d))
+        else head.addView(IconView(svc, icon, 16).apply { setColor(pal.onSurfaceVariant) })
         head.addView(text(title, 11f, pal.onSurfaceVariant, bold = true).apply { setPadding(6 * d, 0, 0, 0) }, lp(0, WRAP, 1f))
         val right = text("", 11f, pal.onSurfaceVariant, bold = true)
         head.addView(right)
@@ -564,7 +583,7 @@ class ControlCenter(private val svc: HugminnService) {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(12 * d, 4 * d, 12 * d, 4 * d)
-            background = shape(if (on) tileOn() else pal.surfaceHighest, 14f * d)
+            background = inner(on, 14f * d)
             if (act != null) setOnClickListener { if (!editing) act() }
         }
         row.addView(text(title, 13f, if (on) tileOnFg() else pal.onSurface, bold = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
@@ -580,7 +599,7 @@ class ControlCenter(private val svc: HugminnService) {
         val gp = svc.prefs.gaugePalette
         val tall = e.h >= 4
         val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
-        c.addView(cardHead(IconView.Kind.GAMEPAD, t("SYSTEM", "SYSTEM")).first)
+        c.addView(cardHead(IconView.Kind.GAMEPAD, t("SYSTEM", "SYSTEM"), "refresh").first)
         val ids = listOf("fps", "cpu", "gpu", "ram", "battery", "power")
         val grid = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         c.addView(grid, lp(MATCH, 0, 1f))
@@ -619,7 +638,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (tall) {
             val graphs = LinearLayout(svc)
             fun graphBox(label: String, g: GraphView, value: TextView): View {
-                val box = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; background = shape(pal.surfaceHighest, 14f * d); setPadding(10 * d, 6 * d, 10 * d, 6 * d) }
+                val box = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; background = inner(false, 14f * d); setPadding(10 * d, 6 * d, 10 * d, 6 * d) }
                 val h = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
                 h.addView(text(label, 10f, pal.onSurfaceVariant, bold = true), lp(0, WRAP, 1f))
                 h.addView(value)
@@ -627,9 +646,9 @@ class ControlCenter(private val svc: HugminnService) {
                 box.addView(g, lp(MATCH, 0, 1f).apply { topMargin = 4 * d })
                 return box
             }
-            val ft = GraphView(svc, pal.primary, 50f).apply { setColors(GaugeColors.graph(pal, gp, 50f) { GaugeColors.frameTime(it) }) }
+            val ft = GraphView(svc, pal.primary, 50f).styled(pal, pixel).apply { setColors(GaugeColors.graph(pal, gp, 50f) { GaugeColors.frameTime(it) }) }
             val ftV = text("", 10f, pal.onSurface, bold = true)
-            val tg = GraphView(svc, pal.primary, 95f, 25f).apply { setColors(GaugeColors.graph(pal, gp, 95f, 25f) { (it - 40f) / 45f }) }
+            val tg = GraphView(svc, pal.primary, 95f, 25f).styled(pal, pixel).apply { setColors(GaugeColors.graph(pal, gp, 95f, 25f) { (it - 40f) / 45f }) }
             val tV = text("", 10f, pal.onSurface, bold = true)
             graphs.addView(graphBox(t("FRAMETIME", "FRAME TIME"), ft, ftV), lp(0, MATCH, 1f).apply { marginEnd = 5 * d })
             graphs.addView(graphBox(t("TEMPERATUR", "TEMPERATURE"), tg, tV), lp(0, MATCH, 1f).apply { marginStart = 5 * d })
@@ -650,7 +669,7 @@ class ControlCenter(private val svc: HugminnService) {
         val table = if (perf) Device.perfProfiles else Device.fanProfiles
         val sp = spec(e.id)!!
         val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
-        c.addView(cardHead(sp.icon, sp.title).first)
+        c.addView(cardHead(sp.icon, sp.title, e.id).first)
         val value = text("", 22f, pal.onSurface, bold = true).apply { maxLines = 1 }
         val sub = text("", 11f, pal.onSurfaceVariant).apply { maxLines = 1 }
         c.addView(value)
@@ -681,7 +700,7 @@ class ControlCenter(private val svc: HugminnService) {
             value.text = if (perf) Device.perfLabel(svc) else Device.fanLabel(svc)
             chips.forEach { (v, chip) ->
                 val on = v == cur
-                chip.background = shape(if (on) tileOn() else pal.surfaceHighest, 12f * d)
+                chip.background = inner(on, 12f * d)
                 chip.setTextColor(if (on) tileOnFg() else pal.onSurface)
             }
         }
@@ -694,7 +713,7 @@ class ControlCenter(private val svc: HugminnService) {
     /** Large Bluetooth card: on/off and the paired devices with their battery; touch connects. */
     private fun btElement(e: GridEntry, tile: Tile): Pair<View, Item?> {
         val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
-        val (head, right) = cardHead(IconView.Kind.BLUETOOTH, "BLUETOOTH")
+        val (head, right) = cardHead(IconView.Kind.BLUETOOTH, "BLUETOOTH", "bt")
         c.addView(head)
         val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         c.addView(list, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
@@ -760,7 +779,7 @@ class ControlCenter(private val svc: HugminnService) {
     /** Large Wi-Fi card: current network and the strongest ones in range; touch connects. */
     private fun wifiElement(e: GridEntry, tile: Tile): Pair<View, Item?> {
         val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
-        val (head, right) = cardHead(IconView.Kind.WIFI, tr("WLAN").uppercase())
+        val (head, right) = cardHead(IconView.Kind.WIFI, tr("WLAN").uppercase(), "wifi")
         c.addView(head)
         val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         c.addView(list, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
@@ -829,9 +848,10 @@ class ControlCenter(private val svc: HugminnService) {
         val artIcon = IconView(svc, IconView.Kind.MUSIC, if (big) 64 else 44).apply { setColor(pal.onSurfaceVariant) }
         if (withArt) {
             val box = (if (wide) SquareByHeight(svc) else FrameLayout(svc)).apply {
-                background = rounded(pal.surfaceHighest, 18f * d)
-                clipToOutline = true
-                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                background = if (pal.dots || pixel) inner(false, 18f * d) else rounded(pal.surfaceHighest, (if (pal.cocoon) 24f else 18f) * d)
+                // modern and cocoon: the cover follows the rounded corners; pixel and dots keep their own frame
+                if (!pal.dots && !pixel) { clipToOutline = true; outlineProvider = android.view.ViewOutlineProvider.BACKGROUND }
+                else { val m = (if (pal.dots) 6 else 4) * d; setPadding(m, m, m, m) }
                 addView(art, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                 addView(artIcon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
             }
@@ -840,7 +860,10 @@ class ControlCenter(private val svc: HugminnService) {
         val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         c.addView(col, if (wide) lp(0, MATCH, 1f) else lp(MATCH, WRAP))
         val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-        if (!withArt) head.addView(IconView(svc, IconView.Kind.MUSIC, 16).apply { setColor(pal.onSurfaceVariant) })
+        if (!withArt) {
+            if (pal.cocoon) head.addView(cocoonBadge("media", IconView.Kind.MUSIC, 26 * d), lp(26 * d, 26 * d))
+            else head.addView(IconView(svc, IconView.Kind.MUSIC, 16).apply { setColor(pal.onSurfaceVariant) })
+        }
         val appName = text("", 11f, pal.onSurfaceVariant, bold = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(if (withArt) 0 else 6 * d, 0, 0, 0) }
         head.addView(appName, lp(0, WRAP, 1f))
         col.addView(head)
@@ -849,19 +872,9 @@ class ControlCenter(private val svc: HugminnService) {
         col.addView(song)
         col.addView(artist)
         if (wide || !withArt) col.addView(View(svc), lp(MATCH, 0, 1f))
-        // progress: thin bar and times
-        val bar = object : View(svc) {
-            var f = -1f
-            val bg = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHighest }
-            val fg = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = tileOn() }
-            override fun onDraw(cv: android.graphics.Canvas) {
-                if (f < 0f) return
-                val r = height / 2f
-                cv.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), r, r, bg)
-                if (f > 0f) cv.drawRoundRect(0f, 0f, maxOf(width * f, height.toFloat()), height.toFloat(), r, r, fg)
-            }
-        }
-        col.addView(bar, lp(MATCH, 4 * d).apply { topMargin = 8 * d })
+        // progress: the style's own bar (smooth, blocks or dots) and times
+        val bar = GaugeBar(svc, pal, pixel)
+        col.addView(bar, lp(MATCH, (if (pal.dots || pixel) 6 else 4) * d).apply { topMargin = 8 * d })
         val times = LinearLayout(svc)
         val posT = text("", 10f, pal.onSurfaceVariant)
         val durT = text("", 10f, pal.onSurfaceVariant).apply { gravity = Gravity.END }
@@ -886,7 +899,13 @@ class ControlCenter(private val svc: HugminnService) {
         val playBox = FrameLayout(svc)
         val play = IconView(svc, IconView.Kind.PLAY, 24).apply { setColor(tileOnFg()) }
         val pause = IconView(svc, IconView.Kind.PAUSE, 24).apply { setColor(tileOnFg()) }
-        playBox.background = rounded(tileOn(), btnSize / 2f)
+        // play: filled circle (modern, cocoon), stepped square (pixel), ring of dots in the accent (dot matrix)
+        playBox.background = when {
+            pal.dots -> DotOutline(0, btnSize / 2f, 2.5f * d, tileOn())
+            pixel -> shape(tileOn(), 10f * d)
+            else -> rounded(tileOn(), btnSize / 2f)
+        }
+        if (pal.dots) { play.setColor(tileOn()); pause.setColor(tileOn()) }
         playBox.addView(play, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         playBox.addView(pause, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         playBox.setOnClickListener { if (!editing) tile.act() }
@@ -899,8 +918,7 @@ class ControlCenter(private val svc: HugminnService) {
             val dur = Media.duration
             val pos = Media.positionNow()
             val known = dur > 0 && pos >= 0
-            bar.f = if (known) (pos.toFloat() / dur).coerceIn(0f, 1f) else -1f
-            bar.invalidate()
+            if (known) bar.set((pos.toFloat() / dur).coerceIn(0f, 1f), tileOn())
             bar.visibility = if (known) View.VISIBLE else View.INVISIBLE
             posT.text = if (known) mmss(pos) else ""
             durT.text = if (known) mmss(dur) else ""
@@ -965,7 +983,15 @@ class ControlCenter(private val svc: HugminnService) {
         v.setOnClickListener { if (!editing) t.act() }
         val refresh = {
             val on = t.on()
-            v.background = if (round && e.w == 1 && e.h == 1) rounded(if (on) tileOn() else pal.surfaceHigh, 999f) else shape(if (on) tileOn() else pal.surfaceHigh, 22f * d)
+            val r = if (round && e.w == 1 && e.h == 1) 999f else 22f * d
+            v.background = when {
+                // dot matrix: switched off = only a ring of dots; on = filled
+                pal.dots && !on -> DotOutline(pal.surfaceHigh, r, 2f * d, pal.outline)
+                round && e.w == 1 && e.h == 1 -> rounded(if (on) tileOn() else pal.surfaceHigh, 999f)
+                // pixel: switched off with a pixel frame
+                pixel && !on -> shape(pal.surfaceHigh, r, 2 * d, pal.outline)
+                else -> shape(if (on) tileOn() else pal.surfaceHigh, r)
+            }
             val fg = if (on) tileOnFg() else pal.onSurface
             icon.setColor(fg)
             title?.setTextColor(fg)
@@ -1105,7 +1131,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (big && e.id == "fps") {
             c.addView(value)
             c.addView(sub)
-            graph = GraphView(svc, pal.primary, 50f).apply { setColors(GaugeColors.graph(pal, gp, 50f) { GaugeColors.frameTime(it) }) }
+            graph = GraphView(svc, pal.primary, 50f).styled(pal, pixel).apply { setColors(GaugeColors.graph(pal, gp, 50f) { GaugeColors.frameTime(it) }) }
             c.addView(graph, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
         } else if (big && sp.fraction != null) {
             ring = RingView(svc, pal, "", pal.primary, pixel)

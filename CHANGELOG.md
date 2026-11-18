@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.8.9
+- Tiles follow their style more closely: Pixel with stepped frames, block bars and stepped graphs; Dot matrix with dotted rings, dot bars and dot graphs, accent only where something is on; Cocoon with colourful badges on the large cards.
+- Kacheln passen besser zum Stil: Pixel mit Treppenrahmen, Blockbalken und Stufen-Graphen; Punktmatrix mit Punkt-Rahmen, Punktbalken und Punkt-Graphen, Akzent nur wo etwas an ist; Cocoon mit bunten Abzeichen auf den großen Karten.
+
 ## 1.8.8
 - Music tile: if Android does not yet let Hugminn see what is playing (e.g. right after an update), it switches the access on and tries again.
 - Musik-Kachel: Lässt Android Hugminn noch nicht sehen, was läuft (z. B. direkt nach einem Update), schaltet es den Zugriff ein und versucht es erneut.
