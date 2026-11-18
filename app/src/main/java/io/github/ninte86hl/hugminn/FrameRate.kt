@@ -78,8 +78,6 @@ object FrameRate {
     private var tsDiag = ""
     private var tsEmpty = 0
     private var tsEnable: String? = null
-    private var prevFrames = 0
-    private var prevMs = 0f
 
     private val TS = """dumpsys SurfaceFlinger --timestats -dump -maxlayers 24 2>/dev/null | awk -v P="${'$'}1" '
 /layerName =/ { g = 0; mine = index(${'$'}0, P) > 0; next }
@@ -114,15 +112,24 @@ dumpsys SurfaceFlinger --timestats -clear >/dev/null 2>&1
         // nothing at all for a while: TimeStats may have been switched off meanwhile, so switch it on again
         if (frames == 0) { if (++tsEmpty >= 4) { tsEmpty = 0; tsOn = false } } else tsEmpty = 0
         diag = tsDiag
-        // average over this and the previous window (about one second) so the number doesn't jump
+        // average over the last ~2 seconds so the number doesn't jump
         val ms = if (frames > 0 && fps > 0) frames * 1000f / fps else 0f
-        val n2 = frames + prevFrames; val ms2 = ms + prevMs
-        prevFrames = frames; prevMs = ms
+        if (frames == 0) win.clear() else { win.addLast(frames to ms); while (win.size > 4) win.removeFirst() }
+        val n2 = win.sumOf { it.first }; val ms2 = win.sumOf { it.second.toDouble() }.toFloat()
         return when {
-            n2 >= 5 && ms2 > 0 -> Math.round(n2 * 1000f / ms2)
-            layerFrames >= 5 && layerFps > 0 -> Math.round(layerFps)
+            n2 >= 5 && ms2 > 0 -> snap(n2 * 1000f / ms2)
+            layerFrames >= 5 && layerFps > 0 -> snap(layerFps)
             else -> 0
         }
+    }
+
+    private val win = ArrayDeque<Pair<Int, Float>>()
+
+    /** Games run at fixed rates (25, 30, 50, 60 …): a value just next to one is that rate. */
+    private val rates = floatArrayOf(20f, 24f, 25f, 30f, 40f, 45f, 48f, 50f, 60f, 72f, 90f, 100f, 120f)
+    private fun snap(v: Float): Int {
+        val r = rates.minByOrNull { kotlin.math.abs(it - v) } ?: return Math.round(v)
+        return if (kotlin.math.abs(r - v) <= r * 0.04f) r.toInt() else Math.round(v)
     }
 
     /** Switches TimeStats off again when nothing measures any more. */
