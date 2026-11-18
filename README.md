@@ -24,6 +24,25 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 - **Huginn** ("thought") is the **Control Center**. It keeps an eye on performance, temperature, fan and LEDs.
 - **Muninn** ("memory") is the **Game Switcher**. It remembers what you played last and takes you straight back to it.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/control-center-modern.png" alt="Control Center, modern style" width="100%">
+</p>
+
+| | |
+| --- | --- |
+| ![Control Center, pixel style](docs/screenshots/control-center-pixel.png) | ![Control Center, dot matrix style](docs/screenshots/control-center-dots.png) |
+| Control Center – pixel style | Control Center – dot matrix style |
+| ![Game switcher](docs/screenshots/game-switcher.png) | ![Game switcher, dot matrix style](docs/screenshots/game-switcher-dots.png) |
+| Muninn – game switcher | Game switcher – dot matrix style |
+| ![Stick LEDs](docs/screenshots/stick-leds.png) | ![Performance overlay in a game](docs/screenshots/fps-overlay.png) |
+| Stick LEDs: colours and effects | Performance overlay in a game |
+| ![Performance profile](docs/screenshots/performance-profile.png) | ![Fan profile](docs/screenshots/fan-profile.png) |
+| Performance profiles | Fan profiles and custom fan curve |
+| ![Performance overlay settings](docs/screenshots/performance-overlay-menu.png) | ![Edit menu](docs/screenshots/edit-menu.png) |
+| Performance overlay settings | Edit: layout, tile colour, style |
+
 ## Features
 
 ### Muninn – Game Switcher

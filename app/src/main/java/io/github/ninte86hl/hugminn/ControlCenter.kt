@@ -575,7 +575,7 @@ class ControlCenter(private val svc: HugminnService) {
             "temp" -> InfoSpec(IconView.Kind.THERMO, "TEMP", { s -> if (s.cpuTemp > 0) "${s.cpuTemp.toInt()}°" else "–" },
                 { s -> listOfNotNull(s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()}°" }, s.batTemp.takeIf { it > 0 }?.let { t("Akku ${it.toInt()}°", "Battery ${it.toInt()}°") }).joinToString(" · ") },
                 { s -> (s.cpuTemp - 40f) / 45f }, colorValue = true)
-            "battery" -> InfoSpec(IconView.Kind.PLUG, tr("AKKU"), { s -> "${s.batPct} %" }, { s -> "%.1f W".format(s.watts) + if (s.charging) tr(" · lädt") else "" },
+            "battery" -> InfoSpec(IconView.Kind.PLUG, t("AKKU", "BATT"), { s -> "${s.batPct} %" }, { s -> "%.1f W".format(s.watts) + if (s.charging) tr(" · lädt") else "" },
                 { s -> 1f - s.batPct / 100f }, colorValue = true)
             "cpu" -> InfoSpec(IconView.Kind.BOLT, "CPU", { s -> "${s.cpuPct.toInt()} %" }, { s -> "%.2f GHz".format(s.cpuMhz / 1000f) }, { s -> s.cpuPct / 100f })
             "gpu" -> InfoSpec(IconView.Kind.REFRESH, "GPU", { s -> "${s.gpuPct.toInt()} %" }, { s -> "${s.gpuMhz} MHz" }, { s -> s.gpuPct / 100f })
