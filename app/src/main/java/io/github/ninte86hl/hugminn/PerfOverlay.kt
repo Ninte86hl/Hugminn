@@ -79,32 +79,44 @@ class PerfOverlay(private val svc: HugminnService) {
         // all sizes follow the chosen overlay size
         fun sz(v: Int) = (v * d * k).toInt()
         updates.clear()
+        // colours, font and frame follow the chosen style and light/dark, like the Control Center
+        val pal = Palette(svc)
+        val style = p.uiStyle
+        val dots = style == UiStyle.DOTS
+        val cocoon = style == UiStyle.COCOON
+        val bg = (pal.surfaceHigh and 0x00FFFFFF) or (if (pal.dark) 0xD8000000.toInt() else 0xE6000000.toInt())
+        val text = pal.onSurface
+        val accent = pal.primary
         val box = LinearLayout(svc).apply {
             orientation = if (row) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
-            // in the chosen style: rounded (modern), stepped corners (pixel), ring of dots (dot matrix)
-            background = if (p.uiStyle == UiStyle.DOTS) Look.shape(svc, false, 0xD0000000.toInt(), 10f * d * k, (2 * d * k).toInt().coerceAtLeast(2), 0xFF5A5A5A.toInt())
-                else Look.shape(svc, pixel, 0xB0000000.toInt(), 10f * d * k)
+            // rounded (modern), stepped corners (pixel), ring of dots (dot matrix), softer and rounder (cocoon)
+            background = when {
+                dots -> Look.shape(svc, false, bg, 10f * d * k, (2 * d * k).toInt().coerceAtLeast(2), pal.outline)
+                cocoon -> Look.shape(svc, false, bg, 10f * d * k, (1 * d * k).toInt().coerceAtLeast(1), (pal.outline and 0x00FFFFFF) or 0x80000000.toInt())
+                pixel -> Look.shape(svc, true, bg, 10f * d * k)
+                else -> Look.shape(svc, false, bg, 10f * d * k)
+            }
             setPadding(sz(10), sz(5), sz(10), sz(5))
         }
-        fun label(color: Int = 0xFFFFFFFF.toInt(), bold: Boolean = true) = TextView(svc).apply {
+        fun label(color: Int = text, bold: Boolean = true) = TextView(svc).apply {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * k)
             setTextColor(color)
             typeface = Look.font(svc, pixel, bold)
-            setShadowLayer(2f, 0f, 1f, 0xFF000000.toInt())
+            // a soft shadow helps light text on a busy game picture; dark text needs none
+            if (pal.dark) setShadowLayer(2f, 0f, 1f, 0xFF000000.toInt())
         }
         fun addItem(v: View) {
             box.addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 if (box.childCount > 0) { if (row) marginStart = sz(12) else topMargin = sz(2) }
             })
         }
-        val pal = Palette(svc)
-        val gp = p.gaugePalette.takeIf { it != GaugePalette.ACCENT && it != GaugePalette.MONO } ?: GaugePalette.TRAFFIC
+        val gp = p.gaugePalette
         for (id in p.overlayItems) {
             when (OverlayItem.of(id)) {
-                OverlayItem.FPS -> label(if (p.uiStyle == UiStyle.DOTS) pal.primary else 0xFF7CFC9A.toInt()).also { t -> addItem(t); updates += { s -> t.text = if (s.fps >= 0) "${s.fps} FPS" else "– FPS" } }
+                OverlayItem.FPS -> label(accent).also { t -> addItem(t); updates += { s -> t.text = if (s.fps >= 0) "${s.fps} FPS" else "– FPS" } }
                 OverlayItem.FRAMETIME -> {
-                    val g = GraphView(svc, 0xFF7CFC9A.toInt(), 50f)
+                    val g = GraphView(svc, accent, 50f)
                     box.addView(g, LinearLayout.LayoutParams(sz(90), sz(22)).apply { if (box.childCount > 0) { if (row) marginStart = sz(12) else topMargin = sz(2) } })
                     updates += { s -> s.frameTimesMs.takeLast(20).forEach { g.push(it) } }
                 }
@@ -117,8 +129,9 @@ class PerfOverlay(private val svc: HugminnService) {
                 OverlayItem.CLOCK -> addItem(android.widget.TextClock(svc).apply {
                     format24Hour = "HH:mm"
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * k)
-                    setTextColor(0xFFFFFFFF.toInt())
+                    setTextColor(text)
                     typeface = Look.font(svc, pixel, true)
+                    if (pal.dark) setShadowLayer(2f, 0f, 1f, 0xFF000000.toInt())
                 })
                 null -> {}
             }
@@ -163,6 +176,21 @@ class PerfOverlay(private val svc: HugminnService) {
         view = box
         metrics = Metrics(svc) { svc.foregroundPkg }
         svc.ui.post(tick)
+    }
+
+    /** Redraws the overlay when the look changes (style, light/dark, tile colour, gauge colours). */
+    private val lookKeys = setOf("uiStyle", "theme", "tileColor", "gaugePalette")
+    private val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key in lookKeys && view != null) svc.ui.post { if (view != null) show() }
+    }
+
+    init {
+        svc.getSharedPreferences("hugminn", android.content.Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(prefListener)
+    }
+
+    /** The system switched between light and dark: follow it when the theme is "system". */
+    fun onNightModeChanged() {
+        if (view != null && svc.prefs.theme == Theme.SYSTEM) show()
     }
 
     fun hide() {

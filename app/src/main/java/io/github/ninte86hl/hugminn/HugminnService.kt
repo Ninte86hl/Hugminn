@@ -64,6 +64,15 @@ class HugminnService : AccessibilityService() {
         perform(prefs.single)
     }
 
+    private var lastNight = -1
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val night = newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        if (lastNight != -1 && night != lastNight) runCatching { overlay.onNightModeChanged() }
+        lastNight = night
+    }
+
     override fun onServiceConnected() {
         Root.filesDir = filesDir
         Crash.install(this)
