@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
@@ -23,7 +24,7 @@ class SetupActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var pal: Palette
     private var step = 0
-    private val steps = 6
+    private val steps = 7
     private val buttons = mutableListOf<View>()
 
     private fun d(v: Int) = dp(v)
@@ -122,11 +123,17 @@ class SetupActivity : Activity() {
     private var focusAfter = -1
 
     /** Picture of the chosen style (and light/dark for Cocoon). */
-    private fun stylePicture(): String = when (prefs.uiStyle) {
-        UiStyle.PIXEL -> "pixel"
-        UiStyle.DOTS -> "dots"
-        UiStyle.COCOON -> if (pal.dark) "cocoon-dark" else "cocoon-light"
-        else -> "cc"
+    private fun stylePicture(): String {
+        val base = when (prefs.uiStyle) {
+            UiStyle.PIXEL -> "pixel"
+            UiStyle.DOTS -> "dots"
+            UiStyle.COCOON -> "cocoon"
+            else -> "modern"
+        }
+        // light or dark picture of the style, whichever exists
+        val want = "$base-${if (pal.dark) "dark" else "light"}"
+        val names = runCatching { assets.list("wizard")?.toSet() }.getOrNull().orEmpty()
+        return listOf(want, "$base-dark", "$base-light").firstOrNull { "$it.jpg" in names } ?: "cc"
     }
 
     private fun onOff(b: Boolean) = if (b) tr("An") else tr("Aus")
@@ -134,10 +141,14 @@ class SetupActivity : Activity() {
     private fun <T> cycle(list: List<T>, cur: T): T = list[(list.indexOf(cur) + 1).mod(list.size)]
 
     /** Explanation of the buttons as a small table. */
-    private fun keys(parent: LinearLayout, rows: List<Pair<String, String>>) {
+    /** Button → what it does; buttons given as key codes are drawn as the chosen symbols. */
+    private fun keys(parent: LinearLayout, rows: List<Pair<Any, String>>) {
         rows.forEach { (k, what) ->
-            val r = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, d(1), 0, d(1)) }
-            r.addView(text(k, 13f, pal.primary, bold = true), LinearLayout.LayoutParams(d(100), LinearLayout.LayoutParams.WRAP_CONTENT))
+            val r = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, d(2), 0, d(2)) }
+            val cell = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+            if (k is Int) cell.addView(Glyphs.chip(this, prefs, pal, k, 22))
+            else cell.addView(text(k.toString(), 13f, pal.primary, bold = true))
+            r.addView(cell, LinearLayout.LayoutParams(d(100), LinearLayout.LayoutParams.WRAP_CONTENT))
             r.addView(text(what, 13f, pal.onSurface))
             parent.addView(r)
         }
@@ -173,6 +184,7 @@ class SetupActivity : Activity() {
             2 -> switcherPage(body)
             3 -> ccPage(body)
             4 -> lookPage(body)
+            5 -> buttonsPage(body)
             else -> donePage(body)
         }
         // nothing scrolls (awkward with a controller): the page fits, the buttons stay at the bottom
@@ -286,11 +298,11 @@ class SetupActivity : Activity() {
             ).apply { setPadding(0, d(6), 0, d(10)) })
             keys(c, listOf(
                 t("Home 2×", "Home 2×") to t("Switcher öffnen", "Open the switcher"),
-                "◀ ▶" to t("Spiel auswählen", "Choose a game"),
-                "A" to t("Zum Spiel wechseln", "Switch to the game"),
-                "X" to t("App schließen", "Close the app"),
-                "Y" to t("Optionen", "Options"),
-                "B" to t("Zurück ins Spiel", "Back to the game"),
+                KeyEvent.KEYCODE_DPAD_LEFT to t("Spiel auswählen", "Choose a game"),
+                KeyEvent.KEYCODE_BUTTON_A to t("Zum Spiel wechseln", "Switch to the game"),
+                KeyEvent.KEYCODE_BUTTON_X to t("App schließen", "Close the app"),
+                KeyEvent.KEYCODE_BUTTON_Y to t("Optionen", "Options"),
+                KeyEvent.KEYCODE_BUTTON_B to t("Zurück ins Spiel", "Back to the game"),
             ))
         }
     }
@@ -326,10 +338,10 @@ class SetupActivity : Activity() {
             ).apply { setPadding(0, d(6), 0, d(10)) })
             keys(c, listOf(
                 t("Home lang", "Home long") to t("Control Center öffnen", "Open the Control Center"),
-                t("Steuerkreuz", "D-pad") to t("Feld auswählen", "Choose a tile"),
-                "A" to t("Schalten / Regler bestätigen", "Toggle / confirm a slider"),
-                "X" to t("Untermenü (WLAN, LEDs …)", "Submenu (Wi-Fi, LEDs …)"),
-                "Y" to t("Bearbeiten und anordnen", "Edit and arrange"),
+                KeyEvent.KEYCODE_DPAD_LEFT to t("Feld auswählen", "Choose a tile"),
+                KeyEvent.KEYCODE_BUTTON_A to t("Schalten / Regler bestätigen", "Toggle / confirm a slider"),
+                KeyEvent.KEYCODE_BUTTON_X to t("Untermenü (WLAN, LEDs …)", "Submenu (Wi-Fi, LEDs …)"),
+                KeyEvent.KEYCODE_BUTTON_Y to t("Bearbeiten und anordnen", "Edit and arrange"),
                 "Select" to "Screenshot",
             ))
         }
@@ -357,6 +369,50 @@ class SetupActivity : Activity() {
         c.addView(text(t("Das Bild zeigt das Control Center im gewählten Stil. Alles lässt sich später in den Einstellungen ändern, auch die Kachelfarbe.",
             "The picture shows the Control Center in the chosen style. You can change everything later in the settings, the tile colour too."),
             14f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, 0) })
+    }
+
+    /** Button symbols: Xbox, Nintendo or PlayStation, coloured or plain, shown large. */
+    private fun buttonsPage(b: LinearLayout) {
+        val row = LinearLayout(this).apply { gravity = Gravity.TOP }
+        // the four face buttons in their places (diamond), large, instead of a picture
+        val diamond = android.widget.FrameLayout(this).apply {
+            background = Look.shape(this@SetupActivity, pixel, pal.surfaceHigh, d(18).toFloat())
+        }
+        val g = 56
+        fun put(k: Int, x: Int, y: Int) = diamond.addView(Glyphs.chip(this, prefs, pal, k, g),
+            android.widget.FrameLayout.LayoutParams(d(g), d(g)).apply { leftMargin = d(x); topMargin = d(y) })
+        // physical positions follow the device layout (A right on Retroid/Nintendo, A bottom on Xbox)
+        val nin = Glyphs.nintendoLayout()
+        val bottom = if (nin) KeyEvent.KEYCODE_BUTTON_B else KeyEvent.KEYCODE_BUTTON_A
+        val right = if (nin) KeyEvent.KEYCODE_BUTTON_A else KeyEvent.KEYCODE_BUTTON_B
+        val left = if (nin) KeyEvent.KEYCODE_BUTTON_Y else KeyEvent.KEYCODE_BUTTON_X
+        val top = if (nin) KeyEvent.KEYCODE_BUTTON_X else KeyEvent.KEYCODE_BUTTON_Y
+        put(top, 92, 16); put(left, 30, 76); put(right, 154, 76); put(bottom, 92, 136)
+        row.addView(diamond, LinearLayout.LayoutParams(d(240), d(210)).apply { marginEnd = d(28) })
+        val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        c.addView(text(tr("Tastensymbole"), 26f, pal.onSurface, bold = true))
+        c.addView(text(
+            t("So zeigt Hugminn die Tasten in allen Hinweisen an. „Automatisch“ folgt dem Tastenlayout aus den Retroid-Einstellungen" +
+                (if (nin) " – dein Gerät nutzt gerade das Retroid-/Nintendo-Layout (A rechts)." else " – dein Gerät nutzt gerade das Xbox-Layout (A unten)."),
+                "This is how Hugminn shows the buttons in all hints. “Automatic” follows the button layout in the Retroid settings" +
+                    (if (nin) " – your device currently uses the Retroid/Nintendo layout (A on the right)." else " – your device currently uses the Xbox layout (A at the bottom).")),
+            14f, pal.onSurfaceVariant,
+        ).apply { setPadding(0, d(8), 0, 0) })
+        row.addView(c, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        b.addView(row)
+        options?.let { o ->
+            option(o, tr("Stil"), {
+                when (prefs.glyphStyle) {
+                    GlyphStyle.XBOX -> t("A, B, X, Y wie beim Xbox-Controller", "A, B, X, Y like the Xbox controller")
+                    GlyphStyle.NINTENDO -> t("A, B, X, Y wie beim Nintendo-Controller", "A, B, X, Y like the Nintendo controller")
+                    GlyphStyle.PLAYSTATION -> t("Kreuz, Kreis, Quadrat, Dreieck", "Cross, circle, square, triangle")
+                    else -> t("Folgt dem Tastenlayout des Geräts", "Follows the device's button layout")
+                }
+            }, { prefs.glyphStyle.label }) { prefs.glyphStyle = cycle(GlyphStyle.values().toList(), prefs.glyphStyle) }
+            option(o, tr("Farbig"), {
+                if (prefs.glyphColored) t("Jede Taste in ihrer Farbe", "Each button in its colour") else t("Schlicht in der Textfarbe", "Plain in the text colour")
+            }, { onOff(prefs.glyphColored) }) { prefs.glyphColored = !prefs.glyphColored }
+        }
     }
 
     private fun donePage(b: LinearLayout) = twoColumns(b, "overlay") { c ->
