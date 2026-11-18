@@ -1,5 +1,7 @@
 # Hugminn Wiki
 
+*[Deutsche Version](Startseite)*
+
 Hugminn adds a **Game Switcher** (Muninn) and a **Control Center** (Huginn) to Retroid handhelds, both fully usable with the controller. Your launcher stays as it is.
 
 ![Control Center in all styles](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/styles.gif)

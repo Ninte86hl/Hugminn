@@ -9,6 +9,8 @@
   Android 13 · controller-first · Material Design
 </p>
 
+<p align="center"><b>English</b> · <a href="README.de.md">Deutsch</a></p>
+
 ---
 
 > **Status:** tested on the Retroid Pocket 6. Pocket Nova and Pocket 5 support is planned.

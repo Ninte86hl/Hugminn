@@ -1,4 +1,4 @@
-**[Home](Home)**
+**[Home](Home)** · **[Deutsch](Startseite)**
 
 **Getting started**
 - [Setup wizard](Setup-Wizard)
@@ -18,3 +18,21 @@
 - [Permissions](Permissions)
 - [How it works](How-It-Works)
 - [Reporting bugs](Reporting-Bugs)
+
+---
+
+**Deutsch**
+- [Startseite](Startseite)
+- [Einrichtungsassistent](Einrichtungsassistent)
+- [Home-Taste](Home-Taste)
+- [Game Switcher](Game-Switcher-DE)
+- [Control Center](Control-Center-DE)
+- [Control Center bearbeiten](Control-Center-bearbeiten)
+- [Leistung und Lüfter](Leistung-und-Luefter)
+- [Stick-LEDs](Stick-LEDs-DE)
+- [Leistungs-Overlay](Leistungs-Overlay)
+- [Stile und Farbschemata](Stile-und-Farbschemata)
+- [Einstellungen](Einstellungen)
+- [Berechtigungen](Berechtigungen)
+- [So funktioniert es](So-funktioniert-es)
+- [Fehler melden](Fehler-melden)
