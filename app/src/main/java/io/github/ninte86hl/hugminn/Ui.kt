@@ -377,7 +377,7 @@ object Look {
         "rotation", "landscape", "screen" -> intArrayOf(0xFFFFD36E.toInt(), 0xFFF5A623.toInt())
         "refresh", "controller", "trigger", "keymapper" -> intArrayOf(0xFF8DE08F.toInt(), 0xFF43A047.toInt())
         "media" -> intArrayOf(0xFFFF9E80.toInt(), 0xFFFF5A5F.toInt())
-        "screenshot", "homelock", "vibration" -> intArrayOf(0xFFFFA3A3.toInt(), 0xFFE5484D.toInt())
+        "screenshot", "homelock", "vibration", "sleep" -> intArrayOf(0xFFFFA3A3.toInt(), 0xFFE5484D.toInt())
         else -> intArrayOf(accent, accent)
     }
 
