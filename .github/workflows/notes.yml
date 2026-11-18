@@ -1,0 +1,28 @@
+name: Release notes
+
+# Run by hand: writes each version's CHANGELOG.md section into its existing release.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for V in $(grep -oP '^## \K[0-9][^ ]*' CHANGELOG.md); do
+            gh release view "v$V" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || continue
+            {
+              echo "Hugminn $V. Install \`hugminn.apk\` on the handheld, or keep it up to date with Obtainium."
+              echo
+              echo "## What's new · Neu"
+              awk -v v="## $V" '$0 == v {f=1; next} /^## / {f=0} f' CHANGELOG.md
+            } > notes.md
+            gh release edit "v$V" -R "$GITHUB_REPOSITORY" --notes-file notes.md && echo "v$V updated"
+          done
