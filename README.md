@@ -39,16 +39,16 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 
 | | |
 | --- | --- |
-| ![Game switcher](docs/screenshots/modern/dark-switcher.png) | ![Performance overlay in a game](docs/screenshots/fps-overlay.png) |
-| Muninn – game switcher with the running game's title | Performance overlay in a game |
-| ![Performance profile](docs/screenshots/modern/dark-perf.png) | ![Fan profile](docs/screenshots/modern/dark-fan.png) |
-| Performance profile, remembered per emulator | Fan profile, remembered per emulator |
-| ![Custom fan curve](docs/screenshots/modern/dark-curve.png) | ![Stick LEDs](docs/screenshots/modern/dark-leds.png) |
-| Custom fan curve | Stick LEDs: colours and effects |
-| ![Edit menu](docs/screenshots/modern/dark-editmenu.png) | ![Tile colour](docs/screenshots/modern/dark-tile.png) |
-| Edit: layout, tiles, style, colours | Tile colour |
-| ![Edit mode](docs/screenshots/modern/dark-edit.png) | ![Add element](docs/screenshots/add-element.png) |
-| Edit mode: move and resize elements on a grid with pages | Add displays, switches and sliders |
+| ![Game switcher](docs/screenshots/modern/dark-switcher.png) | ![Performance profile](docs/screenshots/modern/dark-perf.png) |
+| Muninn – game switcher with the running game's title | Performance profile, remembered per emulator |
+| ![Fan profile](docs/screenshots/modern/dark-fan.png) | ![Custom fan curve](docs/screenshots/modern/dark-curve.png) |
+| Fan profile, remembered per emulator | Custom fan curve |
+| ![Stick LEDs](docs/screenshots/modern/dark-leds.png) | ![Edit menu](docs/screenshots/modern/dark-editmenu.png) |
+| Stick LEDs: colours and effects | Edit: layout, tiles, style, colours |
+| ![Tile colour](docs/screenshots/modern/dark-tile.png) | ![Edit mode](docs/screenshots/modern/dark-edit.png) |
+| Tile colour | Edit mode: move and resize elements on a grid with pages |
+| ![Add element](docs/screenshots/add-element.png) | |
+| Add displays, switches and sliders | |
 
 <details>
 <summary>Modern – every screen, dark and light</summary>
@@ -190,7 +190,7 @@ In Norse mythology, Odin's two ravens fly over the world every day and report ba
 - Music tile: what is playing, play/pause, next and previous track for any music app
 - Performance and fan profile per app: choose "Remember for …" while an emulator runs, and it always starts with that profile; leaving it brings back the previous setting
 - Gauges coloured by load (traffic light, cool → warm, accent colour, monochrome)
-- Steam-like performance overlay in games (FPS, CPU, GPU, RAM, temperatures; position and items selectable)
+- Steam-like performance overlay in games (FPS, CPU, GPU, RAM, temperatures; position and items selectable; matches the chosen style, light or dark)
 - Button for Android's settings; own status bar (clock, battery) in the chosen style
 
 ### Stick LEDs
