@@ -25,6 +25,7 @@ object TileCatalog {
         "clean" to tr("Speicher leeren"),
         "screenshot" to "Screenshot",
         "sleep" to t("Bildschirm aus", "Screen off"),
+        "devbat" to t("Geräte-Akku", "Device battery"),
         "media" to t("Musik", "Music"),
         "rpsettings" to tr("Retroid-Einstellungen"),
         "settings" to tr("Android-Einstellungen"),

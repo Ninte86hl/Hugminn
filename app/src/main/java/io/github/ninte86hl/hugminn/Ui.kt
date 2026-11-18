@@ -367,6 +367,7 @@ object Look {
 
     /** Icon badge colours of the Cocoon style, per tile. */
     fun badge(id: String, accent: Int): IntArray = when (id) {
+        "devbat" -> intArrayOf(0xFF9BE58C.toInt(), 0xFF34B24A.toInt())
         "wifi" -> intArrayOf(0xFF7CC4FF.toInt(), 0xFF3D8BFD.toInt())
         "bt" -> intArrayOf(0xFF9FA8FF.toInt(), 0xFF5865F2.toInt())
         "leds" -> intArrayOf(0xFFFF9EC0.toInt(), 0xFFF2558A.toInt())
