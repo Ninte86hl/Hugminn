@@ -19,13 +19,17 @@ object FrameRate {
     private val recent = ArrayDeque<Float>()
     private var flipsPrev = -1L
     private var flipsAt = 0L
+    private var flipRaw = ""
+    private var rawInfo = ""
 
     /**
      * Fallback when no layer of the game reports present times (e.g. Dolphin): SurfaceFlinger's count of
      * pictures shown on the display. Counts everything on screen, but while a game runs that is the game.
      */
     private fun displayFps(): Int? {
-        val out = Root.exec("service call SurfaceFlinger 1013") ?: return null
+        val out = (Root.exec("service call SurfaceFlinger 1013") ?: Root.execLong("service call SurfaceFlinger 1013", 3_000))
+        flipRaw = out?.replace('\n', ' ')?.take(120) ?: "keine Antwort"
+        if (out == null) return null
         val v = Regex("Parcel\\(\\s*([0-9a-fA-F]{8})").find(out)?.groupValues?.get(1)?.toLongOrNull(16) ?: return null
         val now = System.nanoTime()
         val prev = flipsPrev; val at = flipsAt
@@ -37,6 +41,8 @@ object FrameRate {
     /** Present times (ns) of a layer, newest 130; the command form that is known to work through the root service. */
     private fun presents(layer: String): List<Long>? {
         val out = Root.execLong("dumpsys SurfaceFlinger --latency ${Root.quote(layer)} | awk 'NR>1 { print 0, \$2 }' | tail -n 130", 3_000) ?: return null
+        val ls = out.lines().filter { it.isNotBlank() }
+        rawInfo = "${ls.size} Zeilen, z.B. ${ls.getOrNull(ls.size / 2)?.take(40)}"
         return out.lines().mapNotNull { it.trim().split(' ').getOrNull(1)?.toLongOrNull() }
             .filter { it in 1 until 9_000_000_000_000_000_000L }.sorted()
     }
@@ -55,10 +61,10 @@ object FrameRate {
         if (list == null) { diag = "Ebenenliste: keine Antwort"; return null }
         val names = list.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("ActivityRecord") && !it.contains("InputSink") }
             .sortedBy { if (it.contains("(BLAST)")) 0 else if (it.startsWith("SurfaceView")) 1 else 2 }.take(14)
-        val lines = HashMap<String, Int>()
-        val rows = names.map { n -> val p = presents(n); lines[n] = p?.size ?: -1; val c = p?.let { count(it) } ?: (0 to 0L); Triple(c.first, c.second, n) }
+        val lines = HashMap<String, Int>(); var raw = ""
+        val rows = names.map { n -> val p = presents(n); lines[n] = p?.size ?: -1; if (raw.isEmpty() && n.contains("(BLAST)")) raw = rawInfo; val c = p?.let { count(it) } ?: (0 to 0L); Triple(c.first, c.second, n) }
         val best = rows.maxWithOrNull(compareBy({ it.first }, { it.second }))
-        diag = "Ebenen: " + (if (rows.isEmpty()) "keine (Liste: ${list.replace('\n', ' ').take(200)})" else rows.joinToString { "${it.third.takeLast(60)}=${it.first}/${lines[it.third]}" })
+        diag = "Ebenen: " + (if (rows.isEmpty()) "keine (Liste: ${list.replace('\n', ' ').take(200)})" else rows.joinToString { "${it.third.takeLast(60)}=${it.first}/${lines[it.third]}" } + " · BLAST roh: $raw")
         layerPkg = pkg
         layer = best?.takeIf { it.first > 0 || it.second > 0 }?.third
         layerAt = now
@@ -70,7 +76,7 @@ object FrameRate {
         val l = findLayer(pkg)
         if (l == null) {
             val f = displayFps()
-            diag = diag.substringBefore(" · Messung") + " · Messung: Bildwechsel-Zähler → ${f ?: "?"}"
+            diag = diag.substringBefore(" · Messung") + " · Messung: Bildwechsel-Zähler → ${f ?: "?"} ($flipRaw)"
             val shown = (f ?: 0).coerceIn(0, 240)
             if (shown > 0) { recent.addLast(1000f / shown); while (recent.size > 60) recent.removeFirst() }
             return Result(shown, recent.toList())
