@@ -9,7 +9,7 @@ import android.view.View
 
 /** Simple line icons drawn in code, so they look the same everywhere and follow the theme colour. */
 class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 22) : View(ctx) {
-    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE }
+    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC }
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -156,6 +156,13 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
                 p.style = Paint.Style.FILL
                 c.drawArc(RectF(s * 0.14f, s * 0.14f, s * 0.86f, s * 0.86f), 90f, 180f, true, p)
                 p.style = Paint.Style.STROKE
+            }
+            Kind.MUSIC -> {
+                c.drawCircle(s * 0.32f, s * 0.72f, s * 0.12f, p)
+                c.drawCircle(s * 0.7f, s * 0.64f, s * 0.12f, p)
+                c.drawLine(s * 0.44f, s * 0.72f, s * 0.44f, s * 0.2f, p)
+                c.drawLine(s * 0.82f, s * 0.64f, s * 0.82f, s * 0.14f, p)
+                c.drawLine(s * 0.44f, s * 0.2f, s * 0.82f, s * 0.14f, p)
             }
             Kind.MOUSE -> {
                 c.drawRoundRect(RectF(s * 0.26f, s * 0.12f, s * 0.74f, s * 0.88f), s * 0.24f, s * 0.24f, p)

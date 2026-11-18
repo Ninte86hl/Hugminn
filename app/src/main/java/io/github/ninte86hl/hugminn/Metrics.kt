@@ -15,6 +15,8 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
         /** Frames per second of the app in the foreground (needs root), -1 if unknown. */
         val fps: Int,
         val frameTimesMs: List<Float> = emptyList(),
+        /** Minutes until empty (on battery) or full (charging), -1 while unknown. */
+        val batMinutes: Int = -1,
     )
 
     private var lastFrames = -1L
@@ -64,6 +66,8 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
         private val lock = Any()
         @Volatile private var shared: Sample? = null
         @Volatile private var sharedAt = 0L
+        // average power for the battery estimate (shared like the CPU deltas)
+        @Volatile private var avgWatts = -1f
         // CPU deltas belong to the shared measurement, not to one Metrics instance
         private var lastIdle = 0L
         private var lastTotal = 0L
@@ -136,12 +140,34 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
         val uv = read(File(bat, "voltage_now"))?.toLongOrNull() ?: 0L
         val watts = kotlin.math.abs(ua.toDouble() * uv / 1e12).toFloat()
         val charging = read(File(bat, "status")) == "Charging"
+        val batMinutes = estimate(watts, uv, charging)
 
         return Sample(
             cpuPct.coerceIn(0f, 100f), cpuMhz, gpuPct.coerceIn(0f, 100f), gpuMhz,
             usedMb, totalMb, maxTemp(cpuZones), maxTemp(gpuZones), batTemp, batPct, watts, charging,
             frame?.fps ?: -1,
             frame?.frameTimesMs ?: emptyList(),
+            batMinutes,
         )
+    }
+
+    /**
+     * Battery time: remaining charge (µAh, from Android) × voltage ÷ the average power of the last
+     * minutes. While charging Android's own estimate to full is used.
+     */
+    private fun estimate(watts: Float, uv: Long, charging: Boolean): Int {
+        val bm = ctx.getSystemService(android.os.BatteryManager::class.java) ?: return -1
+        if (charging) {
+            avgWatts = -1f
+            val ms = runCatching { bm.computeChargeTimeRemaining() }.getOrDefault(-1L)
+            return if (ms > 0) (ms / 60_000).toInt() else -1
+        }
+        if (watts <= 0.1f) return -1
+        // smooth over roughly two minutes, so a loading screen does not swing the estimate
+        avgWatts = if (avgWatts < 0f) watts else avgWatts + (watts - avgWatts) * 0.01f
+        val uah = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER).toLong()
+        if (uah <= 0 || uv <= 0) return -1
+        val wh = uah / 1e6 * (uv / 1e6)
+        return (wh / avgWatts * 60).toInt().takeIf { it in 1..(48 * 60) } ?: -1
     }
 }
