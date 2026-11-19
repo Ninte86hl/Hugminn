@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.31
+- Own colours: the Control Center (Huginn) is red, the game switcher (Muninn) blue – in their shortcut icons and in their headers.
+- Eigene Farben: Control Center (Huginn) rot, Spielwechsler (Muninn) blau – in den Verknüpfungs-Symbolen und in den Überschriften.
+
 ## 1.10.30
 - "Control Center" and "Game switcher" now also appear in Android's "Add shortcut" list, which frontends like Cocoon read (Cocoon has to be the default launcher).
 - „Control Center“ und „Spielwechsler“ erscheinen jetzt auch in Androids Liste „Verknüpfung hinzufügen“, die Frontends wie Cocoon auslesen (Cocoon muss Standard-Launcher sein).

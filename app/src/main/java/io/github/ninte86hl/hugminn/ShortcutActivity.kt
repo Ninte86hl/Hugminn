@@ -36,7 +36,7 @@ object OpenFromOutside {
     fun info(ctx: android.content.Context, switcher: Boolean): android.content.pm.ShortcutInfo =
         android.content.pm.ShortcutInfo.Builder(ctx, if (switcher) "pin_switcher" else "pin_cc")
             .setShortLabel(ctx.getString(if (switcher) R.string.sc_switcher else R.string.sc_cc))
-            .setIcon(android.graphics.drawable.Icon.createWithResource(ctx, R.mipmap.ic_launcher))
+            .setIcon(android.graphics.drawable.Icon.createWithResource(ctx, if (switcher) R.mipmap.ic_shortcut_switcher else R.mipmap.ic_shortcut_cc))
             .setIntent(Intent("io.github.ninte86hl.hugminn." + if (switcher) "SWITCHER" else "CONTROL_CENTER").setClass(ctx, ShortcutActivity::class.java))
             .build()
 
