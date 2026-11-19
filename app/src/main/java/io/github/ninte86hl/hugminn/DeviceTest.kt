@@ -1,0 +1,304 @@
+package io.github.ninte86hl.hugminn
+
+import android.app.Activity
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.media.MediaCodecList
+import android.media.MediaFormat
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.KeyEvent
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import java.io.File
+
+/**
+ * Device test: checks everything Hugminn uses on this handheld, then a short hands-on part (buttons,
+ * LEDs) and a summary that can be sent as a GitHub issue. No Wi-Fi names or other private data.
+ */
+class DeviceTestActivity : Activity() {
+    private enum class State { OK, WARN, FAIL }
+    private class Check(val area: String, val name: String, val state: State, val note: String)
+
+    private val checks = mutableListOf<Check>()
+    private lateinit var list: LinearLayout
+    private lateinit var scroll: ScrollView
+    private lateinit var buttons: LinearLayout
+    private var keyTest: ((Int) -> Boolean)? = null
+
+    private fun d(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
+    private val bg = 0xFF121214.toInt()
+    private val card = 0xFF1E1E22.toInt()
+    private val fg = 0xFFECECEC.toInt()
+    private val dim = 0xFF9A9AA2.toInt()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Lang.init(this)
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg); setPadding(d(24), d(20), d(24), d(16)) }
+        root.addView(text(t("Gerätetest", "Device test"), 24f, fg, true))
+        root.addView(text(t("Prüft, was Hugminn auf diesem Gerät nutzen kann. Es werden keine privaten Daten gesammelt.",
+            "Checks what Hugminn can use on this device. No private data is collected."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
+        list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        scroll = ScrollView(this).apply { addView(list); isFocusable = false }
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        buttons = LinearLayout(this).apply { gravity = Gravity.END; setPadding(0, d(12), 0, 0) }
+        root.addView(buttons)
+        setContentView(root)
+        status(t("Prüfe … (etwa 10 Sekunden)", "Checking … (about 10 seconds)"))
+        Thread { runAuto(); runOnUiThread { startKeyTest() } }.start()
+    }
+
+    // ---- UI helpers ----
+
+    private fun text(s: String, sp: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
+        text = s; setTextColor(color); setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
+        if (bold) typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+
+    private fun status(s: String) = runOnUiThread {
+        list.removeAllViews()
+        list.addView(text(s, 16f, fg).apply { setPadding(0, d(12), 0, d(12)) })
+    }
+
+    private fun button(label: String, primary: Boolean = false, click: () -> Unit) = Button(this).apply {
+        text = label; isAllCaps = false
+        setTextColor(if (primary) Color.WHITE else fg)
+        background = GradientDrawable().apply { setColor(if (primary) 0xFFE0303C.toInt() else card); cornerRadius = d(20).toFloat() }
+        setPadding(d(20), 0, d(20), 0)
+        setOnClickListener { click() }
+        isFocusable = true
+        setOnFocusChangeListener { v, f -> v.alpha = if (f) 1f else 0.75f; v.scaleX = if (f) 1.05f else 1f; v.scaleY = v.scaleX }
+        alpha = 0.75f
+    }
+
+    private fun setButtons(vararg b: Button) {
+        buttons.removeAllViews()
+        b.forEach { buttons.addView(it, LinearLayout.LayoutParams(-2, d(44)).apply { marginStart = d(10) }) }
+        b.lastOrNull()?.requestFocus()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        keyTest?.let { if (event.action == KeyEvent.ACTION_DOWN && it(event.keyCode)) return true; if (keyTest != null) return true }
+        if (event.action == KeyEvent.ACTION_UP) when (event.keyCode) {
+            KeyEvent.KEYCODE_BUTTON_A -> { currentFocus?.performClick(); return true }
+            KeyEvent.KEYCODE_BUTTON_B -> { finish(); return true }
+        }
+        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_A || event.keyCode == KeyEvent.KEYCODE_BUTTON_B) return true
+        return super.dispatchKeyEvent(event)
+    }
+
+    // ---- automatic part ----
+
+    private fun add(area: String, name: String, state: State, note: String = "") { synchronized(checks) { checks += Check(area, name, state, note) } }
+    private fun ok(b: Boolean) = if (b) State.OK else State.FAIL
+
+    private fun runAuto() {
+        val dev = t("Gerät", "Device")
+        val m = resources.displayMetrics
+        val real = android.graphics.Point().also { @Suppress("DEPRECATION") windowManager.defaultDisplay.getRealSize(it) }
+        val w = maxOf(real.x, real.y); val h = minOf(real.x, real.y)
+        val rates = runCatching { @Suppress("DEPRECATION") windowManager.defaultDisplay.supportedModes.map { Math.round(it.refreshRate) }.distinct().sorted() }.getOrDefault(emptyList())
+        add(dev, "${Build.MANUFACTURER} ${Build.MODEL}", State.OK, "Android ${Build.VERSION.RELEASE}")
+        add(dev, t("Bildschirm", "Screen"), State.OK, "${w}×$h · " + "%.2f".format(w.toFloat() / h) + ":1 · ${rates.joinToString("/")} Hz · " + "%.2f".format(m.density))
+
+        // permissions
+        val perm = t("Berechtigungen", "Permissions")
+        val root = Root.available()
+        add(perm, t("Bedienungshilfe", "Accessibility service"), ok(HugminnService.instance != null), if (HugminnService.instance == null) t("Hugminn ist nicht eingeschaltet", "Hugminn is not switched on") else "")
+        add(perm, "Root", ok(root), if (!root) t("Ohne Root fehlen Leistung, Lüfter, LEDs und mehr", "Without root, performance, fan, LEDs and more are missing") else "")
+        add(perm, t("Hintergrund-Erlaubnis", "Background whitelist"), if (Device.whitelisted(this)) State.OK else State.WARN, if (!Device.whitelisted(this)) t("Das System könnte Hugminn beenden", "The system might end Hugminn") else "")
+        val listeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners").orEmpty()
+        add(perm, t("Musik-Zugriff", "Music access"), if (listeners.contains(packageName)) State.OK else State.WARN, if (!listeners.contains(packageName)) t("Musikkachel zeigt evtl. keine Titel", "Music tile may show no titles") else "")
+        add(perm, t("Mikrofon (für Spielton)", "Microphone (for game sound)"), if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == 0) State.OK else State.WARN,
+            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != 0) t("Wird bei der ersten Aufnahme erteilt", "Granted on the first recording") else "")
+
+        // the handheld's own settings
+        val fw = t("Retroid-Funktionen", "Retroid features")
+        listOf(
+            "performance_mode" to t("Leistungsprofile", "Performance profiles"),
+            "fan_mode" to t("Lüfterprofile", "Fan profiles"),
+            "temp_abxy_layout_mode" to t("Tastenlayout / eingebaute Steuerung aus", "Button layout / built-in controls off"),
+            "trigger_input_mode" to t("Trigger-Modus", "Trigger mode"),
+            "joystick_light_enabled" to t("Stick-LEDs", "Stick LEDs"),
+            "is_charging_separation" to t("Direkte Stromversorgung", "Charging separation"),
+        ).forEach { (key, name) ->
+            val v = Device.sys(this, key)
+            add(fw, name, if (v != null) State.OK else State.FAIL, if (v != null) "$key = $v" else t("Einstellung fehlt – Kachel wird ausgeblendet", "Setting missing – the tile is hidden"))
+        }
+        val ledDrv = root && Root.exec("ls /sys/class/sn3112l/led/brightness /sys/class/sn3112r/led/brightness 2>/dev/null")?.lines()?.count { it.isNotBlank() } == 2
+        add(fw, t("LED-Treiber (Effekte)", "LED driver (effects)"), if (ledDrv) State.OK else State.WARN, if (!ledDrv) t("Effekte und Aufnahme-Pulsieren nicht möglich", "Effects and recording pulse not possible") else "sn3112")
+
+        // live values
+        val live = t("Messwerte", "Live values")
+        val metrics = Metrics(this)
+        runCatching { metrics.sample(); Thread.sleep(600) }
+        val s = runCatching { metrics.sample() }.getOrNull()
+        if (s != null) {
+            add(live, "CPU", if (s.cpuMhz > 0) State.OK else State.WARN, if (s.cpuMhz > 0) "${s.cpuMhz} MHz · ${s.cpuPct.toInt()} %" else t("Takt nicht lesbar", "Clock not readable"))
+            add(live, "GPU", if (File("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage").canRead()) State.OK else State.WARN, "${s.gpuPct.toInt()} % · ${s.gpuMhz} MHz")
+            add(live, t("Temperaturen", "Temperatures"), if (s.cpuTemp > 0) State.OK else State.WARN, "CPU ${s.cpuTemp.toInt()} °C · GPU ${s.gpuTemp.toInt()} °C · " + t("Akku", "Battery") + " ${s.batTemp.toInt()} °C")
+            add(live, t("Akku", "Battery"), if (s.batPct > 0) State.OK else State.WARN, "${s.batPct} % · " + "%.1f W".format(s.watts))
+        } else add(live, t("Systemwerte", "System values"), State.FAIL, t("Nicht lesbar", "Not readable"))
+        val fan = runCatching { FanCurve.speedPct() }.getOrNull()
+        add(live, t("Lüfterdrehzahl", "Fan speed"), if (fan != null) State.OK else State.WARN, fan?.let { "$it %" } ?: t("Nicht lesbar – Kachel zeigt nur das Profil", "Not readable – the tile only shows the profile"))
+        val fps = root && Root.exec("service call SurfaceFlinger 1013", 1500)?.contains("Parcel") == true
+        add(live, "FPS", ok(fps), if (!fps) t("Braucht Root", "Needs root") else "SurfaceFlinger")
+
+        // recording
+        val rec = t("Aufnahme", "Capture")
+        val enc = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.filter { it.isEncoder && it.supportedTypes.any { t -> t.equals(MediaFormat.MIMETYPE_VIDEO_AVC, true) } }
+        val caps = enc.mapNotNull { runCatching { it.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC).videoCapabilities }.getOrNull() }
+        val p1080 = caps.any { runCatching { it.areSizeAndRateSupported(1920, 1080, 60.0) }.getOrDefault(false) }
+        val p720 = caps.any { runCatching { it.areSizeAndRateSupported(1280, 720, 60.0) }.getOrDefault(false) }
+        add(rec, "Video-Encoder", when { p1080 -> State.OK; p720 -> State.WARN; else -> State.FAIL },
+            when { p1080 -> "1080p · 60 FPS"; p720 -> t("Nur 720p · 60 FPS", "720p · 60 FPS only"); else -> t("Kein passender Encoder", "No suitable encoder") })
+        add(rec, t("Spielton", "Game sound"), ok(Build.VERSION.SDK_INT >= 29), t("Manche Apps verbieten die Aufnahme", "Some apps don't allow recording"))
+
+        // controllers
+        val pad = "Controller"
+        val devices = android.view.InputDevice.getDeviceIds().toList().mapNotNull { android.view.InputDevice.getDevice(it) }
+        val gamepads = devices.filter { it.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD }
+        val external = gamepads.filter { Device.isExternalPad(it.id) }
+        val builtin = gamepads.filter { !Device.isExternalPad(it.id) }
+        add(pad, t("Eingebaute Steuerung", "Built-in controls"), if (builtin.isNotEmpty()) State.OK else State.WARN,
+            builtin.joinToString { "${it.name} (${it.vendorId}/${it.productId})" }.ifEmpty { t("Nicht erkannt (oder gerade aus)", "Not found (or switched off)") })
+        if (external.isNotEmpty()) {
+            val bats = runCatching { Bt.batteries(this) }.getOrDefault(emptyList())
+            external.forEach { e ->
+                val b = bats.firstOrNull { it.first.contains(e.name, true) || e.name.contains(it.first, true) }
+                add(pad, e.name, if (b != null) State.OK else State.WARN, if (b != null) t("Akku", "Battery") + " ${b.second} %" else t("Meldet keinen Akkustand", "Reports no battery level"))
+            }
+        } else add(pad, t("Externer Controller", "External controller"), State.OK, t("Keiner verbunden", "None connected"))
+    }
+
+    // ---- hands-on part ----
+
+    private val keys = linkedMapOf(
+        KeyEvent.KEYCODE_BUTTON_A to "A", KeyEvent.KEYCODE_BUTTON_B to "B", KeyEvent.KEYCODE_BUTTON_X to "X", KeyEvent.KEYCODE_BUTTON_Y to "Y",
+        KeyEvent.KEYCODE_BUTTON_L1 to "L1", KeyEvent.KEYCODE_BUTTON_R1 to "R1", KeyEvent.KEYCODE_BUTTON_L2 to "L2", KeyEvent.KEYCODE_BUTTON_R2 to "R2",
+        KeyEvent.KEYCODE_BUTTON_START to "Start", KeyEvent.KEYCODE_BUTTON_SELECT to "Select",
+        KeyEvent.KEYCODE_BUTTON_THUMBL to "L3", KeyEvent.KEYCODE_BUTTON_THUMBR to "R3",
+    )
+
+    private fun startKeyTest() {
+        val pressed = mutableSetOf<Int>()
+        val labels = mutableMapOf<Int, TextView>()
+        list.removeAllViews()
+        list.addView(text(t("Tasten: drücke jede Taste einmal", "Buttons: press each button once"), 18f, fg, true))
+        list.addView(text(t("Endet automatisch, wenn alle gedrückt sind, oder nach 20 Sekunden.", "Ends by itself once all are pressed, or after 20 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
+        val grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        keys.forEach { (code, name) ->
+            val v = text(name, 16f, dim, true).apply {
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply { setColor(card); cornerRadius = d(10).toFloat() }
+            }
+            labels[code] = v
+            grid.addView(v, LinearLayout.LayoutParams(0, d(48), 1f).apply { marginEnd = d(6) })
+        }
+        list.addView(grid)
+        setButtons()
+        var done = false
+        fun finishKeys() {
+            if (done) return
+            done = true
+            keyTest = null
+            val missing = keys.filterKeys { it !in pressed }.values
+            add(t("Tasten", "Buttons"), t("Tasten", "Buttons"), if (missing.isEmpty()) State.OK else State.WARN,
+                if (missing.isEmpty()) t("Alle ${keys.size} erkannt", "All ${keys.size} detected") else t("Nicht erkannt: ", "Not detected: ") + missing.joinToString())
+            startLedTest()
+        }
+        keyTest = { code ->
+            if (code in keys && pressed.add(code)) {
+                labels[code]?.apply { setTextColor(Color.WHITE); (background as GradientDrawable).setColor(0xFF2E9E5B.toInt()) }
+                if (pressed.size == keys.size) list.postDelayed({ finishKeys() }, 400)
+            }
+            true
+        }
+        list.postDelayed({ finishKeys() }, 20_000)
+    }
+
+    private fun startLedTest() {
+        if (!Root.available() || Device.sys(this, "joystick_light_enabled") == null) { showSummary(); return }
+        list.removeAllViews()
+        list.addView(text(t("Stick-LEDs", "Stick LEDs"), 18f, fg, true))
+        list.addView(text(t("Die Sticks leuchten jetzt rot. Siehst du es?", "The sticks light up red now. Can you see it?"), 15f, fg).apply { setPadding(0, d(6), 0, 0) })
+        LedFx.preview(Color.RED, Color.RED, 1f)
+        fun answer(seen: Boolean) {
+            add(t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) State.OK else State.FAIL,
+                if (seen) "" else t("Farben werden nicht übernommen", "Colours are not applied"))
+            runCatching { if (Device.stickLeds(this)) { if (Prefs(this).ledEffect != LedEffect.NONE) LedFx.resume(this) else LedFx.restoreStatic(this) } else LedFx.preview(0, 0, 1f) }
+            showSummary()
+        }
+        setButtons(button(t("Nein", "No")) { answer(false) }, button(t("Ja", "Yes"), primary = true) { answer(true) })
+    }
+
+    // ---- summary ----
+
+    private fun showSummary() {
+        list.removeAllViews()
+        val all = synchronized(checks) { checks.toList() }
+        val okN = all.count { it.state == State.OK }
+        val warnN = all.count { it.state == State.WARN }
+        val failN = all.count { it.state == State.FAIL }
+        list.addView(text(t("Ergebnis", "Result"), 20f, fg, true))
+        list.addView(text("✓ $okN   ⚠ $warnN   ✗ $failN", 16f, dim).apply { setPadding(0, d(4), 0, d(10)) })
+        all.groupBy { it.area }.forEach { (area, items) ->
+            list.addView(text(area, 14f, 0xFFE0303C.toInt(), true).apply { setPadding(0, d(12), 0, d(4)) })
+            items.forEach { c ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = GradientDrawable().apply { setColor(card); cornerRadius = d(12).toFloat() }
+                    setPadding(d(14), d(8), d(14), d(8))
+                }
+                val icon = when (c.state) { State.OK -> "✓"; State.WARN -> "⚠"; State.FAIL -> "✗" }
+                val col = when (c.state) { State.OK -> 0xFF4CC38A.toInt(); State.WARN -> 0xFFF0B429.toInt(); State.FAIL -> 0xFFFF5C5C.toInt() }
+                row.addView(text("$icon  ${c.name}", 15f, col, true))
+                if (c.note.isNotEmpty()) row.addView(text(c.note, 12f, dim))
+                list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = d(6) })
+            }
+        }
+        scroll.scrollTo(0, 0)
+        setButtons(
+            button(t("Schließen", "Close")) { finish() },
+            button(t("Kopieren", "Copy")) {
+                getSystemService(android.content.ClipboardManager::class.java)?.setPrimaryClip(android.content.ClipData.newPlainText("Hugminn", report(all)))
+                android.widget.Toast.makeText(this, t("Kopiert", "Copied"), android.widget.Toast.LENGTH_SHORT).show()
+            },
+            button(t("Auf GitHub melden", "Report on GitHub"), primary = true) { share(all) },
+        )
+    }
+
+    private fun report(all: List<Check>) = buildString {
+        appendLine("Hugminn ${runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrDefault("?")} · ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}")
+        all.groupBy { it.area }.forEach { (area, items) ->
+            appendLine(); appendLine("$area:")
+            items.forEach { c -> appendLine("  ${when (c.state) { State.OK -> "✓"; State.WARN -> "⚠"; State.FAIL -> "✗" }} ${c.name}${if (c.note.isNotEmpty()) " – ${c.note}" else ""}") }
+        }
+    }
+
+    /** Opens a prefilled "Device report" issue on GitHub (the person sends it themselves). */
+    private fun share(all: List<Check>) {
+        val version = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrDefault("")
+        val body = "Device test:\n```\n" + report(all).take(5500) + "\n```"
+        val url = "https://github.com/Ninte86hl/Hugminn/issues/new?template=device-report.yml" +
+            "&title=" + Uri.encode("[Device] ${Build.MODEL}") +
+            "&device=" + Uri.encode("${Build.MANUFACTURER} ${Build.MODEL}") +
+            "&version=" + Uri.encode(version) +
+            "&problems=" + Uri.encode(body)
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+            .onFailure { android.widget.Toast.makeText(this, t("Kein Browser gefunden – nutze „Kopieren“", "No browser found – use “Copy”"), android.widget.Toast.LENGTH_LONG).show() }
+    }
+
+    override fun onDestroy() {
+        keyTest = null
+        super.onDestroy()
+    }
+}
