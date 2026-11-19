@@ -620,6 +620,7 @@ class SetupActivity : Activity() {
         KeyEvent.KEYCODE_BUTTON_THUMBL to "L3", KeyEvent.KEYCODE_BUTTON_THUMBR to "R3", KeyEvent.KEYCODE_BUTTON_START to "Start", KeyEvent.KEYCODE_BUTTON_SELECT to "Select",
         KeyEvent.KEYCODE_DPAD_UP to "▲", KeyEvent.KEYCODE_DPAD_DOWN to "▼", KeyEvent.KEYCODE_DPAD_LEFT to "◀", KeyEvent.KEYCODE_DPAD_RIGHT to "▶",
         KeyEvent.KEYCODE_VOLUME_UP to "Vol+", KeyEvent.KEYCODE_VOLUME_DOWN to "Vol−", KeyEvent.KEYCODE_HOME to "Home",
+        KeyEvent.KEYCODE_BACK to "Back",
     )
     private val pressedKeys = mutableSetOf<Int>()
     private var keysDone = false

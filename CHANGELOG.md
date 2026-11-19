@@ -28,6 +28,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - "Stay in the background": without root, a short guide and Android's own "allow in the background" dialog (setup and settings).
 - Setup with root: the cards "Brightness & system values" and "Recent apps" are gone – the root service handles both anyway.
 - The report and help dialogs of the setup follow the chosen style.
+- Setup button test: the Back button is tested too.
 - Aufnahme-Menü: größeres Fenster mit zwei Reitern (Aufnehmen · Einstellungen); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, nur L1/R1 wechseln die Reiter.
 - Aufnahme: Videos können nach 5, 10, 15 oder 30 Sekunden oder 1, 3, 5 oder 10 Minuten von selbst enden (Einstellungen → Maximale Länge).
 - Spielwechsler: Y → Tastenkürzel zeigt die Tastenkürzel des Emulators mit Tastensymbolen (gängige Belegung mit Select als Hotkey wie bei EmuDeck/ROCKNIX; pro Emulator anpassbar unter Einstellungen → Tastenkürzel).
@@ -51,6 +52,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - „Im Hintergrund bleiben“: Ohne Root eine kurze Anleitung und Androids eigener Dialog „im Hintergrund erlauben“ (Einrichtung und Einstellungen).
 - Einrichtung mit Root: Die Karten „Helligkeit & Systemwerte“ und „Zuletzt genutzte Apps“ entfallen – das erledigt der Root-Dienst ohnehin.
 - Bericht- und Hilfefenster der Einrichtung folgen dem gewählten Stil.
+- Tastentest der Einrichtung: Die Zurück-Taste wird mitgeprüft.
 - Neuer Gerätetest (Einstellungen → Hilfe & Info): prüft Berechtigungen, Retroid-Funktionen, Messwerte, Aufnahme und Controller, danach Tasten und LEDs von Hand, und zeigt eine Zusammenfassung, die sich als GitHub-Issue senden lässt.
 - Aufnahme: Nach einem Video gehen die Stick-LEDs zurück auf ihre Farben bzw. ihren Effekt.
 
