@@ -501,18 +501,14 @@ class SetupActivity : Activity() {
             "Android and the handheld's firmware end apps in the background to save battery. Then the Home button stops working until Hugminn restarts.\n\n" +
                 "How to:\n1. Tap “Allow now”.\n2. Android asks: “Let Hugminn always run in the background?” – tap “Allow”.\n\n" +
                 "If nothing asks: open App info → Battery → choose “Unrestricted”.")
-        android.app.AlertDialog.Builder(this)
-            .setTitle(t("Im Hintergrund bleiben", "Stay in the background"))
-            .setMessage(msg)
-            .setPositiveButton(t("Jetzt erlauben", "Allow now")) { _, _ ->
+        styledDialog(t("Im Hintergrund bleiben", "Stay in the background"), null, text(msg, 14f, pal.onSurface), listOf(
+            t("Später", "Later") to {},
+            t("App-Info", "App info") to { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName"))) },
+            t("Jetzt erlauben", "Allow now") to {
                 runCatching { startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, android.net.Uri.parse("package:$packageName"))) }
                     .onFailure { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName"))) }
-            }
-            .setNeutralButton(t("App-Info", "App info")) { _, _ ->
-                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")))
-            }
-            .setNegativeButton(t("Später", "Later"), null)
-            .show()
+            },
+        ))
     }
 
     private fun permissionsPage(b: LinearLayout) {
@@ -701,13 +697,47 @@ class SetupActivity : Activity() {
     private fun showReport() {
         val all = setupResults() + synchronized(setupChecks) { setupChecks.toList() }
         val report = DeviceReport.text(this, all)
-        val tv = text(report, 12f, pal.onSurface).apply { setPadding(d(20), d(8), d(20), d(8)); setTextIsSelectable(true) }
-        android.app.AlertDialog.Builder(this)
-            .setTitle(t("Dein Bericht", "Your report"))
-            .setView(android.widget.ScrollView(this).apply { addView(tv) })
-            .setPositiveButton(t("Auf GitHub senden", "Send on GitHub")) { _, _ -> DeviceReport.share(this, all) }
-            .setNegativeButton(t("Nicht senden", "Don't send"), null)
-            .show()
+        styledDialog(t("Dein Bericht", "Your report"),
+            t("Das wird gesendet – sonst nichts:", "This is what gets sent – nothing else:"),
+            text(report, 12f, pal.onSurface),
+            listOf(t("Nicht senden", "Don't send") to {}, t("Auf GitHub senden", "Send on GitHub") to { DeviceReport.share(this, all) }))
+    }
+
+    /** A dialog in the chosen style (font, corners, colours), with the last action as the main one. */
+    private fun styledDialog(title: String, intro: String?, content: View, actions: List<Pair<String, () -> Unit>>) {
+        val dlg = android.app.Dialog(this)
+        dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(d(24), d(20), d(24), d(16))
+            background = Look.shape(this@SetupActivity, pixel, pal.surfaceHigh, d(24).toFloat())
+        }
+        box.addView(text(title, 22f, pal.onSurface, bold = true))
+        intro?.let { box.addView(text(it, 13f, pal.onSurfaceVariant).apply { setPadding(0, d(4), 0, d(8)) }) }
+        box.addView(android.widget.ScrollView(this).apply {
+            addView(content)
+            background = Look.shape(this@SetupActivity, pixel, pal.surface, d(14).toFloat())
+            setPadding(d(14), d(10), d(14), d(10))
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        val row = LinearLayout(this).apply { gravity = Gravity.END or Gravity.CENTER_VERTICAL; setPadding(0, d(14), 0, 0) }
+        var main: View? = null
+        actions.forEachIndexed { i, (label, run) ->
+            val primary = i == actions.lastIndex
+            val bt = button(label, primary) { dlg.dismiss(); run() }
+            buttons.remove(bt)
+            if (primary) main = bt
+            row.addView(bt, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, d(46)).apply { if (i > 0) marginStart = d(10) })
+        }
+        box.addView(row)
+        dlg.setContentView(box)
+        dlg.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+            val m = resources.displayMetrics
+            setLayout((m.widthPixels * 0.62f).toInt(), (m.heightPixels * 0.82f).toInt())
+            setDimAmount(0.6f)
+        }
+        dlg.show()
+        main?.requestFocus()
     }
 
     private fun donePage(b: LinearLayout) = twoColumns(b, "overlay", right = { c ->
