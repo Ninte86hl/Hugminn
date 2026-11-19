@@ -2,6 +2,12 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.9.5
+- The device's volume keys work while the Control Center is open (a volume slider on screen moves along).
+- Music tile: file names as titles are cleaned up ("02 Song.mp3" → "Song").
+- Die Lautstärketasten des Geräts funktionieren bei offenem Control Center (ein Lautstärke-Regler bewegt sich mit).
+- Musik-Kachel: Dateinamen als Titel werden aufgeräumt („02 Lied.mp3“ → „Lied“).
+
 ## 1.9.4
 - Music tile: Android's own music app now shows song and artist (its notification was not found before).
 - Musik-Kachel: Androids eigene Musik-App zeigt jetzt Titel und Interpret (ihre Benachrichtigung wurde vorher nicht gefunden).

@@ -106,6 +106,7 @@ class ControlCenter(private val svc: HugminnService) {
                 hat.onMotion(event) || super.dispatchGenericMotionEvent(event)
 
             override fun dispatchKeyEvent(event: KeyEvent): Boolean = try {
+                if (volumeKey(event)) true else
                 onKey(event)
             } catch (t: Throwable) {
                 Crash.note(svc, t)
@@ -304,6 +305,7 @@ class ControlCenter(private val svc: HugminnService) {
         graphUpdates.removeAll { it is GridUpdate }
         refreshers.clear()
         sliderItems.clear()
+        volumeSliders.clear()
         cardItems.clear()
         items.clear()
         itemEntry.clear()
@@ -496,6 +498,34 @@ class ControlCenter(private val svc: HugminnService) {
         graphUpdates += GridUpdate(f)
     }
 
+    /** Volume sliders on screen (the device's volume keys move them). */
+    private val volumeSliders = mutableListOf<BigSlider>()
+
+    /**
+     * The device's volume keys while the Control Center is open: like everywhere else. With a volume
+     * slider on screen it moves (5 % steps, the slider shows it), otherwise Android's own volume panel.
+     */
+    private fun volumeKey(e: KeyEvent): Boolean {
+        val dir = when (e.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP -> 1
+            KeyEvent.KEYCODE_VOLUME_DOWN -> -1
+            KeyEvent.KEYCODE_VOLUME_MUTE -> 0
+            else -> return false
+        }
+        if (e.action != KeyEvent.ACTION_DOWN) return true
+        val shown = volumeSliders.filter { it.isAttachedToWindow }
+        if (dir != 0 && shown.isNotEmpty()) {
+            shown.first().step(5 * dir)
+            val v = shown.first().value
+            shown.drop(1).forEach { it.setValue(v) }
+        } else {
+            audio.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                if (dir > 0) AudioManager.ADJUST_RAISE else if (dir < 0) AudioManager.ADJUST_LOWER else AudioManager.ADJUST_TOGGLE_MUTE,
+                AudioManager.FLAG_SHOW_UI)
+        }
+        return true
+    }
+
     /** View for one grid element at its size, plus what A does on it. */
     private fun element(e: GridEntry, rootOk: Boolean): Pair<View, Item?> {
         val id = e.id
@@ -511,7 +541,7 @@ class ControlCenter(private val svc: HugminnService) {
                 BigSlider(svc, pal, IconView.Kind.SPEAKER, tr("Lautstärke"), 100, pct, pixel, vertical) { p ->
                     svc.prefs.volumePct = p
                     audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(p * max / 100f), 0)
-                }
+                }.also { volumeSliders += it }
             }
             // Cocoon: brightness yellow, volume purple (unless a tile colour was chosen)
             if (pal.cocoon && svc.prefs.tileColor == 0) v.setAccent(if (id == "brightness") 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
