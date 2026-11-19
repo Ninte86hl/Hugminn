@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="controlcenter" android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_cc">
+        <intent android:action="io.github.ninte86hl.hugminn.CONTROL_CENTER"
+            android:targetPackage="io.github.ninte86hl.hugminn"
+            android:targetClass="io.github.ninte86hl.hugminn.ShortcutActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="switcher" android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_switcher">
+        <intent android:action="io.github.ninte86hl.hugminn.SWITCHER"
+            android:targetPackage="io.github.ninte86hl.hugminn"
+            android:targetClass="io.github.ninte86hl.hugminn.ShortcutActivity" />
+    </shortcut>
+</shortcuts>

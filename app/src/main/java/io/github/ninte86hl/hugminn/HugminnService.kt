@@ -355,4 +355,6 @@ class HugminnService : AccessibilityService() {
             }
         }, 60_000)
     }
+
+    fun controlCenterOpen() = ::controlCenter.isInitialized && controlCenter.isOpen
 }

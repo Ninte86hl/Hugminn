@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_cc">Control Center</string>
+    <string name="sc_switcher">Game switcher</string>
+    <string name="tile_cc">Control Center</string>
+</resources>

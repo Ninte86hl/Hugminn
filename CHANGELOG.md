@@ -2,6 +2,12 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.22
+- New quick settings tile "Control Center": opens the Control Center without pressing a button (add it via the pencil in Android's quick settings).
+- App shortcuts: long press the Hugminn icon for "Control Center" and "Game switcher"; both can be placed on the home screen or in a frontend.
+- Neue Schnelleinstellungs-Kachel „Control Center“: öffnet das Control Center ohne Tastendruck (über den Stift in Androids Schnelleinstellungen hinzufügen).
+- App-Verknüpfungen: lange auf das Hugminn-Symbol drücken für „Control Center“ und „Spielwechsler“; beide lassen sich auf den Startbildschirm oder in ein Frontend legen.
+
 ## 1.10.21
 - "Built-in controls off" also works before the external controller is connected; if none connects within 60 seconds, the built-in controls come back on.
 - „Eingebaute Steuerung aus“ geht auch, bevor der externe Controller verbunden ist; kommt innerhalb von 60 Sekunden keiner, geht die eingebaute Steuerung wieder an.
