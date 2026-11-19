@@ -43,8 +43,13 @@ object Device {
     /** A game controller other than the handheld's own is connected (Bluetooth or USB). */
     fun externalPad(): Boolean = android.view.InputDevice.getDeviceIds().any { id ->
         val d = android.view.InputDevice.getDevice(id) ?: return@any false
-        d.isExternal && d.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD
+        d.isExternal && !builtinPad(d) && d.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD
     }
+
+    /** Retroid's own controls also show up as "external": the "Xbox Wireless Controller" (vendor 0x2022,
+     *  product 0x3002) and the virtual mouse. */
+    private fun builtinPad(d: android.view.InputDevice) =
+        d.name.contains("Retroid", true) || (d.vendorId == 0x2022 && d.productId == 0x3002)
 
     fun profileLabel(ctx: Context, key: String, table: Map<String, String>): String {
         val v = sys(ctx, key) ?: return "–"
