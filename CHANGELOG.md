@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.26
+- "Built-in controls off" no longer switches itself back on after two seconds (Hugminn took the disappearing built-in controller for a disconnected one).
+- „Eingebaute Steuerung aus“ schaltet sich nicht mehr nach zwei Sekunden selbst wieder ein (Hugminn hielt den verschwindenden eingebauten Controller für einen getrennten).
+
 ## 1.10.25
 - Long press on the "Control Center" quick settings tile opens Hugminn's settings.
 - Langer Druck auf die Schnelleinstellungs-Kachel „Control Center“ öffnet die Hugminn-Einstellungen.
