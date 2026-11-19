@@ -187,7 +187,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         if (isOpen) return
         isOpen = true
         fromSwipe = swipe
-        val front = runCatching { svc.rootInActiveWindow?.packageName?.toString() }.getOrNull()
+        val front = svc.windowPkg // from the window events: no waiting for the app in front
         fromPkg = if (swipe) svc.foregroundPkg?.takeIf { svc.appRecentlyInFront() }
             else if (front == null || Apps.isHome(svc, front)) null else svc.foregroundPkg
         // without root there is no task list: the usage history is the best guess (with root it would
