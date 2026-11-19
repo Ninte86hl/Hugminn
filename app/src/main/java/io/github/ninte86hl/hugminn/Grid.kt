@@ -49,7 +49,7 @@ object GridLayout {
         id == "system" -> listOf(4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }.ifEmpty { listOf(cols to 2) }
         // Wi-Fi and Bluetooth with their lists, profiles with their choices, battery with all details
         id == "wifi" || id == "bt" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
-        id == "perf" || id == "fan" -> listOf(1 to 1, 2 to 1, 2 to 2, 2 to 3).filter { it.second <= ROWS }
+        id == "perf" || id == "fan" -> listOf(1 to 1, 2 to 1, 2 to 2, 3 to 2).filter { it.first <= cols }
         id == "battery" -> listOf(1 to 1, 2 to 1, 2 to 2)
         id == "fps" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }
         isInfo(id) -> listOf(1 to 1, 2 to 1, 2 to 2)

@@ -692,51 +692,31 @@ class ControlCenter(private val svc: HugminnService) {
         return c to Item(c, { overlayMenu() })
     }
 
-    /** Large performance or fan card: current profile, details, and every profile to tap. */
+    /** Large performance or fan card: the current profile, big, with live details (A opens the profiles). */
     private fun profileElement(e: GridEntry): Pair<View, Item?> {
         val perf = e.id == "perf"
-        val key = if (perf) "performance_mode" else "fan_mode"
-        val table = if (perf) Device.perfProfiles else Device.fanProfiles
         val sp = spec(e.id)!!
-        val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
+        val c = card().apply { setPadding(16 * d, 12 * d, 16 * d, 12 * d) }
         c.addView(cardHead(sp.icon, sp.title, e.id).first)
-        val value = text("", 22f, pal.onSurface, bold = true).apply { maxLines = 1 }
-        val sub = text("", 11f, pal.onSurfaceVariant).apply { maxLines = 1 }
-        c.addView(value)
-        c.addView(sub)
         c.addView(View(svc), lp(MATCH, 0, 1f))
-        val chips = mutableListOf<Pair<String, TextView>>()
-        val rows = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-        // two per row: long names stay readable (fan: 2×3)
-        val perRow = 2
-        var row: LinearLayout? = null
-        table.entries.forEachIndexed { i, (v, name) ->
-            if (i % perRow == 0) row = LinearLayout(svc).also { rows.addView(it, lp(MATCH, WRAP).apply { if (i > 0) topMargin = (if (e.h >= 3) 8 else 5) * d }) }
-            val chip = text(name, if (e.h >= 3) 13f else 11f, pal.onSurface, bold = true).apply {
-                gravity = Gravity.CENTER
-                maxLines = 1
-                setAutoSizeTextTypeUniformWithConfiguration(7, if (e.h >= 3) 13 else 11, 1, TypedValue.COMPLEX_UNIT_SP)
-                setPadding(4 * d, 0, 4 * d, 0)
-                setOnClickListener { if (!editing) { if (perf) Device.setPerf(v) { refreshAll() } else chooseFan(v) } }
-            }
-            row!!.addView(chip, lp(0, (if (e.h >= 3) 38 else 30) * d, 1f).apply { marginEnd = 5 * d })
-            chips += v to chip
+        val value = text("", 30f, pal.onSurface, bold = true).apply {
+            maxLines = 1
+            setAutoSizeTextTypeUniformWithConfiguration(16, if (e.w >= 3) 40 else 30, 1, TypedValue.COMPLEX_UNIT_SP)
         }
-        val left = (perRow - table.size % perRow) % perRow
-        repeat(left) { row?.addView(View(svc), lp(0, (if (e.h >= 3) 38 else 30) * d, 1f).apply { marginEnd = 5 * d }) }
-        c.addView(rows)
-        val refresh = {
-            val cur = if (!perf && svc.prefs.fanCustom) "6" else Device.sys(svc, key)
-            value.text = if (perf) Device.perfLabel(svc) else Device.fanLabel(svc)
-            chips.forEach { (v, chip) ->
-                val on = v == cur
-                chip.background = inner(on, 12f * d)
-                chip.setTextColor(if (on) tileOnFg() else pal.onSurface)
-            }
-        }
+        c.addView(value, lp(MATCH, (if (e.w >= 3) 52 else 42) * d))
+        val sub = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1 }
+        val more = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1 }
+        c.addView(sub)
+        c.addView(more)
+        c.addView(View(svc), lp(MATCH, 0, 1f))
+        val refresh = { value.text = if (perf) Device.perfLabel(svc) else Device.fanLabel(svc) }
         refresh()
         refreshers += refresh
-        live { s -> sub.text = sp.sub(s) }
+        live { s ->
+            sub.text = sp.sub(s)
+            more.text = if (perf) "CPU ${s.cpuPct.toInt()} % · GPU ${s.gpuPct.toInt()} %"
+            else listOfNotNull(s.cpuTemp.takeIf { it > 0 }?.let { "CPU ${it.toInt()} °C" }, s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()} °C" }).joinToString(" · ")
+        }
         return c to Item(c, sp.onA)
     }
 
