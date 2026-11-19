@@ -578,6 +578,15 @@ class ControlCenter(private val svc: HugminnService) {
             tv.tag = "fit:${tv.text}"
             if (Math.abs(tv.textSize / v.resources.displayMetrics.scaledDensity - sp) > 0.2f) v.post { tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp) }
         }
+        // still cut off after that (wide fonts, narrow 4:3 screens): one step smaller until it fits
+        tv.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            tv.post {
+                val l = tv.layout
+                val cur = tv.textSize / tv.resources.displayMetrics.scaledDensity
+                if (l != null && l.lineCount > 0 && l.getEllipsisCount(0) > 0 && cur > minSp + 0.1f)
+                    tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, maxOf(minSp, cur - 1f))
+            }
+        }
     }
 
     /** Runs [f] every [ms] while [v] is on screen. */
@@ -1036,14 +1045,16 @@ class ControlCenter(private val svc: HugminnService) {
         } else {
             v = LinearLayout(svc).apply {
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(16 * d, 0, 12 * d, 0)
+                // narrow cells (Pocket Nova's 4:3): less padding, so the name keeps its room
+                val narrow = svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density < 720
+                setPadding((if (narrow) 10 else 16) * d, 0, (if (narrow) 8 else 12) * d, 0)
                 addView(icon)
                 val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-                title = text(t.title, 15f, pal.onSurface, bold = true).apply { maxLines = 1; fitWidth(this, 15f, 10f) }
-                state = text("", 12f, pal.onSurfaceVariant)
+                title = text(t.title, 15f, pal.onSurface, bold = true).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END; fitWidth(this, 15f, 8f) }
+                state = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
                 col.addView(title, lp(MATCH, WRAP))
-                col.addView(state)
-                addView(col, lp(0, WRAP, 1f).apply { marginStart = 12 * d })
+                col.addView(state, lp(MATCH, WRAP))
+                addView(col, lp(0, WRAP, 1f).apply { marginStart = (if (narrow) 8 else 12) * d })
             }
         }
         v.setOnClickListener { if (!editing) t.act() }
@@ -1083,7 +1094,7 @@ class ControlCenter(private val svc: HugminnService) {
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
             if (small) gravity = Gravity.CENTER
-            fitWidth(this, if (small) 12f else 15f, if (small) 9f else 10f)
+            fitWidth(this, if (small) 12f else 15f, 8f)
         }
         val state = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
         val bs = if (small) 54 * d else 46 * d
