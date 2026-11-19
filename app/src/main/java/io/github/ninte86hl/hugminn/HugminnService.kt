@@ -104,9 +104,13 @@ class HugminnService : AccessibilityService() {
         // an external controller went away while the built-in controls are off: switch them back on
         runCatching {
             getSystemService(android.hardware.input.InputManager::class.java)?.registerInputDeviceListener(object : android.hardware.input.InputManager.InputDeviceListener {
-                override fun onInputDeviceAdded(id: Int) {}
+                // only a real external controller counts: switching the built-in controls off removes
+                // Retroid's own controller device, which must not switch them right back on
+                val pads = android.view.InputDevice.getDeviceIds().filter { Device.isExternalPad(it) }.toMutableSet()
+                override fun onInputDeviceAdded(id: Int) { if (Device.isExternalPad(id)) pads += id }
                 override fun onInputDeviceChanged(id: Int) {}
                 override fun onInputDeviceRemoved(id: Int) {
+                    if (!pads.remove(id)) return
                     ui.postDelayed({
                         if (Root.available() && !Device.externalPad() && Device.builtinOff(this@HugminnService)) Device.setBuiltin(this@HugminnService, true) {
                             Notice.show(this@HugminnService, t("Controller getrennt – eingebaute Steuerung wieder an", "Controller disconnected – built-in controls back on"))

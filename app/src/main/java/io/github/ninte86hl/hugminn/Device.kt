@@ -50,9 +50,11 @@ object Device {
     }
 
     /** A game controller other than the handheld's own is connected (Bluetooth or USB). */
-    fun externalPad(): Boolean = android.view.InputDevice.getDeviceIds().any { id ->
-        val d = android.view.InputDevice.getDevice(id) ?: return@any false
-        d.isExternal && !builtinPad(d) && d.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD
+    fun externalPad(): Boolean = android.view.InputDevice.getDeviceIds().any { isExternalPad(it) }
+
+    fun isExternalPad(id: Int): Boolean {
+        val d = android.view.InputDevice.getDevice(id) ?: return false
+        return d.isExternal && !builtinPad(d) && d.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD
     }
 
     /** Connected input devices, for diagnostics. */
