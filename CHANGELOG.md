@@ -26,6 +26,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - New setup for new installs: permissions are asked one by one with a short reason (nothing is granted silently any more), you open the game switcher and the Control Center once yourself (back to the setup after 5 seconds), a button test, and at the end an optional summary to send as a GitHub issue.
 - Device report on GitHub: the test result is filled in by itself.
 - "Stay in the background": without root, a short guide and Android's own "allow in the background" dialog (setup and settings).
+- Setup with root: the cards "Brightness & system values" and "Recent apps" are gone – the root service handles both anyway.
 - Aufnahme-Menü: größeres Fenster mit zwei Reitern (Aufnehmen · Einstellungen); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, nur L1/R1 wechseln die Reiter.
 - Aufnahme: Videos können nach 5, 10, 15 oder 30 Sekunden oder 1, 3, 5 oder 10 Minuten von selbst enden (Einstellungen → Maximale Länge).
 - Spielwechsler: Y → Tastenkürzel zeigt die Tastenkürzel des Emulators mit Tastensymbolen (gängige Belegung mit Select als Hotkey wie bei EmuDeck/ROCKNIX; pro Emulator anpassbar unter Einstellungen → Tastenkürzel).
@@ -47,6 +48,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Neue Einrichtung für neue Installationen: Berechtigungen werden einzeln mit kurzem Grund erfragt (nichts wird mehr still erteilt), Spielwechsler und Control Center öffnest du einmal selbst (nach 5 Sekunden zurück zur Einrichtung), ein Tastentest und am Ende eine freiwillige Zusammenfassung zum Senden als GitHub-Issue.
 - Gerätebericht auf GitHub: Das Testergebnis wird automatisch eingetragen.
 - „Im Hintergrund bleiben“: Ohne Root eine kurze Anleitung und Androids eigener Dialog „im Hintergrund erlauben“ (Einrichtung und Einstellungen).
+- Einrichtung mit Root: Die Karten „Helligkeit & Systemwerte“ und „Zuletzt genutzte Apps“ entfallen – das erledigt der Root-Dienst ohnehin.
 - Neuer Gerätetest (Einstellungen → Hilfe & Info): prüft Berechtigungen, Retroid-Funktionen, Messwerte, Aufnahme und Controller, danach Tasten und LEDs von Hand, und zeigt eine Zusammenfassung, die sich als GitHub-Issue senden lässt.
 - Aufnahme: Nach einem Video gehen die Stick-LEDs zurück auf ihre Farben bzw. ihren Effekt.
 

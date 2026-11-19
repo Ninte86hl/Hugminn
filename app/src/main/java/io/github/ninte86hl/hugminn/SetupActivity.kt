@@ -475,23 +475,21 @@ class SetupActivity : Activity() {
                     requestPermissions(if (android.os.Build.VERSION.SDK_INT >= 33) arrayOf(android.Manifest.permission.RECORD_AUDIO, android.Manifest.permission.POST_NOTIFICATIONS)
                         else arrayOf(android.Manifest.permission.RECORD_AUDIO), 13)
                 }),
-            Perm(t("Helligkeit & Systemwerte", "Brightness & system values"),
-                t("Damit Helligkeit, Bildschirm-Aus-Zeit und ähnliche Regler im Control Center funktionieren.", "So brightness, screen timeout and similar sliders in the Control Center work."),
-                { Settings.System.canWrite(this) },
-                { if (rootOk) rootThen { Root.exec("appops set $pkg WRITE_SETTINGS allow") } else startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, android.net.Uri.parse("package:$pkg"))) }),
             Perm(t("Im Hintergrund bleiben", "Stay in the background"),
                 t("Damit das System Hugminn nicht beendet und die Home-Taste immer funktioniert.", "So the system doesn't end Hugminn and the Home button always works."),
                 { if (rootOk) Device.whitelisted(this) || (Device.batteryFree(this) && !Device.hasWhitelist(this)) else Device.batteryFree(this) },
                 { if (rootOk) rootThen { Device.ensureWhitelist(this) } else backgroundHelp() }),
         )
+        // with root, brightness and similar values go through the root service, and the switcher reads the
+        // task list itself: both cards are only needed without it
+        if (!rootOk) list += Perm(t("Helligkeit & Systemwerte", "Brightness & system values"),
+            t("Damit Helligkeit, Bildschirm-Aus-Zeit und ähnliche Regler im Control Center funktionieren.", "So brightness, screen timeout and similar sliders in the Control Center work."),
+            { Settings.System.canWrite(this) },
+            { startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, android.net.Uri.parse("package:$pkg"))) })
         if (!rootOk) list += Perm(t("Zuletzt genutzte Apps", "Recent apps"),
             t("Ohne Root-Dienst erfährt der Spielwechsler nur so, welche Spiele zuletzt offen waren.", "Without the root service, this is how the switcher learns which games were open last."),
             { (getSystemService(android.app.AppOpsManager::class.java)?.unsafeCheckOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), pkg) == android.app.AppOpsManager.MODE_ALLOWED) },
             { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) })
-        else list += Perm(t("Zuletzt genutzte Apps", "Recent apps"),
-            t("Damit der Spielwechsler deine zuletzt gespielten Spiele zeigt.", "So the switcher shows the games you played last."),
-            { (getSystemService(android.app.AppOpsManager::class.java)?.unsafeCheckOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), pkg) == android.app.AppOpsManager.MODE_ALLOWED) },
-            { rootThen { Root.exec("appops set $pkg GET_USAGE_STATS allow") } })
         return list
     }
 
