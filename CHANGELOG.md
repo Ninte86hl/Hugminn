@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.6
+- Performance and fan cards no longer come as 1×1 (too small for them); existing 1×1 cards become 2×1.
+- Leistungs- und Lüfter-Karte gibt es nicht mehr als 1×1 (zu klein dafür); vorhandene 1×1-Karten werden zu 2×1.
+
 ## 1.10.5
 - Small 1×1 cards shrink long values (e.g. "Performance") to fit instead of cutting them off.
 - Kleine 1×1-Karten verkleinern lange Werte (z. B. „Leistung“), statt sie abzuschneiden.
