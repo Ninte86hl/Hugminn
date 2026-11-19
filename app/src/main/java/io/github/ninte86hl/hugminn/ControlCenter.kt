@@ -1170,7 +1170,7 @@ class ControlCenter(private val svc: HugminnService) {
             setTextColor(pal.onSurface)
             typeface = Look.font(svc, pixel, true)
             maxLines = 1
-            if (small) setAutoSizeTextTypeUniformWithConfiguration(12, 26, 1, TypedValue.COMPLEX_UNIT_SP)
+            if (small) setAutoSizeTextTypeUniformWithConfiguration(8, 26, 1, TypedValue.COMPLEX_UNIT_SP)
             else setTextSize(TypedValue.COMPLEX_UNIT_SP, if (big) 34f else 19f)
         }
         val sub = text("", 11f, pal.onSurfaceVariant)
