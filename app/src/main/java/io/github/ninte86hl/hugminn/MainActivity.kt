@@ -75,6 +75,7 @@ class MainActivity : Activity() {
         Page("cc", IconView.Kind.SCREEN, "Control Center", "Control Center", "Statusleiste, Kacheln, LED-App", "Status bar, tiles, LED app"),
         Page("switcher", IconView.Kind.REFRESH, "Game Switcher", "Game Switcher", "Eigene Übersicht, Pausieren, Wischgeste", "Own overview, pausing, swipe gesture"),
         Page("home", IconView.Kind.GAMEPAD, "Home-Taste", "Home button", "Einmal, zweimal und lange drücken", "Single, double and long press"),
+        Page("shortcuts", IconView.Kind.PLAY, "Verknüpfungen", "Shortcuts", "Control Center und Spielwechsler ohne Taste öffnen", "Open the Control Center and switcher without a button"),
         Page("profiles", IconView.Kind.FAN, "Profile pro App", "Profiles per app", "Leistung und Lüfter je Emulator", "Performance and fan per emulator"),
         Page("backup", IconView.Kind.LOCK, "Sichern", "Backup", "Einstellungen sichern und wiederherstellen", "Save and restore settings"),
         Page("about", IconView.Kind.GEAR, "Hilfe & Info", "Help & about", "Ausprobieren, Fehler melden, Version", "Try it, report a problem, version"),
@@ -83,7 +84,8 @@ class MainActivity : Activity() {
     /** Which page a section belongs to (by its title). */
     private fun pageOf(title: String): String = when (title) {
         "Status" -> "status"
-        tr("Home-Taste"), t("Verknüpfungen", "Shortcuts") -> "home"
+        tr("Home-Taste") -> "home"
+        t("Verknüpfungen", "Shortcuts") -> "shortcuts"
         tr("Darstellung"), tr("Tastensymbole") -> "look"
         "Game Switcher" -> "switcher"
         "Control Center" -> "cc"

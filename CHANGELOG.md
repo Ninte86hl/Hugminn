@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.29
+- Settings: shortcuts have their own page "Shortcuts".
+- Einstellungen: Die Verknüpfungen haben eine eigene Seite „Verknüpfungen“.
+
 ## 1.10.28
 - "Built-in controls off" without a controller: the countdown now lasts 30 seconds.
 - „Eingebaute Steuerung aus“ ohne Controller: Der Countdown dauert jetzt 30 Sekunden.
