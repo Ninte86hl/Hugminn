@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.9.8
+- Game Switcher: header "Muninn · Game Switcher" with clock and battery, like the Control Center's.
+- Game Switcher: Kopfzeile „Muninn · Game Switcher“ mit Uhrzeit und Akku, wie beim Control Center.
+
 ## 1.9.7
 - Control Center: elements sit exactly where they were placed in edit mode (pages with few elements were centred before).
 - Control Center: Elemente sitzen genau dort, wo sie im Bearbeitungsmodus platziert wurden (Seiten mit wenigen Elementen wurden vorher zentriert).

@@ -465,13 +465,34 @@ class OwnSwitcher(private val svc: HugminnService) {
             onScroll = { i -> sel = i; carousel?.set(apps, sel, true); renderBar() },
             onSwipeUp = { i -> sel = i; closeSelected() },
         )
+        // header like the Control Center's: "Muninn · Game Switcher", clock and battery on the right
+        val headH = svc.dp(50)
+        val head = LinearLayout(svc).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(svc.dp(28), svc.dp(14), svc.dp(28), 0)
+        }
+        head.addView(text("Muninn", 20f, pal.primary, bold = true))
+        head.addView(text("  ·  Game Switcher", 15f, pal.onSurfaceVariant), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        if (mode != StatusBar.OVERLAY) {
+            val bm = svc.getSystemService(android.os.BatteryManager::class.java)
+            val pct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+            if (pct >= 0) head.addView(text("$pct %", 14f, pal.onSurfaceVariant).apply { setPadding(0, 0, svc.dp(14), 0) })
+            head.addView(android.widget.TextClock(svc).apply {
+                format24Hour = "HH:mm"
+                format12Hour = "h:mm"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                setTextColor(pal.onSurface)
+                typeface = Look.font(svc, Look.pixel(svc), true)
+            })
+        }
+        r.addView(head, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, headH, Gravity.TOP).apply { topMargin = top })
         // the game the selected emulator is running, above the cards
         val titleH = svc.dp(44)
         val tv = text("", 22f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER; setPadding(svc.dp(24), 0, svc.dp(24), 0) }
-        r.addView(tv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, titleH, Gravity.TOP).apply { topMargin = top + svc.dp(8) })
+        r.addView(tv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, titleH, Gravity.TOP).apply { topMargin = top + headH })
         titleView = tv
         r.addView(c, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
-            topMargin = top + titleH
+            topMargin = top + headH + titleH
             bottomMargin = barH
         })
         val b = LinearLayout(svc).apply {
