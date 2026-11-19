@@ -218,9 +218,14 @@ class Prefs(ctx: Context) {
     var recAudio: Int
         get() = p.getInt("recAudio", 0)
         set(v) = p.edit().putInt("recAudio", v).apply()
-    var recIndicator: Boolean
-        get() = p.getBoolean("recIndicator", true)
-        set(v) = p.edit().putBoolean("recIndicator", v).apply()
+    /** While recording: 0 = stick LEDs pulse red, 1 = red dot on screen, 2 = both, 3 = nothing. */
+    var recShow: Int
+        get() = p.getInt("recShow", 0)
+        set(v) = p.edit().putInt("recShow", v).apply()
+    /** Screen off during a video: stop and save it. */
+    var recStopOnSleep: Boolean
+        get() = p.getBoolean("recStopOnSleep", true)
+        set(v) = p.edit().putBoolean("recStopOnSleep", v).apply()
     var replayOn: Boolean
         get() = p.getBoolean("replayOn", false)
         set(v) = p.edit().putBoolean("replayOn", v).apply()

@@ -75,6 +75,20 @@ object Capture {
 
     // ---- video ----
 
+    val showLabels get() = listOf(t("Stick-LEDs pulsieren rot", "Stick LEDs pulse red"), t("Roter Punkt", "Red dot"), t("LEDs und Punkt", "LEDs and dot"), t("Nichts", "Nothing"))
+
+    /** Starts a video after a countdown in the middle of the screen. */
+    fun startRecordIn(svc: HugminnService, sec: Int) {
+        var left = sec
+        val tick = object : Runnable {
+            override fun run() {
+                if (left > 0) { Notice.sticky(svc, t("Aufnahme in $left s", "Recording in $left s")); left--; svc.ui.postDelayed(this, 1000) }
+                else { Notice.hideSticky(svc); startRecord(svc) }
+            }
+        }
+        tick.run()
+    }
+
     fun toggleRecord(svc: HugminnService) = if (recording) stopRecord(svc) else startRecord(svc)
 
     fun startRecord(svc: HugminnService) {
@@ -88,12 +102,14 @@ object Capture {
         if (!r.startFile()) { Notice.show(svc, t("Aufnahme fehlgeschlagen", "Recording failed")); return }
         recordStart = SystemClock.elapsedRealtime()
         Indicator.show(svc)
+        if (svc.prefs.recShow in listOf(0, 2)) Thread { runCatching { LedFx.setRecording(svc, true) } }.start()
         Notice.show(svc, t("Aufnahme läuft", "Recording"), corner = true)
     }
 
     fun stopRecord(svc: HugminnService) {
         val r = recorder ?: return
         Indicator.hide(svc)
+        Thread { runCatching { LedFx.setRecording(svc, false) } }.start()
         Thread {
             val uri = r.stopFile()
             svc.ui.post {
@@ -235,7 +251,7 @@ object Capture {
         }
 
         fun show(svc: HugminnService) = svc.ui.post {
-            if (view != null || !svc.prefs.recIndicator) return@post
+            if (view != null || svc.prefs.recShow !in listOf(1, 2)) return@post
             val wm = svc.getSystemService(WindowManager::class.java)
             val v = TextView(svc).apply {
                 setTextColor(0xFFFF4D57.toInt())

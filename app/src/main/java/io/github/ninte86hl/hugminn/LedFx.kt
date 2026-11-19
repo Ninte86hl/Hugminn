@@ -37,7 +37,19 @@ object LedFx {
     @Volatile var speed = 1f
     @Volatile var brightness = 100
 
-    fun current() = if (running && !lowBattery) effect else LedEffect.NONE
+    fun current() = if (running && !lowBattery && !recording) effect else LedEffect.NONE
+
+    /** A video is being recorded: the sticks pulse red like a camera's light. */
+    @Volatile var recording = false
+        private set
+
+    fun setRecording(ctx: Context, on: Boolean) {
+        if (on == recording) return
+        recording = on
+        if (on) { load(ctx); start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
+        if (Device.stickLeds(ctx)) resume(ctx)
+        else { stop(); Thread { Root.exec(command(intArrayOf(0, 0))) }.start() } // the LEDs were off: off again
+    }
 
     /** Battery at or below 10 % and not charging: the sticks pulse red, whatever is set otherwise. */
     @Volatile var lowBattery = false
@@ -52,6 +64,7 @@ object LedFx {
         val low = if (lowBattery) pct <= 12 && !charging else pct in 0..10 && !charging
         if (low == lowBattery) return
         lowBattery = low
+        if (recording) return
         if (low) {
             if (Device.stickLeds(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED)
         } else resume(ctx)
@@ -68,6 +81,7 @@ object LedFx {
     /** Starts the remembered effect (service start, LEDs switched on). */
     fun resume(ctx: Context) {
         load(ctx)
+        if (recording) { start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
         if (lowBattery) { if (Device.stickLeds(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
         val e = Prefs(ctx).ledEffect
         if (Device.stickLeds(ctx) && e != LedEffect.NONE) start(ctx, e) else stop()
@@ -76,7 +90,7 @@ object LedFx {
     fun set(ctx: Context, e: LedEffect) {
         Prefs(ctx).ledEffect = e
         load(ctx)
-        if (lowBattery) return
+        if (lowBattery || recording) return
         if (e == LedEffect.NONE) {
             stop()
             // back to the stored static colours

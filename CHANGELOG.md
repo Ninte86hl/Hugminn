@@ -2,6 +2,12 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.11.1
+- Capture: while recording, the stick LEDs pulse red like a camera light (instead of, or together with, the red dot – adjustable).
+- Capture: "Video in 3 s" with a countdown; switching the screen off stops and saves the video cleanly (can be turned off).
+- Aufnahme: Während der Aufnahme pulsieren die Stick-LEDs rot wie das Licht einer Kamera (statt oder zusammen mit dem roten Punkt – einstellbar).
+- Aufnahme: „Video in 3 s“ mit Countdown; Bildschirm aus beendet und speichert das Video sauber (abschaltbar).
+
 ## 1.11.0
 - New Capture tile (replaces Screenshot): A takes a screenshot of the game, X opens a menu with a 3-second timer, video recording with game sound (or sound + microphone), quality (720p/1080p, 30/60 FPS), a red dot with the time while recording, and "keep the last 15/30/60 seconds" to save a clip afterwards, like on a console. Videos go to Movies/Hugminn.
 - Home button: new actions Screenshot, Record video / stop and Save the last seconds.
