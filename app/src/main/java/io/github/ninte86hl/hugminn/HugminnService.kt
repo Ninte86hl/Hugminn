@@ -131,6 +131,20 @@ class HugminnService : AccessibilityService() {
                 runCatching { closeOverlays() }
             }
         }, android.content.IntentFilter(Intent.ACTION_SCREEN_OFF))
+        // waking up: if the built-in controls are off and no external controller came back (e.g. it went
+        // to sleep with the handheld), switch them on again, so the handheld can always be used
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context, i: Intent) {
+                ui.postDelayed({
+                    Thread {
+                        if (Root.available() && Device.builtinOff(this@HugminnService) && !Device.externalPad())
+                            Device.setBuiltin(this@HugminnService, true) {
+                                Notice.show(this@HugminnService, t("Kein Controller verbunden – eingebaute Steuerung wieder an", "No controller connected – built-in controls back on"))
+                            }
+                    }.start()
+                }, 2500)
+            }
+        }, android.content.IntentFilter(Intent.ACTION_SCREEN_ON))
         // Low battery: the sticks pulse red
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {

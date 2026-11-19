@@ -18,6 +18,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Pinned apps show a pin right next to their name, in the style's look.
 - Performance overlay: position and layout change with ◀ ▶ like the size.
 - Device test: also checks volume, Home and Back; the LED driver check was wrong.
+- Waking up: if the built-in controls are off and no external controller is connected, they come back on.
 - Aufnahme-Menü: größeres Fenster mit zwei Reitern (Aufnehmen · Einstellungen); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, nur L1/R1 wechseln die Reiter.
 - Aufnahme: Videos können nach 5, 10, 15 oder 30 Sekunden oder 1, 3, 5 oder 10 Minuten von selbst enden (Einstellungen → Maximale Länge).
 - Spielwechsler: Y → Tastenkürzel zeigt die Tastenkürzel des Emulators mit Tastensymbolen (gängige Belegung mit Select als Hotkey wie bei EmuDeck/ROCKNIX; pro Emulator anpassbar unter Einstellungen → Tastenkürzel).
@@ -31,6 +32,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Angeheftete Apps zeigen eine Pinnadel direkt neben dem Namen, im Look des Stils.
 - Leistungs-Overlay: Position und Anordnung mit ◀ ▶ wie die Größe.
 - Gerätetest: prüft auch Lautstärke, Home und Zurück; die Prüfung des LED-Treibers war falsch.
+- Aufwachen: Ist die eingebaute Steuerung aus und kein externer Controller verbunden, geht sie wieder an.
 - Neuer Gerätetest (Einstellungen → Hilfe & Info): prüft Berechtigungen, Retroid-Funktionen, Messwerte, Aufnahme und Controller, danach Tasten und LEDs von Hand, und zeigt eine Zusammenfassung, die sich als GitHub-Issue senden lässt.
 - Aufnahme: Nach einem Video gehen die Stick-LEDs zurück auf ihre Farben bzw. ihren Effekt.
 
