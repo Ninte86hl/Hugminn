@@ -34,11 +34,24 @@ object OpenFromOutside {
     }
 
     fun info(ctx: android.content.Context, switcher: Boolean): android.content.pm.ShortcutInfo =
-        android.content.pm.ShortcutInfo.Builder(ctx, if (switcher) "pin_switcher" else "pin_cc")
+        android.content.pm.ShortcutInfo.Builder(ctx, if (switcher) "muninn" else "huginn")
             .setShortLabel(ctx.getString(if (switcher) R.string.sc_switcher else R.string.sc_cc))
-            .setIcon(android.graphics.drawable.Icon.createWithResource(ctx, if (switcher) R.mipmap.ic_shortcut_switcher else R.mipmap.ic_shortcut_cc))
+            .setIcon(icon(ctx, switcher))
             .setIntent(Intent("io.github.ninte86hl.hugminn." + if (switcher) "SWITCHER" else "CONTROL_CENTER").setClass(ctx, ShortcutActivity::class.java))
             .build()
+
+    /** The red (Control Center) or blue (switcher) icon as a picture: some launchers such as Cocoon show
+     *  the app's own icon for a shortcut whose icon is only a resource. */
+    private fun icon(ctx: android.content.Context, switcher: Boolean): android.graphics.drawable.Icon {
+        val res = if (switcher) R.mipmap.ic_shortcut_switcher else R.mipmap.ic_shortcut_cc
+        val dr = ctx.getDrawable(res) as? android.graphics.drawable.AdaptiveIconDrawable
+            ?: return android.graphics.drawable.Icon.createWithResource(ctx, res)
+        val size = (108 * ctx.resources.displayMetrics.density).toInt()
+        val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(bmp)
+        listOfNotNull(dr.background, dr.foreground).forEach { it.setBounds(0, 0, size, size); it.draw(c) }
+        return android.graphics.drawable.Icon.createWithAdaptiveBitmap(bmp)
+    }
 
     /** The extra app icons "Hugminn Control Center" / "Hugminn Spielwechsler" for frontends that only list apps. */
     fun appIcons(ctx: android.content.Context): Boolean = ctx.packageManager.getComponentEnabledSetting(

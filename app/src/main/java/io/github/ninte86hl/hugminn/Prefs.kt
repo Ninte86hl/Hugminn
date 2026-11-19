@@ -10,7 +10,10 @@ enum class Action(private val labelDe: String) {
     SWITCHER("Game Switcher"),
     CONTROL_CENTER("Control Center"),
     RECENTS("Android-Übersicht"),
-    LAST_APP("Letzte App");
+    LAST_APP("Letzte App"),
+    SCREENSHOT("Screenshot"),
+    RECORD("Video aufnehmen / stoppen"),
+    REPLAY("Letzte Sekunden speichern");
 
     val label get() = tr(labelDe)
 }
@@ -208,6 +211,23 @@ class Prefs(ctx: Context) {
     /** Pause the app in front (cover it) while the own game switcher is open. */
     /** The introduction was shown (or skipped). */
     /** The Home/Guide button of a Bluetooth or USB controller works like the handheld's Home button. */
+    /** Capture: index into Capture.qualities, Capture.Audio, red dot while recording, ring buffer. */
+    var recQuality: Int
+        get() = p.getInt("recQuality", 0)
+        set(v) = p.edit().putInt("recQuality", v).apply()
+    var recAudio: Int
+        get() = p.getInt("recAudio", 0)
+        set(v) = p.edit().putInt("recAudio", v).apply()
+    var recIndicator: Boolean
+        get() = p.getBoolean("recIndicator", true)
+        set(v) = p.edit().putBoolean("recIndicator", v).apply()
+    var replayOn: Boolean
+        get() = p.getBoolean("replayOn", false)
+        set(v) = p.edit().putBoolean("replayOn", v).apply()
+    var replaySec: Int
+        get() = p.getInt("replaySec", 30)
+        set(v) = p.edit().putInt("replaySec", v).apply()
+
     var padHome: Boolean
         get() = p.getBoolean("padHome", true)
         set(v) = p.edit().putBoolean("padHome", v).apply()

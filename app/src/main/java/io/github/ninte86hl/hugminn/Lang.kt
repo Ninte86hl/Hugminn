@@ -260,6 +260,8 @@ object Lang {
         "Startbildschirm" to "Home screen",
         "Android-Übersicht" to "Android overview",
         "Letzte App" to "Last app",
+        "Video aufnehmen / stoppen" to "Record video / stop",
+        "Letzte Sekunden speichern" to "Save the last seconds",
         "Eigene Anzeige" to "Own display",
         "Ausblenden" to "Hide",
         "Android-Statusleiste" to "Android status bar",
