@@ -16,7 +16,7 @@ Halte **Home** gedrückt, um das Control Center zu öffnen: ein Raster aus Kache
 - **Regler:** Lautstärke und Helligkeit in 5-%-Schritten, senkrecht oder waagerecht. Erst A drücken, dann ändert das Steuerkreuz den Wert – so verstellst du beim Bewegen nichts aus Versehen.
 - **Karten:** Leistungs- und Lüfterprofil, CPU, GPU, RAM, Temperaturen, Akku und FPS. Die Anzeigen färben sich nach Auslastung.
 - **Akku:** zeigt die Restzeit, beim Laden die Zeit bis voll.
-- **Musik:** was gerade läuft, Play/Pause, nächster und vorheriger Titel für jede Musik-App. Als große Kachel (2×2, 4×2, 2×4 oder 4×4) mit Cover, Interpret, Fortschritt und Tasten.
+- **Musik:** was gerade läuft, Play/Pause, nächster und vorheriger Titel für jede Musik-App. Als große Kachel (2×2, 4×2 oder 4×4) mit Cover, Interpret, Fortschritt und Tasten.
   - Funktioniert mit jedem Player: über seine Mediensitzung oder, bei Playern die sonst nichts melden (z. B. Androids eigene Musik-App), über seine Benachrichtigung.
   - Titel werden aufgeräumt: Zusätze wie „(Official Video)“ fallen weg, „Interpret - Titel“ wird getrennt, Dateinamen verlieren Nummer und Endung („02 Lied.mp3“ → „Lied“).
   - Ein zu langer Titel läuft von rechts nach links durch.
@@ -24,18 +24,21 @@ Halte **Home** gedrückt, um das Control Center zu öffnen: ein Raster aus Kache
 - **Geräte-Akku:** Akkustand verbundener Bluetooth-Controller und -Kopfhörer, sofern sie ihn melden.
 - **Android-Einstellungen:** öffnet Androids Einstellungen.
 
-## Große Kacheln
-Mehrere Elemente lassen sich im [Bearbeitungsmodus](Control-Center-bearbeiten) vergrößern (A → Größe):
+## Größen
+Jedes Element gibt es in den Größen, die zu ihm passen (im [Bearbeitungsmodus](Control-Center-bearbeiten): A → Größe). Elemente in einer Größe, die es nicht mehr gibt, nehmen die nächstpassende.
 
-| Element | Große Größen | Was es zeigt |
+| Element | Größen | Was die großen Größen zeigen |
 | --- | --- | --- |
+| Schalter (WLAN, Bluetooth, LEDs …) | 1×1, 2×1 | 1×1 das Symbol, 2×1 mit Name und Zustand |
+| WLAN | 1×1, 2×1, 2×2, 4×2 | Aktuelles Netz und die stärksten in Reichweite; antippen verbindet |
+| Bluetooth | 1×1, 2×1, 2×2, 4×2 | Gekoppelte Geräte mit Akkustand; antippen verbindet oder trennt |
+| Musik | 1×1, 2×1, 2×2, 4×2, 4×4 | Titel, Interpret, Cover, Fortschritt und Tasten ⏮ ⏯ ⏭; lange Titel laufen durch |
 | System-Übersicht | 4×2, 4×4 | FPS, CPU, GPU, RAM, Akku und Leistungsaufnahme als Ringe; 4×4 zusätzlich Frametime- und Temperatur-Graph |
-| Musik | 2×2, 4×2, 2×4, 4×4 | Titel, Interpret, Cover, Fortschritt und Tasten ⏮ ⏯ ⏭ |
-| WLAN | 2×2, 4×2 | Aktuelles Netz und die stärksten in Reichweite; antippen verbindet |
-| Bluetooth | 2×2, 4×2 | Gekoppelte Geräte mit Akkustand; antippen verbindet oder trennt |
-| Leistung / Lüfter | 2×2 | Aktuelles Profil mit Details, alle Profile zum Antippen |
-| Akku | 2×2 | Ring mit Ladung, Restzeit, Leistungsaufnahme und Temperatur |
-| FPS | 2×2, 4×2, 4×4 | Bildrate mit Frametime-Graph |
+| Leistung / Lüfter | 2×1, 2×2, 3×2 | Das aktuelle Profil groß, mit aktuellem CPU-Takt bzw. Lüfter-Drehzahl und Balken |
+| FPS | 2×1, 2×2, 4×2 | Bildrate mit Frametime-Graph |
+| CPU / GPU / RAM / Temperatur / Watt | 1×1, 2×1, 2×2 | 1×1 der Wert, 2×1 mit Details und Balken, 2×2 als Ring |
+| Akku | 1×1, 2×1, 2×2 | Ring mit Ladung, Restzeit, Leistungsaufnahme und Temperatur |
+| Helligkeit / Lautstärke | senkrecht 1×2–1×4, waagerecht 2×1–4×1 | |
 
 Jedes Element darf mehrfach vorkommen (z. B. eine kleine und eine große Musik-Kachel). Elemente sitzen genau dort, wo du sie im Bearbeitungsmodus hingelegt hast.
 

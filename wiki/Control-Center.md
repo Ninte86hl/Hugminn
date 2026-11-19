@@ -16,7 +16,7 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - **Sliders:** volume and brightness in 5 % steps, vertical or horizontal. Press A first, then the D-pad changes the value, so you never change it by accident while moving.
 - **Cards:** performance and fan profile, CPU, GPU, RAM, temperatures, battery and FPS. Gauges are coloured by load.
 - **Battery:** shows the time left, or the time until full while charging.
-- **Music:** what is playing, play/pause, next and previous track for any music app. As a large tile (2×2, 4×2, 2×4 or 4×4) with cover, artist, progress and buttons.
+- **Music:** what is playing, play/pause, next and previous track for any music app. As a large tile (2×2, 4×2 or 4×4) with cover, artist, progress and buttons.
   - Works with every player: from its media session, or from its notification for players that publish nothing else (e.g. Android's own music app).
   - Titles are tidied: video tags like "(Official Video)" go, "Artist - Song" is split, file names lose number and extension ("02 Song.mp3" → "Song").
   - A song too long for its line runs from right to left.
@@ -24,18 +24,21 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - **Device battery:** battery level of connected Bluetooth controllers and headphones that report one.
 - **Settings:** opens Android's settings.
 
-## Large tiles
-Several elements can be made bigger in [edit mode](Editing-the-Control-Center) (A → Size):
+## Sizes
+Each element comes in the sizes that suit it (in [edit mode](Editing-the-Control-Center): A → Size). Elements in a size that is no longer offered take the nearest one.
 
-| Element | Large sizes | What it shows |
+| Element | Sizes | What the large sizes show |
 | --- | --- | --- |
+| Switches (Wi-Fi, Bluetooth, LEDs …) | 1×1, 2×1 | 1×1 the icon, 2×1 with name and state |
+| Wi-Fi | 1×1, 2×1, 2×2, 4×2 | Current network and the strongest ones in range; tap one to connect |
+| Bluetooth | 1×1, 2×1, 2×2, 4×2 | Paired devices with battery level; tap one to connect or disconnect |
+| Music | 1×1, 2×1, 2×2, 4×2, 4×4 | Song, artist, cover, progress and ⏮ ⏯ ⏭ buttons; long songs scroll |
 | System overview | 4×2, 4×4 | FPS, CPU, GPU, RAM, battery and power draw as rings; 4×4 adds frame time and temperature graphs |
-| Music | 2×2, 4×2, 2×4, 4×4 | Song, artist, cover, progress and ⏮ ⏯ ⏭ buttons |
-| Wi-Fi | 2×2, 4×2 | Current network and the strongest ones in range; tap one to connect |
-| Bluetooth | 2×2, 4×2 | Paired devices with battery level; tap one to connect or disconnect |
-| Performance / Fan | 2×2 | Current profile with details, every profile to tap |
-| Battery | 2×2 | Ring with charge, time left, power draw and temperature |
-| FPS | 2×2, 4×2, 4×4 | Frame rate with frame time graph |
+| Performance / Fan | 2×1, 2×2, 3×2 | The current profile, big, with the live CPU clock or fan speed and a bar |
+| FPS | 2×1, 2×2, 4×2 | Frame rate with frame time graph |
+| CPU / GPU / RAM / Temperature / Power | 1×1, 2×1, 2×2 | 1×1 the value, 2×1 with details and bar, 2×2 as a ring |
+| Battery | 1×1, 2×1, 2×2 | Ring with charge, time left, power draw and temperature |
+| Brightness / Volume | 1×2–1×4 upright, 2×1–4×1 across | |
 
 Every element may be added more than once (e.g. a small and a large music tile). Elements stay exactly where you put them in edit mode.
 
