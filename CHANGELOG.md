@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.4
+- Large performance card shows the live CPU clock, the large fan card how fast the fan turns (in percent), each with a bar in the style.
+- Große Leistungs-Karte zeigt den aktuellen CPU-Takt, die große Lüfter-Karte, wie schnell der Lüfter dreht (in Prozent), jeweils mit Balken im Stil.
+
 ## 1.10.3
 - Large performance and fan cards show just the current profile, big, with live details; new size 3×2 instead of 2×3 (A still opens the profiles).
 - Profile notice: one notice only, about 5 seconds after the switch, in the top right corner.
