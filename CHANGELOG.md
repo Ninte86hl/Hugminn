@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.18
+- Disconnecting the external controller now switches the built-in controls back on (the Retroid's own controls were mistaken for an external controller).
+- Wird der externe Controller getrennt, geht die eingebaute Steuerung jetzt wieder an (die Retroid-eigene Steuerung wurde fälschlich als externer Controller erkannt).
+
 ## 1.10.17
 - Battery of Bluetooth controllers: also found when the controller's input name differs from its Bluetooth name (e.g. 8BitDo in Xbox mode).
 - Akku von Bluetooth-Controllern: wird auch gefunden, wenn der Controller sich bei der Eingabe anders nennt als bei Bluetooth (z. B. 8BitDo im Xbox-Modus).
