@@ -2,6 +2,14 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.2
+- A short notice says when a profile per game or emulator takes over ("Profile for The Wind Waker: High performance · Fan Sport").
+- Performance and fan cards also as 2×3; their profiles sit two per row and stay readable.
+- "Add element": switching categories no longer redraws the whole window.
+- Ein kurzer Hinweis zeigt, wenn ein Profil pro Spiel oder Emulator übernimmt („Profil für The Wind Waker: Hohe Leistung · Lüfter Sport“).
+- Leistungs- und Lüfter-Karte auch als 2×3; ihre Profile stehen zu zweit pro Zeile und bleiben lesbar.
+- „Element hinzufügen“: Beim Wechsel der Kategorie wird nicht mehr das ganze Fenster neu aufgebaut.
+
 ## 1.10.1
 - Music tile: a song too long for its line runs from right to left.
 - Musik-Kachel: Ein zu langer Titel läuft von rechts nach links durch.
