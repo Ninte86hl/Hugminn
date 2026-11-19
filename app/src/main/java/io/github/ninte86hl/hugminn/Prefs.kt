@@ -62,6 +62,9 @@ enum class GlyphStyle(private val labelDe: String) {
 class Prefs(ctx: Context) {
     private val p: SharedPreferences = ctx.getSharedPreferences("hugminn", Context.MODE_PRIVATE)
 
+    /** 4:3 screens (Pocket Nova) are taller for their width: five rows by default instead of four. */
+    private val fourThree = ctx.resources.displayMetrics.let { maxOf(it.widthPixels, it.heightPixels).toFloat() / minOf(it.widthPixels, it.heightPixels) < 1.5f }
+
     var single: Action
         get() = enumOr(p.getString("single", null), Action.HOME)
         set(v) = p.edit().putString("single", v.name).apply()
@@ -204,7 +207,7 @@ class Prefs(ctx: Context) {
 
     /** Control Center grid: rows (2–6) and columns (0 = as many as fit). */
     var gridRows: Int
-        get() = p.getInt("gridRows", 4)
+        get() = p.getInt("gridRows", if (fourThree) 5 else 4)
         set(v) = p.edit().putInt("gridRows", v).apply()
     var gridCols: Int
         get() = p.getInt("gridCols", 0)

@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.9
+- Pocket Nova and other 4:3 screens: the Control Center grid has 5 rows by default (still adjustable in the settings).
+- Pocket Nova und andere 4:3-Bildschirme: Das Raster des Control Centers hat standardmäßig 5 Zeilen (weiter in den Einstellungen änderbar).
+
 ## 1.10.8
 - Pocket Nova: switch names shrink to fit instead of being cut off ("Bluetoo…"), the LED effects wrap into two rows instead of running off the window.
 - Pocket Nova: Schalter-Namen werden verkleinert statt abgeschnitten („Bluetoo…“), die LED-Effekte brechen in zwei Zeilen um, statt aus dem Fenster zu laufen.
