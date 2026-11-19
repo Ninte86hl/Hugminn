@@ -77,6 +77,7 @@ class HugminnService : AccessibilityService() {
         Root.filesDir = filesDir
         Crash.install(this)
         prefs = Prefs(this)
+        prefs.keepOldStyle()
         prefs.forgetOld()
         Lang.init(this)
         watchScreenshots()

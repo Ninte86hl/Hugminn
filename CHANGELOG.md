@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.13
+- Dot matrix is the default style for new installs. Who already uses Hugminn keeps their style (Modern if never changed).
+- Punktmatrix ist der Standardstil für neue Installationen. Wer Hugminn schon nutzt, behält seinen Stil (Modern, wenn nie geändert).
+
 ## 1.10.12
 - Edit menu of the Control Center: new entry "Grid" for rows and columns; the grid changes at once.
 - Settings → Profiles per app: grouped by emulator with its system (e.g. "DuckStation · PlayStation"), each entry says whether it is for all games or only one game.

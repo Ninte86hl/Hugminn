@@ -1,6 +1,6 @@
 # Styles and themes
 
-Hugminn has four styles. Each comes in light and dark (plus OLED black), and the chosen tile colour becomes the accent of every style. The style applies to the Control Center, the Game Switcher, the [performance overlay](Performance-Overlay) and the settings.
+Hugminn has four styles; new installs start with **Dot matrix**. Each comes in light and dark (plus OLED black), and the chosen tile colour becomes the accent of every style. The style applies to the Control Center, the Game Switcher, the [performance overlay](Performance-Overlay) and the settings.
 
 | Style | Character |
 | --- | --- |

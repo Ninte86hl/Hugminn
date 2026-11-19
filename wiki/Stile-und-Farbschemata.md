@@ -1,6 +1,6 @@
 # Stile und Farbschemata
 
-Hugminn hat vier Stile. Jeder gibt es hell und dunkel (dazu OLED-Schwarz), und die gewählte Kachelfarbe wird in jedem Stil zur Akzentfarbe. Der Stil gilt für Control Center, Game Switcher, [Leistungs-Overlay](Leistungs-Overlay) und die Einstellungen.
+Hugminn hat vier Stile; neue Installationen starten mit **Punktmatrix**. Jeder gibt es hell und dunkel (dazu OLED-Schwarz), und die gewählte Kachelfarbe wird in jedem Stil zur Akzentfarbe. Der Stil gilt für Control Center, Game Switcher, [Leistungs-Overlay](Leistungs-Overlay) und die Einstellungen.
 
 | Stil | Charakter |
 | --- | --- |
