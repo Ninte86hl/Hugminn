@@ -268,7 +268,7 @@ object Feedback {
         if (Wifi.diag.isNotEmpty() || Bt.diag.isNotEmpty()) { appendLine(); appendLine("WLAN/Bluetooth:"); appendLine(Wifi.diag); appendLine(Bt.diag) }
         if (LedFx.diag.isNotEmpty()) { appendLine(); appendLine("LED-Effekte (${LedFx.current()}, Akku-Warnung=${LedFx.lowBattery}):"); appendLine(LedFx.diag) }
         val keys = synchronized(svc.keyLog) { svc.keyLog.toList() }
-        val pads = android.view.InputDevice.getDeviceIds().mapNotNull { android.view.InputDevice.getDevice(it) }
+        val pads = android.view.InputDevice.getDeviceIds().toList().mapNotNull { android.view.InputDevice.getDevice(it) }
             .filter { it.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD || it.isExternal }
             .map { "  ${it.name} (extern=${it.isExternal}, id=${it.id}, vendor=${it.vendorId}, product=${it.productId})" }
         if (pads.isNotEmpty()) { appendLine(); appendLine("Eingabegeräte:"); pads.forEach { appendLine(it) } }
