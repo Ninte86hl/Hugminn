@@ -248,6 +248,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         closedAt = SystemClock.uptimeMillis()
         hat.stop()
         menu = null
+        help = null
         val r = root
         root = null
         carousel = null
@@ -292,6 +293,10 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     private fun closeSelected() {
         val a = apps.getOrNull(sel) ?: return
+        if (Hotkeys.isPinned(svc, a.pkg)) {
+            Notice.show(svc, t("Angeheftet – lösen mit Y", "Pinned – unpin with Y"), corner = true)
+            return
+        }
         if (!Root.available()) {
             svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
             close(back = false)
@@ -376,18 +381,27 @@ class OwnSwitcher(private val svc: HugminnService) {
     private fun openMenu() {
         val a = apps.getOrNull(sel) ?: return
         val items = mutableListOf<Pair<String, () -> Unit>>()
+        if (Apps.typeOf(a.pkg) != AppType.APP && Hotkeys.list(svc, a.pkg).isNotEmpty())
+            items += t("Tastenkürzel", "Shortcuts") to { showHelp(a.pkg) }
+        val pinned = Hotkeys.isPinned(svc, a.pkg)
+        items += (if (pinned) t("Lösen", "Unpin") else t("Anheften", "Pin")) to {
+            Hotkeys.setPinned(svc, a.pkg, !pinned)
+            Notice.show(svc, if (!pinned) t("Angeheftet – X schließt die App nicht mehr", "Pinned – X no longer closes the app") else t("Gelöst", "Unpinned"), corner = true)
+            renderBar()
+        }
         items += tr("App-Info") to {
             close(back = false)
             svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
         }
         if (Root.available() && apps.size > 1) items += tr("Alle anderen schließen") to {
-            apps.filter { it.pkg != a.pkg }.forEach { o ->
+            val keep = Hotkeys.pinned(svc)
+            apps.filter { it.pkg != a.pkg && it.pkg !in keep }.forEach { o ->
                 removeTask(o)
                 Snapshots.remove(svc, o.pkg)
                 synchronized(this) { known.removeAll { it.pkg == o.pkg } }
             }
-            apps = listOf(a)
-            sel = 0
+            apps = apps.filter { it.pkg == a.pkg || it.pkg in keep }
+            sel = apps.indexOfFirst { it.pkg == a.pkg }.coerceAtLeast(0)
             carousel?.set(apps, sel, animate = true)
         }
         menu = items
@@ -403,6 +417,10 @@ class OwnSwitcher(private val svc: HugminnService) {
     }
 
     private fun key(code: Int) {
+        if (help != null) {
+            if (code == KeyEvent.KEYCODE_BUTTON_B || code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_BUTTON_Y || code == KeyEvent.KEYCODE_BUTTON_A) hideHelp()
+            return
+        }
         val m = menu
         if (m != null) {
             when (code) {
@@ -436,6 +454,55 @@ class OwnSwitcher(private val svc: HugminnService) {
         sel = n
         carousel?.set(apps, sel, animate = true)
         renderBar()
+    }
+
+    // ---------- shortcut help ----------
+
+    private var help: View? = null
+
+    /** A card with the emulator's shortcuts, drawn with the controller's button symbols. */
+    private fun showHelp(pkg: String) {
+        val r = root ?: return
+        val card = LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(svc.dp(24), svc.dp(18), svc.dp(24), svc.dp(16))
+            background = Look.shape(svc, Look.pixel(svc), pal.surfaceHigh, svc.dp(24).toFloat())
+            elevation = svc.dp(12).toFloat()
+        }
+        val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+        head.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, pkg)) }, LinearLayout.LayoutParams(svc.dp(32), svc.dp(32)))
+        head.addView(text(Apps.label(svc, pkg) + " · " + t("Tastenkürzel", "Shortcuts"), 18f, pal.onSurface, bold = true).apply { setPadding(svc.dp(12), 0, 0, 0) })
+        card.addView(head)
+        val rows = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(0, svc.dp(12), 0, svc.dp(8)) }
+        for ((act, keys) in Hotkeys.list(svc, pkg)) {
+            val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, svc.dp(5), 0, svc.dp(5)) }
+            val chips = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+            keys.forEachIndexed { i, k ->
+                if (i > 0) chips.addView(text(if (k == KeyEvent.KEYCODE_DPAD_RIGHT) "/" else "+", 14f, pal.onSurfaceVariant).apply { setPadding(svc.dp(6), 0, svc.dp(6), 0) })
+                chips.addView(Glyphs.chip(svc, svc.prefs, pal, k, 26))
+            }
+            row.addView(chips, LinearLayout.LayoutParams(svc.dp(150), LinearLayout.LayoutParams.WRAP_CONTENT))
+            row.addView(text(act.label, 15f, pal.onSurface), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            rows.addView(row)
+        }
+        card.addView(rows)
+        val note = if (Hotkeys.mode(svc, pkg) == Hotkeys.Mode.COMMON)
+            t("Gängige Belegung (Select als Hotkey) – im Emulator kann sie anders eingestellt sein. Anpassen: Hugminn-Einstellungen → Tastenkürzel.",
+                "Common layout (Select as hotkey) – the emulator may be set up differently. Change: Hugminn settings → Shortcuts.")
+        else t("Eigene Belegung aus den Hugminn-Einstellungen.", "Own layout from Hugminn's settings.")
+        card.addView(text(note, 12f, pal.onSurfaceVariant).apply { maxLines = 3 })
+        card.addView(LinearLayout(svc).apply {
+            gravity = Gravity.END; setPadding(0, svc.dp(10), 0, 0)
+            addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück")))
+        })
+        val w = (r.width * 0.55f).toInt().coerceAtLeast(svc.dp(420))
+        r.addView(card, FrameLayout.LayoutParams(w, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        help = card
+    }
+
+    private fun hideHelp() {
+        help?.let { root?.removeView(it) }
+        help = null
     }
 
     // ---------- views ----------
@@ -589,7 +656,8 @@ class OwnSwitcher(private val svc: HugminnService) {
             orientation = LinearLayout.VERTICAL
             setPadding(svc.dp(12), 0, 0, 0)
             addView(text(Apps.label(svc, a.pkg), 17f, pal.onSurface, bold = true).apply { maxLines = 1 })
-            addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}"), 12f, pal.onSurfaceVariant))
+            val pin = if (Hotkeys.isPinned(svc, a.pkg)) t(" · 📌 angeheftet", " · 📌 pinned") else ""
+            addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}") + pin, 12f, pal.onSurfaceVariant))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln")))
         b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Öffnen")))

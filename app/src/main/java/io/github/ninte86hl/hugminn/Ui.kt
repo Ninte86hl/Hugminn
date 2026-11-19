@@ -143,6 +143,11 @@ object Glyphs {
         KeyEvent.KEYCODE_BUTTON_R1 -> "RB"
         KeyEvent.KEYCODE_BUTTON_START -> "☰"
         KeyEvent.KEYCODE_BUTTON_SELECT -> "⧉"
+        KeyEvent.KEYCODE_BUTTON_L2 -> "LT"
+        KeyEvent.KEYCODE_BUTTON_R2 -> "RT"
+        KeyEvent.KEYCODE_BUTTON_THUMBL -> "L3"
+        KeyEvent.KEYCODE_BUTTON_THUMBR -> "R3"
+        KeyEvent.KEYCODE_BUTTON_MODE -> "⌂"
         else -> "?"
     }
 

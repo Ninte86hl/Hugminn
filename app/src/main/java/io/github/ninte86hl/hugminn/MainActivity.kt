@@ -75,6 +75,7 @@ class MainActivity : Activity() {
         Page("cc", IconView.Kind.SCREEN, "Control Center", "Control Center", "Statusleiste, Kacheln, LED-App", "Status bar, tiles, LED app"),
         Page("switcher", IconView.Kind.REFRESH, "Game Switcher", "Game Switcher", "Eigene Übersicht, Pausieren, Wischgeste", "Own overview, pausing, swipe gesture"),
         Page("home", IconView.Kind.GAMEPAD, "Home-Taste", "Home button", "Einmal, zweimal und lange drücken", "Single, double and long press"),
+        Page("hotkeys", IconView.Kind.GAMEPAD, "Tastenkürzel", "Emulator shortcuts", "Welche Tasten in welchem Emulator was tun", "Which buttons do what in each emulator"),
         Page("shortcuts", IconView.Kind.PLAY, "Verknüpfungen", "Shortcuts", "Control Center und Spielwechsler ohne Taste öffnen", "Open the Control Center and switcher without a button"),
         Page("profiles", IconView.Kind.FAN, "Profile pro App", "Profiles per app", "Leistung und Lüfter je Emulator", "Performance and fan per emulator"),
         Page("backup", IconView.Kind.LOCK, "Sichern", "Backup", "Einstellungen sichern und wiederherstellen", "Save and restore settings"),
@@ -86,6 +87,7 @@ class MainActivity : Activity() {
         "Status" -> "status"
         tr("Home-Taste") -> "home"
         t("Verknüpfungen", "Shortcuts") -> "shortcuts"
+        t("Tastenkürzel", "Emulator shortcuts") -> "hotkeys"
         tr("Darstellung"), tr("Tastensymbole") -> "look"
         "Game Switcher" -> "switcher"
         "Control Center" -> "cc"
@@ -193,6 +195,7 @@ class MainActivity : Activity() {
         }
         r.addView(self)
         parent.addView(r)
+        afterChange += { self?.text = value() }
     }
 
     private fun <T> cycle(list: List<T>, cur: T): T = list[(list.indexOf(cur) + 1).mod(list.size)]
@@ -315,6 +318,26 @@ class MainActivity : Activity() {
             t("„Hugminn Control Center“ und „Hugminn Spielwechsler“ erscheinen in der App-Liste, z. B. für Cocoon oder ES-DE",
                 "“Hugminn Control Center” and “Hugminn Game switcher” appear in the app list, e.g. for Cocoon or ES-DE"),
             { if (OpenFromOutside.appIcons(this)) tr("An") else tr("Aus") }) { OpenFromOutside.setAppIcons(this, !OpenFromOutside.appIcons(this)) }
+
+        // emulator shortcuts for the switcher's help card (Y → Shortcuts)
+        val emus = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+            .map { it.activityInfo.packageName }.distinct().filter { Apps.typeOf(it) != AppType.APP }
+            .sortedBy { Apps.label(this, it).lowercase() }
+        val hk = section(t("Tastenkürzel", "Emulator shortcuts"))
+        hk.addView(text(t("Hugminn zeigt diese Belegung im Spielwechsler (Y → Tastenkürzel). Am Emulator selbst ändert Hugminn nichts – stelle sie dort genauso ein oder passe sie hier an.",
+            "Hugminn shows these shortcuts in the game switcher (Y → Shortcuts). It doesn't change the emulator – set it up the same way there, or adjust it here."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(4), 0, d(8)) })
+        if (emus.isEmpty()) hk.addView(text(t("Keine Emulatoren gefunden", "No emulators found"), 14f, pal.onSurfaceVariant))
+        else {
+            var emu = emus.first()
+            row(hk, t("Emulator", "Emulator"), null, { Apps.label(this, emu) }) { emu = cycle(emus, emu) }
+            row(hk, t("Belegung", "Layout"), t("Gängig: Select als Hotkey, wie bei EmuDeck, ROCKNIX oder Batocera", "Common: Select as hotkey, as on EmuDeck, ROCKNIX or Batocera"),
+                { Hotkeys.mode(this, emu).label }) { Hotkeys.setMode(this, emu, cycle(Hotkeys.Mode.values().toList(), Hotkeys.mode(this, emu))) }
+            for (act in Hotkeys.Act.values()) row(hk, act.label, null, { Hotkeys.text(Hotkeys.comboOf(this, emu, act)) }) {
+                // changing one key makes the layout this emulator's own
+                if (Hotkeys.mode(this, emu) != Hotkeys.Mode.OWN) Hotkeys.setMode(this, emu, Hotkeys.Mode.OWN)
+                Hotkeys.cycle(this, emu, act, 1)
+            }
+        }
 
         val look = section(tr("Darstellung"))
         row(look, t("Sprache", "Language"), null, { prefs.language.label }) {
