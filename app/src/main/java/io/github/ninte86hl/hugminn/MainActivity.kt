@@ -497,6 +497,7 @@ class MainActivity : Activity() {
         val a = section(tr("Über"))
         val ib = LinearLayout(this).apply { setPadding(0, d(8), 0, d(4)) }
         ib.addView(button(t("Einführung erneut zeigen", "Show the introduction again")) { startActivity(Intent(this, SetupActivity::class.java)) })
+        ib.addView(button(t("Gerätetest", "Device test")) { startActivity(Intent(this, DeviceTestActivity::class.java)) })
         a.addView(ib)
         a.addView(text(
             tr("In der nordischen Sage hat Odin zwei Raben: Huginn (Gedanke) und Muninn (Erinnerung). ") +
