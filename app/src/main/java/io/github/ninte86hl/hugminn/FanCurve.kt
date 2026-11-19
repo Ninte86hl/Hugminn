@@ -27,6 +27,16 @@ object FanCurve {
     @Volatile var currentTemp = 0f
         private set
 
+    @Volatile private var periodCache = 0
+
+    /** How fast the fan turns right now, in percent of full speed (whoever drives it), or null. */
+    fun speedPct(): Int? {
+        if (running && currentPct >= 0) return currentPct
+        if (periodCache <= 0) periodCache = Root.exec("cat $PERIOD 2>/dev/null")?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: return null
+        val duty = Root.exec("cat $DUTY 2>/dev/null")?.trim()?.toIntOrNull() ?: return null
+        return (duty * 100 / periodCache).coerceIn(0, 100)
+    }
+
     /** Whether this device has the fan's PWM node (Pocket 6, AYN devices). */
     fun available(): Boolean = Root.exec("cat $DUTY 2>/dev/null")?.trim()?.toIntOrNull() != null
 

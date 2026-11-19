@@ -704,18 +704,44 @@ class ControlCenter(private val svc: HugminnService) {
             setAutoSizeTextTypeUniformWithConfiguration(16, if (e.w >= 3) 40 else 30, 1, TypedValue.COMPLEX_UNIT_SP)
         }
         c.addView(value, lp(MATCH, (if (e.w >= 3) 52 else 42) * d))
-        val sub = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1 }
-        val more = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1 }
-        c.addView(sub)
-        c.addView(more)
         c.addView(View(svc), lp(MATCH, 0, 1f))
+        // live: CPU clock (performance) or how fast the fan turns (fan), with a bar in the style
+        val metricRow = LinearLayout(svc).apply { gravity = Gravity.BOTTOM }
+        val metric = text("", if (e.w >= 3) 24f else 20f, pal.onSurface, bold = true).apply { maxLines = 1 }
+        val metricLabel = text(if (perf) t("CPU-Takt", "CPU clock") else t("Drehzahl", "Fan speed"), 11f, pal.onSurfaceVariant).apply { setPadding(8 * d, 0, 0, 3 * d) }
+        metricRow.addView(metric)
+        metricRow.addView(metricLabel, lp(0, WRAP, 1f))
+        c.addView(metricRow)
+        val bar = GaugeBar(svc, pal, pixel)
+        c.addView(bar, lp(MATCH, (if (pal.dots || pixel) 6 else 5) * d).apply { topMargin = 4 * d; bottomMargin = 6 * d })
+        val more = text("", 11f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+        c.addView(more)
+        val gp = svc.prefs.gaugePalette
         val refresh = { value.text = if (perf) Device.perfLabel(svc) else Device.fanLabel(svc) }
         refresh()
         refreshers += refresh
+        var topMhz = 1
         live { s ->
-            sub.text = sp.sub(s)
-            more.text = if (perf) "CPU ${s.cpuPct.toInt()} % · GPU ${s.gpuPct.toInt()} %"
-            else listOfNotNull(s.cpuTemp.takeIf { it > 0 }?.let { "CPU ${it.toInt()} °C" }, s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()} °C" }).joinToString(" · ")
+            if (perf) {
+                topMhz = maxOf(topMhz, s.cpuMhz)
+                metric.text = "%.2f GHz".format(s.cpuMhz / 1000f)
+                val f = s.cpuMhz.toFloat() / topMhz
+                bar.set(f, GaugeColors.of(pal, gp, f))
+                more.text = "CPU ${s.cpuPct.toInt()} % · GPU ${s.gpuPct.toInt()} % · ${s.gpuMhz} MHz"
+            } else {
+                more.text = listOfNotNull(s.cpuTemp.takeIf { it > 0 }?.let { "CPU ${it.toInt()} °C" }, s.gpuTemp.takeIf { it > 0 }?.let { "GPU ${it.toInt()} °C" }).joinToString(" · ")
+            }
+        }
+        if (!perf) {
+            fun fan() = thread {
+                val pct = runCatching { FanCurve.speedPct() }.getOrNull()
+                svc.ui.post {
+                    metric.text = pct?.let { "$it %" } ?: "–"
+                    if (pct != null) bar.set(pct / 100f, GaugeColors.of(pal, gp, pct / 100f))
+                }
+            }
+            fan()
+            whileShown(c, 3000) { fan() }
         }
         return c to Item(c, sp.onA)
     }
