@@ -5,8 +5,10 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 ## 1.12.0 (in testing)
 - Capture menu: larger window with two tabs (Take · Settings); resolution, frame rate, sound, indicator and clip length change with ◀ ▶, L1/R1 switch tabs.
 - Capture: videos can stop by themselves after 5, 10, 15 or 30 seconds or 1, 3, 5 or 10 minutes (Settings → Maximum length).
+- Capture: after a video the stick LEDs go back to their colours or effect.
 - Aufnahme-Menü: größeres Fenster mit zwei Reitern (Aufnehmen · Einstellungen); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, L1/R1 wechseln die Reiter.
 - Aufnahme: Videos können nach 5, 10, 15 oder 30 Sekunden oder 1, 3, 5 oder 10 Minuten von selbst enden (Einstellungen → Maximale Länge).
+- Aufnahme: Nach einem Video gehen die Stick-LEDs zurück auf ihre Farben bzw. ihren Effekt.
 
 ## 1.11.1
 - Capture: while recording, the stick LEDs pulse red like a camera light (instead of, or together with, the red dot – adjustable).
