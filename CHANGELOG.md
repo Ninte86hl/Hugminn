@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.12.0 (in testing)
+- Capture menu: larger window with tabs (Take · Video · Last seconds); resolution, frame rate, sound, indicator and clip length change with ◀ ▶, L1/R1 switch tabs.
+- Aufnahme-Menü: größeres Fenster mit Reitern (Aufnehmen · Video · Letzte Sekunden); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, L1/R1 wechseln die Reiter.
+
 ## 1.11.1
 - Capture: while recording, the stick LEDs pulse red like a camera light (instead of, or together with, the red dot – adjustable).
 - Capture: "Video in 3 s" with a countdown; switching the screen off stops and saves the video cleanly (can be turned off).
