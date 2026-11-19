@@ -9,7 +9,7 @@ import android.view.View
 
 /** Simple line icons drawn in code, so they look the same everywhere and follow the theme colour. */
 class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 22) : View(ctx) {
-    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC, POWER, BATTERY, PLAY, PAUSE, PREV, NEXT }
+    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC, POWER, BATTERY, PLAY, PAUSE, PREV, NEXT, PIN }
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -37,6 +37,8 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
     /** Media buttons on a 9×9 grid: true = cell lit. */
     private fun cells(k: Kind): ((Int, Int) -> Boolean)? = when (k) {
         Kind.PLAY -> { r, col -> col >= 2 && col < 2 + (5 - Math.abs(r - 4)) }
+        // a push pin: round head, short bar, needle
+        Kind.PIN -> { r, col -> (r in 0..3 && col in 2..6 && !(r == 0 && (col == 2 || col == 6))) || (r == 4 && col in 1..7) || (r in 5..8 && col == 4) }
         Kind.PAUSE -> { r, col -> r in 1..7 && (col in 2..3 || col in 5..6) }
         Kind.PREV -> { r, col -> r in 1..7 && (col == 1 || col in (7 - (4 - Math.abs(r - 4)))..6) }
         Kind.NEXT -> { r, col -> r in 1..7 && (col == 7 || col in 2..(1 + (4 - Math.abs(r - 4)))) }
@@ -205,6 +207,11 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
                 c.drawLine(s * 0.9f, s * 0.42f, s * 0.9f, s * 0.58f, p)
                 c.drawLine(s * 0.24f, s * 0.42f, s * 0.24f, s * 0.58f, p)
                 c.drawLine(s * 0.38f, s * 0.42f, s * 0.38f, s * 0.58f, p)
+            }
+            Kind.PIN -> {
+                c.drawCircle(m, s * 0.3f, s * 0.2f, p)
+                c.drawLine(s * 0.18f, s * 0.52f, s * 0.82f, s * 0.52f, p)
+                c.drawLine(m, s * 0.52f, m, s * 0.94f, p)
             }
             Kind.PLAY -> c.drawPath(Path().apply { moveTo(s * 0.3f, s * 0.18f); lineTo(s * 0.82f, m); lineTo(s * 0.3f, s * 0.82f); close() }, p)
             Kind.PAUSE -> {

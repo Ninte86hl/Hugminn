@@ -2467,11 +2467,11 @@ class ControlCenter(private val svc: HugminnService) {
                 v.animate().scaleX(sc).scaleY(sc).setDuration(120).start()
             } else
             v.foreground = if (i == focus) {
-                // light ring with a dark one inside: visible on dark tiles and on white (active) ones
-                val outer = shape(0, r, (if (adj) 5 else 3) * d, if (adj) tileOn() else pal.onSurface)
-                val ins = (if (adj) 5 else 3) * d
-                val inner = shape(0, (r - ins).coerceAtLeast(0f), 2 * d, if (pal.dark) 0xFF000000.toInt() else 0xFFFFFFFF.toInt())
-                android.graphics.drawable.LayerDrawable(arrayOf(outer, android.graphics.drawable.InsetDrawable(inner, ins)))
+                // the same ring as on dark tiles; on a light (active) tile it is drawn dark instead
+                val fill = (v.background as? android.graphics.drawable.GradientDrawable)?.color?.defaultColor ?: 0
+                val light = android.graphics.Color.alpha(fill) > 128 && android.graphics.Color.luminance(fill) > 0.6f
+                val ring = when { adj -> tileOn(); light -> 0xFF101010.toInt(); else -> pal.onSurface }
+                shape(0, r, (if (adj) 5 else 3) * d, ring)
             } else null
         }
     }
@@ -2711,8 +2711,9 @@ class ControlCenter(private val svc: HugminnService) {
     private fun setTabKeys(title: String, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int) {
         popupKeys = { code ->
             when (code) {
-                KeyEvent.KEYCODE_DPAD_LEFT -> menuEntries.getOrNull(menuSel)?.side?.invoke(-1) ?: tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size)
-                KeyEvent.KEYCODE_DPAD_RIGHT -> menuEntries.getOrNull(menuSel)?.side?.invoke(1) ?: tabMenu(title, tabs, (tab + 1) % tabs.size)
+                // in the Capture menu ◀ ▶ only change values; the tabs there go with L1/R1
+                KeyEvent.KEYCODE_DPAD_LEFT -> menuEntries.getOrNull(menuSel)?.side?.invoke(-1) ?: if (title != t("Aufnahme", "Capture")) tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size) else Unit
+                KeyEvent.KEYCODE_DPAD_RIGHT -> menuEntries.getOrNull(menuSel)?.side?.invoke(1) ?: if (title != t("Aufnahme", "Capture")) tabMenu(title, tabs, (tab + 1) % tabs.size) else Unit
                 KeyEvent.KEYCODE_BUTTON_L1 -> tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size)
                 KeyEvent.KEYCODE_BUTTON_R1 -> tabMenu(title, tabs, (tab + 1) % tabs.size)
                 KeyEvent.KEYCODE_DPAD_UP -> moveMenu(-1)
@@ -2839,14 +2840,24 @@ class ControlCenter(private val svc: HugminnService) {
                     if (p.overlayOn) svc.overlay.show()
                 }
             },
-            MenuEntry("Position", hint = p.overlayPos.label) {
-                showMenu("Position", OverlayPos.values().map { pos ->
-                    MenuEntry(pos.label, checked = p.overlayPos == pos) { p.overlayPos = pos; if (p.overlayOn) svc.overlay.show() }
-                })
+            // position and layout change with ◀ ▶ like the size (A steps on too)
+            run {
+                val all = OverlayPos.values()
+                val side: (Int) -> Unit = { dir ->
+                    p.overlayPos = all[((p.overlayPos.ordinal + dir) % all.size + all.size) % all.size]
+                    if (p.overlayOn) svc.overlay.show()
+                    setMenuHint(menuSel, "◀  ${p.overlayPos.label}  ▶")
+                }
+                MenuEntry("Position", hint = "◀  ${p.overlayPos.label}  ▶", side = side) { side(1) }
             },
-            MenuEntry(tr("Anordnung"), hint = if (p.overlayRow) tr("Nebeneinander") else tr("Untereinander")) {
-                p.overlayRow = !p.overlayRow
-                if (p.overlayOn) svc.overlay.show()
+            run {
+                fun lbl() = if (p.overlayRow) tr("Nebeneinander") else tr("Untereinander")
+                val side: (Int) -> Unit = { _ ->
+                    p.overlayRow = !p.overlayRow
+                    if (p.overlayOn) svc.overlay.show()
+                    setMenuHint(menuSel, "◀  ${lbl()}  ▶")
+                }
+                MenuEntry(tr("Anordnung"), hint = "◀  ${lbl()}  ▶", side = side) { side(1) }
             },
             MenuEntry(tr("Größe"), hint = "◀  ${Math.round(p.overlayScale * 100)} %  ▶", side = { dir ->
                 val sizes = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)

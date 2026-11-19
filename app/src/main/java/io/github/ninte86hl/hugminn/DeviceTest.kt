@@ -133,7 +133,7 @@ class DeviceTestActivity : Activity() {
             val v = Device.sys(this, key)
             add(fw, name, if (v != null) State.OK else State.FAIL, if (v != null) "$key = $v" else t("Einstellung fehlt – Kachel wird ausgeblendet", "Setting missing – the tile is hidden"))
         }
-        val ledDrv = root && Root.exec("ls /sys/class/sn3112l/led/brightness /sys/class/sn3112r/led/brightness 2>/dev/null")?.lines()?.count { it.isNotBlank() } == 2
+        val ledDrv = root && Root.exec("test -e /sys/class/sn3112l/led/brightness && test -e /sys/class/sn3112r/led/brightness && echo yes")?.contains("yes") == true
         add(fw, t("LED-Treiber (Effekte)", "LED driver (effects)"), if (ledDrv) State.OK else State.WARN, if (!ledDrv) t("Effekte und Aufnahme-Pulsieren nicht möglich", "Effects and recording pulse not possible") else "sn3112")
 
         // live values
@@ -186,6 +186,8 @@ class DeviceTestActivity : Activity() {
         KeyEvent.KEYCODE_BUTTON_L1 to "L1", KeyEvent.KEYCODE_BUTTON_R1 to "R1", KeyEvent.KEYCODE_BUTTON_L2 to "L2", KeyEvent.KEYCODE_BUTTON_R2 to "R2",
         KeyEvent.KEYCODE_BUTTON_START to "Start", KeyEvent.KEYCODE_BUTTON_SELECT to "Select",
         KeyEvent.KEYCODE_BUTTON_THUMBL to "L3", KeyEvent.KEYCODE_BUTTON_THUMBR to "R3",
+        KeyEvent.KEYCODE_VOLUME_UP to "Vol+", KeyEvent.KEYCODE_VOLUME_DOWN to "Vol−",
+        KeyEvent.KEYCODE_HOME to "Home", KeyEvent.KEYCODE_BACK to t("Zurück", "Back"),
     )
 
     private fun startKeyTest() {
@@ -193,9 +195,10 @@ class DeviceTestActivity : Activity() {
         val labels = mutableMapOf<Int, TextView>()
         list.removeAllViews()
         list.addView(text(t("Tasten: drücke jede Taste einmal", "Buttons: press each button once"), 18f, fg, true))
-        list.addView(text(t("Endet automatisch, wenn alle gedrückt sind, oder nach 20 Sekunden.", "Ends by itself once all are pressed, or after 20 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
-        val grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        keys.forEach { (code, name) ->
+        list.addView(text(t("Endet automatisch, wenn alle gedrückt sind, oder nach 30 Sekunden.", "Ends by itself once all are pressed, or after 30 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
+        var grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        keys.entries.forEachIndexed { i, (code, name) ->
+            if (i == 8) { list.addView(grid); grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, d(6), 0, 0) } }
             val v = text(name, 16f, dim, true).apply {
                 gravity = Gravity.CENTER
                 background = GradientDrawable().apply { setColor(card); cornerRadius = d(10).toFloat() }
@@ -204,12 +207,15 @@ class DeviceTestActivity : Activity() {
             grid.addView(v, LinearLayout.LayoutParams(0, d(48), 1f).apply { marginEnd = d(6) })
         }
         list.addView(grid)
+        // Home is taken by Hugminn itself: it tells the test instead of opening the Control Center
+        HugminnService.keyProbe = { code -> keyTest?.invoke(code) }
         setButtons()
         var done = false
         fun finishKeys() {
             if (done) return
             done = true
             keyTest = null
+            HugminnService.keyProbe = null
             val missing = keys.filterKeys { it !in pressed }.values
             add(t("Tasten", "Buttons"), t("Tasten", "Buttons"), if (missing.isEmpty()) State.OK else State.WARN,
                 if (missing.isEmpty()) t("Alle ${keys.size} erkannt", "All ${keys.size} detected") else t("Nicht erkannt: ", "Not detected: ") + missing.joinToString())
@@ -222,7 +228,7 @@ class DeviceTestActivity : Activity() {
             }
             true
         }
-        list.postDelayed({ finishKeys() }, 20_000)
+        list.postDelayed({ finishKeys() }, 30_000)
     }
 
     private fun startLedTest() {
@@ -299,6 +305,7 @@ class DeviceTestActivity : Activity() {
 
     override fun onDestroy() {
         keyTest = null
+        HugminnService.keyProbe = null
         super.onDestroy()
     }
 }
