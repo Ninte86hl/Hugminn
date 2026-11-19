@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.1
+- Music tile: a song too long for its line runs from right to left.
+- Musik-Kachel: Ein zu langer Titel läuft von rechts nach links durch.
+
 ## 1.10.0
 - Control Center: Start plays/pauses the music, L2/R2 skip to the previous/next track.
 - Control Center: Start spielt/pausiert die Musik, L2/R2 springen zum vorherigen/nächsten Titel.

@@ -899,7 +899,15 @@ class ControlCenter(private val svc: HugminnService) {
         col.addView(head)
         // two rows high: one line for the song, so progress and buttons always fit
         val low = e.h <= 2
-        val song = text("", if (big && !low) 22f else if (low) 16f else 17f, pal.onSurface, bold = true).apply { maxLines = if (low) 1 else 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, 4 * d, 0, 0) }
+        // one line; a song too long for it runs from right to left (marquee)
+        val song = text("", if (big && !low) 22f else if (low) 16f else 17f, pal.onSurface, bold = true).apply {
+            isSingleLine = true
+            ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
+            marqueeRepeatLimit = -1
+            setHorizontallyScrolling(true)
+            isSelected = true
+            setPadding(0, 4 * d, 0, 0)
+        }
         val artist = text("", if (big) 15f else 13f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
         col.addView(song)
         col.addView(artist)
@@ -958,7 +966,9 @@ class ControlCenter(private val svc: HugminnService) {
         }
         val refresh = {
             appName.text = Media.app?.let { Apps.label(svc, it) }?.uppercase() ?: t("MUSIK", "MUSIC")
-            song.text = Media.song ?: Media.title ?: t("Nichts läuft", "Nothing playing")
+            // only when it changes, so a running marquee does not start over
+            val now = Media.song ?: Media.title ?: t("Nichts läuft", "Nothing playing")
+            if (song.text.toString() != now) song.text = now
             artist.text = if (Media.song != null) Media.artist ?: "" else ""
             artist.visibility = if (artist.text.isNullOrEmpty()) View.GONE else View.VISIBLE
             val a = Media.art
