@@ -118,19 +118,31 @@ object Bt {
      * Battery of a connected device in percent, or null if it does not report one. Headphones and
      * many controllers report it to Bluetooth; game controllers often only to the input system.
      */
+    /** What the last battery lookup found (test builds report it). */
+    @Volatile var batteryDiag = ""
+
     fun battery(d: BluetoothDevice): Int? {
-        runCatching { (d.javaClass.getMethod("getBatteryLevel").invoke(d) as Int).takeIf { it in 0..100 } }.getOrNull()?.let { return it }
-        levels[d.address]?.let { return it }
-        if (android.os.Build.VERSION.SDK_INT >= 31) {
-            val n = name(d)
-            for (id in android.view.InputDevice.getDeviceIds()) {
-                val dev = android.view.InputDevice.getDevice(id) ?: continue
-                if (!dev.isExternal || dev.name != n) continue
-                val st = runCatching { dev.batteryState }.getOrNull() ?: continue
-                if (st.isPresent && !st.capacity.isNaN()) return (st.capacity * 100).toInt().coerceIn(0, 100)
+        val n = name(d)
+        val bt = runCatching { d.javaClass.getMethod("getBatteryLevel").invoke(d) as Int }
+        val cached = levels[d.address]
+        val sb = StringBuilder("$n: bt=${bt.getOrNull() ?: bt.exceptionOrNull()?.javaClass?.simpleName} broadcast=$cached")
+        var found: Int? = bt.getOrNull()?.takeIf { it in 0..100 } ?: cached
+        if (found == null && android.os.Build.VERSION.SDK_INT >= 31) {
+            // game controllers often report their battery only to the input system; their input name can
+            // differ from the Bluetooth name ("Xbox Wireless Controller"), so with a single external
+            // controller that one counts
+            val pads = android.view.InputDevice.getDeviceIds().toList().mapNotNull { android.view.InputDevice.getDevice(it) }.filter { it.isExternal }
+            val match = pads.firstOrNull { it.name == n } ?: pads.firstOrNull { it.name.contains(n, true) || n.contains(it.name, true) }
+                ?: pads.filter { it.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD }.singleOrNull()
+            for (dev in pads) {
+                val st = runCatching { dev.batteryState }.getOrNull()
+                sb.append(" · input \"${dev.name}\": present=${st?.isPresent} cap=${st?.capacity} status=${st?.status}")
             }
+            val st = match?.let { runCatching { it.batteryState }.getOrNull() }
+            if (st != null && st.isPresent && !st.capacity.isNaN()) found = (st.capacity * 100).toInt().coerceIn(0, 100)
         }
-        return null
+        batteryDiag = sb.append(" → $found").toString()
+        return found
     }
 
     /** Connected devices that report a battery level: name to percent. */

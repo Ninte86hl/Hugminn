@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.17
+- Battery of Bluetooth controllers: also found when the controller's input name differs from its Bluetooth name (e.g. 8BitDo in Xbox mode).
+- Akku von Bluetooth-Controllern: wird auch gefunden, wenn der Controller sich bei der Eingabe anders nennt als bei Bluetooth (z. B. 8BitDo im Xbox-Modus).
+
 ## 1.10.16
 - "Controller style" tile can also switch the built-in controls off while an external controller is used (like Retroid's quick setting). Only offered with a controller connected; if it disconnects, the built-in controls come back on by themselves.
 - Kachel „Tastenlayout“ kann die eingebaute Steuerung auch ausschalten, solange ein externer Controller genutzt wird (wie Retroids Schnelleinstellung). Nur mit verbundenem Controller; wird er getrennt, geht die eingebaute Steuerung von selbst wieder an.
