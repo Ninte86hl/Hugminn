@@ -105,6 +105,23 @@ class ControlCenter(private val svc: HugminnService) {
             override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
                 (triggerMotion(event) or hat.onMotion(event)) || super.dispatchGenericMotionEvent(event)
 
+            // Swiping down from the top edge opens Android's quick settings, as a way out when no buttons work
+            // (e.g. built-in controls off and the external controller gone).
+            private var edgeY = -1f
+            override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+                when (ev.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> edgeY = if (ev.rawY < svc.dp(40)) ev.rawY else -1f
+                    MotionEvent.ACTION_MOVE -> if (edgeY >= 0 && ev.rawY - edgeY > svc.dp(60)) {
+                        edgeY = -1f
+                        close()
+                        svc.ui.postDelayed({ svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS) }, 150)
+                        return true
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> edgeY = -1f
+                }
+                return super.dispatchTouchEvent(ev)
+            }
+
             override fun dispatchKeyEvent(event: KeyEvent): Boolean = try {
                 if (volumeKey(event)) true else
                 onKey(event)

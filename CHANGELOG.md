@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.20
+- Control Center: swipe down from the top edge to open Android's quick settings (a way out if no buttons respond).
+- Control Center: von der oberen Kante nach unten wischen öffnet Androids Schnelleinstellungen (Rückversicherung, falls keine Taste reagiert).
+
 ## 1.10.19
 - "Built-in controls off" now really switches the handheld's controls off (same settings as Retroid's own quick setting), and switching back on restores the exact layout from before.
 - „Eingebaute Steuerung aus“ schaltet die Tasten des Handhelds jetzt wirklich ab (dieselben Einstellungen wie Retroids eigene Schnelleinstellung); beim Wiedereinschalten kommt genau das vorherige Layout zurück.
