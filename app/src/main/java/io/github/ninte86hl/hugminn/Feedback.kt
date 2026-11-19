@@ -272,6 +272,7 @@ object Feedback {
             .filter { it.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD || it.isExternal }
             .map { "  ${it.name} (extern=${it.isExternal}, id=${it.id}, vendor=${it.vendorId}, product=${it.productId})" }
         if (pads.isNotEmpty()) { appendLine(); appendLine("Eingabegeräte:"); pads.forEach { appendLine(it) } }
+        WakeDiag.report().takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Aufwach-Diagnose (20 s nach Bildschirm an):"); appendLine(it) }
         appendLine(); appendLine("Countdown Steuerung: ${svc.guardDiag.ifEmpty { "–" }}")
         appendLine("Eingabegeräte jetzt: ${Device.padList()}")
         runCatching { Bt.batteries(svc) }.getOrNull()?.let { appendLine(); appendLine("Geräte-Akku: $it"); appendLine("  ${Bt.batteryDiag}") }
