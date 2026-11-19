@@ -122,6 +122,12 @@ class HugminnService : AccessibilityService() {
         }
         Thread { runCatching { if (Root.available()) Media.enableListener(this) } }.start()
         Capture.resume(this)
+        // screen off during a video: stop and save it cleanly
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context, i: Intent) {
+                if (Capture.recording && prefs.recStopOnSleep) Capture.stopRecord(this@HugminnService)
+            }
+        }, android.content.IntentFilter(Intent.ACTION_SCREEN_OFF))
         // Low battery: the sticks pulse red
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {

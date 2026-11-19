@@ -2348,6 +2348,7 @@ class ControlCenter(private val svc: HugminnService) {
         entries += MenuEntry(t("Screenshot in 3 s", "Screenshot in 3 s")) { close(); Capture.screenshot(svc, 3) }
         entries += if (Capture.recording) MenuEntry(t("Video stoppen", "Stop video"), hint = Capture.elapsed()) { close(); Capture.stopRecord(svc) }
         else MenuEntry(t("Video aufnehmen", "Record video"), hint = t("Kachel-A stoppt", "Tile A stops")) { close(); Capture.startRecord(svc) }
+        if (!Capture.recording) entries += MenuEntry(t("Video in 3 s", "Video in 3 s")) { close(); Capture.startRecordIn(svc, 3) }
         if (Capture.replayRunning) entries += MenuEntry(t("Letzte ${p.replaySec} s speichern", "Save the last ${p.replaySec} s")) { close(); Capture.saveReplay(svc) }
         if (Capture.lastUri != null) entries += MenuEntry(t("Letzte Aufnahme ansehen", "View last capture")) { close(); Capture.openLast(svc) }
         entries += MenuEntry(t("Einstellungen", "Settings"), header = true, run = null)
@@ -2356,7 +2357,9 @@ class ControlCenter(private val svc: HugminnService) {
         val ia = again()
         entries += MenuEntry(t("Ton", "Sound"), hint = audio.label) { p.recAudio = (p.recAudio + 1) % Capture.Audio.values().size; captureMenu(ia) }
         val ii = again()
-        entries += MenuEntry(t("Roter Punkt während der Aufnahme", "Red dot while recording"), checked = p.recIndicator) { p.recIndicator = !p.recIndicator; captureMenu(ii) }
+        entries += MenuEntry(t("Anzeige während der Aufnahme", "While recording"), hint = Capture.showLabels[p.recShow.coerceIn(0, 3)]) { p.recShow = (p.recShow + 1) % 4; captureMenu(ii) }
+        val io = again()
+        entries += MenuEntry(t("Bildschirm aus speichert das Video", "Screen off saves the video"), checked = p.recStopOnSleep) { p.recStopOnSleep = !p.recStopOnSleep; captureMenu(io) }
         val ir = again()
         entries += MenuEntry(t("Letzte Sekunden mitschneiden", "Keep the last seconds"), checked = p.replayOn,
             hint = t("Läuft im Hintergrund, braucht etwas Akku", "Runs in the background, uses some battery")) {
