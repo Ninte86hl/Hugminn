@@ -32,12 +32,21 @@ object Device {
     /** The firmware's third controller mode: the built-in controls are off (for an external controller). */
     fun builtinOff(ctx: Context) = sys(ctx, "temp_abxy_layout_mode")?.trim() == "2"
 
-    /** Built-in controls on (back to the layout set before) or off. */
+    /** Built-in controls on (back to the layout set before) or off. Like Retroid's own quick setting, this
+     *  also needs no_create_gamepad_button_layout = 1, or the built-in controller stays active. */
     fun setBuiltin(ctx: Context, on: Boolean, then: () -> Unit) {
-        if (!on) { Root.run(Root.putSetting("system", "temp_abxy_layout_mode", "2"), then = then); return }
-        // flip_button_layout keeps the layout while the controls are off: 0 = Retroid/Nintendo, 1 = Xbox
-        val nintendo = sys(ctx, "flip_button_layout")?.trim() != "1"
-        Root.run(Root.putSetting("system", "temp_abxy_layout_mode", if (nintendo) "1" else "0"), then = then)
+        val store = ctx.getSharedPreferences("controller", Context.MODE_PRIVATE)
+        if (!on) {
+            val now = sys(ctx, "temp_abxy_layout_mode")?.trim()
+            if (now == "0" || now == "1") store.edit().putString("mode", now).apply()
+            Root.run(Root.putSetting("system", "no_create_gamepad_button_layout", "1"),
+                Root.putSetting("system", "temp_abxy_layout_mode", "2"), then = then)
+            return
+        }
+        // back to the layout from before; flip_button_layout (1 = Xbox) as a fallback
+        val mode = store.getString("mode", null) ?: if (sys(ctx, "flip_button_layout")?.trim() == "1") "0" else "1"
+        Root.run(Root.putSetting("system", "no_create_gamepad_button_layout", "0"),
+            Root.putSetting("system", "temp_abxy_layout_mode", mode), then = then)
     }
 
     /** A game controller other than the handheld's own is connected (Bluetooth or USB). */
