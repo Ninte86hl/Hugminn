@@ -33,7 +33,9 @@ class MediaListener : NotificationListenerService() {
             val l = instance ?: return null
             val all = runCatching { l.activeNotifications }.getOrNull().orEmpty().filter { it.packageName == pkg }
             val n = all.firstOrNull { it.notification.extras.containsKey(android.app.Notification.EXTRA_MEDIA_SESSION) }
-                ?: all.firstOrNull { it.notification.extras.getCharSequence(android.app.Notification.EXTRA_TITLE) != null } ?: return null
+                ?: all.firstOrNull { it.notification.extras.getCharSequence(android.app.Notification.EXTRA_TITLE) != null }
+                // old players: their own layout, no title in the extras (read further below)
+                ?: all.firstOrNull { it.notification.contentView != null || it.notification.bigContentView != null } ?: return null
             val x = n.notification.extras
             val title = x.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString()?.takeIf { it.isNotBlank() }
             val text = x.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString()?.takeIf { it.isNotBlank() }
