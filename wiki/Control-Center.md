@@ -8,6 +8,7 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - The D-pad moves through the grid; nothing is selected until you press a direction.
 - **A** toggles a switch or confirms a slider, **□ / X** opens the tile's submenu, **△ / Y** opens the edit menu, **R1/L1** changes the page, **○ / B** closes.
 - **Select** takes a screenshot.
+- **Start** plays/pauses the music, **L2 / R2** skip to the previous / next track.
 
 ## Tiles
 - **Switches:** Wi-Fi, Bluetooth, stick LEDs, 60/120 Hz, Do not disturb, airplane mode, rotation lock, screen always on and more.

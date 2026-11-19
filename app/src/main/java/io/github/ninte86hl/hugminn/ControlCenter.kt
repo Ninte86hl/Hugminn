@@ -103,7 +103,7 @@ class ControlCenter(private val svc: HugminnService) {
         val r = object : FrameLayout(svc) {
             // The D-pad is a joystick hat: read it directly (Android would only fake keys from it).
             override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
-                hat.onMotion(event) || super.dispatchGenericMotionEvent(event)
+                (triggerMotion(event) or hat.onMotion(event)) || super.dispatchGenericMotionEvent(event)
 
             override fun dispatchKeyEvent(event: KeyEvent): Boolean = try {
                 if (volumeKey(event)) true else
@@ -2987,7 +2987,38 @@ class ControlCenter(private val svc: HugminnService) {
         renderGrid()
     }
 
+    /** Music without leaving the grid: Start plays/pauses, L2/R2 previous/next track. */
+    private fun mediaKey(code: Int) {
+        val k = when (code) {
+            KeyEvent.KEYCODE_BUTTON_START -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+            KeyEvent.KEYCODE_BUTTON_L2 -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+            KeyEvent.KEYCODE_BUTTON_R2 -> KeyEvent.KEYCODE_MEDIA_NEXT
+            else -> return
+        }
+        Media.key(svc, k)
+        svc.ui.postDelayed({ thread { Media.refresh(svc); refreshAll() } }, 400)
+    }
+
+    // analog triggers (when the handheld sends L2/R2 as axes, not as buttons)
+    private var trigL = false
+    private var trigR = false
+
+    private fun triggerMotion(e: MotionEvent): Boolean {
+        if (menuView != null || editing || editView != null || gridEdit != null) return false
+        val l = maxOf(e.getAxisValue(MotionEvent.AXIS_LTRIGGER), e.getAxisValue(MotionEvent.AXIS_BRAKE))
+        val r = maxOf(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS))
+        var used = false
+        if (l > 0.6f && !trigL) { trigL = true; mediaKey(KeyEvent.KEYCODE_BUTTON_L2); used = true } else if (l < 0.3f) trigL = false
+        if (r > 0.6f && !trigR) { trigR = true; mediaKey(KeyEvent.KEYCODE_BUTTON_R2); used = true } else if (r < 0.3f) trigR = false
+        return used
+    }
+
     fun onKey(e: KeyEvent): Boolean {
+        if ((e.keyCode == KeyEvent.KEYCODE_BUTTON_START || e.keyCode == KeyEvent.KEYCODE_BUTTON_L2 || e.keyCode == KeyEvent.KEYCODE_BUTTON_R2) &&
+            menuView == null && !editing && editView == null && gridEdit == null) {
+            if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) mediaKey(e.keyCode)
+            return true
+        }
         // A: short press acts on release, holding it (½ s) opens the edit mode on that element
         val isA = e.keyCode == KeyEvent.KEYCODE_BUTTON_A || e.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || e.keyCode == KeyEvent.KEYCODE_ENTER
         if (isA && !editing && menuView == null && editView == null && gridEdit == null) {

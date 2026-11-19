@@ -8,6 +8,7 @@ Halte **Home** gedrückt, um das Control Center zu öffnen: ein Raster aus Kache
 - Das Steuerkreuz bewegt sich durch das Raster; ausgewählt ist erst etwas, wenn du eine Richtung drückst.
 - **A** schaltet einen Schalter oder bestätigt einen Regler, **□ / X** öffnet das Untermenü der Kachel, **△ / Y** das Bearbeiten-Menü, **R1/L1** wechselt die Seite, **○ / B** schließt.
 - **Select** macht einen Screenshot.
+- **Start** spielt/pausiert die Musik, **L2 / R2** springen zum vorherigen / nächsten Titel.
 
 ## Kacheln
 - **Schalter:** WLAN, Bluetooth, Stick-LEDs, 60/120 Hz, Nicht stören, Flugmodus, Drehung sperren, Bildschirm an und mehr.
