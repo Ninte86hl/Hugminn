@@ -99,11 +99,13 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
                 }, p)
             }
             Kind.LED -> {
-                c.drawCircle(m, m, s * 0.18f, p)
-                for (i in 0 until 8) {
+                // a stick seen from above with its light ring: two circles and short glow marks
+                c.drawCircle(m, m, s * 0.15f, p)
+                c.drawCircle(m, m, s * 0.31f, p)
+                for (i in 0 until 4) {
                     c.save()
-                    c.rotate(45f * i, m, m)
-                    c.drawLine(m, s * 0.08f, m, s * 0.2f, p)
+                    c.rotate(45f + 90f * i, m, m)
+                    c.drawLine(m, s * 0.02f, m, s * 0.1f, p)
                     c.restore()
                 }
             }
@@ -117,10 +119,11 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
                 moveTo(s * 0.12f, s * 0.55f); lineTo(m, s * 0.38f); lineTo(s * 0.88f, s * 0.55f)
                 moveTo(s * 0.34f, s * 0.9f); lineTo(m, s * 0.78f); lineTo(s * 0.66f, s * 0.9f)
             }, p)
-            Kind.MOON -> c.drawPath(Path().apply {
-                addArc(RectF(s * 0.14f, s * 0.14f, s * 0.86f, s * 0.86f), 70f, 250f)
-                arcTo(RectF(s * 0.34f, s * 0.08f, s * 0.92f, s * 0.66f), 200f, -170f)
-            }, p)
+            Kind.MOON -> {
+                // "do not disturb" like on Android: a circle with a bar
+                c.drawCircle(m, m, s * 0.36f, p)
+                c.drawLine(s * 0.3f, m, s * 0.7f, m, p)
+            }
             Kind.ROTATE -> {
                 c.drawArc(RectF(s * 0.16f, s * 0.16f, s * 0.84f, s * 0.84f), 300f, 280f, false, p)
                 c.drawPath(Path().apply { moveTo(s * 0.62f, s * 0.12f); lineTo(s * 0.82f, s * 0.2f); lineTo(s * 0.7f, s * 0.38f) }, p)

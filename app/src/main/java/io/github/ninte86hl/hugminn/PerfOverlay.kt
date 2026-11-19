@@ -105,6 +105,12 @@ class PerfOverlay(private val svc: HugminnService) {
             typeface = Look.font(svc, pixel, bold)
             // a soft shadow helps light text on a busy game picture; dark text needs none
             if (pal.dark) setShadowLayer(2f, 0f, 1f, 0xFF000000.toInt())
+            // a steady box: never wraps onto a second line, digits all equally wide, and a value
+            // only ever widens its slot (it doesn't jump back when the number gets shorter)
+            maxLines = 1
+            isSingleLine = true
+            fontFeatureSettings = "tnum"
+            addOnLayoutChangeListener { v, l, _, r, _, _, _, _, _ -> if (r - l > v.minimumWidth) (v as TextView).minWidth = r - l }
         }
         fun addItem(v: View) {
             box.addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {

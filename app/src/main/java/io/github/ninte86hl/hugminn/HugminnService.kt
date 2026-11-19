@@ -126,6 +126,8 @@ class HugminnService : AccessibilityService() {
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {
                 if (Capture.recording && prefs.recStopOnSleep) Capture.stopRecord(this@HugminnService)
+                // nothing of Hugminn left on the lock screen when the screen comes back on
+                runCatching { closeOverlays() }
             }
         }, android.content.IntentFilter(Intent.ACTION_SCREEN_OFF))
         // Low battery: the sticks pulse red
