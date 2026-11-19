@@ -536,7 +536,9 @@ class OwnSwitcher(private val svc: HugminnService) {
     private fun hint(key: Int, label: String) = LinearLayout(svc).apply {
         gravity = Gravity.CENTER_VERTICAL
         addView(Glyphs.chip(svc, svc.prefs, pal, key, 24))
-        addView(text(label, 13f, pal.onSurfaceVariant).apply { setPadding(svc.dp(7), 0, svc.dp(16), 0) })
+        // narrow 4:3 screens (Pocket Nova): smaller labels and gaps, so the app name keeps its room
+        val narrow = svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density < 720
+        addView(text(label, if (narrow) 11f else 13f, pal.onSurfaceVariant).apply { setPadding(svc.dp(if (narrow) 4 else 7), 0, svc.dp(if (narrow) 9 else 16), 0) })
     }
 
     private var titleView: TextView? = null
@@ -586,7 +588,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         b.addView(LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(svc.dp(12), 0, 0, 0)
-            addView(text(Apps.label(svc, a.pkg), 17f, pal.onSurface, bold = true))
+            addView(text(Apps.label(svc, a.pkg), 17f, pal.onSurface, bold = true).apply { maxLines = 1 })
             addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}"), 12f, pal.onSurfaceVariant))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln")))
