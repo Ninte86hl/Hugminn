@@ -136,6 +136,7 @@ class HugminnService : AccessibilityService() {
         // to sleep with the handheld), switch them on again, so the handheld can always be used
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {
+                WakeDiag.start(this@HugminnService)
                 ui.postDelayed({
                     Thread {
                         if (Root.available() && Device.builtinOff(this@HugminnService) && !Device.externalPad())
@@ -249,6 +250,14 @@ class HugminnService : AccessibilityService() {
     val keyLog = java.util.ArrayDeque<String>()
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (!WakeDiag.active) return onKeyEventInner(event)
+        val t0 = android.os.SystemClock.uptimeMillis()
+        val r = onKeyEventInner(event)
+        WakeDiag.key(event.keyCode, event.action == KeyEvent.ACTION_DOWN, event.eventTime, android.os.SystemClock.uptimeMillis() - t0)
+        return r
+    }
+
+    private fun onKeyEventInner(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
         synchronized(keyLog) {
             val dev = event.device
