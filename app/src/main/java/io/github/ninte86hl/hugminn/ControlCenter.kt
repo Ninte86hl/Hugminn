@@ -2651,6 +2651,7 @@ class ControlCenter(private val svc: HugminnService) {
         showMenu(tr("Bearbeiten"), listOf(
             MenuEntry(tr("Anordnen & Größe"), hint = tr("Elemente verschieben, vergrößern, entfernen")) { startEdit() },
             MenuEntry(tr("Element hinzufügen"), hint = tr("Schalter, Anzeigen und Regler")) { addMenu() },
+            MenuEntry(t("Raster", "Grid"), hint = gridHint()) { gridMenu() },
             MenuEntry(tr("Kachelfarbe"), hint = TILE_COLORS[svc.prefs.tileColor] ?: tr("Eigene")) { colorMenu() },
             MenuEntry(tr("Stil"), hint = svc.prefs.uiStyle.label) {
                 showMenu(tr("Stil"), UiStyle.values().map { st ->
@@ -2683,6 +2684,28 @@ class ControlCenter(private val svc: HugminnService) {
                 ))
             },
         ))
+    }
+
+    private fun gridHint() = t("${GridLayout.ROWS} Zeilen · ", "${GridLayout.ROWS} rows · ") +
+        if (svc.prefs.gridCols > 0) t("${svc.prefs.gridCols} Spalten", "${svc.prefs.gridCols} columns") else t("Spalten automatisch ($gridCols)", "columns automatic ($gridCols)")
+
+    /** Rows and columns of the grid, right here; the grid changes at once behind the menu. */
+    private fun gridMenu(select: Int = -1) {
+        val list = mutableListOf<MenuEntry>()
+        list += MenuEntry(t("Zeilen", "Rows"), header = true, run = null)
+        (3..6).forEach { r ->
+            val at = list.size
+            list += MenuEntry("$r", checked = svc.prefs.gridRows == r) { svc.prefs.gridRows = r; renderGrid(); gridMenu(at) }
+        }
+        list += MenuEntry(t("Spalten", "Columns"), header = true, run = null)
+        val autoAt = list.size
+        list += MenuEntry(t("Automatisch", "Automatic"), checked = svc.prefs.gridCols == 0,
+            hint = t("So viele quadratische Felder, wie passen", "As many square cells as fit")) { svc.prefs.gridCols = 0; renderGrid(); gridMenu(autoAt) }
+        (4..10).forEach { c ->
+            val at = list.size
+            list += MenuEntry("$c", checked = svc.prefs.gridCols == c) { svc.prefs.gridCols = c; renderGrid(); gridMenu(at) }
+        }
+        showMenu(t("Raster", "Grid"), list, select)
     }
 
     private fun overlayMenu(select: Int = -1) {

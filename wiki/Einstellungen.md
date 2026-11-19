@@ -36,7 +36,7 @@ Aktion für einfachen, doppelten und langen Druck sowie die Zeiten für Doppeldr
 | Kacheln | Welche Kacheln angezeigt werden. Anordnung und Reihenfolge änderst du im Control Center selbst ([Bearbeiten](Control-Center-bearbeiten)) |
 
 ## Profile pro App
-Jede App und jedes Spiel mit gemerktem Leistungs- oder Lüfterprofil (Spiele als „Titel · Emulator“), mit einem Knopf zum Entfernen. Siehe [Leistung und Lüfter](Leistung-und-Luefter).
+Alle gemerkten Leistungs- und Lüfterprofile, nach Emulator mit seinem System gruppiert (z. B. „DuckStation · PlayStation“): zuerst das Emulatorprofil für alle Spiele, dann jedes Spiel mit eigenem Profil. Dasselbe Spiel in zwei Emulatoren steht unter jedem davon. Jeder Eintrag lässt sich entfernen. Siehe [Leistung und Lüfter](Leistung-und-Luefter).
 
 ## Sichern
 Alle Einstellungen (Layout, Kacheln, Farben, Profile …) in eine Datei sichern und später wiederherstellen, etwa nach einer Neuinstallation oder auf einem zweiten Gerät.

@@ -8,6 +8,7 @@ Press **△ / Y** in the Control Center to open the edit menu.
 | --- | --- |
 | Arrange & size | Edit mode: move, resize and remove elements |
 | Add element | Add switches, displays and sliders; the three categories sit side by side, ◀ ▶ or L1/R1 switches between them. Elements can be added more than once |
+| Grid | Rows (3–6) and columns (automatic or 4–10); the grid changes at once |
 | Tile colour | Colour of active tiles; it becomes the accent colour of every style |
 | Style | Modern, Pixel, Dot matrix or Cocoon |
 | Performance overlay | Turn on the [overlay](Performance-Overlay), choose position, size and values |

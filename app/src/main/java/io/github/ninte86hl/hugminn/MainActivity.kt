@@ -407,16 +407,28 @@ class MainActivity : Activity() {
                 12f, pal.onSurfaceVariant,
             ).apply { setPadding(0, d(6), 0, d(6)) })
             if (profiles.isEmpty()) ap.addView(text(t("Noch keine gespeichert", "None saved yet"), 14f, pal.onSurface))
-            profiles.forEach { (pkg, p) ->
-                val parts = listOfNotNull(
-                    p.perf?.let { Device.perfProfiles[it] ?: it },
-                    p.fan?.let { t("Lüfter: ", "Fan: ") + (Device.fanProfiles[it] ?: it) },
-                ).joinToString(" · ")
-                val who = AppProfiles.titleOf(pkg)?.let { g -> "$g · ${Apps.label(this, AppProfiles.pkgOf(pkg))}" } ?: Apps.label(this, pkg)
-                row(ap, who, parts, { t("Entfernen", "Remove") }) {
-                    AppProfiles.set(svc, pkg, "perf", null)
-                    AppProfiles.set(svc, pkg, "fan", null)
-                    content.post { build() }
+            fun parts(p: AppProfiles.Profile) = listOfNotNull(
+                p.perf?.let { Device.perfProfiles[it] ?: it },
+                p.fan?.let { t("Lüfter: ", "Fan: ") + (Device.fanProfiles[it] ?: it) },
+            ).joinToString(" · ")
+            fun remove(key: String) {
+                AppProfiles.set(svc, key, "perf", null)
+                AppProfiles.set(svc, key, "fan", null)
+                content.post { build() }
+            }
+            // grouped by emulator, so the same game on two systems cannot be mixed up:
+            // "DuckStation · PlayStation" – "All games …" – "Crash Bandicoot 2 (only this game)"
+            profiles.keys.groupBy { AppProfiles.pkgOf(it) }.toSortedMap(compareBy { Apps.label(this, it).lowercase() }).forEach { (pkg, keys) ->
+                val name = Apps.label(this, pkg)
+                val kind = Apps.platform(pkg) ?: Apps.typeOf(pkg).takeIf { it != AppType.APP }?.label
+                ap.addView(text(listOfNotNull(name, kind).joinToString(" · "), 14f, pal.primary, bold = true).apply { setPadding(0, d(14), 0, d(2)) })
+                profiles[pkg]?.let { p ->
+                    row(ap, if (Apps.typeOf(pkg) == AppType.APP) t("Diese App", "This app") else t("Alle Spiele (Emulator-Profil)", "All games (emulator profile)"),
+                        parts(p), { t("Entfernen", "Remove") }) { remove(pkg) }
+                }
+                keys.filter { it != pkg }.sortedBy { AppProfiles.titleOf(it)?.lowercase() }.forEach { key ->
+                    val game = AppProfiles.titleOf(key) ?: return@forEach
+                    row(ap, game, t("Nur dieses Spiel in $name · ", "Only this game in $name · ") + parts(profiles.getValue(key)), { t("Entfernen", "Remove") }) { remove(key) }
                 }
             }
         }

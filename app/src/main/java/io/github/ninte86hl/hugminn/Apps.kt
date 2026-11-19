@@ -22,6 +22,21 @@ object Apps {
         return ai.category == android.content.pm.ApplicationInfo.CATEGORY_GAME || ai.flags and android.content.pm.ApplicationInfo.FLAG_IS_GAME != 0
     }
 
+    private val platforms = listOf(
+        "com.github.stenzek.duckstation" to "PlayStation", "xyz.aethersx2" to "PlayStation 2", "xyz.nethersx2" to "PlayStation 2",
+        "com.github.stenzek.aethersx2" to "PlayStation 2", "com.armsx2" to "PlayStation 2", "com.armsx3" to "PlayStation 3",
+        "net.rpcs3" to "PlayStation 3", "org.ppsspp" to "PSP", "org.vita3k" to "PS Vita", "ru.vita3k" to "PS Vita",
+        "org.dolphinemu" to "GameCube / Wii", "info.cemu" to "Wii U", "org.mupen64plusae" to "Nintendo 64",
+        "me.magnum.melonds" to "Nintendo DS", "com.dsemu.drastic" to "Nintendo DS", "org.citra" to "Nintendo 3DS",
+        "io.github.lime3ds" to "Nintendo 3DS", "org.azahar_emu" to "Nintendo 3DS", "io.github.borked3ds" to "Nintendo 3DS",
+        "io.github.mandarine3ds" to "Nintendo 3DS", "org.yuzu" to "Switch", "dev.eden" to "Switch", "dev.legacy.eden" to "Switch",
+        "org.sudachi" to "Switch", "skyline.emu" to "Switch", "io.recompiled.redream" to "Dreamcast", "com.flycast" to "Dreamcast",
+        "it.dbtecno.pizzaboy" to "Game Boy", "com.retroarch" to "RetroArch",
+    )
+
+    /** The system an emulator plays (e.g. DuckStation → PlayStation), or null if unknown. */
+    fun platform(pkg: String): String? = platforms.firstOrNull { pkg.startsWith(it.first) }?.second
+
     private val emulatorPackages = listOf(
         "org.dolphinemu", "org.ppsspp", "xyz.aethersx2", "xyz.nethersx2", "com.github.stenzek.duckstation",
         "me.magnum.melonds", "com.dsemu.drastic", "org.citra", "io.github.lime3ds", "org.azahar_emu",
