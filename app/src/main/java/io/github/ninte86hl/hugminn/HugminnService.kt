@@ -129,6 +129,8 @@ class HugminnService : AccessibilityService() {
         }
         Thread { runCatching { if (Root.available()) Media.enableListener(this) } }.start()
         Capture.resume(this)
+        // test builds: an error from the last run is sent once (only with a token set)
+        Thread { runCatching { Feedback.sendErrorLogIfPending(this) } }.start()
         // screen off during a video: stop and save it cleanly
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {

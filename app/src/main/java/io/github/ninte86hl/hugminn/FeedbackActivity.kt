@@ -92,6 +92,10 @@ class FeedbackActivity : Activity() {
         }
         box.addView(chips)
         box.addView(input, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        // what goes along (test builds only, to the private feedback repository)
+        box.addView(label("Wird mitgeschickt: Screenshot, Gerät und Android-Version, Hugminn-Einstellungen, Controller- und LED-Einstellungen, " +
+            "die letzten Tasten, zuletzt geöffnete Fenster mit ihren Texten (auch anderer Apps, z. B. WLAN-Namen) und Diagnosewerte. " +
+            "Ziel: das private Repository Hugminn-Feedback. Passwörter und Eingaben in Textfeldern werden nicht erfasst.", 12f, pal.onSurfaceVariant).apply { setPadding(0, dp(10), 0, 0) })
 
         val buttons = LinearLayout(this).apply {
             gravity = Gravity.END

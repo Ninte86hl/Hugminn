@@ -252,9 +252,9 @@ class SetupActivity : Activity() {
         b.addView(text(t("Hugminn einschalten", "Turn Hugminn on"), 26f, pal.onSurface, bold = true))
         b.addView(text(
             t("Hugminn arbeitet als Bedienungshilfe: nur so kann es die Home-Taste und den Controller abfangen und sich über Spiele legen. " +
-                "Hugminn liest nicht mit, was du tippst, und hat keine Internet-Berechtigung.",
+                "Hugminn liest nicht mit, was du tippst. Diese Test-Version darf ins Internet, aber nur für Fehlerberichte, die du selbst mit „Senden“ abschickst.",
                 "Hugminn works as an accessibility service: only that way it can catch the Home button and the controller and appear over games. " +
-                    "Hugminn does not read what you type and has no internet permission."),
+                    "Hugminn does not read what you type. This test version may use the internet, but only for bug reports that you send yourself with “Send”."),
             15f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(10), 0, d(14)) })
         b.addView(text(if (running) tr("✓ Hugminn ist aktiv") else tr("✕ Hugminn ist noch nicht aktiv"), 18f, pal.onSurface, bold = true))

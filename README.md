@@ -147,7 +147,8 @@ Open Hugminn's settings and tap **Fehler auf GitHub melden**. It opens a new [is
 
 ## Permissions
 
-Hugminn has no internet permission: it never sends anything anywhere. (Reporting a bug opens your browser with a prefilled GitHub issue; you decide whether to submit it.)
+The regular version of Hugminn has no internet permission: it never sends anything anywhere. (Reporting a bug opens your browser with a prefilled GitHub issue; you decide whether to submit it.)
+**Test versions** additionally have the internet permission for their feedback tool: only when you press Select and then *Send*, a report (screenshot, settings, diagnostics, recently opened windows) goes to the developer's private feedback repository. Nothing is sent otherwise.
 
 | Permission | What Hugminn uses it for |
 | --- | --- |
