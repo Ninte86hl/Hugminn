@@ -144,7 +144,10 @@ object AppProfiles {
         }.apply { isDaemon = true; name = "hugminn-gameprofile" }.start()
     }
 
-    private fun apply(svc: HugminnService, perf: String?, fan: String?, curve: Boolean) = Thread {
+    /** One after another, in the order they were asked for: quick app switches can't overtake each other. */
+    private val applier = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "hugminn-profile").apply { isDaemon = true } }
+
+    private fun apply(svc: HugminnService, perf: String?, fan: String?, curve: Boolean) = applier.execute {
         if (perf != null && perf != Device.sys(svc, "performance_mode")) Device.setPerf(perf) {}
         if (curve && FanCurve.available()) {
             if (!FanCurve.isRunning()) FanCurve.start(svc)
@@ -152,5 +155,5 @@ object AppProfiles {
             FanCurve.stop(restoreSmart = false)
             if (fan != Device.sys(svc, "fan_mode")) Device.setFan(fan) {}
         }
-    }.start()
+    }
 }

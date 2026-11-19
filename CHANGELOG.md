@@ -21,6 +21,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Waking up: if the built-in controls are off and no external controller is connected, they come back on.
 - Fix: after standby the Control Center could stay on screen and block the buttons. Nothing of Hugminn opens on the lock screen any more, the power key closes it first, and a window left behind removes itself.
 - Faster Home button: Hugminn no longer asks the app in front for its window (that could hold up the buttons for half a second, e.g. right after waking up).
+- Capture without root: Android now asks for the microphone permission, so videos have sound (before, they stayed silent without a hint).
+- Per-game profiles are applied strictly one after another, so quick app switches can't overtake each other.
 - Aufnahme-Menü: größeres Fenster mit zwei Reitern (Aufnehmen · Einstellungen); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, nur L1/R1 wechseln die Reiter.
 - Aufnahme: Videos können nach 5, 10, 15 oder 30 Sekunden oder 1, 3, 5 oder 10 Minuten von selbst enden (Einstellungen → Maximale Länge).
 - Spielwechsler: Y → Tastenkürzel zeigt die Tastenkürzel des Emulators mit Tastensymbolen (gängige Belegung mit Select als Hotkey wie bei EmuDeck/ROCKNIX; pro Emulator anpassbar unter Einstellungen → Tastenkürzel).
@@ -37,6 +39,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Aufwachen: Ist die eingebaute Steuerung aus und kein externer Controller verbunden, geht sie wieder an.
 - Fix: Nach dem Standby konnte das Control Center stehen bleiben und die Tasten blockieren. Auf dem Sperrbildschirm öffnet sich nichts mehr von Hugminn, die Power-Taste schließt es vorher, und ein zurückgebliebenes Fenster entfernt sich selbst.
 - Schnellere Home-Taste: Hugminn fragt die App im Vordergrund nicht mehr nach ihrem Fenster (das konnte die Tasten z. B. direkt nach dem Aufwachen eine halbe Sekunde aufhalten).
+- Aufnahme ohne Root: Android fragt jetzt nach der Mikrofon-Erlaubnis, damit Videos Ton haben (vorher blieben sie ohne Hinweis stumm).
+- Profile pro Spiel werden streng nacheinander angewendet, damit sich schnelle App-Wechsel nicht überholen.
 - Neuer Gerätetest (Einstellungen → Hilfe & Info): prüft Berechtigungen, Retroid-Funktionen, Messwerte, Aufnahme und Controller, danach Tasten und LEDs von Hand, und zeigt eine Zusammenfassung, die sich als GitHub-Issue senden lässt.
 - Aufnahme: Nach einem Video gehen die Stick-LEDs zurück auf ihre Farben bzw. ihren Effekt.
 
