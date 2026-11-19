@@ -14,6 +14,14 @@ enum class AppType(private val labelDe: String) { APP("App"), RETROARCH("RetroAr
 
 /** Resolves labels from the recents view to packages and tells apps, RetroArch and emulators apart. */
 object Apps {
+    /** Emulators, RetroArch and Android games (category or flag "game"): apps a profile makes sense for. */
+    fun isGameLike(ctx: android.content.Context, pkg: String): Boolean {
+        if (typeOf(pkg) != AppType.APP) return true
+        val ai = runCatching { ctx.packageManager.getApplicationInfo(pkg, 0) }.getOrNull() ?: return false
+        @Suppress("DEPRECATION")
+        return ai.category == android.content.pm.ApplicationInfo.CATEGORY_GAME || ai.flags and android.content.pm.ApplicationInfo.FLAG_IS_GAME != 0
+    }
+
     private val emulatorPackages = listOf(
         "org.dolphinemu", "org.ppsspp", "xyz.aethersx2", "xyz.nethersx2", "com.github.stenzek.duckstation",
         "me.magnum.melonds", "com.dsemu.drastic", "org.citra", "io.github.lime3ds", "org.azahar_emu",

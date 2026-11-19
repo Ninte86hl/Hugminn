@@ -305,6 +305,7 @@ class ControlCenter(private val svc: HugminnService) {
         graphUpdates.removeAll { it is GridUpdate }
         refreshers.clear()
         sliderItems.clear()
+        switchTitles.clear()
         volumeSliders.clear()
         cardItems.clear()
         items.clear()
@@ -567,6 +568,16 @@ class ControlCenter(private val svc: HugminnService) {
      * Shrinks a one-line text (down to [minSp]) until it fits its width, so names on narrow screens
      * (Pocket Nova) are not cut off; only what still does not fit gets "…".
      */
+    /** Titles of the 2×1 switches: they share one size, the smallest any of them needs. */
+    private val switchTitles = mutableListOf<TextView>()
+
+    private fun evenSwitchTitles() = svc.ui.post {
+        val live = switchTitles.filter { it.isAttachedToWindow }
+        if (live.size < 2) return@post
+        val px = live.minOf { it.textSize }
+        live.forEach { if (Math.abs(it.textSize - px) > 0.5f) it.setTextSize(TypedValue.COMPLEX_UNIT_PX, px) }
+    }
+
     private fun fitWidth(tv: TextView, maxSp: Float, minSp: Float) {
         tv.addOnLayoutChangeListener { v, l, _, r, _, ol, _, or2, _ ->
             if (r - l == or2 - ol && tv.tag == "fit:${tv.text}") return@addOnLayoutChangeListener
@@ -585,6 +596,7 @@ class ControlCenter(private val svc: HugminnService) {
                 val cur = tv.textSize / tv.resources.displayMetrics.scaledDensity
                 if (l != null && l.lineCount > 0 && l.getEllipsisCount(0) > 0 && cur > minSp + 0.1f)
                     tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, maxOf(minSp, cur - 1f))
+                else if (tv in switchTitles) evenSwitchTitles()
             }
         }
     }
@@ -1053,7 +1065,7 @@ class ControlCenter(private val svc: HugminnService) {
                 setPadding((if (narrow) 10 else 16) * d, 0, (if (narrow) 8 else 12) * d, 0)
                 addView(icon)
                 val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-                title = text(t.title, 15f, pal.onSurface, bold = true).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END; fitWidth(this, 15f, 8f) }
+                title = text(t.title, 15f, pal.onSurface, bold = true).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END; fitWidth(this, 15f, 8f); switchTitles += this }
                 state = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
                 col.addView(title, lp(MATCH, WRAP))
                 col.addView(state, lp(MATCH, WRAP))
@@ -1098,6 +1110,7 @@ class ControlCenter(private val svc: HugminnService) {
             ellipsize = TextUtils.TruncateAt.END
             if (small) gravity = Gravity.CENTER
             fitWidth(this, if (small) 12f else 15f, 8f)
+            if (!small) switchTitles += this
         }
         val state = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
         val bs = if (small) 54 * d else 46 * d
@@ -1734,7 +1747,8 @@ class ControlCenter(private val svc: HugminnService) {
         // per app: remember the current profile for the app under the Control Center (e.g. an emulator)
         val app = svc.foregroundPkg
         val kind = if (key == "fan_mode") "fan" else "perf"
-        if (app != null && Root.available() && (key == "fan_mode" || key == "performance_mode")) {
+        // only for games and emulators (not for e.g. a file manager or Obtainium that happens to be open)
+        if (app != null && !svc.homeInFront && Apps.isGameLike(svc, app) && Root.available() && (key == "fan_mode" || key == "performance_mode")) {
             val name = Apps.label(svc, app)
             val saved = AppProfiles.of(svc, app)?.let { if (kind == "fan") it.fan else it.perf }
             val now = if (kind == "fan" && svc.prefs.fanCustom) "6" else cur
