@@ -20,6 +20,8 @@ class HugminnService : AccessibilityService() {
         @Volatile var instance: HugminnService? = null
         /** Set by the device test while it waits for buttons (Home included). */
         @Volatile var keyProbe: ((Int) -> Unit)? = null
+        /** Sees every key (without taking it): the setup's button test works whichever window has the focus. */
+        @Volatile var keyWatch: ((Int) -> Unit)? = null
         /** The setup wizard waits for the switcher / Control Center to be opened ("switcher", "cc"). */
         @Volatile var overlayOpened: ((String) -> Unit)? = null
     }
@@ -276,6 +278,7 @@ class HugminnService : AccessibilityService() {
             keyLog.addLast("${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.ROOT).format(java.util.Date())} ${KeyEvent.keyCodeToString(event.keyCode)} ${if (event.action == KeyEvent.ACTION_DOWN) "down" else "up"}${if (event.repeatCount > 0) " r${event.repeatCount}" else ""} · ${dev?.name} (extern=${dev?.isExternal}, quelle=0x${Integer.toHexString(event.source)})")
             while (keyLog.size > 40) keyLog.removeFirst()
         }
+        keyWatch?.let { w -> if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) { val c = event.keyCode; ui.post { w(c) } } }
         // the device test asks for the Home button: it goes there instead of opening anything
         keyProbe?.let { probe ->
             if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME) {

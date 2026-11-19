@@ -42,6 +42,7 @@ class SetupActivity : Activity() {
     override fun onDestroy() {
         stopTrying()
         HugminnService.keyProbe = null
+        HugminnService.keyWatch = null
         super.onDestroy()
     }
 
@@ -193,7 +194,7 @@ class SetupActivity : Activity() {
         options = opts
         // leaving the "try it" / button test pages ends their listening
         if (step != 3) stopTrying()
-        if (step != 4) { keyTest = null; HugminnService.keyProbe = null }
+        if (step != 4) { keyTest = null; HugminnService.keyProbe = null; HugminnService.keyWatch = null }
         when (step) {
             0 -> welcome(body)
             1 -> activate(body)
@@ -631,6 +632,7 @@ class SetupActivity : Activity() {
         keysDone = true
         keyTest = null
         HugminnService.keyProbe = null
+        HugminnService.keyWatch = null
         missingKeys = testKeys.filterKeys { it !in pressedKeys }.values.toList()
     }
 
@@ -668,6 +670,9 @@ class SetupActivity : Activity() {
         keyTest = mark
         // Home belongs to Hugminn itself: it tells the wizard instead of opening anything
         HugminnService.keyProbe = { code -> runOnUiThread { mark(code) } }
+        // the keys also come through the service: right after the switcher / Control Center closed, this
+        // window may not have the focus yet, and the first presses would otherwise be lost
+        HugminnService.keyWatch = { code -> if (step == 4 && keyTest != null) mark(code) }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
