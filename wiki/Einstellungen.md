@@ -28,7 +28,7 @@ Aktion für einfachen, doppelten und langen Druck sowie die Zeiten für Doppeldr
 ## Control Center
 | Option | |
 | --- | --- |
-| Zeilen / Spalten | Größe des Rasters; Spalten *Automatisch* nimmt so viele quadratische Felder, wie passen |
+| Zeilen / Spalten | Größe des Rasters (voreingestellt 4 Zeilen, auf 4:3-Bildschirmen wie dem Pocket Nova 5); Spalten *Automatisch* nimmt so viele quadratische Felder, wie passen |
 | Spiel pausieren | Das Spiel hält an, solange das Control Center offen ist |
 | Statusleiste | Wie oben, für das Control Center |
 | LED-App | Wer die Farben der Stick-LEDs einstellt: Hugminn oder eine installierte LED-App |

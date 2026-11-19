@@ -28,7 +28,7 @@ Action for a single, double and long press, and the times for double and long pr
 ## Control Center
 | Option | |
 | --- | --- |
-| Rows / Columns | Size of the grid; columns *Automatic* fits as many square cells as possible |
+| Rows / Columns | Size of the grid (4 rows by default, 5 on 4:3 screens such as the Pocket Nova); columns *Automatic* fits as many square cells as possible |
 | Pause the game | The game pauses while the Control Center is open |
 | Status bar | As above, for the Control Center |
 | LED app | Who sets the stick LED colours: Hugminn or an installed LED app |
