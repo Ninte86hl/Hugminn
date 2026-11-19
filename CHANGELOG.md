@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.32
+- New app icon: the two ravens in red (Huginn, Control Center) and blue (Muninn, game switcher) on a graphite handheld.
+- Neues App-Symbol: die beiden Raben in Rot (Huginn, Control Center) und Blau (Muninn, Spielwechsler) auf einem Handheld in Graphit.
+
 ## 1.10.31
 - Own colours: the Control Center (Huginn) is red, the game switcher (Muninn) blue – in their shortcut icons and in their headers.
 - Eigene Farben: Control Center (Huginn) rot, Spielwechsler (Muninn) blau – in den Verknüpfungs-Symbolen und in den Überschriften.
