@@ -248,7 +248,7 @@ class ControlCenter(private val svc: HugminnService) {
 
         // Header with a permanent button for Android's own settings
         val header = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(text("Huginn", 20f, pal.primary, bold = true))
+        header.addView(text("Huginn", 20f, 0xFFE0303C.toInt(), bold = true)) // red, like its shortcut icon
         header.addView(text("  ·  Control Center", 15f, pal.onSurfaceVariant), lp(0, WRAP, 1f))
         val battery = text("", 14f, pal.onSurfaceVariant).apply { setPadding(0, 0, 14 * d, 0) }
         // With Hugminn's own status bar, clock and battery live up there instead.

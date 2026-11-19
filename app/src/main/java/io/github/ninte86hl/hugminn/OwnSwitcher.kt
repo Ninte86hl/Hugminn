@@ -471,7 +471,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(svc.dp(28), svc.dp(14), svc.dp(28), 0)
         }
-        head.addView(text("Muninn", 20f, pal.primary, bold = true))
+        head.addView(text("Muninn", 20f, 0xFF2F7DF0.toInt(), bold = true)) // blue, like its shortcut icon
         head.addView(text("  ·  Game Switcher", 15f, pal.onSurfaceVariant), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         if (mode != StatusBar.OVERLAY) {
             val bm = svc.getSystemService(android.os.BatteryManager::class.java)

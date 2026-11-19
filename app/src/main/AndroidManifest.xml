@@ -50,7 +50,7 @@
             android:name=".CcApp"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher"
+            android:icon="@mipmap/ic_shortcut_cc"
             android:label="@string/app_cc"
             android:targetActivity=".ShortcutActivity">
             <intent-filter>
@@ -62,7 +62,7 @@
             android:name=".SwitcherApp"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher"
+            android:icon="@mipmap/ic_shortcut_switcher"
             android:label="@string/app_switcher"
             android:targetActivity=".ShortcutActivity">
             <intent-filter>
@@ -75,7 +75,7 @@
         <activity-alias
             android:name=".CcShortcut"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher"
+            android:icon="@mipmap/ic_shortcut_cc"
             android:label="@string/app_cc"
             android:targetActivity=".ShortcutActivity">
             <intent-filter>
@@ -86,7 +86,7 @@
         <activity-alias
             android:name=".SwitcherShortcut"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher"
+            android:icon="@mipmap/ic_shortcut_switcher"
             android:label="@string/app_switcher"
             android:targetActivity=".ShortcutActivity">
             <intent-filter>
