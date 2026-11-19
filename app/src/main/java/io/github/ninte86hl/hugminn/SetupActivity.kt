@@ -542,7 +542,8 @@ class SetupActivity : Activity() {
                 buttons += card
                 row.addView(card, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { if (row.childCount > 0) marginStart = d(10) })
             }
-            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f).apply { marginStart = d(10) })
+            // an odd last card: the empty half must not set the row's height (it squashed the card to nothing)
+            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { marginStart = d(10) })
             grid.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = d(8) })
         }
         b.addView(android.widget.ScrollView(this).apply { addView(grid); isVerticalScrollBarEnabled = false },
