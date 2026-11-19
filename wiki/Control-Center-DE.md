@@ -8,6 +8,7 @@ Halte **Home** gedrückt, um das Control Center zu öffnen: ein Raster aus Kache
 - Das Steuerkreuz bewegt sich durch das Raster; ausgewählt ist erst etwas, wenn du eine Richtung drückst.
 - **A** schaltet einen Schalter oder bestätigt einen Regler, **□ / X** öffnet das Untermenü der Kachel, **△ / Y** das Bearbeiten-Menü, **R1/L1** wechselt die Seite, **○ / B** schließt.
 - **Select** macht einen Screenshot.
+- Die **Lautstärketasten** des Geräts funktionieren wie gewohnt; ein Lautstärke-Regler auf dem Bildschirm bewegt sich mit.
 - **Start** spielt/pausiert die Musik, **L2 / R2** springen zum vorherigen / nächsten Titel.
 
 ## Kacheln
@@ -16,6 +17,9 @@ Halte **Home** gedrückt, um das Control Center zu öffnen: ein Raster aus Kache
 - **Karten:** Leistungs- und Lüfterprofil, CPU, GPU, RAM, Temperaturen, Akku und FPS. Die Anzeigen färben sich nach Auslastung.
 - **Akku:** zeigt die Restzeit, beim Laden die Zeit bis voll.
 - **Musik:** was gerade läuft, Play/Pause, nächster und vorheriger Titel für jede Musik-App. Als große Kachel (2×2, 4×2, 2×4 oder 4×4) mit Cover, Interpret, Fortschritt und Tasten.
+  - Funktioniert mit jedem Player: über seine Mediensitzung oder, bei Playern die sonst nichts melden (z. B. Androids eigene Musik-App), über seine Benachrichtigung.
+  - Titel werden aufgeräumt: Zusätze wie „(Official Video)“ fallen weg, „Interpret - Titel“ wird getrennt, Dateinamen verlieren Nummer und Endung („02 Lied.mp3“ → „Lied“).
+  - Ein zu langer Titel läuft von rechts nach links durch.
 - **Bildschirm aus:** schickt den Handheld in den Ruhemodus wie die Power-Taste; das Spiel pausiert, bis du ihn aufweckst.
 - **Geräte-Akku:** Akkustand verbundener Bluetooth-Controller und -Kopfhörer, sofern sie ihn melden.
 - **Android-Einstellungen:** öffnet Androids Einstellungen.
@@ -32,6 +36,8 @@ Mehrere Elemente lassen sich im [Bearbeitungsmodus](Control-Center-bearbeiten) v
 | Leistung / Lüfter | 2×2 | Aktuelles Profil mit Details, alle Profile zum Antippen |
 | Akku | 2×2 | Ring mit Ladung, Restzeit, Leistungsaufnahme und Temperatur |
 | FPS | 2×2, 4×2, 4×4 | Bildrate mit Frametime-Graph |
+
+Jedes Element darf mehrfach vorkommen (z. B. eine kleine und eine große Musik-Kachel). Elemente sitzen genau dort, wo du sie im Bearbeitungsmodus hingelegt hast.
 
 Auf großen Kacheln macht A dasselbe wie auf der kleinen (schalten, Play/Pause, Menü öffnen), □ / X öffnet das Untermenü.
 

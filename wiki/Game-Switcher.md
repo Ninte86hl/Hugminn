@@ -4,6 +4,8 @@
 
 Muninn shows your recently used games and apps as large cards, the selected one in the middle with its preview picture. Open it by pressing **Home twice**.
 
+At the top, like in the Control Center, the header shows **Muninn · Game Switcher** with clock and battery.
+
 ## What it shows
 - **Preview pictures** taken by Hugminn itself when you press Home and every few seconds while you play, so the cards show where you left off.
 - **The game title** above the card when an emulator is running, e.g. "Crash Bandicoot 2" above DuckStation. Hugminn finds it from the open game file, the emulator's log, RetroArch's history or the launcher that started it (see [How it works](How-It-Works#game-titles)).

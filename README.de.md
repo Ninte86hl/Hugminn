@@ -62,10 +62,11 @@ Jede Funktion hat eine eigene Seite im **[Wiki](https://github.com/Ninte86hl/Hug
 
 | | |
 | --- | --- |
-| **[Game Switcher](https://github.com/Ninte86hl/Hugminn/wiki/Game-Switcher-DE)** | Home zweimal: deine letzten Spiele als große Karten mit Vorschaubild und dem Titel des laufenden Spiels, z. B. „Crash Bandicoot 2“ über DuckStation. Blättern mit dem Steuerkreuz, Apps mit einer Taste schließen. |
+| **[Game Switcher](https://github.com/Ninte86hl/Hugminn/wiki/Game-Switcher-DE)** | Home zweimal: deine letzten Spiele als große Karten mit Vorschaubild und dem Titel des laufenden Spiels, z. B. „Crash Bandicoot 2“ über DuckStation. Blättern mit dem Steuerkreuz, Apps mit einer Taste schließen; das Spiel kann solange pausieren. |
 | **[Control Center](https://github.com/Ninte86hl/Hugminn/wiki/Control-Center-DE)** | Home lang: WLAN, Bluetooth, Helligkeit, Lautstärke, Musik, Akku-Restzeit, Controller-Akku, Bildschirm aus und Live-Werte für CPU, GPU, RAM und Temperatur in einem Raster aus Kacheln – viele auch als große Kacheln, dazu eine System-Übersicht. |
 | **[Bearbeiten](https://github.com/Ninte86hl/Hugminn/wiki/Control-Center-bearbeiten)** | Kacheln auf mehreren Seiten anordnen, vergrößern und hinzufügen; Kachelfarbe wählen. |
 | **[Leistung und Lüfter](https://github.com/Ninte86hl/Hugminn/wiki/Leistung-und-Luefter)** | Leistungs- und Lüfterprofile, eigene Lüfterkurve und Profile, die sich Hugminn pro Emulator oder pro Spiel merkt. |
+| **[Musik](https://github.com/Ninte86hl/Hugminn/wiki/Control-Center-DE)** | Musik-Kachel bis 4×4 mit Cover, Fortschritt und Tasten für jeden Player; Start spielt/pausiert, L2/R2 springen zwischen Titeln, solange das Control Center offen ist. |
 | **[Stick-LEDs](https://github.com/Ninte86hl/Hugminn/wiki/Stick-LEDs-DE)** | Farbrad, Schnellfarben und Effekte; oder die Sticks zeigen Akku oder Temperatur als Farbe. |
 | **[Leistungs-Overlay](https://github.com/Ninte86hl/Hugminn/wiki/Leistungs-Overlay)** | FPS, Frametime, CPU, GPU, Temperatur und mehr über dem Spiel, im gewählten Stil. |
 | **[Home-Taste](https://github.com/Ninte86hl/Hugminn/wiki/Home-Taste)** | Drücken, zweimal drücken und halten, jeweils mit eigener Aktion. |

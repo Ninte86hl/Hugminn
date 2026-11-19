@@ -9,6 +9,8 @@ Hugminn hat vier Stile. Jeder gibt es hell und dunkel (dazu OLED-Schwarz), und d
 | **Punktmatrix** | Schwarz-weiß aus Punkten mit einer Akzentfarbe, wie ein Punktmatrix-Display. Dunkel ist hier immer echtes Schwarz |
 | **Cocoon** | Hell und verspielt mit bunten Symbolen, passend zum Cocoon-Launcher |
 
+Jeder Stil prägt auch die Details: **Pixel** mit Treppenrahmen, Blockbalken, Stufen-Graphen und Musik-Tasten aus Blöcken; **Punktmatrix** zeichnet ausgeschaltete Kacheln, Cover, Balken, Graphen und Musik-Tasten aus Punkten und nutzt den Akzent nur, wo etwas an ist; **Cocoon** setzt bunte Abzeichen auf große Karten und weiche runde Knöpfe. Graphen nehmen die gewählten Farben der Anzeigen (Ampel, kalt → warm, Akzent oder einfarbig).
+
 Umstellen in den [Einstellungen](Einstellungen) → *Darstellung* oder im Bearbeiten-Menü des Control Centers.
 
 ## Modern

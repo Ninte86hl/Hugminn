@@ -8,6 +8,7 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - The D-pad moves through the grid; nothing is selected until you press a direction.
 - **A** toggles a switch or confirms a slider, **□ / X** opens the tile's submenu, **△ / Y** opens the edit menu, **R1/L1** changes the page, **○ / B** closes.
 - **Select** takes a screenshot.
+- The device's **volume keys** work as usual; a volume slider on screen moves along.
 - **Start** plays/pauses the music, **L2 / R2** skip to the previous / next track.
 
 ## Tiles
@@ -16,6 +17,9 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - **Cards:** performance and fan profile, CPU, GPU, RAM, temperatures, battery and FPS. Gauges are coloured by load.
 - **Battery:** shows the time left, or the time until full while charging.
 - **Music:** what is playing, play/pause, next and previous track for any music app. As a large tile (2×2, 4×2, 2×4 or 4×4) with cover, artist, progress and buttons.
+  - Works with every player: from its media session, or from its notification for players that publish nothing else (e.g. Android's own music app).
+  - Titles are tidied: video tags like "(Official Video)" go, "Artist - Song" is split, file names lose number and extension ("02 Song.mp3" → "Song").
+  - A song too long for its line runs from right to left.
 - **Screen off:** puts the handheld to sleep like the power button; the game pauses until you wake it.
 - **Device battery:** battery level of connected Bluetooth controllers and headphones that report one.
 - **Settings:** opens Android's settings.
@@ -32,6 +36,8 @@ Several elements can be made bigger in [edit mode](Editing-the-Control-Center) (
 | Performance / Fan | 2×2 | Current profile with details, every profile to tap |
 | Battery | 2×2 | Ring with charge, time left, power draw and temperature |
 | FPS | 2×2, 4×2, 4×4 | Frame rate with frame time graph |
+
+Every element may be added more than once (e.g. a small and a large music tile). Elements stay exactly where you put them in edit mode.
 
 On large tiles, A does the same as on the small one (switch, play/pause, open the menu) and □ / X opens the submenu.
 
