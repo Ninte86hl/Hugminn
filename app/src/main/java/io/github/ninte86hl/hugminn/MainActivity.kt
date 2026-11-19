@@ -83,7 +83,7 @@ class MainActivity : Activity() {
     /** Which page a section belongs to (by its title). */
     private fun pageOf(title: String): String = when (title) {
         "Status" -> "status"
-        tr("Home-Taste") -> "home"
+        tr("Home-Taste"), t("Verknüpfungen", "Shortcuts") -> "home"
         tr("Darstellung"), tr("Tastensymbole") -> "look"
         "Game Switcher" -> "switcher"
         "Control Center" -> "cc"
@@ -300,6 +300,19 @@ class MainActivity : Activity() {
             t("Die Home-/Guide-Taste eines Bluetooth- oder USB-Controllers (z. B. 8BitDo) wirkt wie die Home-Taste des Geräts",
                 "The Home/Guide button of a Bluetooth or USB controller (e.g. 8BitDo) works like the handheld's Home button"),
             { if (prefs.padHome) tr("An") else tr("Aus") }) { prefs.padHome = !prefs.padHome }
+
+        // starting the overlays without a button: home screen shortcuts and extra app icons for frontends
+        val sc = section(t("Verknüpfungen", "Shortcuts"))
+        for (sw in listOf(false, true)) row(sc,
+            if (sw) t("Spielwechsler auf den Startbildschirm", "Game switcher on the home screen") else t("Control Center auf den Startbildschirm", "Control Center on the home screen"),
+            t("Öffnet es per Tippen, ohne Taste", "Opens it with a tap, no button needed"), { t("Hinzufügen", "Add") }) {
+            if (!OpenFromOutside.pin(this, sw)) android.widget.Toast.makeText(this,
+                t("Dein Launcher unterstützt das nicht – nutze „Als eigene Apps anzeigen“", "Your launcher doesn't support this – use “Show as separate apps”"), android.widget.Toast.LENGTH_LONG).show()
+        }
+        row(sc, t("Als eigene Apps anzeigen", "Show as separate apps"),
+            t("„Hugminn Control Center“ und „Hugminn Spielwechsler“ erscheinen in der App-Liste, z. B. für Cocoon oder ES-DE",
+                "“Hugminn Control Center” and “Hugminn Game switcher” appear in the app list, e.g. for Cocoon or ES-DE"),
+            { if (OpenFromOutside.appIcons(this)) tr("An") else tr("Aus") }) { OpenFromOutside.setAppIcons(this, !OpenFromOutside.appIcons(this)) }
 
         val look = section(tr("Darstellung"))
         row(look, t("Sprache", "Language"), null, { prefs.language.label }) {

@@ -3,4 +3,6 @@
     <string name="sc_cc">Control Center</string>
     <string name="sc_switcher">Game switcher</string>
     <string name="tile_cc">Control Center</string>
+    <string name="app_cc">Hugminn Control Center</string>
+    <string name="app_switcher">Hugminn Game switcher</string>
 </resources>

@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.27
+- Settings → Shortcuts: put the Control Center or the game switcher on the home screen, or show both as separate apps ("Hugminn Control Center", "Hugminn Game switcher") for frontends like Cocoon or ES-DE.
+- Einstellungen → Verknüpfungen: Control Center oder Spielwechsler auf den Startbildschirm legen, oder beide als eigene Apps anzeigen („Hugminn Control Center“, „Hugminn Spielwechsler“) für Frontends wie Cocoon oder ES-DE.
+
 ## 1.10.26
 - "Built-in controls off" no longer switches itself back on after two seconds (Hugminn took the disappearing built-in controller for a disconnected one).
 - „Eingebaute Steuerung aus“ schaltet sich nicht mehr nach zwei Sekunden selbst wieder ein (Hugminn hielt den verschwindenden eingebauten Controller für einen getrennten).
