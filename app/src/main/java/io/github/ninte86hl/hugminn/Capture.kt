@@ -171,7 +171,7 @@ object Capture {
         Thread {
             // with root, Android stops asking "Start recording?" every time; the microphone and the
             // notification are allowed too
-            if (Root.available()) {
+            if (Root.available() && (Device.autoGrant(svc) || svc.prefs.recNoAsk)) {
                 Root.exec("appops set ${svc.packageName} PROJECT_MEDIA allow")
                 Root.exec("pm grant ${svc.packageName} android.permission.RECORD_AUDIO")
                 if (android.os.Build.VERSION.SDK_INT >= 33) Root.exec("pm grant ${svc.packageName} android.permission.POST_NOTIFICATIONS")

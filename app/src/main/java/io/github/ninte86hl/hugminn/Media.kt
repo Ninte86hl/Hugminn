@@ -165,7 +165,7 @@ object Media {
         if (ctx != null && fromSessions(ctx)) return
         if (!Root.available()) return
         // not allowed yet (e.g. right after an update): switch the listener on and try again
-        if (ctx != null) {
+        if (ctx != null && Device.autoGrant(ctx)) {
             runCatching { enableListener(ctx) }
             Thread.sleep(300)
             if (fromSessions(ctx)) return

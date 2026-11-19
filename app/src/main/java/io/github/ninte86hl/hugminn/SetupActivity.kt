@@ -24,7 +24,7 @@ class SetupActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var pal: Palette
     private var step = 0
-    private val steps = 7
+    private val steps = 10
     private val buttons = mutableListOf<View>()
 
     private fun d(v: Int) = dp(v)
@@ -35,6 +35,19 @@ class SetupActivity : Activity() {
         prefs = Prefs(this)
         Lang.init(this)
         step = savedInstanceState?.getInt("step") ?: 0
+        // a new install: permissions only as the person allows them here
+        if (!prefs.setupDone) prefs.askPermissions = true
+    }
+
+    override fun onDestroy() {
+        stopTrying()
+        HugminnService.keyProbe = null
+        super.onDestroy()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        build()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -178,13 +191,19 @@ class SetupActivity : Activity() {
         val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, d(12), 0, d(8)) }
         val opts = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         options = opts
+        // leaving the "try it" / button test pages ends their listening
+        if (step != 3) stopTrying()
+        if (step != 4) { keyTest = null; HugminnService.keyProbe = null }
         when (step) {
             0 -> welcome(body)
             1 -> activate(body)
-            2 -> switcherPage(body)
-            3 -> ccPage(body)
-            4 -> lookPage(body)
-            5 -> buttonsPage(body)
+            2 -> permissionsPage(body)
+            3 -> tryPage(body)
+            4 -> keyTestPage(body)
+            5 -> switcherPage(body)
+            6 -> ccPage(body)
+            7 -> lookPage(body)
+            8 -> buttonsPage(body)
             else -> donePage(body)
         }
         // nothing scrolls (awkward with a controller): the page fits, the buttons stay at the bottom
@@ -195,10 +214,20 @@ class SetupActivity : Activity() {
         val nav = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, d(8), 0, 0) }
         if (step > 0) nav.addView(button("‹  " + t("Zurück", "Back")) { step--; build() }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, d(46)))
         nav.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        if (step < steps - 1) nav.addView(button(t("Überspringen", "Skip")) { finishSetup() }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, d(46)).apply { marginEnd = d(12) })
+        // trying out the switcher / Control Center and the button test have to be done (a way out
+        // appears after 30 seconds, in case a button doesn't work – that is a result too)
+        val gated = (step == 3 && !tryDone()) || (step == 4 && !keysDone)
+        if (step < steps - 1 && !gated && step != 3 && step != 4) nav.addView(button(t("Überspringen", "Skip")) { finishSetup() }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, d(46)).apply { marginEnd = d(12) })
+        if (gated && System.currentTimeMillis() - gateSince > 30_000) nav.addView(button(t("Klappt nicht – weiter", "Doesn't work – continue")) {
+            if (step == 3) { if (!sawSwitcher) failedSwitcher = true; if (!sawCc) failedCc = true }
+            if (step == 4) finishKeys()
+            step++; build()
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, d(46)).apply { marginEnd = d(12) })
         val next = button(if (step < steps - 1) t("Weiter  ›", "Next  ›") else t("Los geht's", "Let's go"), primary = true) {
+            if (gated) return@button
             if (step < steps - 1) { step++; build() } else finishSetup()
         }
+        if (gated) next.alpha = 0.35f
         nav.addView(next, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, d(46)))
         root.addView(nav)
 
@@ -252,9 +281,9 @@ class SetupActivity : Activity() {
         b.addView(text(t("Hugminn einschalten", "Turn Hugminn on"), 26f, pal.onSurface, bold = true))
         b.addView(text(
             t("Hugminn arbeitet als Bedienungshilfe: nur so kann es die Home-Taste und den Controller abfangen und sich über Spiele legen. " +
-                "Hugminn liest nicht mit, was du tippst, und hat keine Internet-Berechtigung.",
+                "Hugminn liest nicht mit, was du tippst, und hat keine Internet-Berechtigung. Alles Weitere fragt dich Hugminn gleich einzeln.",
                 "Hugminn works as an accessibility service: only that way it can catch the Home button and the controller and appear over games. " +
-                    "Hugminn does not read what you type and has no internet permission."),
+                    "Hugminn does not read what you type and has no internet permission. Everything else Hugminn asks you one by one next."),
             15f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(10), 0, d(14)) })
         b.addView(text(if (running) tr("✓ Hugminn ist aktiv") else tr("✕ Hugminn ist noch nicht aktiv"), 18f, pal.onSurface, bold = true))
@@ -415,16 +444,272 @@ class SetupActivity : Activity() {
         }
     }
 
-    private fun donePage(b: LinearLayout) = twoColumns(b, "overlay") { c ->
+    // ---------- permissions, asked one by one ----------
+
+    private class Perm(val title: String, val why: String, val granted: () -> Boolean, val ask: () -> Unit)
+
+    private fun runtime(vararg p: String) = p.all { checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
+
+    private fun perms(): List<Perm> {
+        val rootOk = Root.available()
+        val pkg = packageName
+        fun rootThen(block: () -> Unit) = thread { block(); runOnUiThread { build() } }
+        val list = mutableListOf(
+            Perm(t("Bluetooth", "Bluetooth"),
+                t("Damit du Kopfhörer und Controller im Control Center verbinden und ihren Akku sehen kannst.", "So you can connect headphones and controllers in the Control Center and see their battery."),
+                { runtime(android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT) },
+                { requestPermissions(arrayOf(android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT), 11) }),
+            Perm(t("WLAN-Liste", "Wi-Fi list"),
+                t("Android zeigt WLAN-Netze nur Apps mit Standortzugriff. Hugminn bestimmt nie, wo du bist.", "Android only shows Wi-Fi networks to apps with location access. Hugminn never finds out where you are."),
+                { runtime(android.Manifest.permission.ACCESS_FINE_LOCATION) },
+                { requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION), 12) }),
+            Perm(t("Musik", "Music"),
+                t("Damit die Musik-Kachel zeigt, was gerade läuft. Andere Mitteilungen liest Hugminn nicht.", "So the music tile shows what is playing. Hugminn doesn't read other notifications."),
+                { Settings.Secure.getString(contentResolver, "enabled_notification_listeners").orEmpty().contains(pkg) },
+                { if (rootOk) rootThen { runCatching { Media.enableListener(this) } } else startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }),
+            Perm(t("Aufnahme", "Capture"),
+                t("Für Videos mit Spielton und die Aufnahme-Mitteilung. Das Mikrofon wird nur bei einer Aufnahme benutzt.", "For videos with game sound and the recording notification. The microphone is only used while recording."),
+                { runtime(android.Manifest.permission.RECORD_AUDIO) && (android.os.Build.VERSION.SDK_INT < 33 || runtime(android.Manifest.permission.POST_NOTIFICATIONS)) },
+                {
+                    if (rootOk) prefs.recNoAsk = true // no "Start recording?" each time
+                    requestPermissions(if (android.os.Build.VERSION.SDK_INT >= 33) arrayOf(android.Manifest.permission.RECORD_AUDIO, android.Manifest.permission.POST_NOTIFICATIONS)
+                        else arrayOf(android.Manifest.permission.RECORD_AUDIO), 13)
+                }),
+            Perm(t("Helligkeit & Systemwerte", "Brightness & system values"),
+                t("Damit Helligkeit, Bildschirm-Aus-Zeit und ähnliche Regler im Control Center funktionieren.", "So brightness, screen timeout and similar sliders in the Control Center work."),
+                { Settings.System.canWrite(this) },
+                { if (rootOk) rootThen { Root.exec("appops set $pkg WRITE_SETTINGS allow") } else startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, android.net.Uri.parse("package:$pkg"))) }),
+            Perm(t("Im Hintergrund bleiben", "Stay in the background"),
+                t("Damit das System Hugminn nicht beendet und die Home-Taste immer funktioniert.", "So the system doesn't end Hugminn and the Home button always works."),
+                { Device.whitelisted(this) || !rootOk },
+                { if (rootOk) rootThen { Device.ensureWhitelist(this) } }),
+        )
+        if (!rootOk) list += Perm(t("Zuletzt genutzte Apps", "Recent apps"),
+            t("Ohne Root-Dienst erfährt der Spielwechsler nur so, welche Spiele zuletzt offen waren.", "Without the root service, this is how the switcher learns which games were open last."),
+            { (getSystemService(android.app.AppOpsManager::class.java)?.unsafeCheckOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), pkg) == android.app.AppOpsManager.MODE_ALLOWED) },
+            { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) })
+        else list += Perm(t("Zuletzt genutzte Apps", "Recent apps"),
+            t("Damit der Spielwechsler deine zuletzt gespielten Spiele zeigt.", "So the switcher shows the games you played last."),
+            { (getSystemService(android.app.AppOpsManager::class.java)?.unsafeCheckOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), pkg) == android.app.AppOpsManager.MODE_ALLOWED) },
+            { rootThen { Root.exec("appops set $pkg GET_USAGE_STATS allow") } })
+        return list
+    }
+
+    private fun permissionsPage(b: LinearLayout) {
+        b.addView(text(t("Was Hugminn darf", "What Hugminn may do"), 24f, pal.onSurface, bold = true))
+        b.addView(text(t("Tippe auf „Erlauben“ bei allem, was du nutzen möchtest. Lehnst du etwas ab, fehlt nur die passende Funktion – du kannst es später in den Android-Einstellungen nachholen.",
+            "Tap “Allow” for everything you want to use. If you decline something, only that feature is missing – you can change it later in Android's settings."),
+            13f, pal.onSurfaceVariant).apply { setPadding(0, d(4), 0, d(8)) })
+        val list = perms()
+        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        list.chunked(2).forEach { pair ->
+            val row = LinearLayout(this)
+            pair.forEach { perm ->
+                val ok = perm.granted()
+                val idx = buttons.size
+                val card = LinearLayout(this).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(d(14), d(6), d(10), d(6))
+                    background = Look.shape(this@SetupActivity, pixel, pal.surfaceHigh, d(14).toFloat())
+                    isFocusable = true
+                    isClickable = true
+                    setOnClickListener { if (!perm.granted()) { focusAfter = idx; perm.ask() } }
+                    setOnFocusChangeListener { v, f -> v.foreground = if (f) Look.shape(this@SetupActivity, pixel, 0, d(14).toFloat(), d(3), pal.primary) else null }
+                }
+                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                col.addView(text(perm.title, 14f, pal.onSurface, bold = true))
+                col.addView(text(perm.why, 11f, pal.onSurfaceVariant).apply { maxLines = 3 })
+                card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = d(8) })
+                card.addView(text(if (ok) "✓" else t("Erlauben", "Allow"), 13f, if (ok) pal.primary else pal.onPrimaryContainer, bold = true).apply {
+                    if (!ok) { background = Look.shape(this@SetupActivity, pixel, pal.primaryContainer, d(12).toFloat()); setPadding(d(12), d(5), d(12), d(5)) }
+                })
+                buttons += card
+                row.addView(card, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { if (row.childCount > 0) marginStart = d(10) })
+            }
+            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f).apply { marginStart = d(10) })
+            grid.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = d(8) })
+        }
+        b.addView(android.widget.ScrollView(this).apply { addView(grid); isVerticalScrollBarEnabled = false },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+    }
+
+    // ---------- trying out switcher and Control Center ----------
+
+    private var sawSwitcher = false
+    private var sawCc = false
+    private var failedSwitcher = false
+    private var failedCc = false
+    private var gateSince = 0L
+    private var gateStep = -1
+
+    private fun gestureFor(a: Action): String? = when (a) {
+        prefs.double -> t("Drück zweimal kurz die Home-Taste", "Press the Home button twice quickly")
+        prefs.long -> t("Halte die Home-Taste gedrückt", "Hold the Home button")
+        prefs.single -> t("Drück einmal die Home-Taste", "Press the Home button once")
+        else -> null
+    }
+
+    private fun needSwitcher() = gestureFor(Action.SWITCHER) != null
+    private fun needCc() = gestureFor(Action.CONTROL_CENTER) != null
+    private fun tryDone() = (sawSwitcher || !needSwitcher()) && (sawCc || !needCc())
+
+    private fun startGate() {
+        if (gateStep == step) return
+        gateStep = step
+        gateSince = System.currentTimeMillis()
+        val s = step
+        window.decorView.postDelayed({ if (step == s && !isFinishing) build() }, 30_500)
+    }
+
+    private fun stopTrying() { HugminnService.overlayOpened = null }
+
+    private fun tryPage(b: LinearLayout) {
+        startGate()
+        val running = HugminnService.instance != null
+        b.addView(text(t("Probier es aus", "Try it out"), 26f, pal.onSurface, bold = true))
+        if (!running) {
+            b.addView(text(t("Hugminn ist noch nicht aktiv – geh einen Schritt zurück und schalte es ein.", "Hugminn isn't active yet – go back one step and switch it on."), 15f, pal.onSurfaceVariant).apply { setPadding(0, d(10), 0, 0) })
+            return
+        }
+        b.addView(text(t("Schau dir beide einmal an. Nach ein paar Sekunden kommst du automatisch hierher zurück.",
+            "Have a look at both. After a few seconds you come back here by yourself."), 15f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(16)) })
+        fun line(done: Boolean, what: String, how: String?) {
+            val r = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, d(6), 0, d(6)) }
+            r.addView(text(if (done) "✓" else "○", 22f, if (done) pal.primary else pal.onSurfaceVariant, bold = true), LinearLayout.LayoutParams(d(40), LinearLayout.LayoutParams.WRAP_CONTENT))
+            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            col.addView(text(what, 18f, pal.onSurface, bold = true))
+            col.addView(text(if (done) t("Geschafft!", "Done!") else how ?: "", 14f, pal.onSurfaceVariant))
+            r.addView(col)
+            b.addView(r)
+        }
+        if (needSwitcher()) line(sawSwitcher, "Muninn · Game Switcher", gestureFor(Action.SWITCHER))
+        if (needCc()) line(sawCc, "Huginn · Control Center", gestureFor(Action.CONTROL_CENTER))
+        if (tryDone()) { stopTrying(); return }
+        // the service tells when one of them opened; after 5 seconds it closes again and the wizard is back
+        HugminnService.overlayOpened = { which ->
+            if (which == "switcher") sawSwitcher = true else sawCc = true
+            window.decorView.postDelayed({
+                HugminnService.instance?.closeOverlays()
+                window.decorView.postDelayed({ if (!isFinishing && step == 3) { if (tryDone()) { stopTrying(); step++ }; build() } }, 300)
+            }, 5_000)
+        }
+    }
+
+    // ---------- button test ----------
+
+    private val testKeys = linkedMapOf(
+        KeyEvent.KEYCODE_BUTTON_A to "A", KeyEvent.KEYCODE_BUTTON_B to "B", KeyEvent.KEYCODE_BUTTON_X to "X", KeyEvent.KEYCODE_BUTTON_Y to "Y",
+        KeyEvent.KEYCODE_BUTTON_L1 to "L1", KeyEvent.KEYCODE_BUTTON_R1 to "R1", KeyEvent.KEYCODE_BUTTON_L2 to "L2", KeyEvent.KEYCODE_BUTTON_R2 to "R2",
+        KeyEvent.KEYCODE_BUTTON_THUMBL to "L3", KeyEvent.KEYCODE_BUTTON_THUMBR to "R3", KeyEvent.KEYCODE_BUTTON_START to "Start", KeyEvent.KEYCODE_BUTTON_SELECT to "Select",
+        KeyEvent.KEYCODE_DPAD_UP to "▲", KeyEvent.KEYCODE_DPAD_DOWN to "▼", KeyEvent.KEYCODE_DPAD_LEFT to "◀", KeyEvent.KEYCODE_DPAD_RIGHT to "▶",
+        KeyEvent.KEYCODE_VOLUME_UP to "Vol+", KeyEvent.KEYCODE_VOLUME_DOWN to "Vol−", KeyEvent.KEYCODE_HOME to "Home",
+    )
+    private val pressedKeys = mutableSetOf<Int>()
+    private var keysDone = false
+    private var keyTest: ((Int) -> Unit)? = null
+    private var missingKeys: List<String> = emptyList()
+
+    private fun finishKeys() {
+        keysDone = true
+        keyTest = null
+        HugminnService.keyProbe = null
+        missingKeys = testKeys.filterKeys { it !in pressedKeys }.values.toList()
+    }
+
+    private fun keyTestPage(b: LinearLayout) {
+        startGate()
+        b.addView(text(t("Tastentest", "Button test"), 26f, pal.onSurface, bold = true))
+        b.addView(text(t("Drück jede Taste einmal – so sehen wir, dass Hugminn alle erkennt. Die Felder werden grün.",
+            "Press every button once – this shows that Hugminn recognises them all. The boxes turn green."), 14f, pal.onSurfaceVariant).apply { setPadding(0, d(6), 0, d(12)) })
+        val labels = mutableMapOf<Int, TextView>()
+        testKeys.entries.chunked(10).forEach { chunk ->
+            val row = LinearLayout(this).apply { setPadding(0, 0, 0, d(8)) }
+            chunk.forEach { (code, name) ->
+                val on = code in pressedKeys
+                val v = text(name, 15f, if (on) pal.onPrimary else pal.onSurfaceVariant, bold = true).apply {
+                    gravity = Gravity.CENTER
+                    background = Look.shape(this@SetupActivity, pixel, if (on) pal.primary else pal.surfaceHigh, d(10).toFloat())
+                }
+                labels[code] = v
+                row.addView(v, LinearLayout.LayoutParams(0, d(46), 1f).apply { marginEnd = d(6) })
+            }
+            repeat(10 - chunk.size) { row.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f).apply { marginEnd = d(6) }) }
+            b.addView(row)
+        }
+        if (keysDone) {
+            b.addView(text(if (missingKeys.isEmpty()) t("✓ Alle Tasten erkannt", "✓ All buttons recognised") else t("Nicht erkannt: ", "Not recognised: ") + missingKeys.joinToString(),
+                16f, pal.onSurface, bold = true).apply { setPadding(0, d(8), 0, 0) })
+            return
+        }
+        val mark: (Int) -> Unit = { code ->
+            if (code in testKeys && pressedKeys.add(code)) {
+                labels[code]?.apply { setTextColor(pal.onPrimary); background = Look.shape(this@SetupActivity, pixel, pal.primary, d(10).toFloat()) }
+                if (pressedKeys.size == testKeys.size) window.decorView.postDelayed({ finishKeys(); build() }, 500)
+            }
+        }
+        keyTest = mark
+        // Home belongs to Hugminn itself: it tells the wizard instead of opening anything
+        HugminnService.keyProbe = { code -> runOnUiThread { mark(code) } }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val k = keyTest ?: return super.dispatchKeyEvent(event)
+        // after 30 seconds, buttons already tested may move the focus again (to reach "Doesn't work")
+        if (event.keyCode in pressedKeys && System.currentTimeMillis() - gateSince > 30_000) return super.dispatchKeyEvent(event)
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) k(event.keyCode)
+        return true
+    }
+
+    // ---------- the end: summary to send ----------
+
+    private val setupChecks = mutableListOf<DeviceCheck>()
+    @Volatile private var reportReady = false
+    private var reportStarted = false
+
+    private fun setupResults(): List<DeviceCheck> {
+        val area = t("Einrichtung", "Setup")
+        val list = mutableListOf<DeviceCheck>()
+        if (needSwitcher()) list += DeviceCheck(area, t("Spielwechsler geöffnet", "Game switcher opened"), if (sawSwitcher) CheckState.OK else CheckState.FAIL, if (failedSwitcher) t("ging nicht auf", "didn't open") else "")
+        if (needCc()) list += DeviceCheck(area, t("Control Center geöffnet", "Control Center opened"), if (sawCc) CheckState.OK else CheckState.FAIL, if (failedCc) t("ging nicht auf", "didn't open") else "")
+        list += DeviceCheck(area, t("Tastentest", "Button test"), if (keysDone && missingKeys.isEmpty()) CheckState.OK else CheckState.WARN,
+            if (!keysDone) t("nicht gemacht", "not done") else if (missingKeys.isEmpty()) t("alle ${testKeys.size} erkannt", "all ${testKeys.size} recognised") else t("nicht erkannt: ", "not recognised: ") + missingKeys.joinToString())
+        val granted = perms().map { (if (it.granted()) "✓ " else "✗ ") + it.title }
+        list += DeviceCheck(area, t("Berechtigungen", "Permissions"), CheckState.OK, granted.joinToString(", "))
+        return list
+    }
+
+    private fun showReport() {
+        val all = setupResults() + synchronized(setupChecks) { setupChecks.toList() }
+        val report = DeviceReport.text(this, all)
+        val tv = text(report, 12f, pal.onSurface).apply { setPadding(d(20), d(8), d(20), d(8)); setTextIsSelectable(true) }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(t("Dein Bericht", "Your report"))
+            .setView(android.widget.ScrollView(this).apply { addView(tv) })
+            .setPositiveButton(t("Auf GitHub senden", "Send on GitHub")) { _, _ -> DeviceReport.share(this, all) }
+            .setNegativeButton(t("Nicht senden", "Don't send"), null)
+            .show()
+    }
+
+    private fun donePage(b: LinearLayout) = twoColumns(b, "overlay", right = { c ->
+        option(c, t("Bericht ansehen und senden", "View and send the report"), {
+            if (reportReady) t("Öffnet ein ausgefülltes GitHub-Issue – du schickst es selbst ab", "Opens a filled-in GitHub issue – you send it yourself")
+            else t("Wird vorbereitet …", "Being prepared …")
+        }, { if (reportReady) "›" else "…" }) { if (reportReady) showReport() }
+    }) { c ->
+        if (!reportStarted) { reportStarted = true; thread {
+            DeviceReport.auto(this) { area, name, state, note -> synchronized(setupChecks) { setupChecks += DeviceCheck(area, name, state, note) } }
+            reportReady = true
+            runOnUiThread { if (step == steps - 1) build() }
+        } }
         c.addView(text(t("Fertig!", "All set!"), 30f, pal.onSurface, bold = true))
         c.addView(text(
-            t("Probier es gleich aus: im Spiel Home zweimal drücken für den Game Switcher, Home lang drücken für das Control Center.\n\n" +
-                "In den Einstellungen kannst du jederzeit alles anpassen, Profile pro Emulator anlegen und deine Einstellungen sichern. " +
-                "Diese Einführung findest du dort unter „Hilfe & Info“.",
-                "Try it right away: in a game press Home twice for the Game Switcher, hold Home for the Control Center.\n\n" +
-                    "In the settings you can adjust everything at any time, create profiles per emulator and back up your settings. " +
-                    "You'll find this introduction there under “Help & about”."),
-            15f, pal.onSurfaceVariant,
+            t("In den Einstellungen kannst du jederzeit alles anpassen. Diese Einführung findest du dort unter „Hilfe & Info“.\n\n" +
+                "Möchtest du helfen, Hugminn auf mehr Geräten gut zu machen? Schick uns eine kurze Zusammenfassung: Gerät, Android-Version, welche Funktionen es unterstützt, " +
+                "das Ergebnis des Tastentests und welche Berechtigungen du erlaubt hast. Keine Namen, keine WLAN-Namen, keine Spiele, kein Standort. Du siehst alles vorher.",
+                "You can adjust everything in the settings at any time. You'll find this introduction there under “Help & about”.\n\n" +
+                    "Want to help make Hugminn good on more devices? Send us a short summary: device, Android version, which features it supports, " +
+                    "the button test result and which permissions you allowed. No names, no Wi-Fi names, no games, no location. You see everything first."),
+            14f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(10), 0, 0) })
     }
 
@@ -441,8 +726,7 @@ class SetupActivity : Activity() {
         }
         thread {
             val ok = Device.enableService(this)
-            Device.grantExtras(this)
-            Device.ensureWhitelist(this)
+            if (Device.autoGrant(this)) { Device.grantExtras(this); Device.ensureWhitelist(this) }
             runOnUiThread {
                 if (ok) window.decorView.postDelayed({ build() }, 600)
                 else {

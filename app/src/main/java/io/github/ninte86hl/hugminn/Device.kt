@@ -252,6 +252,9 @@ object Device {
     }
 
     /** Grants usage access (helps to name apps in the switcher) and screen brightness writing via root. */
+    /** Whether Hugminn may grant permissions to itself without asking (installs from before the consent setup). */
+    fun autoGrant(ctx: Context) = !Prefs(ctx).askPermissions
+
     fun grantExtras(ctx: Context) {
         Root.exec("appops set ${ctx.packageName} GET_USAGE_STATS allow")
         Root.exec("appops set ${ctx.packageName} WRITE_SETTINGS allow")

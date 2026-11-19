@@ -23,6 +23,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Faster Home button: Hugminn no longer asks the app in front for its window (that could hold up the buttons for half a second, e.g. right after waking up).
 - Capture without root: Android now asks for the microphone permission, so videos have sound (before, they stayed silent without a hint).
 - Per-game profiles are applied strictly one after another, so quick app switches can't overtake each other.
+- New setup for new installs: permissions are asked one by one with a short reason (nothing is granted silently any more), you open the game switcher and the Control Center once yourself (back to the setup after 5 seconds), a button test, and at the end an optional summary to send as a GitHub issue.
+- Device report on GitHub: the test result is filled in by itself.
 - Aufnahme-Menü: größeres Fenster mit zwei Reitern (Aufnehmen · Einstellungen); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, nur L1/R1 wechseln die Reiter.
 - Aufnahme: Videos können nach 5, 10, 15 oder 30 Sekunden oder 1, 3, 5 oder 10 Minuten von selbst enden (Einstellungen → Maximale Länge).
 - Spielwechsler: Y → Tastenkürzel zeigt die Tastenkürzel des Emulators mit Tastensymbolen (gängige Belegung mit Select als Hotkey wie bei EmuDeck/ROCKNIX; pro Emulator anpassbar unter Einstellungen → Tastenkürzel).
@@ -41,6 +43,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Schnellere Home-Taste: Hugminn fragt die App im Vordergrund nicht mehr nach ihrem Fenster (das konnte die Tasten z. B. direkt nach dem Aufwachen eine halbe Sekunde aufhalten).
 - Aufnahme ohne Root: Android fragt jetzt nach der Mikrofon-Erlaubnis, damit Videos Ton haben (vorher blieben sie ohne Hinweis stumm).
 - Profile pro Spiel werden streng nacheinander angewendet, damit sich schnelle App-Wechsel nicht überholen.
+- Neue Einrichtung für neue Installationen: Berechtigungen werden einzeln mit kurzem Grund erfragt (nichts wird mehr still erteilt), Spielwechsler und Control Center öffnest du einmal selbst (nach 5 Sekunden zurück zur Einrichtung), ein Tastentest und am Ende eine freiwillige Zusammenfassung zum Senden als GitHub-Issue.
+- Gerätebericht auf GitHub: Das Testergebnis wird automatisch eingetragen.
 - Neuer Gerätetest (Einstellungen → Hilfe & Info): prüft Berechtigungen, Retroid-Funktionen, Messwerte, Aufnahme und Controller, danach Tasten und LEDs von Hand, und zeigt eine Zusammenfassung, die sich als GitHub-Issue senden lässt.
 - Aufnahme: Nach einem Video gehen die Stick-LEDs zurück auf ihre Farben bzw. ihren Effekt.
 

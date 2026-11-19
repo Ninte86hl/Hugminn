@@ -1,5 +1,5 @@
 name: Device report
-description: Tried Hugminn on a device that isn't tested yet? Tell us how it went.
+description: Tried Hugminn on a device? Send the result of the device test (Settings → Help & about → Device test) or of the setup.
 title: "[Device] "
 labels: ["device"]
 body:
@@ -14,28 +14,21 @@ body:
     id: version
     attributes:
       label: Hugminn version
-      placeholder: e.g. 1.10.17
+      placeholder: e.g. 1.12.0
     validations:
       required: true
-  - type: checkboxes
-    id: works
-    attributes:
-      label: What works?
-      options:
-        - label: Setup wizard / permissions
-        - label: Control Center opens (Home button)
-        - label: Game switcher (Muninn) opens
-        - label: Performance modes
-        - label: Fan control
-        - label: Controller style / LED
-        - label: Brightness, volume, Wi-Fi, Bluetooth tiles
-  - type: textarea
-    id: problems
-    attributes:
-      label: What doesn't work or looks wrong?
-      description: Screenshots help a lot. Please blur private info such as Wi-Fi names.
   - type: dropdown
     id: root
     attributes:
       label: Root
       options: ["No root", "Rooted"]
+  - type: textarea
+    id: results
+    attributes:
+      label: Test result
+      description: Filled in by Hugminn's device test or setup (✓ works, ⚠ limited, ✗ not available). No names, Wi-Fi names, games or location.
+  - type: textarea
+    id: problems
+    attributes:
+      label: What doesn't work or looks wrong?
+      description: Anything you noticed yourself. Screenshots help a lot – please blur private info such as Wi-Fi names.
