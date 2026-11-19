@@ -2,6 +2,12 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.12
+- Edit menu of the Control Center: new entry "Grid" for rows and columns; the grid changes at once.
+- Settings → Profiles per app: grouped by emulator with its system (e.g. "DuckStation · PlayStation"), each entry says whether it is for all games or only one game.
+- Bearbeiten-Menü des Control Centers: neuer Eintrag „Raster“ für Zeilen und Spalten; das Raster ändert sich sofort.
+- Einstellungen → Profile pro App: nach Emulator mit seinem System gruppiert (z. B. „DuckStation · PlayStation“), jeder Eintrag sagt, ob er für alle Spiele oder nur ein Spiel gilt.
+
 ## 1.10.11
 - 2×1 switches share one name size, so a short name is no longer bigger than a long one beside it.
 - "Remember for …" in the performance and fan menus only for games and emulators (not for e.g. Obtainium).
