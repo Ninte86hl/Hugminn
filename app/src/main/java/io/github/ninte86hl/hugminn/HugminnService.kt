@@ -338,6 +338,7 @@ class HugminnService : AccessibilityService() {
      *  screen; back on if none is connected within 60 s. The Control Center closes, since it can't be
      *  used without buttons anyway. */
     private var guardRun: Runnable? = null
+    @Volatile var guardDiag = ""
     fun guardBuiltinOff() {
         guardRun?.let { ui.removeCallbacks(it) }
         if (::controlCenter.isInitialized) controlCenter.close()
@@ -348,9 +349,14 @@ class HugminnService : AccessibilityService() {
                 when {
                     Device.externalPad() -> {
                         guardRun = null; Notice.hideSticky(this@HugminnService)
+                        guardDiag = "${60 - left} s: controller found · " + Device.padList()
                         Notice.show(this@HugminnService, t("Controller verbunden", "Controller connected"))
                     }
-                    !Device.builtinOff(this@HugminnService) -> { guardRun = null; Notice.hideSticky(this@HugminnService) }
+                    !Device.builtinOff(this@HugminnService) -> {
+                        guardRun = null; Notice.hideSticky(this@HugminnService)
+                        guardDiag = "${60 - left} s: built-in back on (temp_abxy_layout_mode=${Device.sys(this@HugminnService, "temp_abxy_layout_mode")}, no_create=${Device.sys(this@HugminnService, "no_create_gamepad_button_layout")})"
+                        Notice.show(this@HugminnService, t("Eingebaute Steuerung ist wieder an", "Built-in controls are back on"))
+                    }
                     left <= 0 -> {
                         guardRun = null; Notice.hideSticky(this@HugminnService)
                         if (Root.available()) Device.setBuiltin(this@HugminnService, true) {

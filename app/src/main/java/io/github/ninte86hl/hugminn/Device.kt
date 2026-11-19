@@ -55,6 +55,10 @@ object Device {
         d.isExternal && !builtinPad(d) && d.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD
     }
 
+    /** Connected input devices, for diagnostics. */
+    fun padList() = android.view.InputDevice.getDeviceIds().toList().mapNotNull { android.view.InputDevice.getDevice(it) }
+        .filter { it.isExternal }.joinToString { "${it.name} (${it.vendorId}/${it.productId}${if (builtinPad(it)) ", built-in" else ""})" }
+
     /** Retroid's own controls also show up as "external": the "Xbox Wireless Controller" (vendor 0x2022,
      *  product 0x3002) and the virtual mouse. */
     private fun builtinPad(d: android.view.InputDevice) =
