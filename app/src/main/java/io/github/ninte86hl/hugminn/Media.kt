@@ -108,7 +108,10 @@ object Media {
         // players that only open a session (e.g. Android's own music app): sound and their notification
         if (mc != null && st == null) playing = ctx.getSystemService(AudioManager::class.java)?.isMusicActive == true
         if (mc != null && song == null) MediaListener.playerNotice(mc.packageName)?.let { (t, x, pic) ->
-            song = t; artist = x; if (art == null) art = pic
+            // file names as titles: "02 Tell Me When You've Had Enough.mp3" → "Tell Me When You've Had Enough"
+            song = t?.replace(Regex("""\.(mp3|flac|ogg|opus|m4a|aac|wav|wma)$""", RegexOption.IGNORE_CASE), "")
+                ?.replace(Regex("""^\d{1,3}\s*[-._]?\s+(?=\S)"""), "")?.trim()?.ifBlank { t }
+            artist = x; if (art == null) art = pic
             diag += " · Benachrichtigung: $t / $x / Bild=${pic != null}"
         } ?: run { if (mc != null && song == null) diag += " · keine Benachrichtigung gefunden" }
         title = listOfNotNull(song, artist).joinToString(" – ").ifBlank { null }
