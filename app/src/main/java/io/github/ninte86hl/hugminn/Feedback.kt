@@ -272,6 +272,7 @@ object Feedback {
             .filter { it.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD || it.isExternal }
             .map { "  ${it.name} (extern=${it.isExternal}, id=${it.id}, vendor=${it.vendorId}, product=${it.productId})" }
         if (pads.isNotEmpty()) { appendLine(); appendLine("Eingabegeräte:"); pads.forEach { appendLine(it) } }
+        runCatching { Bt.batteries(svc) }.getOrNull()?.let { appendLine(); appendLine("Geräte-Akku: $it"); appendLine("  ${Bt.batteryDiag}") }
         if (keys.isNotEmpty()) { appendLine(); appendLine("Letzte Tasten (Hugminn sieht sie):"); keys.forEach { appendLine("  $it") } }
         val opened = synchronized(svc.windowLog) { svc.windowLog.toList() }
         if (opened.isNotEmpty()) { appendLine(); appendLine("Zuletzt geöffnete Fenster:"); opened.forEach { appendLine("  $it") } }
