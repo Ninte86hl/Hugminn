@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.25
+- Long press on the "Control Center" quick settings tile opens Hugminn's settings.
+- Langer Druck auf die Schnelleinstellungs-Kachel „Control Center“ öffnet die Hugminn-Einstellungen.
+
 ## 1.10.24
 - Countdown for "Built-in controls off": says why it ended early.
 - Countdown bei „Eingebaute Steuerung aus“: zeigt an, warum er vorzeitig endet.
