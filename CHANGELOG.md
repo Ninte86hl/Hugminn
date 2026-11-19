@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.24
+- Countdown for "Built-in controls off": says why it ended early.
+- Countdown bei „Eingebaute Steuerung aus“: zeigt an, warum er vorzeitig endet.
+
 ## 1.10.23
 - "Built-in controls off" without a controller: the Control Center closes and a countdown in the middle of the screen stays until a controller connects or the 60 seconds are over.
 - „Eingebaute Steuerung aus“ ohne Controller: Das Control Center schließt sich, und ein Countdown in der Bildschirmmitte bleibt stehen, bis ein Controller verbunden ist oder die 60 Sekunden um sind.
