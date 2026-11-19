@@ -333,4 +333,14 @@ class HugminnService : AccessibilityService() {
         } catch (t: Throwable) {
         }
     }
+
+    /** Built-in controls switched off with no external controller yet: back on if none is connected in 60 s. */
+    fun guardBuiltinOff() {
+        Notice.show(this, t("Eingebaute Steuerung aus – jetzt Controller verbinden (sonst nach 60 s wieder an)", "Built-in controls off – connect a controller now (back on after 60 s otherwise)"))
+        ui.postDelayed({
+            if (Root.available() && Device.builtinOff(this) && !Device.externalPad()) Device.setBuiltin(this, true) {
+                Notice.show(this, t("Kein Controller verbunden – eingebaute Steuerung wieder an", "No controller connected – built-in controls back on"))
+            }
+        }, 60_000)
+    }
 }

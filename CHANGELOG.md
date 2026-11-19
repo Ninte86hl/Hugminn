@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.21
+- "Built-in controls off" also works before the external controller is connected; if none connects within 60 seconds, the built-in controls come back on.
+- „Eingebaute Steuerung aus“ geht auch, bevor der externe Controller verbunden ist; kommt innerhalb von 60 Sekunden keiner, geht die eingebaute Steuerung wieder an.
+
 ## 1.10.20
 - Control Center: swipe down from the top edge to open Android's quick settings (a way out if no buttons respond).
 - Control Center: von der oberen Kante nach unten wischen öffnet Androids Schnelleinstellungen (Rückversicherung, falls keine Taste reagiert).

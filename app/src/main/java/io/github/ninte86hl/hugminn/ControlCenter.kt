@@ -1522,10 +1522,10 @@ class ControlCenter(private val svc: HugminnService) {
                 MenuEntry(tr("Xbox (A unten)"), checked = !off && !Glyphs.nintendoLayout()) { Device.setControllerLayout(false) { refreshAll() } },
                 MenuEntry(tr("Retroid / Nintendo (A rechts)"), checked = !off && Glyphs.nintendoLayout()) { Device.setControllerLayout(true) { refreshAll() } },
                 // like Retroid's quick setting: the built-in controls off while an external controller is used;
-                // only with one connected, so nobody locks themselves out
+                // without one connected yet, they come back on by themselves if none arrives within 60 s
                 MenuEntry(t("Eingebaute Steuerung aus", "Built-in controls off"), checked = off,
-                    hint = if (off) t("A schaltet sie wieder ein", "A turns them back on") else if (pad) t("Für einen externen Controller", "For an external controller") else t("Erst einen Controller verbinden", "Connect a controller first"),
-                    run = if (off || pad) ({ Device.setBuiltin(svc, off) { refreshAll() } }) else null),
+                    hint = if (off) t("A schaltet sie wieder ein", "A turns them back on") else if (pad) t("Für einen externen Controller", "For an external controller") else t("Controller innerhalb 60 s verbinden", "Connect a controller within 60 s"),
+                    run = { Device.setBuiltin(svc, off) { refreshAll(); if (!off && !pad) svc.guardBuiltinOff() } }),
             ))
         } else null
         "theme" -> Tile(tr("Farbschema"), IconView.Kind.PALETTE, { svc.prefs.theme.label }, { false }) {
