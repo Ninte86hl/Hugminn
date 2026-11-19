@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.14
+- English names follow Retroid's own: "Charging separation" (was "Bypass charging") and "Controller style" (was "Button layout").
+- Englische Namen wie bei Retroid: „Charging separation“ (vorher „Bypass charging“) und „Controller style“ (vorher „Button layout“).
+
 ## 1.10.13
 - Dot matrix is the default style for new installs. Who already uses Hugminn keeps their style (Modern if never changed).
 - Punktmatrix ist der Standardstil für neue Installationen. Wer Hugminn schon nutzt, behält seinen Stil (Modern, wenn nie geändert).
