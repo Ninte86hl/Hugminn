@@ -9,6 +9,8 @@ Hugminn adds a **Game Switcher** (Muninn) and a **Control Center** (Huginn) to R
 ## Getting started
 - [Setup wizard](Setup-Wizard) – what the introduction asks and why
 - [Home button](Home-Button) – how to open the switcher and the Control Center
+- [Shortcuts](Shortcuts) – quick settings tile, home screen and Cocoon shortcuts
+- [External controller](External-Controller) – Home/Guide button, turning off the built-in controls
 
 ## Features
 - [Game Switcher](Game-Switcher) – switch between games and apps with the D-pad

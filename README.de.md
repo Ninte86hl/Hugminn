@@ -36,7 +36,9 @@ Hugminn ergänzt den Retroid Pocket 6, Pocket Nova und Pocket 5 um zwei Oberflä
 - **Große Kacheln** – System-Übersicht (4×4 mit Graphen), WLAN- und Bluetooth-Listen, Leistung mit aktuellem CPU-Takt, Lüfter mit Drehzahl, Akku mit Restzeit.
 - **Musik** – Kachel bis 4×4 mit Cover, Fortschritt und Tasten für jeden Player (YouTube, Androids eigene Musik-App und andere); Start und L2/R2 steuern sie.
 - **Stick-LEDs** – Farben und Effekte, oder als Anzeige für Akku oder Temperatur.
-- **Bluetooth-Akku** – Controller und Kopfhörer zeigen ihren Ladestand.
+- **Bluetooth-Akku** – Controller und Kopfhörer zeigen ihren Ladestand (sofern sie ihn melden).
+- **Externe Controller** – die Home-/Guide-Taste eines 8BitDo o. Ä. wirkt wie die des Handhelds; die eingebaute Steuerung lässt sich ausschalten und geht beim Trennen des Controllers wieder an.
+- **Öffnen ohne Taste** – Schnelleinstellungs-Kachel, Verknüpfungen auf dem Startbildschirm (auch in Cocoon) und Wischen nach unten im Control Center.
 - **Vier Stile** – Modern, Pixel, Punktmatrix und Cocoon, hell und dunkel; Kacheln, Tasten, Balken und Graphen folgen dem Stil.
 - **Für den Controller gemacht** – alles mit den Tasten, das Spiel pausiert, solange du in den Menüs bist, die Lautstärketasten funktionieren weiter; Touch geht auch.
 
@@ -55,8 +57,8 @@ Das Ziel von Hugminn ist ein **controllerfreundliches Control Center und ein Gam
 
 In der nordischen Sage fliegen Odins zwei Raben jeden Tag über die Welt und berichten ihm, was sie gesehen haben. Hugminn verbindet ihre Namen, und jeder Rabe ist ein Teil der App:
 
-- **Huginn** („Gedanke“) ist das **Control Center**. Es behält Leistung, Temperatur, Lüfter und LEDs im Blick.
-- **Muninn** („Erinnerung“) ist der **Game Switcher**. Er merkt sich, was du zuletzt gespielt hast, und bringt dich direkt dorthin zurück.
+- **Huginn** („Gedanke“, rot) ist das **Control Center**. Es behält Leistung, Temperatur, Lüfter und LEDs im Blick.
+- **Muninn** („Erinnerung“, blau) ist der **Game Switcher**. Er merkt sich, was du zuletzt gespielt hast, und bringt dich direkt dorthin zurück.
 
 ## Bilder
 
@@ -87,6 +89,8 @@ Jede Funktion hat eine eigene Seite im **[Wiki](https://github.com/Ninte86hl/Hug
 | **[Stick-LEDs](https://github.com/Ninte86hl/Hugminn/wiki/Stick-LEDs-DE)** | Farbrad, Schnellfarben und Effekte; oder die Sticks zeigen Akku oder Temperatur als Farbe. |
 | **[Leistungs-Overlay](https://github.com/Ninte86hl/Hugminn/wiki/Leistungs-Overlay)** | FPS, Frametime, CPU, GPU, Temperatur und mehr über dem Spiel, im gewählten Stil. |
 | **[Home-Taste](https://github.com/Ninte86hl/Hugminn/wiki/Home-Taste)** | Drücken, zweimal drücken und halten, jeweils mit eigener Aktion. |
+| **[Verknüpfungen](https://github.com/Ninte86hl/Hugminn/wiki/Verknuepfungen)** | Schnelleinstellungs-Kachel, langer Druck aufs App-Symbol, Verknüpfungen auf dem Startbildschirm und in Cocoon für Control Center und Spielwechsler. |
+| **[Externer Controller](https://github.com/Ninte86hl/Hugminn/wiki/Externer-Controller)** | Home-/Guide-Taste von Bluetooth-/USB-Controllern; eingebaute Steuerung aus, beim Trennen automatisch wieder an. |
 | **[Stile und Farbschemata](https://github.com/Ninte86hl/Hugminn/wiki/Stile-und-Farbschemata)** | Modern, Pixel, Punktmatrix und Cocoon; hell, dunkel oder OLED-Schwarz; deine eigene Akzentfarbe. |
 | **[Einstellungen](https://github.com/Ninte86hl/Hugminn/wiki/Einstellungen)** | Alles einstellbar, Sichern und Wiederherstellen, Deutsch und Englisch. |
 

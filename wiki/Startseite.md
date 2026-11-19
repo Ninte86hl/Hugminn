@@ -9,6 +9,8 @@ Hugminn ergänzt Retroid-Handhelds um einen **Game Switcher** (Muninn) und ein *
 ## Erste Schritte
 - [Einrichtungsassistent](Einrichtungsassistent) – was die Einführung fragt und warum
 - [Home-Taste](Home-Taste) – so öffnest du Switcher und Control Center
+- [Verknüpfungen](Verknuepfungen) – Schnelleinstellungs-Kachel, Startbildschirm und Cocoon
+- [Externer Controller](Externer-Controller) – Home-/Guide-Taste, eingebaute Steuerung ausschalten
 
 ## Funktionen
 - [Game Switcher](Game-Switcher-DE) – mit dem Steuerkreuz zwischen Spielen und Apps wechseln

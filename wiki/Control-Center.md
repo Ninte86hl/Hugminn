@@ -10,6 +10,7 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - **Select** takes a screenshot.
 - The device's **volume keys** work as usual; a volume slider on screen moves along.
 - **Start** plays/pauses the music, **L2 / R2** skip to the previous / next track.
+- **Swipe down from the top edge** to open Android's quick settings – a way out if no button responds.
 
 ## Tiles
 - **Switches:** Wi-Fi, Bluetooth, stick LEDs, 60/120 Hz, Do not disturb, airplane mode, rotation lock, screen always on and more.
@@ -23,6 +24,7 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - **Screen off:** puts the handheld to sleep like the power button; the game pauses until you wake it.
 - **Device battery:** battery level of connected Bluetooth controllers and headphones that report one.
 - **Settings:** opens Android's settings.
+- **Controller style:** Xbox or Retroid button layout, or *Built-in controls off* for an [external controller](External-Controller).
 
 ## Sizes
 Each element comes in the sizes that suit it (in [edit mode](Editing-the-Control-Center): A → Size). Elements in a size that is no longer offered take the nearest one.

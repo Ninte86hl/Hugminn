@@ -3,6 +3,8 @@
 **Getting started**
 - [Setup wizard](Setup-Wizard)
 - [Home button](Home-Button)
+- [Shortcuts](Shortcuts)
+- [External controller](External-Controller)
 
 **Features**
 - [Game Switcher](Game-Switcher)
@@ -25,6 +27,8 @@
 - [Startseite](Startseite)
 - [Einrichtungsassistent](Einrichtungsassistent)
 - [Home-Taste](Home-Taste)
+- [Verknüpfungen](Verknuepfungen)
+- [Externer Controller](Externer-Controller)
 - [Game Switcher](Game-Switcher-DE)
 - [Control Center](Control-Center-DE)
 - [Control Center bearbeiten](Control-Center-bearbeiten)

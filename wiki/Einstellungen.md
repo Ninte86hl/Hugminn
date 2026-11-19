@@ -17,6 +17,9 @@ Zeigt, ob Hugminn als Bedienungshilfe eingeschaltet ist, ob der Root-Dienst des 
 ## Home-Taste
 Aktion für einfachen, doppelten und langen Druck sowie die Zeiten für Doppeldruck und langen Druck. Siehe [Home-Taste](Home-Taste).
 
+## Verknüpfungen
+Control Center oder Spielwechsler auf den Startbildschirm legen (auch in Cocoon) oder beide als eigene Apps anzeigen. Siehe [Verknüpfungen](Verknuepfungen).
+
 ## Game Switcher
 | Option | |
 | --- | --- |

@@ -17,6 +17,9 @@ Shows whether Hugminn is switched on as an accessibility service, whether the ha
 ## Home button
 Action for a single, double and long press, and the times for double and long presses. See [Home button](Home-Button).
 
+## Shortcuts
+Put the Control Center or the game switcher on the home screen (also in Cocoon), or show both as separate apps. See [Shortcuts](Shortcuts).
+
 ## Game Switcher
 | Option | |
 | --- | --- |
