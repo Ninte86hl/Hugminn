@@ -202,8 +202,16 @@ class HugminnService : AccessibilityService() {
         KeyEvent.KEYCODE_POWER, KeyEvent.KEYCODE_SYSRQ, KeyEvent.KEYCODE_CAMERA,
     )
 
+    /** Test build: the last key events with their device (to see what an external controller sends). */
+    val keyLog = java.util.ArrayDeque<String>()
+
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
+        synchronized(keyLog) {
+            val dev = event.device
+            keyLog.addLast("${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.ROOT).format(java.util.Date())} ${KeyEvent.keyCodeToString(event.keyCode)} ${if (event.action == KeyEvent.ACTION_DOWN) "down" else "up"}${if (event.repeatCount > 0) " r${event.repeatCount}" else ""} · ${dev?.name} (extern=${dev?.isExternal}, quelle=0x${Integer.toHexString(event.source)})")
+            while (keyLog.size > 40) keyLog.removeFirst()
+        }
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
         // an external controller (e.g. 8BitDo over Bluetooth): its Home/Guide button counts as Home
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE && prefs.padHome && event.device?.isExternal == true) return onHome(event, forced = true)

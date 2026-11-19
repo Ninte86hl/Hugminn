@@ -267,6 +267,12 @@ object Feedback {
         if (FrameRate.diag.isNotEmpty()) { appendLine(); appendLine("FPS (${svc.foregroundPkg}):"); appendLine(FrameRate.diag) }
         if (Wifi.diag.isNotEmpty() || Bt.diag.isNotEmpty()) { appendLine(); appendLine("WLAN/Bluetooth:"); appendLine(Wifi.diag); appendLine(Bt.diag) }
         if (LedFx.diag.isNotEmpty()) { appendLine(); appendLine("LED-Effekte (${LedFx.current()}, Akku-Warnung=${LedFx.lowBattery}):"); appendLine(LedFx.diag) }
+        val keys = synchronized(svc.keyLog) { svc.keyLog.toList() }
+        val pads = android.view.InputDevice.getDeviceIds().mapNotNull { android.view.InputDevice.getDevice(it) }
+            .filter { it.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD || it.isExternal }
+            .map { "  ${it.name} (extern=${it.isExternal}, id=${it.id}, vendor=${it.vendorId}, product=${it.productId})" }
+        if (pads.isNotEmpty()) { appendLine(); appendLine("Eingabegeräte:"); pads.forEach { appendLine(it) } }
+        if (keys.isNotEmpty()) { appendLine(); appendLine("Letzte Tasten (Hugminn sieht sie):"); keys.forEach { appendLine("  $it") } }
         val opened = synchronized(svc.windowLog) { svc.windowLog.toList() }
         if (opened.isNotEmpty()) { appendLine(); appendLine("Zuletzt geöffnete Fenster:"); opened.forEach { appendLine("  $it") } }
         appendLine()
