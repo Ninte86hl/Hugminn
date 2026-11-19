@@ -515,6 +515,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         val r = object : FrameLayout(svc) {
             override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean = hat.onMotion(event) || super.dispatchGenericMotionEvent(event)
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                // left behind by a close that went wrong: remove it instead of swallowing keys
+                if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(this) }; return false }
                 if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT) return false
                 if (event.action == KeyEvent.ACTION_DOWN) runCatching { key(event.keyCode) }.onFailure { Crash.note(svc, it) }
                 return true
