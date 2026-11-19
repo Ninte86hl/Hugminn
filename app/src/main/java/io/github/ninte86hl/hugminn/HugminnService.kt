@@ -46,8 +46,9 @@ class HugminnService : AccessibilityService() {
             val pkg = foregroundPkg ?: return
             val pm = getSystemService(android.os.PowerManager::class.java)
             if (pm?.isInteractive != true) return
-            val front = runCatching { rootInActiveWindow?.packageName?.toString() }.getOrNull()
-            if (front == pkg) Snapshots.capture(this@HugminnService, pkg)
+            // the app whose window came last (from the window events): asking Android for the active window
+            // here would wait for that app, and keys wait meanwhile, since they pass this thread
+            if (windowPkg == pkg) Snapshots.capture(this@HugminnService, pkg)
         }
     }
     private lateinit var controlCenter: ControlCenter
@@ -185,6 +186,8 @@ class HugminnService : AccessibilityService() {
 
     /** Package of the app in the foreground (game), for frame rate and overlay. */
     @Volatile var foregroundPkg: String? = null
+    /** The app whose window came to the front last (games, launchers, anything but Hugminn and the system bar). */
+    @Volatile var windowPkg: String? = null
     /** The home screen (launcher) is in front, not an app. */
     @Volatile var homeInFront = false
         private set
@@ -196,6 +199,7 @@ class HugminnService : AccessibilityService() {
         override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val pkg = event.packageName?.toString()
+            if (pkg != null && pkg != packageName && pkg != "com.android.systemui") windowPkg = pkg
             if (pkg != null && pkg != packageName) {
                 val entry = "$pkg/${event.className}"
                 synchronized(windowLog) {
@@ -320,7 +324,7 @@ class HugminnService : AccessibilityService() {
                 if (e.repeatCount > 0) return true
                 // picture of the game right now, before anything covers it (own switcher)
                 if (!overlayOpen && p.ownSwitcher && !pendingSingle) foregroundPkg?.let { fg ->
-                    if (runCatching { rootInActiveWindow?.packageName?.toString() }.getOrNull() == fg) Snapshots.capture(this, fg)
+                    if (windowPkg == fg) Snapshots.capture(this, fg)
                 }
                 if (pendingSingle) {
                     ui.removeCallbacks(singlePress)
