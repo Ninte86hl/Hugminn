@@ -225,6 +225,9 @@ object Device {
     fun whitelisted(ctx: Context): Boolean =
         sys(ctx, WHITELIST)?.split(',')?.map { it.trim() }?.contains(ctx.packageName) == true
 
+    /** Android's battery optimisation is off for Hugminn ("unrestricted"). */
+    fun batteryFree(ctx: Context) = ctx.getSystemService(android.os.PowerManager::class.java)?.isIgnoringBatteryOptimizations(ctx.packageName) == true
+
     /** Puts Hugminn on the firmware's background whitelist and exempts it from battery optimisation. */
     fun ensureWhitelist(ctx: Context): Boolean {
         if (!Root.available()) return whitelisted(ctx)

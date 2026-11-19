@@ -322,6 +322,17 @@ class MainActivity : Activity() {
                 st.addView(b)
             }
         }
+        // without root the firmware list can't be changed: Android's own "run in the background" exemption helps
+        if (!rootOk && !Device.batteryFree(this)) {
+            st.addView(text(t("✕ Android darf Hugminn im Hintergrund beenden (Akku-Optimierung). Dann reagiert die Home-Taste zeitweise nicht.",
+                "✕ Android may end Hugminn in the background (battery optimisation). The Home button then stops working at times."), 13f, pal.onSurface).apply { setPadding(0, d(8), 0, 0) })
+            val b = LinearLayout(this).apply { setPadding(0, d(8), 0, d(4)) }
+            b.addView(button(t("Im Hintergrund erlauben", "Allow in the background")) {
+                runCatching { startActivity(Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, android.net.Uri.parse("package:$packageName"))) }
+                    .onFailure { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName"))) }
+            })
+            st.addView(b)
+        }
         Crash.last(this)?.let { crash ->
             st.addView(text(t("Letzter Fehler:", "Last error:"), 13f, pal.onSurface, bold = true).apply { setPadding(0, d(10), 0, d(2)) })
             st.addView(text(crash.lines().take(6).joinToString("\n"), 11f, pal.onSurfaceVariant).apply {

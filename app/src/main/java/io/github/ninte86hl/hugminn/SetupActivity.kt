@@ -481,8 +481,8 @@ class SetupActivity : Activity() {
                 { if (rootOk) rootThen { Root.exec("appops set $pkg WRITE_SETTINGS allow") } else startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, android.net.Uri.parse("package:$pkg"))) }),
             Perm(t("Im Hintergrund bleiben", "Stay in the background"),
                 t("Damit das System Hugminn nicht beendet und die Home-Taste immer funktioniert.", "So the system doesn't end Hugminn and the Home button always works."),
-                { Device.whitelisted(this) || !rootOk },
-                { if (rootOk) rootThen { Device.ensureWhitelist(this) } }),
+                { if (rootOk) Device.whitelisted(this) || (Device.batteryFree(this) && !Device.hasWhitelist(this)) else Device.batteryFree(this) },
+                { if (rootOk) rootThen { Device.ensureWhitelist(this) } else backgroundHelp() }),
         )
         if (!rootOk) list += Perm(t("Zuletzt genutzte Apps", "Recent apps"),
             t("Ohne Root-Dienst erfährt der Spielwechsler nur so, welche Spiele zuletzt offen waren.", "Without the root service, this is how the switcher learns which games were open last."),
@@ -493,6 +493,28 @@ class SetupActivity : Activity() {
             { (getSystemService(android.app.AppOpsManager::class.java)?.unsafeCheckOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), pkg) == android.app.AppOpsManager.MODE_ALLOWED) },
             { rootThen { Root.exec("appops set $pkg GET_USAGE_STATS allow") } })
         return list
+    }
+
+    /** Without root: a short guide, then Android's own dialog (or the app's page to do it by hand). */
+    private fun backgroundHelp() {
+        val msg = t("Android und die Handheld-Firmware beenden Apps im Hintergrund, um Akku zu sparen. Dann reagiert die Home-Taste nicht mehr, bis Hugminn neu startet.\n\n" +
+            "So geht's:\n1. Tippe auf „Jetzt erlauben“.\n2. Android fragt: „Darf Hugminn immer im Hintergrund laufen?“ – tippe auf „Zulassen“.\n\n" +
+            "Kommt keine Frage: App-Info öffnen → Akku → „Nicht eingeschränkt“ wählen.",
+            "Android and the handheld's firmware end apps in the background to save battery. Then the Home button stops working until Hugminn restarts.\n\n" +
+                "How to:\n1. Tap “Allow now”.\n2. Android asks: “Let Hugminn always run in the background?” – tap “Allow”.\n\n" +
+                "If nothing asks: open App info → Battery → choose “Unrestricted”.")
+        android.app.AlertDialog.Builder(this)
+            .setTitle(t("Im Hintergrund bleiben", "Stay in the background"))
+            .setMessage(msg)
+            .setPositiveButton(t("Jetzt erlauben", "Allow now")) { _, _ ->
+                runCatching { startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, android.net.Uri.parse("package:$packageName"))) }
+                    .onFailure { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName"))) }
+            }
+            .setNeutralButton(t("App-Info", "App info")) { _, _ ->
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")))
+            }
+            .setNegativeButton(t("Später", "Later"), null)
+            .show()
     }
 
     private fun permissionsPage(b: LinearLayout) {
