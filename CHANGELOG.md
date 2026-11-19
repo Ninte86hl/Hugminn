@@ -2,59 +2,83 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
-## 1.12.0 (in testing)
-- Capture menu: larger window with two tabs (Take · Settings); resolution, frame rate, sound, indicator and clip length change with ◀ ▶, only L1/R1 switch tabs.
-- Capture: videos can stop by themselves after 5, 10, 15 or 30 seconds or 1, 3, 5 or 10 minutes (Settings → Maximum length).
-- Capture: after a video the stick LEDs go back to their colours or effect.
-- New device test (Settings → Help & about): checks permissions, Retroid features, live values, recording and controllers, then buttons and LEDs by hand, and shows a summary that can be sent as a GitHub issue.
-- Game switcher: Y → Shortcuts shows the emulator's shortcuts with button symbols (common layout with Select as hotkey, as on EmuDeck/ROCKNIX; adjustable per emulator in Settings → Emulator shortcuts).
-- Game switcher: Y → Pin keeps an app open – X and "Close all others" leave it alone.
+## 1.12.0
+
+A big one: capture with game sound, a device test, emulator shortcuts in the switcher, a new guided setup that asks before it does anything – and many fixes from community feedback (thanks to the Pocket 5 tester on Reddit!).
+
+**Capture** (the tile arrived in 1.11 – this is everything it can do now; new in 1.12: the menu with tabs, maximum length, LEDs returning to your colours, microphone without root)
+- A on the tile takes a screenshot of the game (the Control Center closes first); while recording, the tile shows "● 1:24" and A stops the video.
+- Capture menu with two tabs (Take · Settings): L1/R1 switch tabs, ◀ ▶ change values.
+- Videos in 1080p or 720p at 60 or 30 FPS, with game sound, game sound + microphone, microphone only or no sound; saved to Movies/Hugminn.
+- Screenshot or video after a 3-second countdown; a maximum length (5 s up to 10 min) after which the video stops and saves itself.
+- Recording indicator: the stick LEDs pulse red like a camera light, a red dot with the time, both or nothing – afterwards the LEDs return to your colours or effect.
+- Turning the screen off stops and saves the video cleanly.
+- "Keep recording": the last 15/30/60 seconds are always kept, so you can save a moment after it happened – like the capture button on a console.
+- New Home button actions: Screenshot, Record video / stop, Save the last seconds.
+- Without root, Android asks for the microphone, so videos have sound.
+
+**Game switcher**
+- Y → Shortcuts: a card with the emulator's shortcuts in your button symbols – common layout (Select as hotkey, like EmuDeck/ROCKNIX) or your own.
+- Settings → Emulator shortcuts: L1/R1 switch the emulator; a shortcut is recorded by holding the buttons and letting go.
+- Y → Pin keeps an app open (X and "Close all others" leave it alone); a pin shows right next to its name.
+
+**Device test and setup**
+- New device test (Settings → Help & about): permissions, the handheld's features, live values, capture, controllers, a button test (incl. volume, Home, Back) and an LED test, with a ✓/⚠/✗ summary that opens a filled-in device report on GitHub.
+- New setup for new installs: every permission is asked one by one with a short reason (nothing is granted silently any more), you open the Game Switcher and the Control Center once yourself (back to the setup after 5 seconds), a button test, and at the end an optional summary to send – you see exactly what is in it first.
+- "Stay in the background" without root: a short guide and Android's own "allow in the background" dialog, in the setup and in the settings.
+- Setup dialogs follow the chosen style; with root, cards that root handles anyway are left out.
+- The GitHub device report template fills in device, version, root and the test result by itself.
+
+**Control Center and overlay**
 - Fix: adding an element from the edit menu (outside "Arrange & size") did nothing – it now stays and the Control Center shows where it landed.
 - Focus ring: on white (active) tiles it is drawn dark, as thick as on dark tiles.
 - Clearer icons for the stick LEDs (stick with light ring) and Do not disturb (circle with bar).
-- Performance overlay: the box keeps a steady size instead of growing and shrinking with the values.
-- Turning the screen off closes the Control Center and the switcher (they no longer show on the lock screen).
-- Emulator shortcuts: record a shortcut by pressing the buttons; L1/R1 switch the emulator in the settings.
-- Pinned apps show a pin right next to their name, in the style's look.
-- Performance overlay: position and layout change with ◀ ▶ like the size.
-- Device test: also checks volume, Home and Back; the LED driver check was wrong.
+- Performance overlay: the box keeps a steady size; position and layout change with ◀ ▶ like the size.
+
+**Stability**
+- Fix: after standby the Control Center could stay on screen and block all buttons. Nothing of Hugminn opens on the lock screen any more, the power key closes it first, and a window left behind removes itself.
 - Waking up: if the built-in controls are off and no external controller is connected, they come back on.
-- Fix: after standby the Control Center could stay on screen and block the buttons. Nothing of Hugminn opens on the lock screen any more, the power key closes it first, and a window left behind removes itself.
-- Faster Home button: Hugminn no longer asks the app in front for its window (that could hold up the buttons for half a second, e.g. right after waking up).
-- Capture without root: Android now asks for the microphone permission, so videos have sound (before, they stayed silent without a hint).
+- Faster Home button: Hugminn no longer waits for the app in front (that could hold up the buttons for half a second, e.g. right after waking up).
 - Per-game profiles are applied strictly one after another, so quick app switches can't overtake each other.
-- New setup for new installs: permissions are asked one by one with a short reason (nothing is granted silently any more), you open the game switcher and the Control Center once yourself (back to the setup after 5 seconds), a button test, and at the end an optional summary to send as a GitHub issue.
-- Device report on GitHub: the test result is filled in by itself.
-- "Stay in the background": without root, a short guide and Android's own "allow in the background" dialog (setup and settings).
-- Setup with root: the cards "Brightness & system values" and "Recent apps" are gone – the root service handles both anyway.
-- The report and help dialogs of the setup follow the chosen style.
-- Setup button test: the Back button is tested too, and the first presses after "Try it out" count right away.
-- Aufnahme-Menü: größeres Fenster mit zwei Reitern (Aufnehmen · Einstellungen); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, nur L1/R1 wechseln die Reiter.
-- Aufnahme: Videos können nach 5, 10, 15 oder 30 Sekunden oder 1, 3, 5 oder 10 Minuten von selbst enden (Einstellungen → Maximale Länge).
-- Spielwechsler: Y → Tastenkürzel zeigt die Tastenkürzel des Emulators mit Tastensymbolen (gängige Belegung mit Select als Hotkey wie bei EmuDeck/ROCKNIX; pro Emulator anpassbar unter Einstellungen → Tastenkürzel).
-- Spielwechsler: Y → Anheften hält eine App offen – X und „Alle anderen schließen“ lassen sie in Ruhe.
-- Fix: Ein Element über das Bearbeiten-Menü hinzufügen (außerhalb von „Anordnen & Größe“) tat nichts – jetzt bleibt es und das Control Center zeigt, wo es gelandet ist.
+
+---
+
+Ein großes Update: Aufnahme mit Spielton, ein Gerätetest, Tastenkürzel im Spielwechsler, eine neue geführte Einrichtung, die fragt, bevor sie etwas tut – und viele Fixes aus dem Community-Feedback (danke an den Pocket-5-Tester auf Reddit!).
+
+**Aufnahme** (die Kachel kam mit 1.11 – hier alles, was sie jetzt kann; neu in 1.12: das Menü mit Reitern, die maximale Länge, LEDs zurück auf deine Farben, Mikrofon ohne Root)
+- A auf der Kachel macht einen Screenshot vom Spiel (das Control Center schließt sich vorher); während der Aufnahme zeigt die Kachel „● 1:24“, und A stoppt das Video.
+- Aufnahme-Menü mit zwei Reitern (Aufnehmen · Einstellungen): L1/R1 wechseln die Reiter, ◀ ▶ ändern die Werte.
+- Videos in 1080p oder 720p mit 60 oder 30 FPS, mit Spielton, Spielton + Mikrofon, nur Mikrofon oder ohne Ton; gespeichert in Filme/Hugminn.
+- Screenshot oder Video nach 3-Sekunden-Countdown; eine maximale Länge (5 s bis 10 min), nach der das Video selbst endet und speichert.
+- Aufnahme-Anzeige: Die Stick-LEDs pulsieren rot wie das Licht einer Kamera, ein roter Punkt mit Zeit, beides oder nichts – danach gehen die LEDs zurück auf deine Farben bzw. deinen Effekt.
+- Bildschirm aus beendet und speichert das Video sauber.
+- „Mitschneiden“: Die letzten 15/30/60 Sekunden werden immer behalten, so lässt sich ein Moment auch nachträglich speichern – wie die Aufnahme-Taste einer Konsole.
+- Neue Aktionen für die Home-Taste: Screenshot, Video aufnehmen / stoppen, Letzte Sekunden speichern.
+- Ohne Root fragt Android nach dem Mikrofon, damit Videos Ton haben.
+
+**Spielwechsler**
+- Y → Tastenkürzel: eine Karte mit den Kürzeln des Emulators in deinen Tastensymbolen – gängige Belegung (Select als Hotkey wie bei EmuDeck/ROCKNIX) oder deine eigene.
+- Einstellungen → Tastenkürzel: L1/R1 wechseln den Emulator; eine Belegung wird aufgenommen, indem man die Tasten hält und loslässt.
+- Y → Anheften hält eine App offen (X und „Alle anderen schließen“ lassen sie in Ruhe); eine Pinnadel steht direkt neben dem Namen.
+
+**Gerätetest und Einrichtung**
+- Neuer Gerätetest (Einstellungen → Hilfe & Info): Berechtigungen, Funktionen des Handhelds, Messwerte, Aufnahme, Controller, ein Tastentest (mit Lautstärke, Home, Zurück) und ein LED-Test, mit ✓/⚠/✗-Zusammenfassung, die einen ausgefüllten Gerätebericht auf GitHub öffnet.
+- Neue Einrichtung für neue Installationen: Jede Berechtigung wird einzeln mit kurzem Grund erfragt (nichts wird mehr still erteilt), Spielwechsler und Control Center öffnest du einmal selbst (nach 5 Sekunden zurück zur Einrichtung), ein Tastentest und am Ende eine freiwillige Zusammenfassung – du siehst vorher genau, was drinsteht.
+- „Im Hintergrund bleiben“ ohne Root: eine kurze Anleitung und Androids eigener Dialog „im Hintergrund erlauben“, in der Einrichtung und in den Einstellungen.
+- Die Fenster der Einrichtung folgen dem gewählten Stil; mit Root entfallen Karten, die Root ohnehin erledigt.
+- Die GitHub-Vorlage für Geräteberichte trägt Gerät, Version, Root und das Testergebnis selbst ein.
+
+**Control Center und Overlay**
+- Fix: Ein Element über das Bearbeiten-Menü hinzufügen (außerhalb von „Anordnen & Größe“) tat nichts – jetzt bleibt es, und das Control Center zeigt, wo es gelandet ist.
 - Fokusrahmen: Auf weißen (aktiven) Kacheln wird er dunkel gezeichnet, so dick wie auf dunklen.
 - Klarere Symbole für Stick-LEDs (Stick mit Leuchtring) und Nicht stören (Kreis mit Balken).
-- Leistungs-Overlay: Der Kasten behält eine ruhige Größe, statt mit den Werten zu wachsen und zu schrumpfen.
-- Bildschirm aus schließt Control Center und Spielwechsler (sie erscheinen nicht mehr auf dem Sperrbildschirm).
-- Tastenkürzel: Eine Belegung wird aufgenommen, indem man die Tasten drückt; L1/R1 wechseln in den Einstellungen den Emulator.
-- Angeheftete Apps zeigen eine Pinnadel direkt neben dem Namen, im Look des Stils.
-- Leistungs-Overlay: Position und Anordnung mit ◀ ▶ wie die Größe.
-- Gerätetest: prüft auch Lautstärke, Home und Zurück; die Prüfung des LED-Treibers war falsch.
+- Leistungs-Overlay: Der Kasten behält eine ruhige Größe; Position und Anordnung mit ◀ ▶ wie die Größe.
+
+**Stabilität**
+- Fix: Nach dem Standby konnte das Control Center stehen bleiben und alle Tasten blockieren. Auf dem Sperrbildschirm öffnet sich nichts mehr von Hugminn, die Power-Taste schließt es vorher, und ein zurückgebliebenes Fenster entfernt sich selbst.
 - Aufwachen: Ist die eingebaute Steuerung aus und kein externer Controller verbunden, geht sie wieder an.
-- Fix: Nach dem Standby konnte das Control Center stehen bleiben und die Tasten blockieren. Auf dem Sperrbildschirm öffnet sich nichts mehr von Hugminn, die Power-Taste schließt es vorher, und ein zurückgebliebenes Fenster entfernt sich selbst.
-- Schnellere Home-Taste: Hugminn fragt die App im Vordergrund nicht mehr nach ihrem Fenster (das konnte die Tasten z. B. direkt nach dem Aufwachen eine halbe Sekunde aufhalten).
-- Aufnahme ohne Root: Android fragt jetzt nach der Mikrofon-Erlaubnis, damit Videos Ton haben (vorher blieben sie ohne Hinweis stumm).
+- Schnellere Home-Taste: Hugminn wartet nicht mehr auf die App im Vordergrund (das konnte die Tasten z. B. direkt nach dem Aufwachen eine halbe Sekunde aufhalten).
 - Profile pro Spiel werden streng nacheinander angewendet, damit sich schnelle App-Wechsel nicht überholen.
-- Neue Einrichtung für neue Installationen: Berechtigungen werden einzeln mit kurzem Grund erfragt (nichts wird mehr still erteilt), Spielwechsler und Control Center öffnest du einmal selbst (nach 5 Sekunden zurück zur Einrichtung), ein Tastentest und am Ende eine freiwillige Zusammenfassung zum Senden als GitHub-Issue.
-- Gerätebericht auf GitHub: Das Testergebnis wird automatisch eingetragen.
-- „Im Hintergrund bleiben“: Ohne Root eine kurze Anleitung und Androids eigener Dialog „im Hintergrund erlauben“ (Einrichtung und Einstellungen).
-- Einrichtung mit Root: Die Karten „Helligkeit & Systemwerte“ und „Zuletzt genutzte Apps“ entfallen – das erledigt der Root-Dienst ohnehin.
-- Bericht- und Hilfefenster der Einrichtung folgen dem gewählten Stil.
-- Tastentest der Einrichtung: Die Zurück-Taste wird mitgeprüft, und die ersten Tastendrücke nach „Probier es aus“ zählen sofort.
-- Neuer Gerätetest (Einstellungen → Hilfe & Info): prüft Berechtigungen, Retroid-Funktionen, Messwerte, Aufnahme und Controller, danach Tasten und LEDs von Hand, und zeigt eine Zusammenfassung, die sich als GitHub-Issue senden lässt.
-- Aufnahme: Nach einem Video gehen die Stick-LEDs zurück auf ihre Farben bzw. ihren Effekt.
 
 ## 1.11.1
 - Capture: while recording, the stick LEDs pulse red like a camera light (instead of, or together with, the red dot – adjustable).
