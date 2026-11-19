@@ -37,6 +37,33 @@ object Media {
     /** What the last refresh saw (test builds report it). */
     @Volatile var diag = ""
 
+    private var trimmedFrom: android.graphics.Bitmap? = null
+    private var trimmed: android.graphics.Bitmap? = null
+
+    /** Video thumbnails (YouTube) come with black bars above and below: cut them off. */
+    private fun trimBars(b: android.graphics.Bitmap): android.graphics.Bitmap {
+        if (b === trimmedFrom) return trimmed ?: b
+        fun dark(y: Int): Boolean {
+            val step = (b.width / 16).coerceAtLeast(1)
+            var x = 0
+            while (x < b.width) {
+                val c = b.getPixel(x, y)
+                if (android.graphics.Color.red(c) + android.graphics.Color.green(c) + android.graphics.Color.blue(c) > 60) return false
+                x += step
+            }
+            return true
+        }
+        val out = runCatching {
+            var top = 0
+            while (top < b.height / 3 && dark(top)) top++
+            var bottom = b.height - 1
+            while (bottom > b.height * 2 / 3 && dark(bottom)) bottom--
+            if (top > 2 || bottom < b.height - 3) android.graphics.Bitmap.createBitmap(b, 0, top, b.width, bottom - top + 1) else b
+        }.getOrDefault(b)
+        trimmedFrom = b; trimmed = out
+        return out
+    }
+
     private fun component(ctx: Context) = android.content.ComponentName(ctx, MediaListener::class.java)
 
     /** Lets Hugminn read the media sessions (once, through the root service). */
@@ -73,7 +100,7 @@ object Media {
         app = mc?.packageName
         song = md?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)?.takeIf { it.isNotBlank() }
         artist = (md?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: md?.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM_ARTIST))?.takeIf { it.isNotBlank() }
-        art = md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) ?: md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
+        art = (md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) ?: md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART))?.let { trimBars(it) }
         duration = md?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION)?.takeIf { it > 0 } ?: -1L
         position = st?.position?.takeIf { it >= 0 } ?: -1L
         positionAt = st?.lastPositionUpdateTime?.takeIf { it > 0 } ?: SystemClock.elapsedRealtime()

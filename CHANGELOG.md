@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.9.3
+- Music tile: black bars of video thumbnails (e.g. YouTube) are cut off, the picture fills the cover.
+- Musik-Kachel: schwarze Balken von Video-Vorschaubildern (z. B. YouTube) werden abgeschnitten, das Bild füllt das Cover.
+
 ## 1.9.2
 - Music tile 4×2 and 2×2: the song takes one line, so progress and buttons always fit.
 - Musik-Kachel 4×2 und 2×2: der Titel nimmt eine Zeile, damit Fortschritt und Tasten immer Platz haben.
