@@ -290,6 +290,21 @@ object Capture {
 class ProjectionActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // sound needs the microphone permission (also for the game sound); without root Android asks the person
+        val wantsSound = Prefs(this).recAudio != Capture.Audio.NONE.ordinal
+        if (wantsSound && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 2)
+        else askCapture()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED)
+            HugminnService.instance?.let { Notice.show(it, t("Ohne Mikrofon-Erlaubnis: Video ohne Ton", "Without microphone permission: video without sound")) }
+        askCapture()
+    }
+
+    private fun askCapture() {
         val mpm = getSystemService(MediaProjectionManager::class.java)
         runCatching { startActivityForResult(mpm.createScreenCaptureIntent(), 1) }.onFailure { Capture.failed(this); finish() }
     }
