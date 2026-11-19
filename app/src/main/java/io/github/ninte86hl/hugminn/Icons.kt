@@ -27,7 +27,36 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
         setMeasuredDimension(s, s)
     }
 
+    /** 0 lines, 1 pixel blocks (pixel style), 2 dots (dot matrix) – for the media buttons. */
+    var grid = 0
+        set(v) { field = v; invalidate() }
+
+    /** The style's own form for this icon (only the media buttons have a block/dot version). */
+    fun styled(pal: Palette, pixel: Boolean) = apply { grid = if (pal.dots) 2 else if (pixel) 1 else 0 }
+
+    /** Media buttons on a 9×9 grid: true = cell lit. */
+    private fun cells(k: Kind): ((Int, Int) -> Boolean)? = when (k) {
+        Kind.PLAY -> { r, col -> col >= 2 && col < 2 + (5 - Math.abs(r - 4)) }
+        Kind.PAUSE -> { r, col -> r in 1..7 && (col in 2..3 || col in 5..6) }
+        Kind.PREV -> { r, col -> r in 1..7 && (col == 1 || col in (7 - (4 - Math.abs(r - 4)))..6) }
+        Kind.NEXT -> { r, col -> r in 1..7 && (col == 7 || col in 2..(1 + (4 - Math.abs(r - 4)))) }
+        else -> null
+    }
+
     override fun onDraw(c: Canvas) {
+        val lit = if (grid > 0) cells(kind) else null
+        if (lit != null) {
+            val n = 9
+            val cell = width.toFloat() / n
+            val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = p.color; style = Paint.Style.FILL }
+            for (r in 0 until n) for (col in 0 until n) if (lit(r, col)) {
+                val x = col * cell
+                val y = r * cell
+                if (grid == 2) c.drawCircle(x + cell / 2, y + cell / 2, cell * 0.38f, fill)
+                else c.drawRect(x + cell * 0.06f, y + cell * 0.06f, x + cell * 0.94f, y + cell * 0.94f, fill)
+            }
+            return
+        }
         val s = width.toFloat()
         p.strokeWidth = s * 0.09f
         val m = s / 2f

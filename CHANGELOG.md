@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.9.6
+- Music buttons in the style: Pixel draws them from blocks, Dot matrix from dots, Cocoon puts them on soft round buttons.
+- Musik-Tasten im Stil: Pixel zeichnet sie aus Blöcken, Punktmatrix aus Punkten, Cocoon setzt sie auf weiche runde Knöpfe.
+
 ## 1.9.5
 - The device's volume keys work while the Control Center is open (a volume slider on screen moves along).
 - Music tile: file names as titles are cleaned up ("02 Song.mp3" → "Song").

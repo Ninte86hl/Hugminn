@@ -917,9 +917,10 @@ class ControlCenter(private val svc: HugminnService) {
         val btnSize = (if (big && !low) 52 else if (low) 40 else 42) * d
         val ctrl = LinearLayout(svc).apply { gravity = Gravity.CENTER }
         fun btn(kind: IconView.Kind, main: Boolean, run: () -> Unit): IconView {
-            val ic = IconView(svc, kind, if (main) 24 else 20).apply { setColor(if (main) tileOnFg() else pal.onSurface) }
+            val ic = IconView(svc, kind, if (main) 24 else 20).styled(pal, pixel).apply { setColor(if (main) tileOnFg() else pal.onSurface) }
             val f = FrameLayout(svc).apply {
-                background = if (main) rounded(tileOn(), btnSize / 2f) else null
+                // cocoon: soft round buttons like its badges
+                background = if (main) rounded(tileOn(), btnSize / 2f) else if (pal.cocoon) rounded(pal.surfaceHighest, btnSize / 2f) else null
                 addView(ic, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
                 setOnClickListener { if (!editing) run() }
             }
@@ -929,8 +930,8 @@ class ControlCenter(private val svc: HugminnService) {
         val again = { svc.ui.postDelayed({ thread { Media.refresh(svc); refreshAll() } }, 400) }
         btn(IconView.Kind.PREV, false) { Media.key(svc, KeyEvent.KEYCODE_MEDIA_PREVIOUS); again() }
         val playBox = FrameLayout(svc)
-        val play = IconView(svc, IconView.Kind.PLAY, 24).apply { setColor(tileOnFg()) }
-        val pause = IconView(svc, IconView.Kind.PAUSE, 24).apply { setColor(tileOnFg()) }
+        val play = IconView(svc, IconView.Kind.PLAY, 24).styled(pal, pixel).apply { setColor(tileOnFg()) }
+        val pause = IconView(svc, IconView.Kind.PAUSE, 24).styled(pal, pixel).apply { setColor(tileOnFg()) }
         // play: filled circle (modern, cocoon), stepped square (pixel), ring of dots in the accent (dot matrix)
         playBox.background = when {
             pal.dots -> DotOutline(0, btnSize / 2f, 2.5f * d, tileOn())
