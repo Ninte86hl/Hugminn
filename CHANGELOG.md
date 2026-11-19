@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.30
+- "Control Center" and "Game switcher" now also appear in Android's "Add shortcut" list, which frontends like Cocoon read (Cocoon has to be the default launcher).
+- „Control Center“ und „Spielwechsler“ erscheinen jetzt auch in Androids Liste „Verknüpfung hinzufügen“, die Frontends wie Cocoon auslesen (Cocoon muss Standard-Launcher sein).
+
 ## 1.10.29
 - Settings: shortcuts have their own page "Shortcuts".
 - Einstellungen: Die Verknüpfungen haben eine eigene Seite „Verknüpfungen“.

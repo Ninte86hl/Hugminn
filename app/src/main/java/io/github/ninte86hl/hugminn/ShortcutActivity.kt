@@ -8,7 +8,16 @@ import android.os.Bundle
 class ShortcutActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val switcher = intent?.action?.endsWith("SWITCHER") == true || intent?.component?.className?.endsWith("SwitcherApp") == true
+        val cls = intent?.component?.className.orEmpty()
+        val switcher = intent?.action?.endsWith("SWITCHER") == true || cls.endsWith("SwitcherApp") || cls.endsWith("SwitcherShortcut")
+        // a launcher asks for a shortcut ("Add shortcut"): hand it over instead of opening anything
+        if (intent?.action == Intent.ACTION_CREATE_SHORTCUT) {
+            val info = OpenFromOutside.info(this, switcher)
+            val sm = getSystemService(android.content.pm.ShortcutManager::class.java)
+            setResult(RESULT_OK, sm?.createShortcutResultIntent(info))
+            finish()
+            return
+        }
         val action = if (switcher) Action.SWITCHER else Action.CONTROL_CENTER
         finish()
         overridePendingTransition(0, 0)
@@ -21,14 +30,15 @@ object OpenFromOutside {
     fun pin(ctx: android.content.Context, switcher: Boolean): Boolean {
         val sm = ctx.getSystemService(android.content.pm.ShortcutManager::class.java) ?: return false
         if (!sm.isRequestPinShortcutSupported) return false
-        val label = ctx.getString(if (switcher) R.string.sc_switcher else R.string.sc_cc)
-        val info = android.content.pm.ShortcutInfo.Builder(ctx, if (switcher) "pin_switcher" else "pin_cc")
-            .setShortLabel(label)
+        return runCatching { sm.requestPinShortcut(info(ctx, switcher), null) }.getOrDefault(false)
+    }
+
+    fun info(ctx: android.content.Context, switcher: Boolean): android.content.pm.ShortcutInfo =
+        android.content.pm.ShortcutInfo.Builder(ctx, if (switcher) "pin_switcher" else "pin_cc")
+            .setShortLabel(ctx.getString(if (switcher) R.string.sc_switcher else R.string.sc_cc))
             .setIcon(android.graphics.drawable.Icon.createWithResource(ctx, R.mipmap.ic_launcher))
             .setIntent(Intent("io.github.ninte86hl.hugminn." + if (switcher) "SWITCHER" else "CONTROL_CENTER").setClass(ctx, ShortcutActivity::class.java))
             .build()
-        return runCatching { sm.requestPinShortcut(info, null) }.getOrDefault(false)
-    }
 
     /** The extra app icons "Hugminn Control Center" / "Hugminn Spielwechsler" for frontends that only list apps. */
     fun appIcons(ctx: android.content.Context): Boolean = ctx.packageManager.getComponentEnabledSetting(
