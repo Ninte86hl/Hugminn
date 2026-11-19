@@ -34,6 +34,9 @@ object Capture {
     /** Resolution (short side) and frame rate. */
     val qualities = listOf(1080 to 60, 1080 to 30, 720 to 60, 720 to 30)
     val replayLengths = listOf(15, 30, 60)
+    val limits = listOf(0, 30, 60, 180, 300, 600)
+    fun limitLabel(s: Int) = when { s == 0 -> t("Unbegrenzt", "No limit"); s < 60 -> "$s s"; else -> "${s / 60} min" }
+    private var limitRun: Runnable? = null
 
     @Volatile var recorder: Recorder? = null
     @Volatile var recordStart = 0L
@@ -101,6 +104,13 @@ object Capture {
     private fun beginFile(svc: HugminnService, r: Recorder) {
         if (!r.startFile()) { Notice.show(svc, t("Aufnahme fehlgeschlagen", "Recording failed")); return }
         recordStart = SystemClock.elapsedRealtime()
+        limitRun?.let { svc.ui.removeCallbacks(it) }
+        svc.prefs.recLimit.takeIf { it > 0 }?.let { sec ->
+            val start = recordStart
+            val run = Runnable { if (recording && recordStart == start) stopRecord(svc) }
+            limitRun = run
+            svc.ui.postDelayed(run, sec * 1000L)
+        }
         Indicator.show(svc)
         if (svc.prefs.recShow in listOf(0, 2)) Thread { runCatching { LedFx.setRecording(svc, true) } }.start()
         Notice.show(svc, t("Aufnahme läuft", "Recording"), corner = true)
