@@ -101,6 +101,7 @@ class Switcher(private val svc: HugminnService) {
     fun open() {
         if (isOpen) return
         isOpen = true
+        HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
         lingering?.let { l -> lingering = null; runCatching { wm.removeView(l) } }
         // Opened from the home screen: B leads back there, not into the last game.
         val front = svc.windowPkg // from the window events: no waiting for the app in front

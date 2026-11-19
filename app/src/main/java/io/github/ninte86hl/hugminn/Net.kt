@@ -207,7 +207,7 @@ object Bt {
         fun start() {
             runCatching { ctx.registerReceiver(rx, IntentFilter(BluetoothDevice.ACTION_FOUND).apply { addAction(BluetoothDevice.ACTION_NAME_CHANGED) }) }
             // make sure the search may run (rights granted through the system shell)
-            listOf(android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.ACCESS_FINE_LOCATION)
+            if (Device.autoGrant(ctx)) listOf(android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.ACCESS_FINE_LOCATION)
                 .filter { ctx.checkSelfPermission(it) != 0 }
                 .forEach { Root.exec("pm grant ${ctx.packageName} $it") }
             val r = runCatching { adapter(ctx)?.startDiscovery() }

@@ -186,6 +186,7 @@ class OwnSwitcher(private val svc: HugminnService) {
     fun open(swipe: Boolean) {
         if (isOpen) return
         isOpen = true
+        HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
         fromSwipe = swipe
         val front = svc.windowPkg // from the window events: no waiting for the app in front
         fromPkg = if (swipe) svc.foregroundPkg?.takeIf { svc.appRecentlyInFront() }

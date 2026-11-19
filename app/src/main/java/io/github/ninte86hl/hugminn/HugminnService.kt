@@ -20,6 +20,8 @@ class HugminnService : AccessibilityService() {
         @Volatile var instance: HugminnService? = null
         /** Set by the device test while it waits for buttons (Home included). */
         @Volatile var keyProbe: ((Int) -> Unit)? = null
+        /** The setup wizard waits for the switcher / Control Center to be opened ("switcher", "cc"). */
+        @Volatile var overlayOpened: ((String) -> Unit)? = null
     }
 
     val ui = Handler(Looper.getMainLooper())
@@ -93,7 +95,7 @@ class HugminnService : AccessibilityService() {
         instance = this
         if (prefs.overlayOn) ui.post { runCatching { overlay.show() } }
         // Keep the firmware from killing Hugminn in the background.
-        Thread {
+        if (Device.autoGrant(this)) Thread {
             Device.ensureWhitelist(this)
             listOf(
                 android.Manifest.permission.POST_NOTIFICATIONS,
@@ -127,7 +129,7 @@ class HugminnService : AccessibilityService() {
                 }
             }, ui)
         }
-        Thread { runCatching { if (Root.available()) Media.enableListener(this) } }.start()
+        Thread { runCatching { if (Root.available() && Device.autoGrant(this)) Media.enableListener(this) } }.start()
         Capture.resume(this)
         // test builds: an error from the last run is sent once (only with a token set)
         Thread { runCatching { Feedback.sendErrorLogIfPending(this) } }.start()
@@ -355,6 +357,8 @@ class HugminnService : AccessibilityService() {
     }
 
     fun perform(a: Action) {
+        // trying out the overlays in the setup: a single press must not leave the wizard
+        if (overlayOpened != null && a == Action.HOME) return
         try {
             performUnsafe(a)
         } catch (t: Throwable) {

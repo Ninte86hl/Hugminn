@@ -246,6 +246,16 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("padHome", true)
         set(v) = p.edit().putBoolean("padHome", v).apply()
 
+    /** New installs: permissions only as the person allows them in the setup (no silent granting). */
+    /** Allowed in the setup: recording starts without Android asking each time (root). */
+    var recNoAsk: Boolean
+        get() = p.getBoolean("recNoAsk", false)
+        set(v) = p.edit().putBoolean("recNoAsk", v).apply()
+
+    var askPermissions: Boolean
+        get() = p.getBoolean("askPermissions", false)
+        set(v) = p.edit().putBoolean("askPermissions", v).apply()
+
     var setupDone: Boolean
         get() = p.getBoolean("setupDone", false)
         set(v) = p.edit().putBoolean("setupDone", v).apply()

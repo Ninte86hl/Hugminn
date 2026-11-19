@@ -84,6 +84,7 @@ class ControlCenter(private val svc: HugminnService) {
     fun open() {
         if (isOpen) return
         isOpen = true
+        HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("cc") } }
         pal = Palette(svc)
         items.clear()
         refreshers.clear()
