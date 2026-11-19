@@ -1546,9 +1546,16 @@ class ControlCenter(private val svc: HugminnService) {
                 svc.ui.postDelayed({ thread { Media.refresh(svc); refreshAll() } }, 500)
             }
         }
-        "screenshot" -> Tile("Screenshot", IconView.Kind.CAMERA, { null }, { false }) {
+        // A: screenshot of the game (the Control Center closes first), or stops a running video; X: the menu
+        "screenshot" -> Tile(t("Aufnahme", "Capture"), IconView.Kind.CAMERA, {
+            when {
+                Capture.recording -> "● " + Capture.elapsed()
+                Capture.replayRunning -> t("Letzte ${svc.prefs.replaySec} s", "Last ${svc.prefs.replaySec} s")
+                else -> "Screenshot"
+            }
+        }, { Capture.recording || Capture.replayRunning }, menu = { captureMenu() }) {
             close()
-            svc.ui.postDelayed({ svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) }, 300)
+            if (Capture.recording) Capture.stopRecord(svc) else Capture.screenshot(svc)
         }
         // like the power button: the screen goes off and the game pauses until the device wakes up
         "sleep" -> Tile(t("Bildschirm aus", "Screen off"), IconView.Kind.POWER, { t("Ruhemodus", "Sleep") }, { false }) {
@@ -2327,6 +2334,41 @@ class ControlCenter(private val svc: HugminnService) {
     /** Changes only the small text under a menu entry (no new menu, nothing flickers). */
     private fun setMenuHint(i: Int, hint: String) {
         menuRows.getOrNull(i)?.findViewWithTag<android.widget.TextView>("hint")?.text = hint
+    }
+
+    /** The Capture tile's menu: take something, then the settings (they change in place). */
+    private fun captureMenu(select: Int = -1) {
+        val p = svc.prefs
+        val (res, fps) = Capture.qualities.getOrElse(p.recQuality) { Capture.qualities[0] }
+        val audio = Capture.Audio.values().getOrElse(p.recAudio) { Capture.Audio.GAME }
+        val entries = mutableListOf<MenuEntry>()
+        fun again() = entries.size // index of the entry being added, to keep the selection after a change
+        entries += MenuEntry(t("Aufnehmen", "Take"), header = true, run = null)
+        entries += MenuEntry("Screenshot", hint = "A") { close(); Capture.screenshot(svc) }
+        entries += MenuEntry(t("Screenshot in 3 s", "Screenshot in 3 s")) { close(); Capture.screenshot(svc, 3) }
+        entries += if (Capture.recording) MenuEntry(t("Video stoppen", "Stop video"), hint = Capture.elapsed()) { close(); Capture.stopRecord(svc) }
+        else MenuEntry(t("Video aufnehmen", "Record video"), hint = t("Kachel-A stoppt", "Tile A stops")) { close(); Capture.startRecord(svc) }
+        if (Capture.replayRunning) entries += MenuEntry(t("Letzte ${p.replaySec} s speichern", "Save the last ${p.replaySec} s")) { close(); Capture.saveReplay(svc) }
+        if (Capture.lastUri != null) entries += MenuEntry(t("Letzte Aufnahme ansehen", "View last capture")) { close(); Capture.openLast(svc) }
+        entries += MenuEntry(t("Einstellungen", "Settings"), header = true, run = null)
+        val iq = again()
+        entries += MenuEntry(t("Qualität", "Quality"), hint = "${res}p · $fps FPS") { p.recQuality = (p.recQuality + 1) % Capture.qualities.size; captureMenu(iq) }
+        val ia = again()
+        entries += MenuEntry(t("Ton", "Sound"), hint = audio.label) { p.recAudio = (p.recAudio + 1) % Capture.Audio.values().size; captureMenu(ia) }
+        val ii = again()
+        entries += MenuEntry(t("Roter Punkt während der Aufnahme", "Red dot while recording"), checked = p.recIndicator) { p.recIndicator = !p.recIndicator; captureMenu(ii) }
+        val ir = again()
+        entries += MenuEntry(t("Letzte Sekunden mitschneiden", "Keep the last seconds"), checked = p.replayOn,
+            hint = t("Läuft im Hintergrund, braucht etwas Akku", "Runs in the background, uses some battery")) {
+            Capture.setReplay(svc, !p.replayOn); svc.ui.postDelayed({ if (isOpen) captureMenu(ir) }, 300)
+        }
+        val il = again()
+        entries += MenuEntry(t("Länge", "Length"), hint = "${p.replaySec} s") {
+            p.replaySec = Capture.replayLengths[(Capture.replayLengths.indexOf(p.replaySec) + 1) % Capture.replayLengths.size]
+            Capture.recorder?.let { if (it.replaySec > 0) it.replaySec = p.replaySec }
+            captureMenu(il)
+        }
+        showMenu(t("Aufnahme", "Capture"), entries, select)
     }
 
     private fun showMenuSel() {

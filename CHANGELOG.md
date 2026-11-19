@@ -2,6 +2,14 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.11.0
+- New Capture tile (replaces Screenshot): A takes a screenshot of the game, X opens a menu with a 3-second timer, video recording with game sound (or sound + microphone), quality (720p/1080p, 30/60 FPS), a red dot with the time while recording, and "keep the last 15/30/60 seconds" to save a clip afterwards, like on a console. Videos go to Movies/Hugminn.
+- Home button: new actions Screenshot, Record video / stop and Save the last seconds.
+- Shortcuts: the red and blue icons now also show in launchers like Cocoon (add the shortcuts again once).
+- Neue Kachel Aufnahme (ersetzt Screenshot): A macht einen Screenshot vom Spiel, X öffnet ein Menü mit 3-Sekunden-Timer, Videoaufnahme mit Spielton (oder Ton + Mikrofon), Qualität (720p/1080p, 30/60 FPS), rotem Punkt mit Zeit während der Aufnahme und „letzte 15/30/60 Sekunden mitschneiden“, um nachträglich einen Clip zu speichern – wie bei einer Konsole. Videos landen in Filme/Hugminn.
+- Home-Taste: neue Aktionen Screenshot, Video aufnehmen / stoppen und Letzte Sekunden speichern.
+- Verknüpfungen: Die roten und blauen Symbole erscheinen jetzt auch in Launchern wie Cocoon (Verknüpfungen einmal neu hinzufügen).
+
 ## 1.10.32
 - New app icon: the two ravens in red (Huginn, Control Center) and blue (Muninn, game switcher) on a graphite handheld.
 - Neues App-Symbol: die beiden Raben in Rot (Huginn, Control Center) und Blau (Muninn, Spielwechsler) auf einem Handheld in Graphit.

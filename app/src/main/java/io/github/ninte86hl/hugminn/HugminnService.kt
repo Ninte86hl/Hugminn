@@ -121,6 +121,7 @@ class HugminnService : AccessibilityService() {
             }, ui)
         }
         Thread { runCatching { if (Root.available()) Media.enableListener(this) } }.start()
+        Capture.resume(this)
         // Low battery: the sticks pulse red
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {
@@ -326,6 +327,9 @@ class HugminnService : AccessibilityService() {
                 closeOverlays()
                 performGlobalAction(GLOBAL_ACTION_RECENTS)
             }
+            Action.SCREENSHOT -> { closeOverlays(); Capture.screenshot(this) }
+            Action.RECORD -> { closeOverlays(); Capture.toggleRecord(this) }
+            Action.REPLAY -> Capture.saveReplay(this)
             Action.LAST_APP -> {
                 closeOverlays()
                 performGlobalAction(GLOBAL_ACTION_RECENTS)

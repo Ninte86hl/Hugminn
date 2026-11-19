@@ -23,7 +23,7 @@ object TileCatalog {
         "theme" to tr("Farbschema"),
         "screen" to tr("Bildschirm an"),
         "clean" to tr("Speicher leeren"),
-        "screenshot" to "Screenshot",
+        "screenshot" to t("Aufnahme", "Capture"),
         "sleep" to t("Bildschirm aus", "Screen off"),
         "devbat" to t("Geräte-Akku", "Device battery"),
         "media" to t("Musik", "Music"),
