@@ -707,23 +707,23 @@ class ControlCenter(private val svc: HugminnService) {
         c.addView(View(svc), lp(MATCH, 0, 1f))
         val chips = mutableListOf<Pair<String, TextView>>()
         val rows = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-        // long names (performance) two per row, short ones (fan) three
-        val perRow = if (perf) 2 else 3
+        // two per row: long names stay readable (fan: 2×3)
+        val perRow = 2
         var row: LinearLayout? = null
         table.entries.forEachIndexed { i, (v, name) ->
-            if (i % perRow == 0) row = LinearLayout(svc).also { rows.addView(it, lp(MATCH, WRAP).apply { if (i > 0) topMargin = 5 * d }) }
-            val chip = text(name, 11f, pal.onSurface, bold = true).apply {
+            if (i % perRow == 0) row = LinearLayout(svc).also { rows.addView(it, lp(MATCH, WRAP).apply { if (i > 0) topMargin = (if (e.h >= 3) 8 else 5) * d }) }
+            val chip = text(name, if (e.h >= 3) 13f else 11f, pal.onSurface, bold = true).apply {
                 gravity = Gravity.CENTER
                 maxLines = 1
-                setAutoSizeTextTypeUniformWithConfiguration(7, 11, 1, TypedValue.COMPLEX_UNIT_SP)
+                setAutoSizeTextTypeUniformWithConfiguration(7, if (e.h >= 3) 13 else 11, 1, TypedValue.COMPLEX_UNIT_SP)
                 setPadding(4 * d, 0, 4 * d, 0)
                 setOnClickListener { if (!editing) { if (perf) Device.setPerf(v) { refreshAll() } else chooseFan(v) } }
             }
-            row!!.addView(chip, lp(0, 30 * d, 1f).apply { marginEnd = 5 * d })
+            row!!.addView(chip, lp(0, (if (e.h >= 3) 38 else 30) * d, 1f).apply { marginEnd = 5 * d })
             chips += v to chip
         }
         val left = (perRow - table.size % perRow) % perRow
-        repeat(left) { row?.addView(View(svc), lp(0, 30 * d, 1f).apply { marginEnd = 5 * d }) }
+        repeat(left) { row?.addView(View(svc), lp(0, (if (e.h >= 3) 38 else 30) * d, 1f).apply { marginEnd = 5 * d }) }
         c.addView(rows)
         val refresh = {
             val cur = if (!perf && svc.prefs.fanCustom) "6" else Device.sys(svc, key)
@@ -2188,6 +2188,31 @@ class ControlCenter(private val svc: HugminnService) {
         }
         box.addView(text(title, 18f, pal.onSurface, bold = true).apply { setPadding(14 * d, 0, 14 * d, 10 * d) })
         val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        menuList = list
+        fillMenuRows(list, entries)
+        val tall = forceTall || entries.size > 6 || title == "Bluetooth" || title == tr("WLAN")
+        val sc = android.widget.ScrollView(svc).apply { addView(list) }
+        menuScroll = sc
+        box.addView(sc, if (tall) lp(MATCH, 0, 1f) else lp(MATCH, WRAP))
+        val w = (r.width * 0.42f).toInt().coerceAtLeast(320 * d)
+        r.addView(box, FrameLayout.LayoutParams(w, if (tall) (r.height * 0.86f).toInt() else FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        menuView = box
+        if (refresh) {
+            sc.post { sc.scrollTo(0, keepScroll) }
+        } else {
+            box.scaleX = 0.96f
+            box.scaleY = 0.96f
+            box.alpha = 0f
+            box.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(110).start()
+        }
+        showMenuSel()
+    }
+
+    /** The list inside the open menu (a tab change refills it in place). */
+    private var menuList: LinearLayout? = null
+
+    /** Rows of a menu: one per entry, headers in the accent colour. */
+    private fun fillMenuRows(list: LinearLayout, entries: List<MenuEntry>) {
         entries.forEachIndexed { i, e ->
             val row = LinearLayout(svc).apply {
                 gravity = Gravity.CENTER_VERTICAL
@@ -2215,22 +2240,6 @@ class ControlCenter(private val svc: HugminnService) {
             list.addView(row, lp(MATCH, WRAP))
             menuRows += row
         }
-        val tall = forceTall || entries.size > 6 || title == "Bluetooth" || title == tr("WLAN")
-        val sc = android.widget.ScrollView(svc).apply { addView(list) }
-        menuScroll = sc
-        box.addView(sc, if (tall) lp(MATCH, 0, 1f) else lp(MATCH, WRAP))
-        val w = (r.width * 0.42f).toInt().coerceAtLeast(320 * d)
-        r.addView(box, FrameLayout.LayoutParams(w, if (tall) (r.height * 0.86f).toInt() else FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
-        menuView = box
-        if (refresh) {
-            sc.post { sc.scrollTo(0, keepScroll) }
-        } else {
-            box.scaleX = 0.96f
-            box.scaleY = 0.96f
-            box.alpha = 0f
-            box.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(110).start()
-        }
-        showMenuSel()
     }
 
     private var menuScroll: android.widget.ScrollView? = null
@@ -2498,9 +2507,35 @@ class ControlCenter(private val svc: HugminnService) {
     private fun tabMenu(title: String, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int) {
         if (tabs.isEmpty()) { showMenu(title, listOf(MenuEntry(tr("Alles ist schon im Raster"), run = null))); return }
         addTab = tab
+        // already open: only the tabs and the list change, the window stays (no flicker)
+        val openList = menuList
+        val openBar = tabBar
+        if (menuView != null && openList != null && openBar != null && openBar.parent === menuView) {
+            menuEntries = tabs[tab].second
+            menuRows.clear()
+            openList.removeAllViews()
+            fillMenuRows(openList, menuEntries)
+            menuSel = menuEntries.indexOfFirst { it.run != null }.coerceAtLeast(0)
+            menuScroll?.scrollTo(0, 0)
+            styleTabs(openBar, tabs, tab, title)
+            showMenuSel()
+            setTabKeys(title, tabs, tab)
+            return
+        }
         showMenu(title, tabs[tab].second, forceTall = true)
         val box = menuView as? LinearLayout ?: return
         val bar = LinearLayout(svc).apply { setPadding(10 * d, 0, 10 * d, 10 * d); gravity = Gravity.CENTER_VERTICAL }
+        tabBar = bar
+        styleTabs(bar, tabs, tab, title)
+        box.addView(bar, 1)
+        setTabKeys(title, tabs, tab)
+    }
+
+    private var tabBar: LinearLayout? = null
+
+    /** Draws the tab row: ◀ tabs ▶, the chosen one filled. */
+    private fun styleTabs(bar: LinearLayout, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int, title: String) {
+        bar.removeAllViews()
         bar.addView(text("◀", 13f, pal.onSurfaceVariant, bold = true).apply { setPadding(0, 0, 8 * d, 0) })
         tabs.forEachIndexed { i, (name, _) ->
             val sel = i == tab
@@ -2512,7 +2547,9 @@ class ControlCenter(private val svc: HugminnService) {
             }, lp(0, 36 * d, 1f).apply { marginEnd = 6 * d })
         }
         bar.addView(text("▶", 13f, pal.onSurfaceVariant, bold = true).apply { setPadding(2 * d, 0, 0, 0) })
-        box.addView(bar, 1)
+    }
+
+    private fun setTabKeys(title: String, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int) {
         popupKeys = { code ->
             when (code) {
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BUTTON_L1 -> tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size)
@@ -2524,6 +2561,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
         }
     }
+
 
     /** Puts [id] at the cursor in the largest preferred size that fits there. */
     private fun placeAtCursor(id: String) {

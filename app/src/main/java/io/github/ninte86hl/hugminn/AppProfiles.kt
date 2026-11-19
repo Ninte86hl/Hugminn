@@ -100,6 +100,10 @@ object AppProfiles {
             activeKey = hit.first
             val p = hit.second
             apply(svc, p.perf ?: basePerf, p.fan ?: baseFan, if (p.fan == null) baseCurve else p.fan == "6")
+            // a short notice says which profile took over (game or emulator)
+            val who = titleOf(hit.first) ?: Apps.label(svc, pkgOf(hit.first))
+            val what = listOfNotNull(p.perf?.let { Device.perfProfiles[it] ?: it }, p.fan?.let { t("Lüfter ", "Fan ") + (Device.fanProfiles[it] ?: it) }).joinToString(" · ")
+            if (what.isNotEmpty()) Notice.show(svc, t("Profil für $who: $what", "Profile for $who: $what"))
         } else if (activeKey != null) {
             activeKey = null
             apply(svc, basePerf, baseFan, baseCurve)
