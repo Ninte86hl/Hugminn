@@ -244,6 +244,23 @@ object Feedback {
                 if (lines.isNotEmpty()) { appendLine(); appendLine("LED-Einstellungen:"); lines.forEach { appendLine(it) } }
             }
         }
+        // controller / input settings of the firmware (to find switches such as "disable built-in controller")
+        runCatching {
+            val rx = Regex("gamepad|handle|controller|abxy|button|input|keyboard|key_|joy|trigger|charg|separation|disable", RegexOption.IGNORE_CASE)
+            val lines = mutableListOf<String>()
+            for ((tbl, uri) in listOf("system" to android.provider.Settings.System.CONTENT_URI, "global" to android.provider.Settings.Global.CONTENT_URI, "secure" to android.provider.Settings.Secure.CONTENT_URI)) {
+                runCatching {
+                    svc.contentResolver.query(uri, arrayOf("name", "value"), null, null, null)?.use { c ->
+                        while (c.moveToNext()) {
+                            val n = c.getString(0) ?: continue
+                            if (rx.containsMatchIn(n)) lines += "  $tbl/$n = ${c.getString(1)}"
+                        }
+                    }
+                }
+            }
+            Root.exec("getprop | grep -iE 'gamepad|handle|controller|joy|abxy' 2>/dev/null")?.lines()?.filter { it.isNotBlank() }?.forEach { lines += "  prop $it" }
+            if (lines.isNotEmpty()) { appendLine(); appendLine("Controller-Einstellungen:"); lines.forEach { appendLine(it) } }
+        }
         runCatching { svc.own.diag + svc.own.removeDiag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
         appendLine(); appendLine("Spieltitel: ${GameTitle.titles}"); if (GameTitle.diag.isNotEmpty()) appendLine(GameTitle.diag)
         appendLine(); appendLine("Musik: Listener ${Media.listenerInfo} · spielt=${Media.playing} · app=${Media.app} · titel=${Media.title} · cover=${Media.art != null}"); if (Media.diag.isNotEmpty()) appendLine(Media.diag)
