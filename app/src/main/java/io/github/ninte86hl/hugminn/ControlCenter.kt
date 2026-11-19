@@ -2466,7 +2466,13 @@ class ControlCenter(private val svc: HugminnService) {
                 val sc = if (i == focus && !adj && v.width < 420 * d) 1.04f else 1f
                 v.animate().scaleX(sc).scaleY(sc).setDuration(120).start()
             } else
-            v.foreground = if (i == focus) shape(0, r, (if (adj) 5 else 3) * d, if (adj) tileOn() else pal.onSurface) else null
+            v.foreground = if (i == focus) {
+                // light ring with a dark one inside: visible on dark tiles and on white (active) ones
+                val outer = shape(0, r, (if (adj) 5 else 3) * d, if (adj) tileOn() else pal.onSurface)
+                val ins = (if (adj) 5 else 3) * d
+                val inner = shape(0, (r - ins).coerceAtLeast(0f), 2 * d, if (pal.dark) 0xFF000000.toInt() else 0xFFFFFFFF.toInt())
+                android.graphics.drawable.LayerDrawable(arrayOf(outer, android.graphics.drawable.InsetDrawable(inner, ins)))
+            } else null
         }
     }
 
@@ -2720,6 +2726,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** Puts [id] at the cursor in the largest preferred size that fits there. */
     private fun placeAtCursor(id: String) {
+        if (!editing) entries = svc.prefs.ccGrid.toMutableList()
         val preferred = when {
             GridLayout.isSlider(id) -> listOf(1 to 2, 2 to 1, 1 to 3, 3 to 1)
             id == "system" -> listOf(4 to 2, 4 to 4)
@@ -2732,11 +2739,20 @@ class ControlCenter(private val svc: HugminnService) {
             // too big for this spot: the first free place (a new page if needed)
             val (w, h) = preferred.first()
             entries.add(GridEntry(id, w.coerceAtMost(gridCols), h.coerceAtMost(GridLayout.ROWS)))
-            renderGrid()
+            added(id)
             return
         }
         entries.add(GridEntry(id, size.first, size.second, cursorX, cursorY, gridPage))
+        added(id)
+    }
+
+    /** Saves the new element (outside the arrange mode) and shows the page it landed on. */
+    private fun added(id: String) {
+        if (!editing) svc.prefs.ccGrid = entries.toList()
         renderGrid()
+        val p = placed.lastOrNull { it.entry.id == id } ?: return
+        if (p.page != gridPage) { gridPage = p.page; renderGrid() }
+        Notice.show(svc, t("${GridLayout.name(id)} hinzugefügt", "${GridLayout.name(id)} added") + if (pages() > 1) t(" · Seite ${p.page + 1}", " · page ${p.page + 1}") else "", corner = true)
     }
 
     // ---------- editing (Y): layout, tiles, colours, style ----------

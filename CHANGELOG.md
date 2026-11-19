@@ -9,10 +9,20 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - New device test (Settings → Help & about): checks permissions, Retroid features, live values, recording and controllers, then buttons and LEDs by hand, and shows a summary that can be sent as a GitHub issue.
 - Game switcher: Y → Shortcuts shows the emulator's shortcuts with button symbols (common layout with Select as hotkey, as on EmuDeck/ROCKNIX; adjustable per emulator in Settings → Emulator shortcuts).
 - Game switcher: Y → Pin keeps an app open – X and "Close all others" leave it alone.
+- Fix: adding an element from the edit menu (outside "Arrange & size") did nothing – it now stays and the Control Center shows where it landed.
+- Focus ring with a dark inner line, so it's visible on white (active) tiles too.
+- Clearer icons for the stick LEDs (stick with light ring) and Do not disturb (circle with bar).
+- Performance overlay: the box keeps a steady size instead of growing and shrinking with the values.
+- Turning the screen off closes the Control Center and the switcher (they no longer show on the lock screen).
 - Aufnahme-Menü: größeres Fenster mit zwei Reitern (Aufnehmen · Einstellungen); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, L1/R1 wechseln die Reiter.
 - Aufnahme: Videos können nach 5, 10, 15 oder 30 Sekunden oder 1, 3, 5 oder 10 Minuten von selbst enden (Einstellungen → Maximale Länge).
 - Spielwechsler: Y → Tastenkürzel zeigt die Tastenkürzel des Emulators mit Tastensymbolen (gängige Belegung mit Select als Hotkey wie bei EmuDeck/ROCKNIX; pro Emulator anpassbar unter Einstellungen → Tastenkürzel).
 - Spielwechsler: Y → Anheften hält eine App offen – X und „Alle anderen schließen“ lassen sie in Ruhe.
+- Fix: Ein Element über das Bearbeiten-Menü hinzufügen (außerhalb von „Anordnen & Größe“) tat nichts – jetzt bleibt es und das Control Center zeigt, wo es gelandet ist.
+- Fokusrahmen mit dunkler Innenlinie, damit er auch auf weißen (aktiven) Kacheln sichtbar ist.
+- Klarere Symbole für Stick-LEDs (Stick mit Leuchtring) und Nicht stören (Kreis mit Balken).
+- Leistungs-Overlay: Der Kasten behält eine ruhige Größe, statt mit den Werten zu wachsen und zu schrumpfen.
+- Bildschirm aus schließt Control Center und Spielwechsler (sie erscheinen nicht mehr auf dem Sperrbildschirm).
 - Neuer Gerätetest (Einstellungen → Hilfe & Info): prüft Berechtigungen, Retroid-Funktionen, Messwerte, Aufnahme und Controller, danach Tasten und LEDs von Hand, und zeigt eine Zusammenfassung, die sich als GitHub-Issue senden lässt.
 - Aufnahme: Nach einem Video gehen die Stick-LEDs zurück auf ihre Farben bzw. ihren Effekt.
 
