@@ -725,15 +725,18 @@ class ControlCenter(private val svc: HugminnService) {
         val c = card().apply { setPadding(16 * d, 12 * d, 16 * d, 12 * d) }
         c.addView(cardHead(sp.icon, sp.title, e.id).first)
         c.addView(View(svc), lp(MATCH, 0, 1f))
-        val value = text("", 30f, pal.onSurface, bold = true).apply {
+        // sizes in step with the other cards; narrow 4:3 screens (Pocket Nova) a little smaller
+        val narrow = svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density < 720
+        val valueSp = (if (e.w >= 3) 26f else 22f) - (if (narrow) 4f else 0f)
+        val value = text("", valueSp, pal.onSurface, bold = true).apply {
             maxLines = 1
-            setAutoSizeTextTypeUniformWithConfiguration(16, if (e.w >= 3) 40 else 30, 1, TypedValue.COMPLEX_UNIT_SP)
+            setAutoSizeTextTypeUniformWithConfiguration(12, valueSp.toInt(), 1, TypedValue.COMPLEX_UNIT_SP)
         }
-        c.addView(value, lp(MATCH, (if (e.w >= 3) 52 else 42) * d))
+        c.addView(value, lp(MATCH, (valueSp * 1.45f).toInt() * d))
         c.addView(View(svc), lp(MATCH, 0, 1f))
         // live: CPU clock (performance) or how fast the fan turns (fan), with a bar in the style
         val metricRow = LinearLayout(svc).apply { gravity = Gravity.BOTTOM }
-        val metric = text("", if (e.w >= 3) 24f else 20f, pal.onSurface, bold = true).apply { maxLines = 1 }
+        val metric = text("", (if (e.w >= 3) 20f else 17f) - (if (narrow) 2f else 0f), pal.onSurface, bold = true).apply { maxLines = 1 }
         val metricLabel = text(if (perf) t("CPU-Takt", "CPU clock") else t("Drehzahl", "Fan speed"), 11f, pal.onSurfaceVariant).apply { setPadding(8 * d, 0, 0, 3 * d) }
         metricRow.addView(metric)
         metricRow.addView(metricLabel, lp(0, WRAP, 1f))
