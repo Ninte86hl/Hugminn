@@ -30,11 +30,11 @@ Hugminn ergänzt den Retroid Pocket 6, Pocket Nova und Pocket 5 um zwei Oberflä
 
 ### Das Wichtigste
 
-- **Game Switcher mit Spieltiteln** – Home zweimal zeigt deine letzten Spiele als Karten und nennt das Spiel, das ein Emulator gerade spielt („Crash Bandicoot 2“ über DuckStation, auch bei RetroArch, Cemu, Eden …).
+- **Game Switcher mit Spieltiteln** – Home zweimal zeigt deine letzten Spiele als Karten und nennt das Spiel, das ein Emulator gerade spielt („Crash Bandicoot 2“ über DuckStation, auch bei RetroArch, Cemu, HAKU-X …).
 - **Profile pro Spiel** – Leistungs- und Lüfterprofile pro Emulator *oder pro Spiel*; Hugminn erkennt das laufende Spiel und schaltet selbst um.
 - **Echte FPS** – gemessen an dem, was der Bildschirm zeigt (SurfaceFlinger), als Karte, in der System-Übersicht und als Overlay über dem Spiel.
 - **Große Kacheln** – System-Übersicht (4×4 mit Graphen), WLAN- und Bluetooth-Listen, Leistung mit aktuellem CPU-Takt, Lüfter mit Drehzahl, Akku mit Restzeit.
-- **Musik** – Kachel bis 4×4 mit Cover, Fortschritt und Tasten für jeden Player (YouTube, Spotify, Androids eigene App …); Start und L2/R2 steuern sie.
+- **Musik** – Kachel bis 4×4 mit Cover, Fortschritt und Tasten für jeden Player (YouTube, Androids eigene Musik-App und andere); Start und L2/R2 steuern sie.
 - **Stick-LEDs** – Farben und Effekte, oder als Anzeige für Akku oder Temperatur.
 - **Bluetooth-Akku** – Controller und Kopfhörer zeigen ihren Ladestand.
 - **Vier Stile** – Modern, Pixel, Punktmatrix und Cocoon, hell und dunkel; Kacheln, Tasten, Balken und Graphen folgen dem Stil.

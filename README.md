@@ -30,11 +30,11 @@ Hugminn adds two console-style overlays to the Retroid Pocket 6, Pocket Nova and
 
 ### Highlights
 
-- **Game Switcher with game titles** – Home twice shows your recent games as cards and names the game an emulator runs ("Crash Bandicoot 2" above DuckStation, also for RetroArch, Cemu, Eden …).
+- **Game Switcher with game titles** – Home twice shows your recent games as cards and names the game an emulator runs ("Crash Bandicoot 2" above DuckStation, also for RetroArch, Cemu, HAKU-X …).
 - **Profiles per game** – performance and fan profiles remembered per emulator *or per game*; Hugminn notices which game runs and switches by itself.
 - **Real FPS** – measured from what the display shows (SurfaceFlinger), as a card, in the system overview and as an overlay over the game.
 - **Large tiles** – system overview (4×4 with graphs), Wi-Fi and Bluetooth lists, performance with live CPU clock, fan with live speed, battery with time left.
-- **Music** – a tile up to 4×4 with cover, progress and buttons for any player (YouTube, Spotify, Android's own app …); Start and L2/R2 control it.
+- **Music** – a tile up to 4×4 with cover, progress and buttons for any player (YouTube, Android's own music app and others); Start and L2/R2 control it.
 - **Stick LEDs** – colours and effects, or as a display for battery or temperature.
 - **Bluetooth battery** – controllers and headphones show their charge.
 - **Four styles** – Modern, Pixel, Dot matrix and Cocoon, light and dark; tiles, buttons, bars and graphs all follow the style.
