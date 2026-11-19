@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.10
+- Large performance and fan cards: profile name and live value in sizes that match the other cards, a little smaller on 4:3 screens.
+- Große Leistungs- und Lüfter-Karte: Profilname und Live-Wert in Größen passend zu den anderen Karten, auf 4:3-Bildschirmen etwas kleiner.
+
 ## 1.10.9
 - Pocket Nova and other 4:3 screens: the Control Center grid has 5 rows by default (still adjustable in the settings).
 - Pocket Nova und andere 4:3-Bildschirme: Das Raster des Control Centers hat standardmäßig 5 Zeilen (weiter in den Einstellungen änderbar).
