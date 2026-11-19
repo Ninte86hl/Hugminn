@@ -2,6 +2,12 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.11
+- 2×1 switches share one name size, so a short name is no longer bigger than a long one beside it.
+- "Remember for …" in the performance and fan menus only for games and emulators (not for e.g. Obtainium).
+- 2×1-Schalter haben eine gemeinsame Schriftgröße, ein kurzer Name ist nicht mehr größer als ein langer daneben.
+- „Für … merken“ in den Menüs für Leistung und Lüfter nur noch bei Spielen und Emulatoren (nicht z. B. bei Obtainium).
+
 ## 1.10.10
 - Large performance and fan cards: profile name and live value in sizes that match the other cards, a little smaller on 4:3 screens.
 - Große Leistungs- und Lüfter-Karte: Profilname und Live-Wert in Größen passend zu den anderen Karten, auf 4:3-Bildschirmen etwas kleiner.
