@@ -110,9 +110,13 @@ class HugminnService : AccessibilityService() {
                 // only a real external controller counts: switching the built-in controls off removes
                 // Retroid's own controller device, which must not switch them right back on
                 val pads = android.view.InputDevice.getDeviceIds().filter { Device.isExternalPad(it) }.toMutableSet()
-                override fun onInputDeviceAdded(id: Int) { if (Device.isExternalPad(id)) pads += id }
-                override fun onInputDeviceChanged(id: Int) {}
+                override fun onInputDeviceAdded(id: Int) {
+                    WakeDiag.note("Eingabegerät neu: ${android.view.InputDevice.getDevice(id)?.name} (id=$id)")
+                    if (Device.isExternalPad(id)) pads += id
+                }
+                override fun onInputDeviceChanged(id: Int) { WakeDiag.note("Eingabegerät geändert: id=$id") }
                 override fun onInputDeviceRemoved(id: Int) {
+                    WakeDiag.note("Eingabegerät weg: id=$id")
                     if (!pads.remove(id)) return
                     ui.postDelayed({
                         if (Root.available() && !Device.externalPad() && Device.builtinOff(this@HugminnService)) Device.setBuiltin(this@HugminnService, true) {

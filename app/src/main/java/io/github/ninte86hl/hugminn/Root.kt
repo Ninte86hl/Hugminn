@@ -24,11 +24,14 @@ object Root {
 
     /** Runs [cmd] as root and returns the first line of its output (null without root or on timeout). */
     fun exec(cmd: String, timeoutMs: Long = 4_000): String? {
+        val t0 = android.os.SystemClock.uptimeMillis()
         val f = pool.submit<String?> { direct(cmd) }
         return try {
             f.get(timeoutMs, TimeUnit.MILLISECONDS)
         } catch (t: Throwable) {
             null
+        }.also {
+            if (WakeDiag.active) WakeDiag.note("root (${android.os.SystemClock.uptimeMillis() - t0} ms, ${Thread.currentThread().name}): ${cmd.take(90)}")
         }
     }
 

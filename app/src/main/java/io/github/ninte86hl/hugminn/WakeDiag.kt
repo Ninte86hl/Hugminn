@@ -17,6 +17,9 @@ object WakeDiag {
 
     fun report(): String = synchronized(lines) { lines.joinToString("\n") }
 
+    /** Anything worth knowing in the window (root commands, input devices coming and going). */
+    fun note(s: String) { if (active) add(s) }
+
     private fun add(s: String) = synchronized(lines) {
         lines.addLast("+%5d ms  %s".format(SystemClock.uptimeMillis() - since, s))
         while (lines.size > 80) lines.removeFirst()
