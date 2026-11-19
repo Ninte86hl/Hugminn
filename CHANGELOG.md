@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.9.4
+- Music tile: Android's own music app now shows song and artist (its notification was not found before).
+- Musik-Kachel: Androids eigene Musik-App zeigt jetzt Titel und Interpret (ihre Benachrichtigung wurde vorher nicht gefunden).
+
 ## 1.9.3
 - Music tile: black bars of video thumbnails (e.g. YouTube) are cut off, the picture fills the cover.
 - Musik-Kachel: schwarze Balken von Video-Vorschaubildern (z. B. YouTube) werden abgeschnitten, das Bild füllt das Cover.
