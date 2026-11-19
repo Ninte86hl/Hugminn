@@ -41,17 +41,17 @@ object GridLayout {
 
     /** Sizes an element can have, smallest first. */
     fun sizes(id: String, cols: Int): List<Pair<Int, Int>> = when {
-        // vertical (1×2 … 1×4) or horizontal (2×1 … full width)
-        isSlider(id) -> (2..ROWS).map { 1 to it } + (2..cols).map { it to 1 }
+        // vertical (1×2 … 1×4) or horizontal (2×1 … 4×1)
+        isSlider(id) -> (2..ROWS).map { 1 to it } + (2..minOf(4, cols)).map { it to 1 }
         // music: also large, with cover and buttons; FPS: a wider and larger frame time graph
-        id == "media" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2, 2 to 4, 4 to 4).filter { it.first <= cols && it.second <= ROWS }
+        id == "media" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }
         // all live values in one large card
         id == "system" -> listOf(4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }.ifEmpty { listOf(cols to 2) }
         // Wi-Fi and Bluetooth with their lists, profiles with their choices, battery with all details
         id == "wifi" || id == "bt" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
         id == "perf" || id == "fan" -> listOf(2 to 1, 2 to 2, 3 to 2).filter { it.first <= cols && it.second <= ROWS }
         id == "battery" -> listOf(1 to 1, 2 to 1, 2 to 2)
-        id == "fps" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }
+        id == "fps" -> listOf(2 to 1, 2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
         isInfo(id) -> listOf(1 to 1, 2 to 1, 2 to 2)
         else -> listOf(1 to 1, 2 to 1)
     }
@@ -80,10 +80,16 @@ object GridLayout {
 
     /** Elements at their fixed places; those without a (valid, free) place go into the first free spot. */
     /** Sizes that are no longer offered become the nearest one (performance and fan: no 1×1). */
-    private fun upgrade(e: GridEntry) = if ((e.id == "perf" || e.id == "fan") && e.w == 1 && e.h == 1) e.copy(w = 2) else e
+    private fun upgrade(e: GridEntry, cols: Int): GridEntry {
+        val ok = sizes(e.id, cols)
+        if (ok.isEmpty() || (e.w to e.h) in ok) return e
+        // the nearest size that is offered (ties: the larger one)
+        val (w, h) = ok.minWith(compareBy<Pair<Int, Int>>({ Math.abs(it.first - e.w) + Math.abs(it.second - e.h) }, { -(it.first * it.second) }))
+        return e.copy(w = w, h = h)
+    }
 
     fun place(rawList: List<GridEntry>, cols: Int): List<Placed> {
-        val list = rawList.map { upgrade(it) }
+        val list = rawList.map { upgrade(it, cols) }
         val used = HashMap<Int, Array<BooleanArray>>()
         fun grid(p: Int) = used.getOrPut(p) { Array(ROWS) { BooleanArray(cols) } }
         fun fits(e: GridEntry, x: Int, y: Int, p: Int): Boolean {
