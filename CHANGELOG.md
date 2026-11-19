@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.7
+- Sizes tidied up: music without 2×4, FPS as 2×1, 2×2 and 4×2, sliders across at most 4 wide. Elements in a size no longer offered take the nearest one.
+- Größen aufgeräumt: Musik ohne 2×4, FPS als 2×1, 2×2 und 4×2, Regler waagerecht höchstens 4 breit. Elemente in einer Größe, die es nicht mehr gibt, nehmen die nächstpassende.
+
 ## 1.10.6
 - Performance and fan cards no longer come as 1×1 (too small for them); existing 1×1 cards become 2×1.
 - Leistungs- und Lüfter-Karte gibt es nicht mehr als 1×1 (zu klein dafür); vorhandene 1×1-Karten werden zu 2×1.
