@@ -102,6 +102,20 @@ class HugminnService : AccessibilityService() {
             }
         }.start()
         Bt.listenBattery(this)
+        // an external controller went away while the built-in controls are off: switch them back on
+        runCatching {
+            getSystemService(android.hardware.input.InputManager::class.java)?.registerInputDeviceListener(object : android.hardware.input.InputManager.InputDeviceListener {
+                override fun onInputDeviceAdded(id: Int) {}
+                override fun onInputDeviceChanged(id: Int) {}
+                override fun onInputDeviceRemoved(id: Int) {
+                    ui.postDelayed({
+                        if (Root.available() && !Device.externalPad() && Device.builtinOff(this@HugminnService)) Device.setBuiltin(this@HugminnService, true) {
+                            Notice.show(this@HugminnService, t("Controller getrennt – eingebaute Steuerung wieder an", "Controller disconnected – built-in controls back on"))
+                        }
+                    }, 1500)
+                }
+            }, ui)
+        }
         Thread { runCatching { if (Root.available()) Media.enableListener(this) } }.start()
         // Low battery: the sticks pulse red
         registerReceiver(object : android.content.BroadcastReceiver() {
