@@ -37,6 +37,40 @@ object Media {
     /** What the last refresh saw (test builds report it). */
     @Volatile var diag = ""
 
+    private val noise = Regex(
+        """\s*[(\[][^)\]]*\b(official|video|audio|lyrics?|visuali[sz]er|music video|mv|hd|hq|4k|remaster(ed)?|explicit|clip officiel|offizielles?)\b[^)\]]*[)\]]""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    private fun channel(a: String) = a.replace(Regex("""\s*(-\s*topic|vevo|official|offiziell)\s*$""", RegexOption.IGNORE_CASE), "").trim()
+
+    private fun same(a: String, b: String) = a.lowercase().filter { it.isLetterOrDigit() } == b.lowercase().filter { it.isLetterOrDigit() }
+
+    /**
+     * Video titles as songs: "Escape The Fate - "Paranoia" (Official Video)" by the channel
+     * "Escape the Fate" becomes "Paranoia" by "Escape the Fate"; "Ankor Official" becomes "Ankor".
+     */
+    private fun tidy(pkg: String?) {
+        var t = song ?: return
+        var a = artist?.let { channel(it) }
+        t = t.replace(noise, "").trim()
+        val video = pkg?.contains("youtube") == true || pkg?.contains("newpipe") == true
+        val dash = Regex("""\s+[-–—]\s+""").find(t)
+        if (dash != null) {
+            val left = t.substring(0, dash.range.first).trim()
+            val right = t.substring(dash.range.last + 1).trim()
+            if (right.isNotEmpty() && (a == null || same(left, a) || video)) {
+                // "Artist - Song": the artist part goes to the artist line (a label channel gives way to it)
+                if (a == null || !same(left, a)) a = left
+                t = right
+            }
+        }
+        // quotes around the whole song
+        t = t.trim().removeSurrounding("\"").removeSurrounding("“", "”").removeSurrounding("„", "“").trim()
+        if (t.isNotEmpty()) song = t
+        artist = a?.ifBlank { null }
+    }
+
     private var trimmedFrom: android.graphics.Bitmap? = null
     private var trimmed: android.graphics.Bitmap? = null
 
@@ -114,6 +148,7 @@ object Media {
             artist = x; if (art == null) art = pic
             diag += " · Benachrichtigung: $t / $x / Bild=${pic != null}"
         } ?: run { if (mc != null && song == null) diag += " · keine Benachrichtigung gefunden" }
+        tidy(mc?.packageName)
         title = listOfNotNull(song, artist).joinToString(" – ").ifBlank { null }
         return true
     }

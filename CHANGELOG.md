@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.9.9
+- Music tile tidies video titles: "(Official Video)", "[OFFICIAL VIDEO]" and the like are removed, "Artist - Song" is split into song and artist, channel names lose "Official", "VEVO" and "- Topic".
+- Musik-Kachel räumt Video-Titel auf: „(Official Video)“, „[OFFICIAL VIDEO]“ und Ähnliches fallen weg, „Interpret - Titel“ wird in Titel und Interpret getrennt, Kanalnamen verlieren „Official“, „VEVO“ und „- Topic“.
+
 ## 1.9.8
 - Game Switcher: header "Muninn · Game Switcher" with clock and battery, like the Control Center's.
 - Game Switcher: Kopfzeile „Muninn · Game Switcher“ mit Uhrzeit und Akku, wie beim Control Center.
