@@ -257,7 +257,7 @@ class HugminnService : AccessibilityService() {
         if (!WakeDiag.active) return onKeyEventInner(event)
         val t0 = android.os.SystemClock.uptimeMillis()
         val r = onKeyEventInner(event)
-        WakeDiag.key(event.keyCode, event.action == KeyEvent.ACTION_DOWN, event.eventTime, android.os.SystemClock.uptimeMillis() - t0)
+        WakeDiag.key(event.keyCode, event.action == KeyEvent.ACTION_DOWN, event.eventTime, android.os.SystemClock.uptimeMillis() - t0, r)
         return r
     }
 

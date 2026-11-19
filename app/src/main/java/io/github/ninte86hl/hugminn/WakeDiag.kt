@@ -15,7 +15,12 @@ object WakeDiag {
 
     val active get() = since > 0 && SystemClock.uptimeMillis() - since < WINDOW_MS
 
-    fun report(): String = synchronized(lines) { lines.joinToString("\n") }
+    /** The wake-up before the last one stays too (the log is often sent after a second wake-up). */
+    private var previous = ""
+
+    fun report(): String = synchronized(lines) {
+        (if (previous.isNotEmpty()) "Vorheriges Aufwachen:\n$previous\n\nLetztes Aufwachen:\n" else "") + lines.joinToString("\n")
+    }
 
     /** Anything worth knowing in the window (root commands, input devices coming and going). */
     fun note(s: String) { if (active) add(s) }
@@ -27,9 +32,10 @@ object WakeDiag {
 
     /** Screen on: starts recording, with a watchdog that pings the main thread every 100 ms. */
     fun start(svc: HugminnService) {
-        synchronized(lines) { lines.clear() }
+        synchronized(lines) { if (lines.isNotEmpty()) previous = lines.joinToString("\n"); lines.clear() }
         since = SystemClock.uptimeMillis()
-        add("Bildschirm an")
+        val km = svc.getSystemService(android.app.KeyguardManager::class.java)
+        add("Bildschirm an · gesperrt=${km?.isKeyguardLocked} · vorne=${svc.foregroundPkg} · CC offen=${svc.controlCenterOpen()}")
         val main = Looper.getMainLooper().thread
         Thread {
             while (active) {
@@ -55,8 +61,9 @@ object WakeDiag {
     }
 
     /** A key as Hugminn sees it: delay since the press, and how long Hugminn took to answer. */
-    fun key(code: Int, down: Boolean, eventTime: Long, handledMs: Long) {
+    fun key(code: Int, down: Boolean, eventTime: Long, handledMs: Long, consumed: Boolean) {
         if (!active || !down) return
-        add("Taste ${android.view.KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")}: kam nach ${SystemClock.uptimeMillis() - eventTime - handledMs} ms an, Hugminn brauchte $handledMs ms")
+        add("Taste ${android.view.KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")}: kam nach ${SystemClock.uptimeMillis() - eventTime - handledMs} ms an, Hugminn brauchte $handledMs ms, " +
+            if (consumed) "von Hugminn BEHALTEN" else "an Android/App weitergegeben")
     }
 }
