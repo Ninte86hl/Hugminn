@@ -296,6 +296,10 @@ class MainActivity : Activity() {
         row(g, tr("Zeit für langen Druck"), null, { "${prefs.longMs} ms" }) {
             prefs.longMs = cycle(listOf(350, 450, 600, 800), prefs.longMs)
         }
+        row(g, t("Home-Taste am Controller", "Home button on a controller"),
+            t("Die Home-/Guide-Taste eines Bluetooth- oder USB-Controllers (z. B. 8BitDo) wirkt wie die Home-Taste des Geräts",
+                "The Home/Guide button of a Bluetooth or USB controller (e.g. 8BitDo) works like the handheld's Home button"),
+            { if (prefs.padHome) tr("An") else tr("Aus") }) { prefs.padHome = !prefs.padHome }
 
         val look = section(tr("Darstellung"))
         row(look, t("Sprache", "Language"), null, { prefs.language.label }) {

@@ -212,6 +212,11 @@ class Prefs(ctx: Context) {
     /** Hugminn's own switcher instead of an overlay on Android's recents view. */
     /** Pause the app in front (cover it) while the own game switcher is open. */
     /** The introduction was shown (or skipped). */
+    /** The Home/Guide button of a Bluetooth or USB controller works like the handheld's Home button. */
+    var padHome: Boolean
+        get() = p.getBoolean("padHome", true)
+        set(v) = p.edit().putBoolean("padHome", v).apply()
+
     var setupDone: Boolean
         get() = p.getBoolean("setupDone", false)
         set(v) = p.edit().putBoolean("setupDone", v).apply()

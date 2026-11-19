@@ -205,6 +205,8 @@ class HugminnService : AccessibilityService() {
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
+        // an external controller (e.g. 8BitDo over Bluetooth): its Home/Guide button counts as Home
+        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE && prefs.padHome && event.device?.isExternal == true) return onHome(event, forced = true)
         // the device's own keys always reach Android (volume, power, screenshot with Power + Volume down)
         if (event.keyCode in systemKeys) return false
         // Select: screenshot with the overlays (Android's key combination cannot reach them)
@@ -229,11 +231,12 @@ class HugminnService : AccessibilityService() {
         }
     }
 
-    private fun onHome(e: KeyEvent): Boolean {
+    private fun onHome(e: KeyEvent, forced: Boolean = false): Boolean {
         val p = prefs
         val overlayOpen = controlCenter.isOpen || anySwitcherOpen
-        // Untouched setup and nothing open: let Android handle Home itself.
-        if (!overlayOpen && p.single == Action.HOME && p.double == Action.NONE && p.long == Action.NONE) return false
+        // Untouched setup and nothing open: let Android handle Home itself (a controller's Guide button
+        // has no meaning for Android, so Hugminn performs the single press itself then).
+        if (!forced && !overlayOpen && p.single == Action.HOME && p.double == Action.NONE && p.long == Action.NONE) return false
         when (e.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (e.repeatCount > 0) return true
