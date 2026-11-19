@@ -9,4 +9,4 @@ Einstellungen → **Hilfe & Info** → **Gerätetest** prüft, was Hugminn auf d
 
 **Kopieren** legt das Ergebnis in die Zwischenablage; **Auf GitHub melden** öffnet einen ausgefüllten [Gerätebericht](https://github.com/Ninte86hl/Hugminn/issues/new?template=device-report.yml) im Browser – Gerät, Version, Root und das ganze Ergebnis sind schon eingetragen, du ergänzt nur, was dir selbst aufgefallen ist, und schickst ihn ab. Namen, WLAN-Namen oder andere private Daten sind nicht enthalten.
 
-Besitzer noch nicht getesteter Geräte (Pocket 4/4 Pro, Pocket 5, G2, AYN Odin 2 …): bitte einmal laufen lassen und das Ergebnis schicken – das hilft sehr.
+Besitzer noch nicht getesteter Geräte (G2, AYN Odin 2 …): bitte einmal laufen lassen und das Ergebnis schicken – das hilft sehr.

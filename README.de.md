@@ -109,7 +109,7 @@ Pausieren: Auf Wunsch hält das Spiel (Bild und Ton) an, solange der Switcher od
 | Retroid Pocket 6 | Snapdragon 8 Gen 2 (QCS8550) | 5,5" 16:9, 1080p, 120 Hz | Hauptgerät |
 | Retroid Pocket Nova | QCS8550 | 4,5" 4:3, 1280×960, 120 Hz | getestet (standardmäßig 5 Rasterzeilen) |
 | Retroid Pocket 5 | Snapdragon 865 | 5,5" 16:9, 1080p | läuft (von der Community getestet) |
-| Pocket 4 / 4 Pro, G2, AYN Odin 2 und andere Handhelds mit einem Bildschirm | | | ungetestet – bitte den [Gerätetest](https://github.com/Ninte86hl/Hugminn/wiki/Geraetetest) laufen lassen |
+| G2, AYN Odin 2 und andere Handhelds mit einem Bildschirm | | | ungetestet – bitte den [Gerätetest](https://github.com/Ninte86hl/Hugminn/wiki/Geraetetest) laufen lassen |
 | Dual-Screen-Geräte (AYN Thor, Retroid Pocket Dual) | | | später geplant, als eigenes Update |
 
 Hugminn erkennt das Gerät und zeigt nur, was es kann. Auf dem Pocket Nova nutzt das Control Center ein 4:3-Layout. Du hast ein anderes Handheld? Einstellungen → Hilfe & Info → **Gerätetest**, dann *Auf GitHub melden* – so wissen wir genau, was geht.

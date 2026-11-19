@@ -109,7 +109,7 @@ Pausing: the game can pause (picture and sound) while the switcher or the Contro
 | Retroid Pocket 6 | Snapdragon 8 Gen 2 (QCS8550) | 5.5" 16:9, 1080p, 120 Hz | primary target |
 | Retroid Pocket Nova | QCS8550 | 4.5" 4:3, 1280×960, 120 Hz | tested (5 grid rows by default) |
 | Retroid Pocket 5 | Snapdragon 865 | 5.5" 16:9, 1080p | works (community-tested) |
-| Pocket 4 / 4 Pro, G2, AYN Odin 2 and other single-screen handhelds | | | untested – please run the [device test](https://github.com/Ninte86hl/Hugminn/wiki/Device-Test) |
+| G2, AYN Odin 2 and other single-screen handhelds | | | untested – please run the [device test](https://github.com/Ninte86hl/Hugminn/wiki/Device-Test) |
 | Dual-screen devices (AYN Thor, Retroid Pocket Dual) | | | planned later, as their own update |
 
 Hugminn detects the device and only shows what it supports. On the Pocket Nova, the Control Center uses a 4:3 layout. Got another handheld? Settings → Help & about → **Device test**, then *Report on GitHub* – that tells us exactly what works.

@@ -9,4 +9,4 @@ Settings → **Help & about** → **Device test** checks what Hugminn can use on
 
 **Copy** puts the result on the clipboard; **Report on GitHub** opens a filled-in [device report](https://github.com/Ninte86hl/Hugminn/issues/new?template=device-report.yml) in your browser – device, version, root and the whole result are already filled in, you only add what you noticed yourself and send it. No names, Wi-Fi names or other private data are included.
 
-Owners of devices that aren't tested yet (Pocket 4/4 Pro, Pocket 5, G2, AYN Odin 2 …): please run it and send the result – it helps a lot.
+Owners of devices that aren't tested yet (G2, AYN Odin 2 …): please run it and send the result – it helps a lot.
