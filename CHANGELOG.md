@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.28
+- "Built-in controls off" without a controller: the countdown now lasts 30 seconds.
+- „Eingebaute Steuerung aus“ ohne Controller: Der Countdown dauert jetzt 30 Sekunden.
+
 ## 1.10.27
 - Settings → Shortcuts: put the Control Center or the game switcher on the home screen, or show both as separate apps ("Hugminn Control Center", "Hugminn Game switcher") for frontends like Cocoon or ES-DE.
 - Einstellungen → Verknüpfungen: Control Center oder Spielwechsler auf den Startbildschirm legen, oder beide als eigene Apps anzeigen („Hugminn Control Center“, „Hugminn Spielwechsler“) für Frontends wie Cocoon oder ES-DE.

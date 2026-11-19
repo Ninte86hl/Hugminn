@@ -346,19 +346,19 @@ class HugminnService : AccessibilityService() {
     fun guardBuiltinOff() {
         guardRun?.let { ui.removeCallbacks(it) }
         if (::controlCenter.isInitialized) controlCenter.close()
-        val end = SystemClock.elapsedRealtime() + 60_000
+        val end = SystemClock.elapsedRealtime() + 30_000
         val tick = object : Runnable {
             override fun run() {
                 val left = ((end - SystemClock.elapsedRealtime() + 999) / 1000).toInt()
                 when {
                     Device.externalPad() -> {
                         guardRun = null; Notice.hideSticky(this@HugminnService)
-                        guardDiag = "${60 - left} s: controller found · " + Device.padList()
+                        guardDiag = "${30 - left} s: controller found · " + Device.padList()
                         Notice.show(this@HugminnService, t("Controller verbunden", "Controller connected"))
                     }
                     !Device.builtinOff(this@HugminnService) -> {
                         guardRun = null; Notice.hideSticky(this@HugminnService)
-                        guardDiag = "${60 - left} s: built-in back on (temp_abxy_layout_mode=${Device.sys(this@HugminnService, "temp_abxy_layout_mode")}, no_create=${Device.sys(this@HugminnService, "no_create_gamepad_button_layout")})"
+                        guardDiag = "${30 - left} s: built-in back on (temp_abxy_layout_mode=${Device.sys(this@HugminnService, "temp_abxy_layout_mode")}, no_create=${Device.sys(this@HugminnService, "no_create_gamepad_button_layout")})"
                         Notice.show(this@HugminnService, t("Eingebaute Steuerung ist wieder an", "Built-in controls are back on"))
                     }
                     left <= 0 -> {

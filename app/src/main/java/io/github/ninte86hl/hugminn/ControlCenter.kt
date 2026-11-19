@@ -1524,7 +1524,7 @@ class ControlCenter(private val svc: HugminnService) {
                 // like Retroid's quick setting: the built-in controls off while an external controller is used;
                 // without one connected yet, they come back on by themselves if none arrives within 60 s
                 MenuEntry(t("Eingebaute Steuerung aus", "Built-in controls off"), checked = off,
-                    hint = if (off) t("A schaltet sie wieder ein", "A turns them back on") else if (pad) t("Für einen externen Controller", "For an external controller") else t("Controller innerhalb 60 s verbinden", "Connect a controller within 60 s"),
+                    hint = if (off) t("A schaltet sie wieder ein", "A turns them back on") else if (pad) t("Für einen externen Controller", "For an external controller") else t("Controller innerhalb 30 s verbinden", "Connect a controller within 30 s"),
                     run = { Device.setBuiltin(svc, off) { refreshAll(); if (!off && !pad) svc.guardBuiltinOff() } }),
             ))
         } else null
