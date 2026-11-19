@@ -28,6 +28,23 @@
 
 Hugminn ergänzt den Retroid Pocket 6, Pocket Nova und Pocket 5 um zwei Oberflächen wie bei einer Konsole, ohne deinen Launcher zu ersetzen. Du behältst dein Lieblings-Frontend (zum Beispiel Cocoon) für deine Spielesammlung; Hugminn liegt darüber und ist immer nur einen Tastendruck entfernt.
 
+### Das Wichtigste
+
+- **Game Switcher mit Spieltiteln** – Home zweimal zeigt deine letzten Spiele als Karten und nennt das Spiel, das ein Emulator gerade spielt („Crash Bandicoot 2“ über DuckStation, auch bei RetroArch, Cemu, Eden …).
+- **Profile pro Spiel** – Leistungs- und Lüfterprofile pro Emulator *oder pro Spiel*; Hugminn erkennt das laufende Spiel und schaltet selbst um.
+- **Echte FPS** – gemessen an dem, was der Bildschirm zeigt (SurfaceFlinger), als Karte, in der System-Übersicht und als Overlay über dem Spiel.
+- **Große Kacheln** – System-Übersicht (4×4 mit Graphen), WLAN- und Bluetooth-Listen, Leistung mit aktuellem CPU-Takt, Lüfter mit Drehzahl, Akku mit Restzeit.
+- **Musik** – Kachel bis 4×4 mit Cover, Fortschritt und Tasten für jeden Player (YouTube, Spotify, Androids eigene App …); Start und L2/R2 steuern sie.
+- **Stick-LEDs** – Farben und Effekte, oder als Anzeige für Akku oder Temperatur.
+- **Bluetooth-Akku** – Controller und Kopfhörer zeigen ihren Ladestand.
+- **Vier Stile** – Modern, Pixel, Punktmatrix und Cocoon, hell und dunkel; Kacheln, Tasten, Balken und Graphen folgen dem Stil.
+- **Für den Controller gemacht** – alles mit den Tasten, das Spiel pausiert, solange du in den Menüs bist, die Lautstärketasten funktionieren weiter; Touch geht auch.
+
+<p align="center">
+  <img src="docs/screenshots/large-tiles.png" alt="Control Center im Punktmatrix-Stil mit großen Leistungs- und Lüfter-Karten" width="100%">
+</p>
+<p align="center"><sub>Große Leistungs- und Lüfter-Karte mit aktuellem CPU-Takt und Drehzahl (Punktmatrix-Stil)</sub></p>
+
 ### Warum Hugminn?
 
 Android ist für Touchscreens gemacht. Am Handheld hältst du aber einen Controller in der Hand – und trotzdem musst du zum Spielewechseln oder um Lüfter, Leistungsprofil oder WLAN umzustellen auf den Bildschirm tippen, dich durch Androids Einstellungen wühlen oder ein Schnelleinstellungsmenü bedienen, das nie für ein Steuerkreuz gedacht war.

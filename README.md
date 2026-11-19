@@ -28,6 +28,23 @@
 
 Hugminn adds two console-style overlays to the Retroid Pocket 6, Pocket Nova and Pocket 5 without replacing your launcher. You keep your favourite frontend (such as Cocoon) for your library; Hugminn sits on top and is always one button press away.
 
+### Highlights
+
+- **Game Switcher with game titles** – Home twice shows your recent games as cards and names the game an emulator runs ("Crash Bandicoot 2" above DuckStation, also for RetroArch, Cemu, Eden …).
+- **Profiles per game** – performance and fan profiles remembered per emulator *or per game*; Hugminn notices which game runs and switches by itself.
+- **Real FPS** – measured from what the display shows (SurfaceFlinger), as a card, in the system overview and as an overlay over the game.
+- **Large tiles** – system overview (4×4 with graphs), Wi-Fi and Bluetooth lists, performance with live CPU clock, fan with live speed, battery with time left.
+- **Music** – a tile up to 4×4 with cover, progress and buttons for any player (YouTube, Spotify, Android's own app …); Start and L2/R2 control it.
+- **Stick LEDs** – colours and effects, or as a display for battery or temperature.
+- **Bluetooth battery** – controllers and headphones show their charge.
+- **Four styles** – Modern, Pixel, Dot matrix and Cocoon, light and dark; tiles, buttons, bars and graphs all follow the style.
+- **Controller first** – everything with the buttons, the game pauses while you are in the menus, volume keys keep working; touch works too.
+
+<p align="center">
+  <img src="docs/screenshots/large-tiles.png" alt="Control Center in the Dot matrix style with large performance and fan cards" width="100%">
+</p>
+<p align="center"><sub>Large performance and fan cards with live CPU clock and fan speed (Dot matrix style)</sub></p>
+
 ### Why Hugminn?
 
 Android was made for touch screens. On a handheld you hold a controller, yet switching between games or changing the fan, the performance profile or the Wi-Fi still means reaching for the screen, digging through Android's settings or waiting for a quick settings panel that was never designed for a D-pad.
