@@ -2380,22 +2380,21 @@ class ControlCenter(private val svc: HugminnService) {
         val iSleep = video.size
         video += MenuEntry(t("Bildschirm aus speichert das Video", "Screen off saves the video"), checked = p.recStopOnSleep) { p.recStopOnSleep = !p.recStopOnSleep; again(iSleep)() }
 
-        val clip = mutableListOf<MenuEntry>()
-        clip += MenuEntry(t("Mitschneiden", "Keep recording"), checked = p.replayOn,
+        // the last seconds: a category of the video settings; saving sits under "Take"
+        video += MenuEntry(t("Letzte Sekunden", "Last seconds"), header = true, run = null)
+        val iClip = video.size
+        video += MenuEntry(t("Mitschneiden", "Keep recording"), checked = p.replayOn,
             hint = t("Läuft im Hintergrund, braucht etwas Akku", "Runs in the background, uses some battery")) {
-            Capture.setReplay(svc, !p.replayOn); svc.ui.postDelayed({ if (isOpen) captureMenu(curTab, 0) }, 300)
+            Capture.setReplay(svc, !p.replayOn); svc.ui.postDelayed({ if (isOpen) captureMenu(curTab, iClip) }, 300)
         }
-        clip += value(t("Länge des Clips", "Clip length"), { "${p.replaySec} s" }) { dir ->
+        video += value(t("Länge des Clips", "Clip length"), { "${p.replaySec} s" }) { dir ->
             val l = Capture.replayLengths
             p.replaySec = l[(l.indexOf(p.replaySec).coerceAtLeast(0) + dir).coerceIn(0, l.lastIndex)]
             Capture.recorder?.let { if (it.replaySec > 0) it.replaySec = p.replaySec }
         }
-        clip += MenuEntry(if (Capture.replayRunning) t("Letzte ${p.replaySec} s jetzt speichern", "Save the last ${p.replaySec} s now") else t("Erst „Mitschneiden“ einschalten", "Switch on “Keep recording” first"),
-            run = if (Capture.replayRunning) ({ close(); Capture.saveReplay(svc) }) else null)
-        clip += MenuEntry(t("Tipp: Home-Taste → „Letzte Sekunden speichern“ belegen", "Tip: set a Home gesture to “Save the last seconds”"), run = null)
 
         val keep = addTab
-        tabMenu(title, listOf(t("Aufnehmen", "Take") to take, "Video" to video, t("Letzte Sekunden", "Last seconds") to clip), tab)
+        tabMenu(title, listOf(t("Aufnehmen", "Take") to take, t("Einstellungen", "Settings") to video), tab)
         addTab = keep
         if (select >= 0 && menuEntries.getOrNull(select)?.run != null) { menuSel = select; showMenuSel() }
     }
