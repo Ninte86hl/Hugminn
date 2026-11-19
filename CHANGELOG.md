@@ -2,13 +2,13 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
-## 1.9.1
-- Music tile reads the player's song from the same place as Android's own media notification.
-- Musik-Kachel liest den Titel des Players von derselben Stelle wie Androids eigene Medien-Benachrichtigung.
+## 1.9.2
+- Music tile 4×2 and 2×2: the song takes one line, so progress and buttons always fit.
+- Musik-Kachel 4×2 und 2×2: der Titel nimmt eine Zeile, damit Fortschritt und Tasten immer Platz haben.
 
 ## 1.9.1
-- Music tile: song and artist also from players with their own notification layout (such as Android's own music app).
-- Musik-Kachel: Titel und Interpret auch von Playern mit eigenem Benachrichtigungs-Layout (wie Androids eigene Musik-App).
+- Music tile reads the player's song from the same place as Android's own media notification, and from players with their own notification layout (such as Android's own music app).
+- Musik-Kachel liest den Titel des Players von derselben Stelle wie Androids eigene Medien-Benachrichtigung, auch bei Playern mit eigenem Benachrichtigungs-Layout (wie Androids eigene Musik-App).
 
 ## 1.9.0
 - Music tile also works with players that publish no song information (such as Android's own music app): app, playing state, and title and picture from the player's notification.
