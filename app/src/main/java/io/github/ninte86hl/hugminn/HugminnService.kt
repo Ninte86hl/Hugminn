@@ -334,14 +334,38 @@ class HugminnService : AccessibilityService() {
         }
     }
 
-    /** Built-in controls switched off with no external controller yet: back on if none is connected in 60 s. */
+    /** Built-in controls switched off with no external controller yet: a countdown in the middle of the
+     *  screen; back on if none is connected within 60 s. The Control Center closes, since it can't be
+     *  used without buttons anyway. */
+    private var guardRun: Runnable? = null
     fun guardBuiltinOff() {
-        Notice.show(this, t("Eingebaute Steuerung aus – jetzt Controller verbinden (sonst nach 60 s wieder an)", "Built-in controls off – connect a controller now (back on after 60 s otherwise)"))
-        ui.postDelayed({
-            if (Root.available() && Device.builtinOff(this) && !Device.externalPad()) Device.setBuiltin(this, true) {
-                Notice.show(this, t("Kein Controller verbunden – eingebaute Steuerung wieder an", "No controller connected – built-in controls back on"))
+        guardRun?.let { ui.removeCallbacks(it) }
+        if (::controlCenter.isInitialized) controlCenter.close()
+        val end = SystemClock.elapsedRealtime() + 60_000
+        val tick = object : Runnable {
+            override fun run() {
+                val left = ((end - SystemClock.elapsedRealtime() + 999) / 1000).toInt()
+                when {
+                    Device.externalPad() -> {
+                        guardRun = null; Notice.hideSticky(this@HugminnService)
+                        Notice.show(this@HugminnService, t("Controller verbunden", "Controller connected"))
+                    }
+                    !Device.builtinOff(this@HugminnService) -> { guardRun = null; Notice.hideSticky(this@HugminnService) }
+                    left <= 0 -> {
+                        guardRun = null; Notice.hideSticky(this@HugminnService)
+                        if (Root.available()) Device.setBuiltin(this@HugminnService, true) {
+                            Notice.show(this@HugminnService, t("Kein Controller verbunden – eingebaute Steuerung wieder an", "No controller connected – built-in controls back on"))
+                        }
+                    }
+                    else -> {
+                        Notice.sticky(this@HugminnService, t("Eingebaute Steuerung aus\nJetzt Controller verbinden · $left s", "Built-in controls off\nConnect a controller now · $left s"))
+                        ui.postDelayed(this, 1000)
+                    }
+                }
             }
-        }, 60_000)
+        }
+        guardRun = tick
+        tick.run()
     }
 
     fun controlCenterOpen() = ::controlCenter.isInitialized && controlCenter.isOpen

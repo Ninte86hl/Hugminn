@@ -45,4 +45,35 @@ object Notice {
             }.start()
         }, if (corner) 3000 else 1800)
     }
+
+    private var sticky: TextView? = null
+
+    /** A message in the middle of the screen that stays until [hideSticky]; calling again updates its text. */
+    fun sticky(svc: HugminnService, text: String) = svc.ui.post {
+        sticky?.let { it.text = text; return@post }
+        val wm = svc.getSystemService(WindowManager::class.java)
+        val pixel = Look.pixel(svc)
+        val v = TextView(svc).apply {
+            this.text = text
+            gravity = Gravity.CENTER
+            setTextColor(0xFFFFFFFF.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            typeface = Look.font(svc, pixel, true)
+            setPadding(svc.dp(28), svc.dp(18), svc.dp(28), svc.dp(18))
+            background = Look.shape(svc, pixel, 0xF0202124.toInt(), svc.dp(24).toFloat())
+        }
+        val lp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply { gravity = Gravity.CENTER }
+        if (runCatching { wm.addView(v, lp) }.isSuccess) sticky = v
+    }
+
+    fun hideSticky(svc: HugminnService) = svc.ui.post {
+        sticky?.let { v -> runCatching { svc.getSystemService(WindowManager::class.java).removeViewImmediate(v) } }
+        sticky = null
+    }
 }

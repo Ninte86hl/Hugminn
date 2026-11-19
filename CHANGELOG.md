@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.23
+- "Built-in controls off" without a controller: the Control Center closes and a countdown in the middle of the screen stays until a controller connects or the 60 seconds are over.
+- „Eingebaute Steuerung aus“ ohne Controller: Das Control Center schließt sich, und ein Countdown in der Bildschirmmitte bleibt stehen, bis ein Controller verbunden ist oder die 60 Sekunden um sind.
+
 ## 1.10.22
 - New quick settings tile "Control Center": opens the Control Center without pressing a button (add it via the pencil in Android's quick settings).
 - App shortcuts: long press the Hugminn icon for "Control Center" and "Game switcher"; both can be placed on the home screen or in a frontend.
