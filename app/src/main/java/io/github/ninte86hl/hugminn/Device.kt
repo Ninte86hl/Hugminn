@@ -29,6 +29,23 @@ object Device {
         then = then,
     )
 
+    /** The firmware's third controller mode: the built-in controls are off (for an external controller). */
+    fun builtinOff(ctx: Context) = sys(ctx, "temp_abxy_layout_mode")?.trim() == "2"
+
+    /** Built-in controls on (back to the layout set before) or off. */
+    fun setBuiltin(ctx: Context, on: Boolean, then: () -> Unit) {
+        if (!on) { Root.run(Root.putSetting("system", "temp_abxy_layout_mode", "2"), then = then); return }
+        // flip_button_layout keeps the layout while the controls are off: 0 = Retroid/Nintendo, 1 = Xbox
+        val nintendo = sys(ctx, "flip_button_layout")?.trim() != "1"
+        Root.run(Root.putSetting("system", "temp_abxy_layout_mode", if (nintendo) "1" else "0"), then = then)
+    }
+
+    /** A game controller other than the handheld's own is connected (Bluetooth or USB). */
+    fun externalPad(): Boolean = android.view.InputDevice.getDeviceIds().any { id ->
+        val d = android.view.InputDevice.getDevice(id) ?: return@any false
+        d.isExternal && d.sources and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD
+    }
+
     fun profileLabel(ctx: Context, key: String, table: Map<String, String>): String {
         val v = sys(ctx, key) ?: return "–"
         return table[v] ?: t("Profil $v", "Profile $v")

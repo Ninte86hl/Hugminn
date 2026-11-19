@@ -1497,11 +1497,18 @@ class ControlCenter(private val svc: HugminnService) {
             profileMenu(tr("Trigger-Modus"), "trigger_input_mode", Device.triggerModes) { v -> Device.setSys("trigger_input_mode", v) { refreshAll() } }
         } else null
         "controller" -> if (rootOk && Device.sys(svc, "temp_abxy_layout_mode") != null) Tile(tr("Tastenlayout"), IconView.Kind.GAMEPAD, {
-            if (Glyphs.nintendoLayout()) "Retroid" else "Xbox"
+            if (Device.builtinOff(svc)) t("Aus · externer Controller", "Off · external controller") else if (Glyphs.nintendoLayout()) "Retroid" else "Xbox"
         }, { false }) {
+            val off = Device.builtinOff(svc)
+            val pad = Device.externalPad()
             showMenu(tr("Tastenlayout"), listOf(
-                MenuEntry(tr("Xbox (A unten)"), checked = !Glyphs.nintendoLayout()) { Device.setControllerLayout(false) { refreshAll() } },
-                MenuEntry(tr("Retroid / Nintendo (A rechts)"), checked = Glyphs.nintendoLayout()) { Device.setControllerLayout(true) { refreshAll() } },
+                MenuEntry(tr("Xbox (A unten)"), checked = !off && !Glyphs.nintendoLayout()) { Device.setControllerLayout(false) { refreshAll() } },
+                MenuEntry(tr("Retroid / Nintendo (A rechts)"), checked = !off && Glyphs.nintendoLayout()) { Device.setControllerLayout(true) { refreshAll() } },
+                // like Retroid's quick setting: the built-in controls off while an external controller is used;
+                // only with one connected, so nobody locks themselves out
+                MenuEntry(t("Eingebaute Steuerung aus", "Built-in controls off"), checked = off,
+                    hint = if (off) t("A schaltet sie wieder ein", "A turns them back on") else if (pad) t("Für einen externen Controller", "For an external controller") else t("Erst einen Controller verbinden", "Connect a controller first"),
+                    run = if (off || pad) ({ Device.setBuiltin(svc, off) { refreshAll() } }) else null),
             ))
         } else null
         "theme" -> Tile(tr("Farbschema"), IconView.Kind.PALETTE, { svc.prefs.theme.label }, { false }) {

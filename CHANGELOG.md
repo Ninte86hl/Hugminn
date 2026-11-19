@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.16
+- "Controller style" tile can also switch the built-in controls off while an external controller is used (like Retroid's quick setting). Only offered with a controller connected; if it disconnects, the built-in controls come back on by themselves.
+- Kachel „Tastenlayout“ kann die eingebaute Steuerung auch ausschalten, solange ein externer Controller genutzt wird (wie Retroids Schnelleinstellung). Nur mit verbundenem Controller; wird er getrennt, geht die eingebaute Steuerung von selbst wieder an.
+
 ## 1.10.15
 - External controllers (e.g. 8BitDo over Bluetooth): their Home/Guide button opens the Game Switcher and Control Center like the handheld's Home button (Settings → Home button, on by default).
 - Externe Controller (z. B. 8BitDo per Bluetooth): Ihre Home-/Guide-Taste öffnet Game Switcher und Control Center wie die Home-Taste des Geräts (Einstellungen → Home-Taste, standardmäßig an).
