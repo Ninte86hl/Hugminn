@@ -101,6 +101,17 @@ class Prefs(ctx: Context) {
         set(v) = p.edit().putString("ccTiles", v.filter { it in TileCatalog.all }.distinct().joinToString(",")).apply()
 
     /** Removes values of test versions (the old feedback token never stays on the device). */
+    /**
+     * Dot matrix became the default style for new installs. Who already used Hugminn without ever
+     * choosing a style keeps Modern, so nothing changes under their hands. Runs once.
+     */
+    fun keepOldStyle() {
+        if (p.contains("styleChecked")) return
+        val e = p.edit()
+        if (!p.contains("uiStyle") && p.all.isNotEmpty()) e.putString("uiStyle", UiStyle.MODERN.name)
+        e.putBoolean("styleChecked", true).apply()
+    }
+
     fun forgetOld() = p.edit().remove("pixelNf").apply()
 
     /** Test build: GitHub token for uploading feedback to the private repository Hugminn-Feedback. */
@@ -118,7 +129,7 @@ class Prefs(ctx: Context) {
         set(v) = p.edit().putString("language", v.name).apply()
 
     var uiStyle: UiStyle
-        get() = enumOr(p.getString("uiStyle", null), UiStyle.MODERN)
+        get() = enumOr(p.getString("uiStyle", null), UiStyle.DOTS)
         set(v) = p.edit().putString("uiStyle", v.name).apply()
 
     /** Colour of active tiles (0 = Material You accent). */

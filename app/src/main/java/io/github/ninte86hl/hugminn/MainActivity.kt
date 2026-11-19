@@ -30,6 +30,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         Crash.install(this)
         prefs = Prefs(this)
+        prefs.keepOldStyle()
         Lang.init(this)
     }
 
