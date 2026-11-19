@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.5
+- Small 1×1 cards shrink long values (e.g. "Performance") to fit instead of cutting them off.
+- Kleine 1×1-Karten verkleinern lange Werte (z. B. „Leistung“), statt sie abzuschneiden.
+
 ## 1.10.4
 - Large performance card shows the live CPU clock, the large fan card how fast the fan turns (in percent), each with a bar in the style.
 - Große Leistungs-Karte zeigt den aktuellen CPU-Takt, die große Lüfter-Karte, wie schnell der Lüfter dreht (in Prozent), jeweils mit Balken im Stil.
