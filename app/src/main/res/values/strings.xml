@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="a11y_desc">Hugminn reagiert auf die Home-Taste deines Handhelds: zweimal drücken öffnet den Game Switcher (Muninn), lange drücken das Control Center (Huginn). Dafür liest Hugminn Tastendrücke und die Android-Übersicht. Es wird nichts verschickt.</string>
+    <string name="sc_cc">Control Center</string>
+    <string name="sc_switcher">Spielwechsler</string>
+    <string name="tile_cc">Control Center</string>
 </resources>
