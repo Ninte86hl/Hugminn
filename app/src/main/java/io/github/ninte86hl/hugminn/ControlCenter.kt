@@ -867,7 +867,9 @@ class ControlCenter(private val svc: HugminnService) {
         val appName = text("", 11f, pal.onSurfaceVariant, bold = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(if (withArt) 0 else 6 * d, 0, 0, 0) }
         head.addView(appName, lp(0, WRAP, 1f))
         col.addView(head)
-        val song = text("", if (big) 22f else 17f, pal.onSurface, bold = true).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, 4 * d, 0, 0) }
+        // two rows high: one line for the song, so progress and buttons always fit
+        val low = e.h <= 2
+        val song = text("", if (big && !low) 22f else if (low) 16f else 17f, pal.onSurface, bold = true).apply { maxLines = if (low) 1 else 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, 4 * d, 0, 0) }
         val artist = text("", if (big) 15f else 13f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
         col.addView(song)
         col.addView(artist)
@@ -882,7 +884,7 @@ class ControlCenter(private val svc: HugminnService) {
         times.addView(durT, lp(0, WRAP, 1f))
         col.addView(times, lp(MATCH, WRAP).apply { topMargin = 2 * d })
         // buttons
-        val btnSize = (if (big) 52 else 42) * d
+        val btnSize = (if (big && !low) 52 else if (low) 40 else 42) * d
         val ctrl = LinearLayout(svc).apply { gravity = Gravity.CENTER }
         fun btn(kind: IconView.Kind, main: Boolean, run: () -> Unit): IconView {
             val ic = IconView(svc, kind, if (main) 24 else 20).apply { setColor(if (main) tileOnFg() else pal.onSurface) }
@@ -911,7 +913,7 @@ class ControlCenter(private val svc: HugminnService) {
         playBox.setOnClickListener { if (!editing) tile.act() }
         ctrl.addView(playBox, lp(btnSize, btnSize).apply { marginStart = 6 * d; marginEnd = 6 * d })
         btn(IconView.Kind.NEXT, false) { Media.key(svc, KeyEvent.KEYCODE_MEDIA_NEXT); again() }
-        col.addView(ctrl, lp(MATCH, WRAP).apply { topMargin = 6 * d })
+        col.addView(ctrl, lp(MATCH, WRAP).apply { topMargin = (if (low) 2 else 6) * d })
 
         fun mmss(ms: Long) = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
         fun tick() {
