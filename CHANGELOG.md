@@ -2,6 +2,12 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.3
+- Large performance and fan cards show just the current profile, big, with live details; new size 3×2 instead of 2×3 (A still opens the profiles).
+- Profile notice: one notice only, about 5 seconds after the switch, in the top right corner.
+- Große Leistungs- und Lüfter-Karte zeigen nur das aktuelle Profil, groß, mit Live-Details; neue Größe 3×2 statt 2×3 (A öffnet weiter die Profile).
+- Profil-Hinweis: nur noch ein Hinweis, etwa 5 Sekunden nach dem Wechsel, oben rechts.
+
 ## 1.10.2
 - A short notice says when a profile per game or emulator takes over ("Profile for The Wind Waker: High performance · Fan Sport").
 - Performance and fan cards also as 2×3; their profiles sit two per row and stay readable.

@@ -11,7 +11,7 @@ import android.widget.TextView
 object Notice {
     private var view: View? = null
 
-    fun show(svc: HugminnService, text: String) = svc.ui.post {
+    fun show(svc: HugminnService, text: String, corner: Boolean = false) = svc.ui.post {
         val wm = svc.getSystemService(WindowManager::class.java)
         view?.let { runCatching { wm.removeViewImmediate(it) } }
         val pixel = Look.pixel(svc)
@@ -31,8 +31,9 @@ object Notice {
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         ).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = svc.dp(90)
+            // corner: top right, out of the game's way; otherwise bottom centre
+            if (corner) { gravity = Gravity.TOP or Gravity.END; x = svc.dp(20); y = svc.dp(20) }
+            else { gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; y = svc.dp(90) }
         }
         if (runCatching { wm.addView(v, lp) }.isFailure) return@post
         view = v
@@ -42,6 +43,6 @@ object Notice {
                 runCatching { wm.removeViewImmediate(v) }
                 if (view === v) view = null
             }.start()
-        }, 1800)
+        }, if (corner) 3000 else 1800)
     }
 }

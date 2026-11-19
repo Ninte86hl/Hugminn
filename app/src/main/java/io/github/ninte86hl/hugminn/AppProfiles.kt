@@ -17,6 +17,15 @@ object AppProfiles {
     private var basePerf: String? = null
     private var baseFan: String? = null
     private var baseCurve = false
+    @Volatile private var noticeText: String? = null
+    @Volatile private var noticeSvc: HugminnService? = null
+    private val notice = Runnable {
+        val svc = noticeSvc ?: return@Runnable
+        val txt = noticeText ?: return@Runnable
+        // only if that profile is still the one in use
+        if (activeKey != null) Notice.show(svc, txt, corner = true)
+    }
+
     /** Emulator whose running game is being watched. */
     @Volatile private var watchPkg: String? = null
 
@@ -103,9 +112,14 @@ object AppProfiles {
             // a short notice says which profile took over (game or emulator)
             val who = titleOf(hit.first) ?: Apps.label(svc, pkgOf(hit.first))
             val what = listOfNotNull(p.perf?.let { Device.perfProfiles[it] ?: it }, p.fan?.let { t("Lüfter ", "Fan ") + (Device.fanProfiles[it] ?: it) }).joinToString(" · ")
-            if (what.isNotEmpty()) Notice.show(svc, t("Profil für $who: $what", "Profile for $who: $what"))
+            // one notice, once things have settled (the game's profile often follows the emulator's within seconds)
+            svc.ui.removeCallbacks(notice)
+            noticeText = if (what.isNotEmpty()) t("Profil für $who: $what", "Profile for $who: $what") else null
+            noticeSvc = svc
+            svc.ui.postDelayed(notice, 5_000)
         } else if (activeKey != null) {
             activeKey = null
+            svc.ui.removeCallbacks(notice)
             apply(svc, basePerf, baseFan, baseCurve)
         }
     }
