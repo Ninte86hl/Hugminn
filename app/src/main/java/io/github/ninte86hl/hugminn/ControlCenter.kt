@@ -2575,6 +2575,7 @@ class ControlCenter(private val svc: HugminnService) {
             GridLayout.isSlider(id) -> listOf(1 to 2, 2 to 1, 1 to 3, 3 to 1)
             id == "system" -> listOf(4 to 2, 4 to 4)
             id == "fps" -> listOf(2 to 2, 2 to 1, 1 to 1)
+            id == "perf" || id == "fan" -> listOf(2 to 1, 2 to 2, 3 to 2)
             GridLayout.isInfo(id) -> listOf(2 to 1, 1 to 1, 2 to 2)
             else -> listOf(1 to 1, 2 to 1)
         }
