@@ -12,6 +12,12 @@ Hugminn has **no internet permission**: it never sends anything anywhere. (Repor
 | Nearby devices (`BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`) | Finding, pairing and connecting Bluetooth devices in the Bluetooth menu and reading their battery level. The scan is flagged as never used for location. |
 | Notification access (only the media part) | Lets the music tile see what is playing: song, artist, cover and position. Hugminn switches it on itself through the root service. Other notifications are not read; only for players that publish nothing else (such as Android's own music app), Hugminn looks at that player's playback notification. |
 | Photos (writing to `Pictures/Screenshots`) | Saving screenshots you take with Select. No storage permission is needed for this. |
+| Microphone (`RECORD_AUDIO`) | Only for [capture](Capture): Android requires it to record the game sound, and for the optional microphone track. Used only while a video is recording. |
+| Notifications (`POST_NOTIFICATIONS`) and foreground service | While recording, Android requires a visible notification ("Hugminn is recording"). |
+| Battery optimisation exemption (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) | Without root: lets Android show its own "allow in the background?" dialog, so the system doesn't end Hugminn. |
+| Modify system settings (`WRITE_SETTINGS`) | Without root: brightness, screen timeout and auto-rotate in the Control Center. With root these go through the root service. |
 
-On Retroid and AYN handhelds, Hugminn grants itself these permissions once through the firmware's built-in privileged service (`PServerBinder`), so you do not have to tap through permission dialogs. The same service changes the firmware settings (performance, fan, LEDs, button layout) that Android does not offer to normal apps.
+Since 1.12, the [setup wizard](Setup-Wizard) asks for each permission one by one with a short reason; nothing is granted silently. Where Android has no dialog (music access, background whitelist), Hugminn switches it on through the firmware's built-in privileged service (`PServerBinder`) – but only after you tap *Allow*. (Installations from before 1.12 keep working as before.) The same service changes the firmware settings (performance, fan, LEDs, button layout) that Android does not offer to normal apps.
+
+**Test versions** additionally have the internet permission for their feedback tool: only when you press Select and then *Send*, a report (screenshot, settings, diagnostics, recently opened windows) goes to the developer's private feedback repository. The regular version can't do that.
 

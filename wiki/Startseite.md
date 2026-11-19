@@ -11,6 +11,7 @@ Hugminn ergänzt Retroid-Handhelds um einen **Game Switcher** (Muninn) und ein *
 - [Home-Taste](Home-Taste) – so öffnest du Switcher und Control Center
 - [Verknüpfungen](Verknuepfungen) – Schnelleinstellungs-Kachel, Startbildschirm und Cocoon
 - [Externer Controller](Externer-Controller) – Home-/Guide-Taste, eingebaute Steuerung ausschalten
+- [Gerätetest](Geraetetest) – was auf deinem Handheld geht, und wie du es uns mitteilst
 
 ## Funktionen
 - [Game Switcher](Game-Switcher-DE) – mit dem Steuerkreuz zwischen Spielen und Apps wechseln
@@ -19,6 +20,8 @@ Hugminn ergänzt Retroid-Handhelds um einen **Game Switcher** (Muninn) und ein *
 - [Leistung und Lüfter](Leistung-und-Luefter) – Profile, eigene Lüfterkurve, Profile pro Emulator und Spiel
 - [Stick-LEDs](Stick-LEDs-DE) – Farben, Effekte, Akku- und Temperaturanzeige
 - [Leistungs-Overlay](Leistungs-Overlay) – FPS und Systemwerte über dem Spiel
+- [Aufnahme](Aufnahme) – Screenshots, Videos mit Spielton, die letzten Sekunden speichern
+- [Tastenkürzel](Tastenkuerzel) – Tastenkürzel-Hilfe im Switcher, angeheftete Apps
 - [Stile und Farbschemata](Stile-und-Farbschemata) – Modern, Pixel, Punktmatrix und Cocoon, hell und dunkel
 - [Einstellungen](Einstellungen) – alle Optionen, Sichern und Wiederherstellen, Sprache
 

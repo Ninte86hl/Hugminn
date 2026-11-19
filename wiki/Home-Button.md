@@ -12,4 +12,4 @@ Hugminn listens to the Home button; the Back button is left alone so it keeps wo
 
 Without any button: see [Shortcuts](Shortcuts).
 
-Every gesture can be reassigned in the [settings](Settings) → *Home button*: home, game switcher, Control Center, Android's recent apps or the last app. The time for a double press and for a long press can be adjusted too; a shorter double-press time makes a single press react faster.
+Every gesture can be reassigned in the [settings](Settings) → *Home button*: home, game switcher, Control Center, Android's recent apps, the last app, or a [capture](Capture) action (screenshot, record video / stop, save the last seconds). The time for a double press and for a long press can be adjusted too; a shorter double-press time makes a single press react faster.

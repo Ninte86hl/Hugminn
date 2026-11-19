@@ -17,7 +17,7 @@
 
 ---
 
-> **Status:** tested on the Retroid Pocket 6 and the Retroid Pocket Nova. Pocket 5 support is planned.
+> **Status:** tested on the Retroid Pocket 6 and the Retroid Pocket Nova; the Pocket 5 works according to community testers.
 
 ## What is Hugminn?
 
@@ -31,6 +31,9 @@ Hugminn adds two console-style overlays to the Retroid Pocket 6, Pocket Nova and
 ### Highlights
 
 - **Game Switcher with game titles** – Home twice shows your recent games as cards and names the game an emulator runs ("Crash Bandicoot 2" above DuckStation, also for RetroArch, Cemu, HAKU-X …).
+- **Capture** – screenshots and videos with game sound from the Control Center or a Home gesture, the stick LEDs pulse red while recording, and an optional "save the last 30 seconds" like on a console.
+- **Emulator shortcuts in the switcher** – Y shows an emulator's shortcuts with your button symbols (common EmuDeck/ROCKNIX layout or your own); pin apps so they stay open.
+- **Device test and guided setup** – checks what your handheld supports, asks for every permission with a short reason, and lets you send a summary as a GitHub issue if you like.
 - **Profiles per game** – performance and fan profiles remembered per emulator *or per game*; Hugminn notices which game runs and switches by itself.
 - **Real FPS** – measured from what the display shows (SurfaceFlinger), as a card, in the system overview and as an overlay over the game.
 - **Large tiles** – system overview (4×4 with graphs), Wi-Fi and Bluetooth lists, performance with live CPU clock, fan with live speed, battery with time left.
@@ -88,6 +91,9 @@ Each feature has its own page in the **[wiki](https://github.com/Ninte86hl/Hugmi
 | **[Music](https://github.com/Ninte86hl/Hugminn/wiki/Control-Center)** | A music tile up to 4×4 with cover, progress and buttons for any player; Start plays/pauses, L2/R2 skip tracks while the Control Center is open. |
 | **[Stick LEDs](https://github.com/Ninte86hl/Hugminn/wiki/Stick-LEDs)** | Colour wheel, quick colours and effects; or the sticks show battery or temperature as a colour. |
 | **[Performance overlay](https://github.com/Ninte86hl/Hugminn/wiki/Performance-Overlay)** | FPS, frame time, CPU, GPU, temperature and more over the game, in the style you chose. |
+| **[Capture](https://github.com/Ninte86hl/Hugminn/wiki/Capture)** | Screenshots and videos (720p/1080p, 30/60 FPS, game sound and/or microphone), timers, a maximum length, saving the last 15–60 seconds, stick LEDs as recording light. |
+| **[Emulator shortcuts](https://github.com/Ninte86hl/Hugminn/wiki/Emulator-Shortcuts)** | Shortcut help per emulator in the switcher (common layout or recorded by pressing the buttons) and pinned apps. |
+| **[Device test](https://github.com/Ninte86hl/Hugminn/wiki/Device-Test)** | Checks permissions, the handheld's features, live values, capture, buttons and LEDs, and fills in a device report for GitHub. |
 | **[Home button](https://github.com/Ninte86hl/Hugminn/wiki/Home-Button)** | Press, double press and hold, each with its own action. |
 | **[Shortcuts](https://github.com/Ninte86hl/Hugminn/wiki/Shortcuts)** | Quick settings tile, long press on the app icon, home screen and Cocoon shortcuts for the Control Center and the switcher. |
 | **[External controller](https://github.com/Ninte86hl/Hugminn/wiki/External-Controller)** | Home/Guide button of Bluetooth/USB controllers; built-in controls off, back on automatically when the controller disconnects. |
@@ -102,9 +108,11 @@ Pausing: the game can pause (picture and sound) while the switcher or the Contro
 | --- | --- | --- | --- |
 | Retroid Pocket 6 | Snapdragon 8 Gen 2 (QCS8550) | 5.5" 16:9, 1080p, 120 Hz | primary target |
 | Retroid Pocket Nova | QCS8550 | 4.5" 4:3, 1280×960, 120 Hz | tested (5 grid rows by default) |
-| Retroid Pocket 5 | Snapdragon 865 | 5.5" 16:9, 1080p, 60 Hz | planned |
+| Retroid Pocket 5 | Snapdragon 865 | 5.5" 16:9, 1080p | works (community-tested) |
+| Pocket 4 / 4 Pro, G2, AYN Odin 2 and other single-screen handhelds | | | untested – please run the [device test](https://github.com/Ninte86hl/Hugminn/wiki/Device-Test) |
+| Dual-screen devices (AYN Thor, Retroid Pocket Dual) | | | planned later, as their own update |
 
-Hugminn detects the device and only shows what it supports, for example no 120 Hz toggle on the Pocket 5. On the Pocket Nova, the Control Center uses a 4:3 layout.
+Hugminn detects the device and only shows what it supports. On the Pocket Nova, the Control Center uses a 4:3 layout. Got another handheld? Settings → Help & about → **Device test**, then *Report on GitHub* – that tells us exactly what works.
 
 ## Requirements
 
@@ -126,11 +134,11 @@ After installing, open Hugminn: a short [introduction](https://github.com/Ninte8
 
 ## Reporting bugs
 
-Settings → **Report a bug** opens a prefilled GitHub [issue](https://github.com/Ninte86hl/Hugminn/issues). More in the [wiki](https://github.com/Ninte86hl/Hugminn/wiki/Reporting-Bugs).
+Settings → **Report a bug** opens a prefilled GitHub [issue](https://github.com/Ninte86hl/Hugminn/issues). For device support, the **device test** fills in a device report for you. More in the [wiki](https://github.com/Ninte86hl/Hugminn/wiki/Reporting-Bugs).
 
 ## Permissions
 
-Hugminn has **no internet permission** and never sends anything anywhere. It needs the accessibility service and a few permissions for Wi-Fi, Bluetooth and the switcher; what each one is for is explained in the wiki: **[Permissions](https://github.com/Ninte86hl/Hugminn/wiki/Permissions)**.
+Hugminn has **no internet permission** and never sends anything anywhere. It needs the accessibility service and a few permissions for Wi-Fi, Bluetooth, music, capture and the switcher – the setup asks for each one with a short reason, and nothing is granted silently. What each one is for: **[Permissions](https://github.com/Ninte86hl/Hugminn/wiki/Permissions)**.
 
 ## Acknowledgements
 

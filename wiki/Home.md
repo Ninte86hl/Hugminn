@@ -11,6 +11,7 @@ Hugminn adds a **Game Switcher** (Muninn) and a **Control Center** (Huginn) to R
 - [Home button](Home-Button) – how to open the switcher and the Control Center
 - [Shortcuts](Shortcuts) – quick settings tile, home screen and Cocoon shortcuts
 - [External controller](External-Controller) – Home/Guide button, turning off the built-in controls
+- [Device test](Device-Test) – what works on your handheld, and how to tell us
 
 ## Features
 - [Game Switcher](Game-Switcher) – switch between games and apps with the D-pad
@@ -19,6 +20,8 @@ Hugminn adds a **Game Switcher** (Muninn) and a **Control Center** (Huginn) to R
 - [Performance and fan](Performance-and-Fan) – profiles, custom fan curve, profiles per emulator
 - [Stick LEDs](Stick-LEDs) – colours, effects, LED apps
 - [Performance overlay](Performance-Overlay) – FPS and system values over the game
+- [Capture](Capture) – screenshots, videos with game sound, saving the last seconds
+- [Emulator shortcuts](Emulator-Shortcuts) – shortcut help in the switcher, pinned apps
 - [Styles and themes](Styles-and-Themes) – Modern, Pixel, Dot matrix and Cocoon, light and dark
 - [Settings](Settings) – every option, backup and restore, language
 

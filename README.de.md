@@ -17,7 +17,7 @@
 
 ---
 
-> **Stand:** getestet auf dem Retroid Pocket 6 und dem Retroid Pocket Nova. Unterstützung für den Pocket 5 ist geplant.
+> **Stand:** getestet auf dem Retroid Pocket 6 und dem Retroid Pocket Nova; der Pocket 5 läuft laut Testern aus der Community.
 
 ## Was ist Hugminn?
 
@@ -31,6 +31,9 @@ Hugminn ergänzt den Retroid Pocket 6, Pocket Nova und Pocket 5 um zwei Oberflä
 ### Das Wichtigste
 
 - **Game Switcher mit Spieltiteln** – Home zweimal zeigt deine letzten Spiele als Karten und nennt das Spiel, das ein Emulator gerade spielt („Crash Bandicoot 2“ über DuckStation, auch bei RetroArch, Cemu, HAKU-X …).
+- **Aufnahme** – Screenshots und Videos mit Spielton aus dem Control Center oder per Home-Geste, die Stick-LEDs pulsieren während der Aufnahme rot, und auf Wunsch „die letzten 30 Sekunden speichern“ wie bei einer Konsole.
+- **Tastenkürzel im Switcher** – Y zeigt die Kürzel eines Emulators mit deinen Tastensymbolen (gängige EmuDeck/ROCKNIX-Belegung oder deine eigene); Apps anheften, damit sie offen bleiben.
+- **Gerätetest und geführte Einrichtung** – prüft, was dein Handheld kann, fragt jede Berechtigung mit kurzem Grund ab und schickt auf Wunsch eine Zusammenfassung als GitHub-Issue.
 - **Profile pro Spiel** – Leistungs- und Lüfterprofile pro Emulator *oder pro Spiel*; Hugminn erkennt das laufende Spiel und schaltet selbst um.
 - **Echte FPS** – gemessen an dem, was der Bildschirm zeigt (SurfaceFlinger), als Karte, in der System-Übersicht und als Overlay über dem Spiel.
 - **Große Kacheln** – System-Übersicht (4×4 mit Graphen), WLAN- und Bluetooth-Listen, Leistung mit aktuellem CPU-Takt, Lüfter mit Drehzahl, Akku mit Restzeit.
@@ -88,6 +91,9 @@ Jede Funktion hat eine eigene Seite im **[Wiki](https://github.com/Ninte86hl/Hug
 | **[Musik](https://github.com/Ninte86hl/Hugminn/wiki/Control-Center-DE)** | Musik-Kachel bis 4×4 mit Cover, Fortschritt und Tasten für jeden Player; Start spielt/pausiert, L2/R2 springen zwischen Titeln, solange das Control Center offen ist. |
 | **[Stick-LEDs](https://github.com/Ninte86hl/Hugminn/wiki/Stick-LEDs-DE)** | Farbrad, Schnellfarben und Effekte; oder die Sticks zeigen Akku oder Temperatur als Farbe. |
 | **[Leistungs-Overlay](https://github.com/Ninte86hl/Hugminn/wiki/Leistungs-Overlay)** | FPS, Frametime, CPU, GPU, Temperatur und mehr über dem Spiel, im gewählten Stil. |
+| **[Aufnahme](https://github.com/Ninte86hl/Hugminn/wiki/Aufnahme)** | Screenshots und Videos (720p/1080p, 30/60 FPS, Spielton und/oder Mikrofon), Timer, maximale Länge, die letzten 15–60 Sekunden speichern, Stick-LEDs als Aufnahmelicht. |
+| **[Tastenkürzel](https://github.com/Ninte86hl/Hugminn/wiki/Tastenkuerzel)** | Tastenkürzel-Hilfe pro Emulator im Switcher (gängige Belegung oder per Tastendruck aufgenommen) und angeheftete Apps. |
+| **[Gerätetest](https://github.com/Ninte86hl/Hugminn/wiki/Geraetetest)** | Prüft Berechtigungen, die Funktionen des Handhelds, Messwerte, Aufnahme, Tasten und LEDs und füllt einen Gerätebericht für GitHub aus. |
 | **[Home-Taste](https://github.com/Ninte86hl/Hugminn/wiki/Home-Taste)** | Drücken, zweimal drücken und halten, jeweils mit eigener Aktion. |
 | **[Verknüpfungen](https://github.com/Ninte86hl/Hugminn/wiki/Verknuepfungen)** | Schnelleinstellungs-Kachel, langer Druck aufs App-Symbol, Verknüpfungen auf dem Startbildschirm und in Cocoon für Control Center und Spielwechsler. |
 | **[Externer Controller](https://github.com/Ninte86hl/Hugminn/wiki/Externer-Controller)** | Home-/Guide-Taste von Bluetooth-/USB-Controllern; eingebaute Steuerung aus, beim Trennen automatisch wieder an. |
@@ -102,9 +108,11 @@ Pausieren: Auf Wunsch hält das Spiel (Bild und Ton) an, solange der Switcher od
 | --- | --- | --- | --- |
 | Retroid Pocket 6 | Snapdragon 8 Gen 2 (QCS8550) | 5,5" 16:9, 1080p, 120 Hz | Hauptgerät |
 | Retroid Pocket Nova | QCS8550 | 4,5" 4:3, 1280×960, 120 Hz | getestet (standardmäßig 5 Rasterzeilen) |
-| Retroid Pocket 5 | Snapdragon 865 | 5,5" 16:9, 1080p, 60 Hz | geplant |
+| Retroid Pocket 5 | Snapdragon 865 | 5,5" 16:9, 1080p | läuft (von der Community getestet) |
+| Pocket 4 / 4 Pro, G2, AYN Odin 2 und andere Handhelds mit einem Bildschirm | | | ungetestet – bitte den [Gerätetest](https://github.com/Ninte86hl/Hugminn/wiki/Geraetetest) laufen lassen |
+| Dual-Screen-Geräte (AYN Thor, Retroid Pocket Dual) | | | später geplant, als eigenes Update |
 
-Hugminn erkennt das Gerät und zeigt nur, was es kann – zum Beispiel keinen 120-Hz-Schalter auf dem Pocket 5. Auf dem Pocket Nova nutzt das Control Center ein 4:3-Layout.
+Hugminn erkennt das Gerät und zeigt nur, was es kann. Auf dem Pocket Nova nutzt das Control Center ein 4:3-Layout. Du hast ein anderes Handheld? Einstellungen → Hilfe & Info → **Gerätetest**, dann *Auf GitHub melden* – so wissen wir genau, was geht.
 
 ## Voraussetzungen
 
@@ -126,11 +134,11 @@ Nach der Installation Hugminn öffnen: eine kurze [Einführung](https://github.c
 
 ## Fehler melden
 
-Einstellungen → **Fehler melden** öffnet ein vorausgefülltes [Issue](https://github.com/Ninte86hl/Hugminn/issues) auf GitHub. Mehr dazu im [Wiki](https://github.com/Ninte86hl/Hugminn/wiki/Fehler-melden).
+Einstellungen → **Fehler melden** öffnet ein vorausgefülltes [Issue](https://github.com/Ninte86hl/Hugminn/issues) auf GitHub. Für die Geräteunterstützung füllt der **Gerätetest** einen Gerätebericht für dich aus. Mehr dazu im [Wiki](https://github.com/Ninte86hl/Hugminn/wiki/Fehler-melden).
 
 ## Berechtigungen
 
-Hugminn hat **keine Internet-Berechtigung** und sendet nie etwas irgendwohin. Es braucht die Bedienungshilfe und ein paar Berechtigungen für WLAN, Bluetooth und den Switcher; wofür jede einzelne ist, steht im Wiki: **[Berechtigungen](https://github.com/Ninte86hl/Hugminn/wiki/Berechtigungen)**.
+Hugminn hat **keine Internet-Berechtigung** und sendet nie etwas irgendwohin. Es braucht die Bedienungshilfe und ein paar Berechtigungen für WLAN, Bluetooth, Musik, Aufnahme und den Switcher – die Einrichtung fragt jede einzeln mit kurzem Grund ab, nichts wird still erteilt. Wofür jede einzelne ist: **[Berechtigungen](https://github.com/Ninte86hl/Hugminn/wiki/Berechtigungen)**.
 
 ## Danksagungen
 

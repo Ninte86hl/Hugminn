@@ -18,7 +18,7 @@ At the top, like in the Control Center, the header shows **Muninn · Game Switch
 | D-pad, left stick, L1/R1 | Browse |
 | A | Open the app (its running task comes back to the front) |
 | □ / X | Close the app, also removing it from Android's recent apps |
-| △ / Y | Options: app info, close all others |
+| △ / Y | Options: [shortcuts](Emulator-Shortcuts) (emulators), pin / unpin, app info, close all others |
 | ○ / B | Back to where you were |
 | Select | Screenshot including the switcher, saved to Pictures/Screenshots |
 

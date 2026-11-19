@@ -12,4 +12,4 @@ Hugminn hört auf die Home-Taste; die Zurück-Taste bleibt unberührt, damit sie
 
 Ganz ohne Taste: siehe [Verknüpfungen](Verknuepfungen).
 
-Jede Geste lässt sich in den [Einstellungen](Einstellungen) → *Home-Taste* neu belegen: Startbildschirm, Game Switcher, Control Center, Androids Übersicht oder letzte App. Auch die Zeiten für Doppeldruck und langen Druck sind einstellbar; eine kürzere Doppeldruck-Zeit lässt einen einfachen Druck schneller reagieren.
+Jede Geste lässt sich in den [Einstellungen](Einstellungen) → *Home-Taste* neu belegen: Startbildschirm, Game Switcher, Control Center, Androids Übersicht, letzte App oder eine [Aufnahme](Aufnahme)-Aktion (Screenshot, Video aufnehmen / stoppen, letzte Sekunden speichern). Auch die Zeiten für Doppeldruck und langen Druck sind einstellbar; eine kürzere Doppeldruck-Zeit lässt einen einfachen Druck schneller reagieren.

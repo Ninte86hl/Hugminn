@@ -18,7 +18,7 @@ Oben steht wie im Control Center die Kopfzeile **Muninn · Game Switcher** mit U
 | Steuerkreuz, linker Stick, L1/R1 | Blättern |
 | A | App öffnen (ihre laufende Aufgabe kommt wieder nach vorn) |
 | □ / X | App schließen, auch aus Androids Übersicht |
-| △ / Y | Optionen: App-Info, alle anderen schließen |
+| △ / Y | Optionen: [Tastenkürzel](Tastenkuerzel) (Emulatoren), anheften / lösen, App-Info, alle anderen schließen |
 | ○ / B | Zurück, wo du warst |
 | Select | Screenshot samt Switcher, gespeichert unter Bilder/Screenshots |
 
