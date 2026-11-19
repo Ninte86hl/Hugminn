@@ -123,6 +123,8 @@ class ControlCenter(private val svc: HugminnService) {
             }
 
             override fun dispatchKeyEvent(event: KeyEvent): Boolean = try {
+                // a window left behind by a close that went wrong: remove it instead of swallowing keys
+                if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(this) }; false } else
                 if (volumeKey(event)) true else
                 onKey(event)
             } catch (t: Throwable) {
@@ -182,7 +184,13 @@ class ControlCenter(private val svc: HugminnService) {
         editView = null
         gridEdit = null
         svc.ui.removeCallbacks(tick)
-        root?.let { runCatching { wm.removeView(it) } }
+        // removed at once; if that fails, at least hidden and without focus, so it can never trap anyone
+        root?.let { v ->
+            if (runCatching { wm.removeViewImmediate(v) }.isFailure) {
+                v.visibility = View.GONE
+                runCatching { svc.ui.postDelayed({ runCatching { wm.removeViewImmediate(v) } }, 300) }
+            }
+        }
         root = null
         PauseActivity.release(svc, "cc")
     }

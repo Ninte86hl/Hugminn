@@ -19,6 +19,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Performance overlay: position and layout change with ◀ ▶ like the size.
 - Device test: also checks volume, Home and Back; the LED driver check was wrong.
 - Waking up: if the built-in controls are off and no external controller is connected, they come back on.
+- Fix: after standby the Control Center could stay on screen and block the buttons. Nothing of Hugminn opens on the lock screen any more, the power key closes it first, and a window left behind removes itself.
 - Aufnahme-Menü: größeres Fenster mit zwei Reitern (Aufnehmen · Einstellungen); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, nur L1/R1 wechseln die Reiter.
 - Aufnahme: Videos können nach 5, 10, 15 oder 30 Sekunden oder 1, 3, 5 oder 10 Minuten von selbst enden (Einstellungen → Maximale Länge).
 - Spielwechsler: Y → Tastenkürzel zeigt die Tastenkürzel des Emulators mit Tastensymbolen (gängige Belegung mit Select als Hotkey wie bei EmuDeck/ROCKNIX; pro Emulator anpassbar unter Einstellungen → Tastenkürzel).
@@ -33,6 +34,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Leistungs-Overlay: Position und Anordnung mit ◀ ▶ wie die Größe.
 - Gerätetest: prüft auch Lautstärke, Home und Zurück; die Prüfung des LED-Treibers war falsch.
 - Aufwachen: Ist die eingebaute Steuerung aus und kein externer Controller verbunden, geht sie wieder an.
+- Fix: Nach dem Standby konnte das Control Center stehen bleiben und die Tasten blockieren. Auf dem Sperrbildschirm öffnet sich nichts mehr von Hugminn, die Power-Taste schließt es vorher, und ein zurückgebliebenes Fenster entfernt sich selbst.
 - Neuer Gerätetest (Einstellungen → Hilfe & Info): prüft Berechtigungen, Retroid-Funktionen, Messwerte, Aufnahme und Controller, danach Tasten und LEDs von Hand, und zeigt eine Zusammenfassung, die sich als GitHub-Issue senden lässt.
 - Aufnahme: Nach einem Video gehen die Stick-LEDs zurück auf ihre Farben bzw. ihren Effekt.
 

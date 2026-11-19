@@ -256,6 +256,8 @@ class HugminnService : AccessibilityService() {
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
         // an external controller (e.g. 8BitDo over Bluetooth): its Home/Guide button counts as Home
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE && prefs.padHome && event.device?.isExternal == true) return onHome(event, forced = true)
+        // the power key closes everything of Hugminn first, so Android's power menu is never hidden behind it
+        if (event.keyCode == KeyEvent.KEYCODE_POWER && event.action == KeyEvent.ACTION_DOWN) ui.post { runCatching { closeOverlays() } }
         // the device's own keys always reach Android (volume, power, screenshot with Power + Volume down)
         if (event.keyCode in systemKeys) return false
         // Select: screenshot with the overlays (Android's key combination cannot reach them)
@@ -279,6 +281,11 @@ class HugminnService : AccessibilityService() {
 
     private fun onHome(e: KeyEvent, forced: Boolean = false): Boolean {
         val p = prefs
+        // locked (lock screen after waking up): Home stays Android's, nothing of Hugminn opens there
+        if (getSystemService(android.app.KeyguardManager::class.java)?.isKeyguardLocked == true) {
+            closeOverlays()
+            return false
+        }
         val overlayOpen = controlCenter.isOpen || anySwitcherOpen
         // Untouched setup and nothing open: let Android handle Home itself (a controller's Guide button
         // has no meaning for Android, so Hugminn performs the single press itself then).
