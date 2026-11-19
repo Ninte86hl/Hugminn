@@ -269,16 +269,10 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
         }
     }
 
-    /** Outside edit mode the board is centred on the cells actually in use (no empty strip on a side). */
-    private fun originX(c: Int): Int {
-        val used = if (editing()) cols else (pos.values.maxOfOrNull { it[0] + it[2] } ?: cols).coerceIn(1, cols)
-        return (width - (c * used + gap * (used - 1))) / 2
-    }
+    /** Elements sit exactly where they are in edit mode: the whole grid is centred, not only the used cells. */
+    private fun originX(c: Int): Int = (width - (c * cols + gap * (cols - 1))) / 2
 
-    private fun originY(c: Int): Int {
-        val rows = if (editing()) GridLayout.ROWS else (pos.values.maxOfOrNull { it[1] + it[3] } ?: GridLayout.ROWS).coerceIn(1, GridLayout.ROWS)
-        return ((height - (c * rows + gap * (rows - 1))) / 2).coerceAtLeast(0)
-    }
+    private fun originY(c: Int): Int = ((height - (c * GridLayout.ROWS + gap * (GridLayout.ROWS - 1))) / 2).coerceAtLeast(0)
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         val c = cell()
