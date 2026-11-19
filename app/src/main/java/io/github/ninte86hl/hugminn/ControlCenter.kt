@@ -2281,7 +2281,7 @@ class ControlCenter(private val svc: HugminnService) {
         val sc = android.widget.ScrollView(svc).apply { addView(list) }
         menuScroll = sc
         box.addView(sc, if (tall) lp(MATCH, 0, 1f) else lp(MATCH, WRAP))
-        val w = (r.width * 0.42f).toInt().coerceAtLeast(320 * d)
+        val w = (r.width * (if (title == t("Aufnahme", "Capture")) 0.6f else 0.42f)).toInt().coerceAtLeast(320 * d)
         r.addView(box, FrameLayout.LayoutParams(w, if (tall) (r.height * 0.86f).toInt() else FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
         if (refresh) {
@@ -2336,42 +2336,66 @@ class ControlCenter(private val svc: HugminnService) {
         menuRows.getOrNull(i)?.findViewWithTag<android.widget.TextView>("hint")?.text = hint
     }
 
-    /** The Capture tile's menu: take something, then the settings (they change in place). */
-    private fun captureMenu(select: Int = -1) {
+    /** The Capture tile's menu in tabs: take something, video settings, last seconds. Values change with ◀ ▶. */
+    private fun captureMenu(tab: Int = 0, select: Int = -1) {
         val p = svc.prefs
-        val (res, fps) = Capture.qualities.getOrElse(p.recQuality) { Capture.qualities[0] }
-        val audio = Capture.Audio.values().getOrElse(p.recAudio) { Capture.Audio.GAME }
-        val entries = mutableListOf<MenuEntry>()
-        fun again() = entries.size // index of the entry being added, to keep the selection after a change
-        entries += MenuEntry(t("Aufnehmen", "Take"), header = true, run = null)
-        entries += MenuEntry("Screenshot", hint = "A") { close(); Capture.screenshot(svc) }
-        entries += MenuEntry(t("Screenshot in 3 s", "Screenshot in 3 s")) { close(); Capture.screenshot(svc, 3) }
-        entries += if (Capture.recording) MenuEntry(t("Video stoppen", "Stop video"), hint = Capture.elapsed()) { close(); Capture.stopRecord(svc) }
-        else MenuEntry(t("Video aufnehmen", "Record video"), hint = t("Kachel-A stoppt", "Tile A stops")) { close(); Capture.startRecord(svc) }
-        if (!Capture.recording) entries += MenuEntry(t("Video in 3 s", "Video in 3 s")) { close(); Capture.startRecordIn(svc, 3) }
-        if (Capture.replayRunning) entries += MenuEntry(t("Letzte ${p.replaySec} s speichern", "Save the last ${p.replaySec} s")) { close(); Capture.saveReplay(svc) }
-        if (Capture.lastUri != null) entries += MenuEntry(t("Letzte Aufnahme ansehen", "View last capture")) { close(); Capture.openLast(svc) }
-        entries += MenuEntry(t("Einstellungen", "Settings"), header = true, run = null)
-        val iq = again()
-        entries += MenuEntry(t("Qualität", "Quality"), hint = "${res}p · $fps FPS") { p.recQuality = (p.recQuality + 1) % Capture.qualities.size; captureMenu(iq) }
-        val ia = again()
-        entries += MenuEntry(t("Ton", "Sound"), hint = audio.label) { p.recAudio = (p.recAudio + 1) % Capture.Audio.values().size; captureMenu(ia) }
-        val ii = again()
-        entries += MenuEntry(t("Anzeige während der Aufnahme", "While recording"), hint = Capture.showLabels[p.recShow.coerceIn(0, 3)]) { p.recShow = (p.recShow + 1) % 4; captureMenu(ii) }
-        val io = again()
-        entries += MenuEntry(t("Bildschirm aus speichert das Video", "Screen off saves the video"), checked = p.recStopOnSleep) { p.recStopOnSleep = !p.recStopOnSleep; captureMenu(io) }
-        val ir = again()
-        entries += MenuEntry(t("Letzte Sekunden mitschneiden", "Keep the last seconds"), checked = p.replayOn,
+        val title = t("Aufnahme", "Capture")
+        val res = listOf(1080, 720)
+        val fpsList = listOf(60, 30)
+        fun q() = Capture.qualities.getOrElse(p.recQuality) { Capture.qualities[0] }
+        fun setQ(r: Int, f: Int) { p.recQuality = Capture.qualities.indexOf(r to f).coerceAtLeast(0) }
+        fun arrows(v: String) = "◀  $v  ▶"
+        fun again(i: Int) = { captureMenu(curTab, i) }
+        // a value that changes with ◀ ▶ (and A steps forward)
+        fun value(label: String, show: () -> String, step: (Int) -> Unit): MenuEntry {
+            val side: (Int) -> Unit = { dir -> step(dir); setMenuHint(menuSel, arrows(show())) }
+            return MenuEntry(label, hint = arrows(show()), side = side) { side(1) }
+        }
+
+        val take = mutableListOf<MenuEntry>()
+        take += MenuEntry("Screenshot", hint = t("Auch mit A auf der Kachel", "Also A on the tile")) { close(); Capture.screenshot(svc) }
+        take += MenuEntry(t("Screenshot in 3 s", "Screenshot in 3 s")) { close(); Capture.screenshot(svc, 3) }
+        if (Capture.recording) take += MenuEntry(t("Video stoppen", "Stop video"), hint = Capture.elapsed()) { close(); Capture.stopRecord(svc) }
+        else {
+            take += MenuEntry(t("Video aufnehmen", "Record video"), hint = t("A auf der Kachel stoppt", "A on the tile stops")) { close(); Capture.startRecord(svc) }
+            take += MenuEntry(t("Video in 3 s", "Video in 3 s")) { close(); Capture.startRecordIn(svc, 3) }
+        }
+        if (Capture.replayRunning) take += MenuEntry(t("Letzte ${p.replaySec} s speichern", "Save the last ${p.replaySec} s")) { close(); Capture.saveReplay(svc) }
+        if (Capture.lastUri != null) take += MenuEntry(t("Letzte Aufnahme ansehen", "View last capture")) { close(); Capture.openLast(svc) }
+
+        val video = mutableListOf<MenuEntry>()
+        video += MenuEntry(t("Bild", "Picture"), header = true, run = null)
+        video += value(t("Auflösung", "Resolution"), { "${q().first}p" }) { dir ->
+            val i = (res.indexOf(q().first) + dir).coerceIn(0, res.lastIndex); setQ(res[i], q().second) }
+        video += value(t("Bildrate", "Frame rate"), { "${q().second} FPS" }) { dir ->
+            val i = (fpsList.indexOf(q().second) - dir).coerceIn(0, fpsList.lastIndex); setQ(q().first, fpsList[i]) }
+        video += MenuEntry(t("Ton", "Sound"), header = true, run = null)
+        video += value(t("Aufnehmen", "Record"), { Capture.Audio.values().getOrElse(p.recAudio) { Capture.Audio.GAME }.label }) { dir ->
+            p.recAudio = (p.recAudio + dir).coerceIn(0, Capture.Audio.values().size - 1) }
+        video += MenuEntry(t("Während der Aufnahme", "While recording"), header = true, run = null)
+        video += value(t("Anzeige", "Indicator"), { Capture.showLabels[p.recShow.coerceIn(0, 3)] }) { dir ->
+            p.recShow = (p.recShow + dir).coerceIn(0, 3) }
+        val iSleep = video.size
+        video += MenuEntry(t("Bildschirm aus speichert das Video", "Screen off saves the video"), checked = p.recStopOnSleep) { p.recStopOnSleep = !p.recStopOnSleep; again(iSleep)() }
+
+        val clip = mutableListOf<MenuEntry>()
+        clip += MenuEntry(t("Mitschneiden", "Keep recording"), checked = p.replayOn,
             hint = t("Läuft im Hintergrund, braucht etwas Akku", "Runs in the background, uses some battery")) {
-            Capture.setReplay(svc, !p.replayOn); svc.ui.postDelayed({ if (isOpen) captureMenu(ir) }, 300)
+            Capture.setReplay(svc, !p.replayOn); svc.ui.postDelayed({ if (isOpen) captureMenu(curTab, 0) }, 300)
         }
-        val il = again()
-        entries += MenuEntry(t("Länge", "Length"), hint = "${p.replaySec} s") {
-            p.replaySec = Capture.replayLengths[(Capture.replayLengths.indexOf(p.replaySec) + 1) % Capture.replayLengths.size]
+        clip += value(t("Länge", "Length"), { "${p.replaySec} s" }) { dir ->
+            val l = Capture.replayLengths
+            p.replaySec = l[(l.indexOf(p.replaySec).coerceAtLeast(0) + dir).coerceIn(0, l.lastIndex)]
             Capture.recorder?.let { if (it.replaySec > 0) it.replaySec = p.replaySec }
-            captureMenu(il)
         }
-        showMenu(t("Aufnahme", "Capture"), entries, select)
+        clip += MenuEntry(if (Capture.replayRunning) t("Letzte ${p.replaySec} s jetzt speichern", "Save the last ${p.replaySec} s now") else t("Erst „Mitschneiden“ einschalten", "Switch on “Keep recording” first"),
+            run = if (Capture.replayRunning) ({ close(); Capture.saveReplay(svc) }) else null)
+        clip += MenuEntry(t("Tipp: Home-Taste → „Letzte Sekunden speichern“ belegen", "Tip: set a Home gesture to “Save the last seconds”"), run = null)
+
+        val keep = addTab
+        tabMenu(title, listOf(t("Aufnehmen", "Take") to take, "Video" to video, t("Letzte Sekunden", "Last seconds") to clip), tab)
+        addTab = keep
+        if (select >= 0 && menuEntries.getOrNull(select)?.run != null) { menuSel = select; showMenuSel() }
     }
 
     private fun showMenuSel() {
@@ -2632,6 +2656,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun tabMenu(title: String, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int) {
         if (tabs.isEmpty()) { showMenu(title, listOf(MenuEntry(tr("Alles ist schon im Raster"), run = null))); return }
         addTab = tab
+        curTab = tab
         // already open: only the tabs and the list change, the window stays (no flicker)
         val openList = menuList
         val openBar = tabBar
@@ -2657,6 +2682,8 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     private var tabBar: LinearLayout? = null
+    /** The tab shown last in a tab menu. */
+    private var curTab = 0
 
     /** Draws the tab row: ◀ tabs ▶, the chosen one filled. */
     private fun styleTabs(bar: LinearLayout, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int, title: String) {
@@ -2677,8 +2704,10 @@ class ControlCenter(private val svc: HugminnService) {
     private fun setTabKeys(title: String, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int) {
         popupKeys = { code ->
             when (code) {
-                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BUTTON_L1 -> tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size)
-                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BUTTON_R1 -> tabMenu(title, tabs, (tab + 1) % tabs.size)
+                KeyEvent.KEYCODE_DPAD_LEFT -> menuEntries.getOrNull(menuSel)?.side?.invoke(-1) ?: tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> menuEntries.getOrNull(menuSel)?.side?.invoke(1) ?: tabMenu(title, tabs, (tab + 1) % tabs.size)
+                KeyEvent.KEYCODE_BUTTON_L1 -> tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size)
+                KeyEvent.KEYCODE_BUTTON_R1 -> tabMenu(title, tabs, (tab + 1) % tabs.size)
                 KeyEvent.KEYCODE_DPAD_UP -> moveMenu(-1)
                 KeyEvent.KEYCODE_DPAD_DOWN -> moveMenu(1)
                 KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> runMenu(menuSel)
