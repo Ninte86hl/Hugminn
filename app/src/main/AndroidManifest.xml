@@ -69,6 +69,30 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Android's "Add shortcut" list (widgets/shortcuts picker); frontends like Cocoon read these -->
+        <activity-alias
+            android:name=".CcShortcut"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_cc"
+            android:targetActivity=".ShortcutActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".SwitcherShortcut"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_switcher"
+            android:targetActivity=".ShortcutActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- quick settings tile: opens the Control Center without a button -->
         <service
             android:name=".CcTile"
