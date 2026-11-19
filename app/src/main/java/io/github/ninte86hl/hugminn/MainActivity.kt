@@ -65,6 +65,57 @@ class MainActivity : Activity() {
     /** Settings are split into pages like Android's own settings; null = the overview. */
     private var page: String? = null
 
+    // ---- emulator shortcuts: L1/R1 switch the emulator, keys are recorded by pressing them ----
+    private var hotkeyEmus: List<String> = emptyList()
+    private var hotkeyEmu: String? = null
+
+    private fun switchEmu(dir: Int) {
+        val l = hotkeyEmus
+        if (l.isEmpty()) return
+        hotkeyEmu = l[((l.indexOf(hotkeyEmu).coerceAtLeast(0) + dir) % l.size + l.size) % l.size]
+        afterChange.forEach { it() }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (page == "hotkeys" && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) when (event.keyCode) {
+            KeyEvent.KEYCODE_BUTTON_L1 -> { switchEmu(-1); return true }
+            KeyEvent.KEYCODE_BUTTON_R1 -> { switchEmu(1); return true }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    /** Waits for the buttons of a shortcut: everything held together counts, once they are let go. */
+    private fun recordKeys(pkg: String, act: Hotkeys.Act) {
+        val held = linkedSetOf<Int>()
+        val combo = linkedSetOf<Int>()
+        val msg = text(t("Halte die Tasten für „${act.label}“ gleichzeitig gedrückt und lass sie los.", "Hold the buttons for “${act.label}” together, then let go."), 15f, pal.onSurface).apply { setPadding(d(24), d(16), d(24), d(8)) }
+        val dlg = android.app.AlertDialog.Builder(this)
+            .setTitle(Apps.label(this, pkg))
+            .setView(msg)
+            .setNeutralButton(t("Nicht belegt", "Not set")) { _, _ -> Hotkeys.setKeys(this, pkg, act, intArrayOf()); afterChange.forEach { it() } }
+            .setNegativeButton(t("Abbrechen", "Cancel"), null)
+            .create()
+        dlg.setOnKeyListener { d, code, e ->
+            if (code == KeyEvent.KEYCODE_BACK && combo.isEmpty()) return@setOnKeyListener false
+            when (e.action) {
+                KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
+                    held += code; combo += code
+                    msg.text = combo.joinToString(" + ") { Hotkeys.name(it) }
+                }
+                KeyEvent.ACTION_UP -> {
+                    held -= code
+                    if (held.isEmpty() && combo.isNotEmpty()) {
+                        Hotkeys.setKeys(this, pkg, act, combo.toIntArray())
+                        afterChange.forEach { it() }
+                        d.dismiss()
+                    }
+                }
+            }
+            true
+        }
+        dlg.show()
+    }
+
     private var builtPage: String? = "-"
     private val pageButtons = HashMap<String, Button>()
 
@@ -328,14 +379,14 @@ class MainActivity : Activity() {
             "Hugminn shows these shortcuts in the game switcher (Y → Shortcuts). It doesn't change the emulator – set it up the same way there, or adjust it here."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(4), 0, d(8)) })
         if (emus.isEmpty()) hk.addView(text(t("Keine Emulatoren gefunden", "No emulators found"), 14f, pal.onSurfaceVariant))
         else {
-            var emu = emus.first()
-            row(hk, t("Emulator", "Emulator"), null, { Apps.label(this, emu) }) { emu = cycle(emus, emu) }
+            hotkeyEmus = emus
+            val cur = hotkeyEmu?.takeIf { it in emus } ?: emus.first()
+            hotkeyEmu = cur
+            row(hk, t("Emulator", "Emulator"), t("L1 / R1 wechselt den Emulator", "L1 / R1 switches the emulator"), { "◀  " + Apps.label(this, hotkeyEmu ?: cur) + "  ▶" }) { switchEmu(1) }
             row(hk, t("Belegung", "Layout"), t("Gängig: Select als Hotkey, wie bei EmuDeck, ROCKNIX oder Batocera", "Common: Select as hotkey, as on EmuDeck, ROCKNIX or Batocera"),
-                { Hotkeys.mode(this, emu).label }) { Hotkeys.setMode(this, emu, cycle(Hotkeys.Mode.values().toList(), Hotkeys.mode(this, emu))) }
-            for (act in Hotkeys.Act.values()) row(hk, act.label, null, { Hotkeys.text(Hotkeys.comboOf(this, emu, act)) }) {
-                // changing one key makes the layout this emulator's own
-                if (Hotkeys.mode(this, emu) != Hotkeys.Mode.OWN) Hotkeys.setMode(this, emu, Hotkeys.Mode.OWN)
-                Hotkeys.cycle(this, emu, act, 1)
+                { Hotkeys.mode(this, hotkeyEmu ?: cur).label }) { val e = hotkeyEmu ?: cur; Hotkeys.setMode(this, e, cycle(Hotkeys.Mode.values().toList(), Hotkeys.mode(this, e))) }
+            for (act in Hotkeys.Act.values()) row(hk, act.label, t("Antippen und die Tasten drücken", "Tap, then press the buttons"), { Hotkeys.text(Hotkeys.comboOf(this, hotkeyEmu ?: cur, act)) }) {
+                recordKeys(hotkeyEmu ?: cur, act)
             }
         }
 

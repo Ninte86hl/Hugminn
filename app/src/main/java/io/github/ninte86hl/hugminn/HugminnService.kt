@@ -18,6 +18,8 @@ class HugminnService : AccessibilityService() {
 
     companion object {
         @Volatile var instance: HugminnService? = null
+        /** Set by the device test while it waits for buttons (Home included). */
+        @Volatile var keyProbe: ((Int) -> Unit)? = null
     }
 
     val ui = Handler(Looper.getMainLooper())
@@ -230,6 +232,13 @@ class HugminnService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
+        // the device test asks for the Home button: it goes there instead of opening anything
+        keyProbe?.let { probe ->
+            if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME) {
+                if (event.action == KeyEvent.ACTION_UP) ui.post { probe(KeyEvent.KEYCODE_HOME) }
+                return true
+            }
+        }
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
         // an external controller (e.g. 8BitDo over Bluetooth): its Home/Guide button counts as Home
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE && prefs.padHome && event.device?.isExternal == true) return onHome(event, forced = true)

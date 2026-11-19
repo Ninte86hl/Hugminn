@@ -55,32 +55,35 @@ object Hotkeys {
     fun mode(ctx: Context, pkg: String): Mode =
         Mode.values().getOrElse(prefs(ctx).getInt("mode_$pkg", 0)) { Mode.COMMON }
 
+    private val commonKeys get() = common.mapValues { combos[it.value] }
+
     fun setMode(ctx: Context, pkg: String, m: Mode) {
         // switching to own shortcuts starts from the common layout
-        if (m == Mode.OWN && !prefs(ctx).contains("own_$pkg")) saveOwn(ctx, pkg, common)
+        if (m == Mode.OWN && !prefs(ctx).contains("keys_$pkg")) saveOwn(ctx, pkg, commonKeys)
         prefs(ctx).edit().putInt("mode_$pkg", m.ordinal).apply()
     }
 
-    private fun own(ctx: Context, pkg: String): Map<Act, Int> =
-        prefs(ctx).getString("own_$pkg", null)?.split(',')?.mapNotNull { e ->
+    /** Own shortcuts: each action with the keys pressed together, stored as "SAVE=109+103,…". */
+    private fun own(ctx: Context, pkg: String): Map<Act, IntArray> =
+        prefs(ctx).getString("keys_$pkg", null)?.split(',')?.mapNotNull { e ->
             val (a, c) = e.split('=').takeIf { it.size == 2 } ?: return@mapNotNull null
-            (Act.values().firstOrNull { it.name == a } ?: return@mapNotNull null) to (c.toIntOrNull() ?: 0)
-        }?.toMap() ?: common
+            (Act.values().firstOrNull { it.name == a } ?: return@mapNotNull null) to
+                c.split('+').mapNotNull { it.toIntOrNull() }.toIntArray()
+        }?.toMap() ?: commonKeys
 
-    private fun saveOwn(ctx: Context, pkg: String, m: Map<Act, Int>) =
-        prefs(ctx).edit().putString("own_$pkg", m.entries.joinToString(",") { "${it.key.name}=${it.value}" }).apply()
+    private fun saveOwn(ctx: Context, pkg: String, m: Map<Act, IntArray>) =
+        prefs(ctx).edit().putString("keys_$pkg", m.entries.joinToString(",") { "${it.key.name}=${it.value.joinToString("+")}" }).apply()
 
-    /** The shortcut set for one action in own mode (cycles through [combos]). */
-    fun cycle(ctx: Context, pkg: String, act: Act, dir: Int) {
-        val m = own(ctx, pkg).toMutableMap()
-        m[act] = ((m[act] ?: 0) + dir + combos.size) % combos.size
-        saveOwn(ctx, pkg, m)
+    /** Sets one action's keys (empty = not set); the layout becomes this emulator's own. */
+    fun setKeys(ctx: Context, pkg: String, act: Act, keys: IntArray) {
+        if (mode(ctx, pkg) != Mode.OWN) setMode(ctx, pkg, Mode.OWN)
+        saveOwn(ctx, pkg, own(ctx, pkg).toMutableMap().apply { this[act] = keys })
     }
 
     fun comboOf(ctx: Context, pkg: String, act: Act): IntArray = when (mode(ctx, pkg)) {
         Mode.COMMON -> combos[common[act] ?: 0]
-        Mode.OWN -> combos.getOrElse(own(ctx, pkg)[act] ?: 0) { combos[0] }
-        Mode.OFF -> combos[0]
+        Mode.OWN -> own(ctx, pkg)[act] ?: intArrayOf()
+        Mode.OFF -> intArrayOf()
     }
 
     /** What the switcher shows for [pkg]: action to keys, only the ones that are set. */
@@ -99,7 +102,10 @@ object Hotkeys {
         KeyEvent.KEYCODE_BUTTON_X -> "X"; KeyEvent.KEYCODE_BUTTON_Y -> "Y"
         SEL -> "Select"; ST -> "Start"; KeyEvent.KEYCODE_BUTTON_MODE -> "Home"
         KeyEvent.KEYCODE_DPAD_LEFT -> "◀"; KeyEvent.KEYCODE_DPAD_RIGHT -> "▶"
-        else -> "?"
+        KeyEvent.KEYCODE_DPAD_UP -> "▲"; KeyEvent.KEYCODE_DPAD_DOWN -> "▼"
+        KeyEvent.KEYCODE_VOLUME_UP -> "Vol+"; KeyEvent.KEYCODE_VOLUME_DOWN -> "Vol−"
+        KeyEvent.KEYCODE_BACK -> "Back"
+        else -> KeyEvent.keyCodeToString(k).removePrefix("KEYCODE_").removePrefix("BUTTON_")
     }
 
     // ---- apps kept open ----

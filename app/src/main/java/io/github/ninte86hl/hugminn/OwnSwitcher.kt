@@ -655,9 +655,15 @@ class OwnSwitcher(private val svc: HugminnService) {
         b.addView(LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(svc.dp(12), 0, 0, 0)
-            addView(text(Apps.label(svc, a.pkg), 17f, pal.onSurface, bold = true).apply { maxLines = 1 })
-            val pin = if (Hotkeys.isPinned(svc, a.pkg)) t(" · 📌 angeheftet", " · 📌 pinned") else ""
-            addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}") + pin, 12f, pal.onSurfaceVariant))
+            // the name, and right next to it a pin in the style's look when the app is pinned
+            addView(LinearLayout(svc).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                addView(text(Apps.label(svc, a.pkg), 17f, pal.onSurface, bold = true).apply { maxLines = 1 },
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f))
+                if (Hotkeys.isPinned(svc, a.pkg)) addView(IconView(svc, IconView.Kind.PIN, 16).styled(pal, Look.pixel(svc)).apply { setColor(pal.primary) },
+                    LinearLayout.LayoutParams(svc.dp(18), svc.dp(18)).apply { marginStart = svc.dp(8) })
+            })
+            addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}"), 12f, pal.onSurfaceVariant))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln")))
         b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Öffnen")))
