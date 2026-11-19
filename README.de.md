@@ -17,7 +17,7 @@
 
 ---
 
-> **Stand:** getestet auf dem Retroid Pocket 6. Unterstützung für Pocket Nova und Pocket 5 ist geplant.
+> **Stand:** getestet auf dem Retroid Pocket 6 und dem Retroid Pocket Nova. Unterstützung für den Pocket 5 ist geplant.
 
 ## Was ist Hugminn?
 
@@ -97,7 +97,7 @@ Pausieren: Auf Wunsch hält das Spiel (Bild und Ton) an, solange der Switcher od
 | Gerät | Chip | Bildschirm | Stand |
 | --- | --- | --- | --- |
 | Retroid Pocket 6 | Snapdragon 8 Gen 2 (QCS8550) | 5,5" 16:9, 1080p, 120 Hz | Hauptgerät |
-| Retroid Pocket Nova | QCS8550 | 4,5" 4:3, 1280×960, 120 Hz | geplant |
+| Retroid Pocket Nova | QCS8550 | 4,5" 4:3, 1280×960, 120 Hz | getestet (standardmäßig 5 Rasterzeilen) |
 | Retroid Pocket 5 | Snapdragon 865 | 5,5" 16:9, 1080p, 60 Hz | geplant |
 
 Hugminn erkennt das Gerät und zeigt nur, was es kann – zum Beispiel keinen 120-Hz-Schalter auf dem Pocket 5. Auf dem Pocket Nova nutzt das Control Center ein 4:3-Layout.

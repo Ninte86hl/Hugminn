@@ -17,7 +17,7 @@
 
 ---
 
-> **Status:** tested on the Retroid Pocket 6. Pocket Nova and Pocket 5 support is planned.
+> **Status:** tested on the Retroid Pocket 6 and the Retroid Pocket Nova. Pocket 5 support is planned.
 
 ## What is Hugminn?
 
@@ -97,7 +97,7 @@ Pausing: the game can pause (picture and sound) while the switcher or the Contro
 | Device | Chip | Display | Status |
 | --- | --- | --- | --- |
 | Retroid Pocket 6 | Snapdragon 8 Gen 2 (QCS8550) | 5.5" 16:9, 1080p, 120 Hz | primary target |
-| Retroid Pocket Nova | QCS8550 | 4.5" 4:3, 1280×960, 120 Hz | planned |
+| Retroid Pocket Nova | QCS8550 | 4.5" 4:3, 1280×960, 120 Hz | tested (5 grid rows by default) |
 | Retroid Pocket 5 | Snapdragon 865 | 5.5" 16:9, 1080p, 60 Hz | planned |
 
 Hugminn detects the device and only shows what it supports, for example no 120 Hz toggle on the Pocket 5. On the Pocket Nova, the Control Center uses a 4:3 layout.
