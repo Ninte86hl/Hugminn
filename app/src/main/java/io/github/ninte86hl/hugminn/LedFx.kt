@@ -47,8 +47,14 @@ object LedFx {
         if (on == recording) return
         recording = on
         if (on) { load(ctx); start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
-        if (Device.stickLeds(ctx)) resume(ctx)
-        else { stop(); Thread { Root.exec(command(intArrayOf(0, 0))) }.start() } // the LEDs were off: off again
+        stop()
+        when {
+            // the LEDs were off: off again
+            !Device.stickLeds(ctx) -> Thread { Root.exec(command(intArrayOf(0, 0))) }.start()
+            // an effect or low battery takes over again; otherwise the stored colours come back
+            lowBattery || Prefs(ctx).ledEffect != LedEffect.NONE -> resume(ctx)
+            else -> restoreStatic(ctx)
+        }
     }
 
     /** Battery at or below 10 % and not charging: the sticks pulse red, whatever is set otherwise. */
