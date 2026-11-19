@@ -8,4 +8,6 @@ Hugminn hört auf die Home-Taste; die Zurück-Taste bleibt unberührt, damit sie
 | Home (zweimal drücken) | [Game Switcher](Game-Switcher-DE) |
 | Home (halten) | [Control Center](Control-Center-DE) |
 
+**Externe Controller** (z. B. ein 8BitDo per Bluetooth oder USB): Ihre Home-/Guide-Taste funktioniert genauso. Abschalten lässt sich das in den [Einstellungen](Einstellungen) → *Home-Taste* → *Home-Taste am Controller*, etwa wenn ein Emulator die Guide-Taste selbst nutzt.
+
 Jede Geste lässt sich in den [Einstellungen](Einstellungen) → *Home-Taste* neu belegen: Startbildschirm, Game Switcher, Control Center, Androids Übersicht oder letzte App. Auch die Zeiten für Doppeldruck und langen Druck sind einstellbar; eine kürzere Doppeldruck-Zeit lässt einen einfachen Druck schneller reagieren.
