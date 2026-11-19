@@ -4,7 +4,9 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 
 ## 1.12.0 (in testing)
 - Capture menu: larger window with tabs (Take · Video · Last seconds); resolution, frame rate, sound, indicator and clip length change with ◀ ▶, L1/R1 switch tabs.
+- Capture: videos can stop by themselves after 30 s, 1, 3, 5 or 10 minutes (Video → Maximum length).
 - Aufnahme-Menü: größeres Fenster mit Reitern (Aufnehmen · Video · Letzte Sekunden); Auflösung, Bildrate, Ton, Anzeige und Cliplänge mit ◀ ▶ einstellbar, L1/R1 wechseln die Reiter.
+- Aufnahme: Videos können nach 30 s, 1, 3, 5 oder 10 Minuten von selbst enden (Video → Maximale Länge).
 
 ## 1.11.1
 - Capture: while recording, the stick LEDs pulse red like a camera light (instead of, or together with, the red dot – adjustable).

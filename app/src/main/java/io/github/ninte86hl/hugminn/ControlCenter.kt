@@ -2369,6 +2369,8 @@ class ControlCenter(private val svc: HugminnService) {
             val i = (res.indexOf(q().first) + dir).coerceIn(0, res.lastIndex); setQ(res[i], q().second) }
         video += value(t("Bildrate", "Frame rate"), { "${q().second} FPS" }) { dir ->
             val i = (fpsList.indexOf(q().second) - dir).coerceIn(0, fpsList.lastIndex); setQ(q().first, fpsList[i]) }
+        video += value(t("Maximale Länge", "Maximum length"), { Capture.limitLabel(p.recLimit) }) { dir ->
+            val l = Capture.limits; p.recLimit = l[(l.indexOf(p.recLimit).coerceAtLeast(0) + dir).coerceIn(0, l.lastIndex)] }
         video += MenuEntry(t("Ton", "Sound"), header = true, run = null)
         video += value(t("Aufnehmen", "Record"), { Capture.Audio.values().getOrElse(p.recAudio) { Capture.Audio.GAME }.label }) { dir ->
             p.recAudio = (p.recAudio + dir).coerceIn(0, Capture.Audio.values().size - 1) }
@@ -2383,7 +2385,7 @@ class ControlCenter(private val svc: HugminnService) {
             hint = t("Läuft im Hintergrund, braucht etwas Akku", "Runs in the background, uses some battery")) {
             Capture.setReplay(svc, !p.replayOn); svc.ui.postDelayed({ if (isOpen) captureMenu(curTab, 0) }, 300)
         }
-        clip += value(t("Länge", "Length"), { "${p.replaySec} s" }) { dir ->
+        clip += value(t("Länge des Clips", "Clip length"), { "${p.replaySec} s" }) { dir ->
             val l = Capture.replayLengths
             p.replaySec = l[(l.indexOf(p.replaySec).coerceAtLeast(0) + dir).coerceIn(0, l.lastIndex)]
             Capture.recorder?.let { if (it.replaySec > 0) it.replaySec = p.replaySec }

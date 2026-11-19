@@ -222,6 +222,10 @@ class Prefs(ctx: Context) {
     var recShow: Int
         get() = p.getInt("recShow", 0)
         set(v) = p.edit().putInt("recShow", v).apply()
+    /** Videos stop by themselves after this many seconds (0 = no limit). */
+    var recLimit: Int
+        get() = p.getInt("recLimit", 0)
+        set(v) = p.edit().putInt("recLimit", v).apply()
     /** Screen off during a video: stop and save it. */
     var recStopOnSleep: Boolean
         get() = p.getBoolean("recStopOnSleep", true)
