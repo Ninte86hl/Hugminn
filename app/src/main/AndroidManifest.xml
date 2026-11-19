@@ -42,6 +42,33 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- optional extra app icons (off by default, switched on in the settings), so frontends that only
+             list apps can start the Control Center or the game switcher too -->
+        <activity-alias
+            android:name=".CcApp"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_cc"
+            android:targetActivity=".ShortcutActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".SwitcherApp"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_switcher"
+            android:targetActivity=".ShortcutActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- quick settings tile: opens the Control Center without a button -->
         <service
             android:name=".CcTile"
