@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.10.8
+- Pocket Nova: switch names shrink to fit instead of being cut off ("Bluetoo…"), the LED effects wrap into two rows instead of running off the window.
+- Pocket Nova: Schalter-Namen werden verkleinert statt abgeschnitten („Bluetoo…“), die LED-Effekte brechen in zwei Zeilen um, statt aus dem Fenster zu laufen.
+
 ## 1.10.7
 - Sizes tidied up: music without 2×4, FPS as 2×1, 2×2 and 4×2, sliders across at most 4 wide. Elements in a size no longer offered take the nearest one.
 - Größen aufgeräumt: Musik ohne 2×4, FPS als 2×1, 2×2 und 4×2, Regler waagerecht höchstens 4 breit. Elemente in einer Größe, die es nicht mehr gibt, nehmen die nächstpassende.

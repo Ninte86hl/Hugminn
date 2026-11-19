@@ -563,6 +563,23 @@ class ControlCenter(private val svc: HugminnService) {
         return v to Item(v, t.act, onY = t.menu, round = e.w == 1 && e.h == 1)
     }
 
+    /**
+     * Shrinks a one-line text (down to [minSp]) until it fits its width, so names on narrow screens
+     * (Pocket Nova) are not cut off; only what still does not fit gets "…".
+     */
+    private fun fitWidth(tv: TextView, maxSp: Float, minSp: Float) {
+        tv.addOnLayoutChangeListener { v, l, _, r, _, ol, _, or2, _ ->
+            if (r - l == or2 - ol && tv.tag == "fit:${tv.text}") return@addOnLayoutChangeListener
+            val avail = (r - l) - v.paddingLeft - v.paddingRight
+            if (avail <= 0) return@addOnLayoutChangeListener
+            val p = android.graphics.Paint(tv.paint).apply { textSize = maxSp * v.resources.displayMetrics.scaledDensity }
+            val w = p.measureText(tv.text.toString())
+            val sp = if (w <= avail) maxSp else maxOf(minSp, maxSp * avail / w * 0.98f)
+            tv.tag = "fit:${tv.text}"
+            if (Math.abs(tv.textSize / v.resources.displayMetrics.scaledDensity - sp) > 0.2f) v.post { tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp) }
+        }
+    }
+
     /** Runs [f] every [ms] while [v] is on screen. */
     private fun whileShown(v: View, ms: Long, f: () -> Unit) {
         val r = object : Runnable {
@@ -1022,9 +1039,9 @@ class ControlCenter(private val svc: HugminnService) {
                 setPadding(16 * d, 0, 12 * d, 0)
                 addView(icon)
                 val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-                title = text(t.title, 15f, pal.onSurface, bold = true)
+                title = text(t.title, 15f, pal.onSurface, bold = true).apply { maxLines = 1; fitWidth(this, 15f, 10f) }
                 state = text("", 12f, pal.onSurfaceVariant)
-                col.addView(title)
+                col.addView(title, lp(MATCH, WRAP))
                 col.addView(state)
                 addView(col, lp(0, WRAP, 1f).apply { marginStart = 12 * d })
             }
@@ -1066,6 +1083,7 @@ class ControlCenter(private val svc: HugminnService) {
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
             if (small) gravity = Gravity.CENTER
+            fitWidth(this, if (small) 12f else 15f, if (small) 9f else 10f)
         }
         val state = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
         val bs = if (small) 54 * d else 46 * d
@@ -2044,8 +2062,12 @@ class ControlCenter(private val svc: HugminnService) {
         side.addView(showRow)
 
         side.addView(header(tr("Effekt")))
-        val fxRow = LinearLayout(svc)
-        LedEffect.values().filter { !it.indicator }.forEach { ef ->
+        // narrow screens (Pocket Nova): the effects in two rows instead of one that runs off the edge
+        val fxPerRow = if (svc.resources.displayMetrics.widthPixels < 1600) 3 else 5
+        var fxRow = LinearLayout(svc)
+        val fxRows = mutableListOf(fxRow)
+        LedEffect.values().filter { !it.indicator }.forEachIndexed { fi, ef ->
+            if (fi > 0 && fi % fxPerRow == 0) { fxRow = LinearLayout(svc).apply { setPadding(0, 6 * d, 0, 0) }; fxRows += fxRow }
             val c = chip(ef.label, svc.prefs.ledEffect == ef)
             val act: () -> Unit = {
                 // the window stays open for further adjustments
@@ -2057,7 +2079,7 @@ class ControlCenter(private val svc: HugminnService) {
             fxRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
             cells += LedCell("fx${ef.ordinal}", c, act)
         }
-        side.addView(fxRow)
+        fxRows.forEach { side.addView(it) }
 
         val tune = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, 12 * d, 0, 0) }
         fun stepper(key: String, label: String, value: String, minus: () -> Unit, plus: () -> Unit) {
