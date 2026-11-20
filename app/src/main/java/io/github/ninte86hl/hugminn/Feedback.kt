@@ -233,6 +233,8 @@ object Feedback {
         val pal = Palette(svc)
         appendLine("Dunkelmodus: ${pal.dark} · Tastensymbole: ${svc.prefs.glyphStyle} farbig=${svc.prefs.glyphColored} · Nintendo-Layout: ${Glyphs.nintendoLayout()}")
         appendLine("Statusleiste: ${svc.prefs.statusBar}")
+        appendLine()
+        append(Displays.describe(svc, svc))
         Crash.last(svc)?.let { appendLine(); appendLine("Letzter Fehler:"); appendLine(it) }
         runCatching {
             svc.contentResolver.query(android.provider.Settings.System.CONTENT_URI, arrayOf("name", "value"), null, null, null)?.use { c ->
