@@ -69,6 +69,7 @@ object Displays {
                 }
             }
         }.onFailure { appendLine("  Fenster: ${it.javaClass.simpleName}") }
+        if (DualMedia.diag.isNotEmpty()) appendLine("  Player unten: " + DualMedia.diag)
         if (Root.available()) {
             // what really runs where: tasks per display and the visible windows (also presentations,
             // which the accessibility window list leaves out), plus the focus

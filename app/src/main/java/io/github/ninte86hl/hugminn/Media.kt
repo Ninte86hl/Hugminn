@@ -111,7 +111,7 @@ object Media {
     @Volatile var listenerInfo = "nicht geprüft"
 
     /** From Android's media sessions (needs [MediaListener] enabled); false if not available. */
-    private fun fromSessions(ctx: Context): Boolean {
+    private fun fromSessions(ctx: Context, prefer: String? = null): Boolean {
         val msm = ctx.getSystemService(android.media.session.MediaSessionManager::class.java) ?: return false
         val res = runCatching { msm.getActiveSessions(component(ctx)) }
         val active = res.getOrNull()
@@ -125,7 +125,8 @@ object Media {
         diag += "Sessions: " + list.joinToString(" | ") { m ->
             "${m.packageName} state=${m.playbackState?.state} title=${m.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)} art=${m.metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) != null}"
         }.ifEmpty { "keine" }
-        val mc = list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING && it.metadata != null }
+        val mc = list.firstOrNull { prefer != null && it.packageName == prefer && it.metadata != null }
+            ?: list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING && it.metadata != null }
             ?: list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING }
             ?: list.firstOrNull { it.metadata != null } ?: list.firstOrNull()
         val md = mc?.metadata
@@ -153,6 +154,18 @@ object Media {
         return true
     }
 
+    /** Jumps to [ms] in the player of [pkg] (the progress bar on the second screen). */
+    fun seek(ctx: Context, pkg: String, ms: Long): Boolean {
+        val msm = ctx.getSystemService(android.media.session.MediaSessionManager::class.java) ?: return false
+        val mc = runCatching { (MediaListener.notificationSessions(ctx) + msm.getActiveSessions(component(ctx))).firstOrNull { it.packageName == pkg } }.getOrNull() ?: return false
+        return runCatching {
+            mc.transportControls.seekTo(ms)
+            position = ms
+            positionAt = SystemClock.elapsedRealtime()
+            true
+        }.getOrDefault(false)
+    }
+
     fun key(ctx: Context, code: Int) {
         val am = ctx.getSystemService(AudioManager::class.java) ?: return
         val t = SystemClock.uptimeMillis()
@@ -161,8 +174,8 @@ object Media {
     }
 
     /** Reads the media sessions; the one playing wins, else the newest with a title. */
-    fun refresh(ctx: Context? = null) {
-        if (ctx != null && fromSessions(ctx)) return
+    fun refresh(ctx: Context? = null, prefer: String? = null) {
+        if (ctx != null && fromSessions(ctx, prefer)) return
         if (!Root.available()) return
         // not allowed yet (e.g. right after an update): switch the listener on and try again
         if (ctx != null && Device.autoGrant(ctx)) {
