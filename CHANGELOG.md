@@ -2,6 +2,14 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.14.0 (in testing / im Test)
+
+### 🇬🇧 English
+- Device test: lists further screens (dual-screen handhelds like the AYN Thor) – the groundwork for dual-screen support.
+
+### 🇩🇪 Deutsch
+- Gerätetest: zeigt weitere Bildschirme an (Dual-Screen-Handhelds wie der AYN Thor) – die Grundlage für die Dual-Screen-Unterstützung.
+
 ## 1.13.0
 
 ### 🇬🇧 English

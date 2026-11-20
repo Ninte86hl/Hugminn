@@ -231,6 +231,11 @@ object DeviceReport {
         val rates = runCatching { @Suppress("DEPRECATION") windowManager.defaultDisplay.supportedModes.map { Math.round(it.refreshRate) }.distinct().sorted() }.getOrDefault(emptyList())
         add(dev, "${Build.MANUFACTURER} ${Build.MODEL}", CheckState.OK, "Android ${Build.VERSION.RELEASE}")
         add(dev, t("Bildschirm", "Screen"), CheckState.OK, "${w}×$h · " + "%.2f".format(w.toFloat() / h) + ":1 · ${rates.joinToString("/")} Hz · " + "%.2f".format(m.density))
+        // dual-screen devices: the second built-in screen (for the coming dual-screen support)
+        Displays.list(this).filter { !it.isDefault }.forEach { d ->
+            add(dev, t("Weiterer Bildschirm", "Further screen") + " #${d.id}", if (d.isPrivate) CheckState.WARN else CheckState.OK,
+                "\"${d.name}\" ${maxOf(d.width, d.height)}×${minOf(d.width, d.height)} · ${d.rates.joinToString("/")} Hz · ${d.density} dpi" + if (d.isPrivate) t(" · privat", " · private") else "")
+        }
 
         // permissions
         val perm = t("Berechtigungen", "Permissions")
