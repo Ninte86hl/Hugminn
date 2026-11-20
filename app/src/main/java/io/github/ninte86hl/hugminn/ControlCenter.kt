@@ -60,6 +60,8 @@ class ControlCenter(private val svc: HugminnService) {
     private var metrics: Metrics? = null
     private val refreshers = mutableListOf<() -> Unit>()
     private val graphUpdates = mutableListOf<(Metrics.Sample) -> Unit>()
+    /** Last measured values: a rebuilt panel shows them at once instead of empty cards for a second. */
+    private var lastSample: Metrics.Sample? = null
 
     // Open sub menu (null = none)
     private var menuView: View? = null
@@ -73,7 +75,7 @@ class ControlCenter(private val svc: HugminnService) {
             val m = metrics ?: return
             Thread {
                 val s = m.sample()
-                svc.ui.post { if (isOpen) graphUpdates.forEach { it(s) } }
+                svc.ui.post { if (isOpen) { lastSample = s; graphUpdates.forEach { it(s) } } }
             }.start()
             svc.ui.postDelayed(this, 1000)
         }
@@ -276,6 +278,7 @@ class ControlCenter(private val svc: HugminnService) {
         panelView?.let { r.removeView(it) }
         r.addView(p, 0, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         panelView = p
+        lastSample?.let { s -> graphUpdates.forEach { it(s) } }
         r.post { showFocus() }
     }
 
@@ -2297,7 +2300,8 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     /** Own tile colour from the colour wheel. */
-    private fun tileColorWheel() {
+    /** [back]: from the edit menu, choosing or cancelling returns there instead of closing. */
+    private fun tileColorWheel(back: (() -> Unit)? = null) {
         val r = root ?: return
         closeMenu()
         val box = LinearLayout(svc).apply {
@@ -2318,7 +2322,7 @@ class ControlCenter(private val svc: HugminnService) {
         val done: (Int) -> Unit = { c ->
             activeWheel = null
             svc.prefs.tileColor = c or 0xFF000000.toInt()
-            reopen()
+            if (back != null) back() else reopen()
         }
         wheel.onPick = done
         box.addView(wheel, lp(240 * d, 240 * d))
@@ -2328,7 +2332,7 @@ class ControlCenter(private val svc: HugminnService) {
         menuView = box
         activeWheel = wheel
         wheelDone = done
-        wheelCancel = { closeMenu() }
+        wheelCancel = { if (back != null) back() else closeMenu() }
     }
 
     private fun openSystem(action: String) {
@@ -2363,10 +2367,16 @@ class ControlCenter(private val svc: HugminnService) {
         menuScroll = sc
         box.addView(sc, if (tall) lp(MATCH, 0, 1f) else lp(MATCH, WRAP))
         // the menus with categories get more room; on 4:3 screens (Pocket Nova) even more
-        val wide = title == t("Aufnahme", "Capture") || title == tr("Bearbeiten")
         val fourThree = r.width.toFloat() / r.height.coerceAtLeast(1) < 1.5f
-        val w = (r.width * (if (wide) (if (fourThree) 0.75f else 0.6f) else 0.42f)).toInt().coerceAtLeast(320 * d)
-        r.addView(box, FrameLayout.LayoutParams(w, if (tall) (r.height * 0.86f).toInt() else FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        // the edit menu sits at the side as a panel, so its changes can be watched on the Control Center next to it
+        val side = title == tr("Bearbeiten")
+        val w = (r.width * when {
+            side -> if (fourThree) 0.5f else 0.38f
+            title == t("Aufnahme", "Capture") -> if (fourThree) 0.75f else 0.6f
+            else -> 0.42f
+        }).toInt().coerceAtLeast(320 * d)
+        r.addView(box, FrameLayout.LayoutParams(w, if (tall) (r.height * (if (side) 0.92f else 0.86f)).toInt() else FrameLayout.LayoutParams.WRAP_CONTENT,
+            if (side) Gravity.END or Gravity.CENTER_VERTICAL else Gravity.CENTER).apply { if (side) marginEnd = 12 * d })
         menuView = box
         if (refresh) {
             sc.post { sc.scrollTo(0, keepScroll) }
@@ -2891,8 +2901,12 @@ class ControlCenter(private val svc: HugminnService) {
         // style and colour scheme change the menu itself too: the Control Center opens anew, the menu with it
         fun restyle(at: Int) {
             val tb = curTab
-            reopen()
-            svc.ui.postDelayed({ if (isOpen) editMenu(tb, at) }, 180)
+            pal = Palette(svc)
+            rebuildPanel()
+            // the menu window itself takes the new look too: drawn anew in place, the category stays
+            removeMenuView()
+            tabBar = null
+            editMenu(tb, at)
         }
         fun value(label: String, show: () -> String, hint: String? = null, rebuild: Boolean = true, onA: (() -> Unit)? = null, change: (Int) -> Unit): MenuEntry {
             val side: (Int) -> Unit = { dir ->
@@ -2929,7 +2943,11 @@ class ControlCenter(private val svc: HugminnService) {
         style += value(tr("Farbschema"), { p.theme.label }, rebuild = false) { dir ->
             p.theme = step(Theme.values().toList(), p.theme, dir); restyle(menuSel)
         }
-        style += MenuEntry(tr("Kachelfarbe"), hint = TILE_COLORS[p.tileColor] ?: tr("Eigene")) { colorMenu() }
+        val iColor = style.size
+        style += value(tr("Kachelfarbe"), { TILE_COLORS[p.tileColor] ?: tr("Eigene") }, hint = t("A: Farbrad", "A: colour wheel"), rebuild = false,
+            onA = { tileColorWheel { restyle(iColor) } }) { dir ->
+            p.tileColor = step(TILE_COLORS.keys.toList(), p.tileColor, dir); restyle(menuSel)
+        }
         style += value(tr("Farben der Anzeigen"), { p.gaugePalette.label }) { dir ->
             p.gaugePalette = step(GaugePalette.values().toList(), p.gaugePalette, dir)
         }
@@ -2981,9 +2999,12 @@ class ControlCenter(private val svc: HugminnService) {
             }
         }
         bg += MenuEntry(t("Auswahl", "Selection"), header = true, run = null)
-        bg += value(t("Markierung", "Mark"), { p.focusStyle.label },
+        bg += value(t("Markierung", "Mark"), { p.focusStyle.label }, rebuild = false,
             hint = if (p.focusStyle == FocusStyle.AUTO) t("Ecken bei Cocoon, sonst Rahmen", "corners in Cocoon, else frame") else null) { dir ->
             p.focusStyle = step(FocusStyle.values().toList(), p.focusStyle, dir)
+            pal = Palette(svc)
+            focusVisible = true
+            showFocus()
         }
 
         // ---- performance overlay ----
@@ -3015,6 +3036,9 @@ class ControlCenter(private val svc: HugminnService) {
             if (p.overlayOn) svc.overlay.show()
         }
 
+        // the selection mark stays shown on the Control Center, so mark and tile changes can be seen
+        focusVisible = true
+        svc.ui.post { if (isOpen) showFocus() }
         val keep = addTab
         tabMenu(title, listOf(
             "Layout" to layout,
