@@ -6,9 +6,11 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 
 ### 🇬🇧 English
 - Device test: lists further screens (dual-screen handhelds like the AYN Thor) – the groundwork for dual-screen support.
+- AYN handhelds: the built-in "Odin Controller" is recognised as the handheld's own controls, not as an external controller.
 
 ### 🇩🇪 Deutsch
 - Gerätetest: zeigt weitere Bildschirme an (Dual-Screen-Handhelds wie der AYN Thor) – die Grundlage für die Dual-Screen-Unterstützung.
+- AYN-Handhelds: Der eingebaute „Odin Controller“ wird als eigene Steuerung des Geräts erkannt, nicht als externer Controller.
 
 ## 1.13.0
 
