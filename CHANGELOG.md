@@ -10,6 +10,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Tiles in three styles: standard, OLED black (pitch-black tiles, dark colour schemes) or glass (see-through). Active tiles keep the tile colour you chose, including your own colour from the wheel.
 - Glass strength in five steps, from clear to frosted: L1/R1 in the Control Center's "Background & tiles" menu.
 - New selection mark: corner brackets that settle in briefly and then stay still – the default in the Cocoon style, selectable for every style. The full frame stays available.
+- On a picture, the header shows its texts in full colour and the button hints sit on a calm capsule.
 - Readability first: text on active tiles and the selection mark adapt to light or dark tiles, glass tiles always keep a calm background behind them, and a very dark own colour on OLED tiles gets a light edge.
 
 ### 🇩🇪 Deutsch
@@ -18,6 +19,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Kacheln in drei Varianten: Standard, OLED-Schwarz (tiefschwarze Kacheln, dunkle Farbschemen) oder Glas (durchscheinend). Aktive Kacheln behalten die gewählte Kachelfarbe, auch die eigene Farbe vom Farbrad.
 - Glas-Stärke in fünf Stufen, von klar bis milchig: L1/R1 im Control-Center-Menü „Hintergrund & Kacheln“.
 - Neue Auswahl-Markierung: Ecken, die kurz einrasten und dann ruhig stehen – Standard im Stil Cocoon, für jeden Stil wählbar. Der volle Rahmen bleibt wählbar.
+- Auf einem Bild zeigt die Kopfzeile ihre Texte in voller Farbe, und die Tastenhinweise liegen auf einer ruhigen Kapsel.
 - Lesbarkeit zuerst: Schrift auf aktiven Kacheln und die Markierung passen sich hellen oder dunklen Kacheln an, Glas-Kacheln haben immer einen ruhigen Hintergrund, und eine sehr dunkle eigene Farbe bekommt auf OLED-Kacheln einen hellen Rand.
 
 ## 1.12.2

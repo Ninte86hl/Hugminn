@@ -293,8 +293,10 @@ class ControlCenter(private val svc: HugminnService) {
         // Header with a permanent button for Android's own settings
         val header = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(text("Huginn", 20f, 0xFFE0303C.toInt(), bold = true)) // red, like its shortcut icon
-        header.addView(text("  ·  Control Center", 15f, pal.onSurfaceVariant), lp(0, WRAP, 1f))
-        val battery = text("", 14f, pal.onSurfaceVariant).apply { setPadding(0, 0, 14 * d, 0) }
+        // on a picture the grey texts of the ground would drown: they take the full text colour there
+        val onGround = if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant
+        header.addView(text("  ·  Control Center", 15f, onGround), lp(0, WRAP, 1f))
+        val battery = text("", 14f, onGround).apply { setPadding(0, 0, 14 * d, 0) }
         // With Hugminn's own status bar, clock and battery live up there instead.
         if (statusMode != StatusBar.OVERLAY) {
             header.addView(battery)
@@ -324,7 +326,13 @@ class ControlCenter(private val svc: HugminnService) {
         panel.addView(body, lp(MATCH, 0, 1f))
         val footer = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.END }
         footerView = footer
-        panel.addView(footer, lp(MATCH, 34 * d))
+        if (Backdrop.active(svc)) {
+            // on a picture the button hints sit on a calm capsule on the right, so they stay readable
+            footer.gravity = Gravity.CENTER_VERTICAL
+            footer.background = rounded((pal.surface and 0x00FFFFFF) or 0xC8000000.toInt(), 999f)
+            footer.setPadding(14 * d, 0, 0, 0)
+            panel.addView(footer, lp(WRAP, 38 * d).apply { gravity = Gravity.END })
+        } else panel.addView(footer, lp(MATCH, 34 * d))
         renderGrid()
         return panel
     }
@@ -534,7 +542,8 @@ class ControlCenter(private val svc: HugminnService) {
         val pc = pages() + if (editing) 1 else 0
         if (pc > 1) footer.addView(text(t("Seite ${gridPage + 1}/$pc", "Page ${gridPage + 1}/$pc"), 13f, pal.onSurfaceVariant).apply { setPadding(0, 0, 16 * d, 0) })
         if (editing) {
-            footer.addView(text(if (holding) tr("Verschieben: Steuerkreuz") else tr("Bearbeiten"), 13f, pal.primary, bold = true).apply { setPadding(0, 0, 16 * d, 0) }, lp(0, WRAP, 1f))
+            footer.addView(text(if (holding) tr("Verschieben: Steuerkreuz") else tr("Bearbeiten"), 13f, pal.primary, bold = true).apply { setPadding(0, 0, 16 * d, 0) },
+                if (footer.layoutParams?.width == WRAP) lp(WRAP, WRAP) else lp(0, WRAP, 1f))
             if (holding) hint(KeyEvent.KEYCODE_BUTTON_A, tr("Ablegen")) else {
                 hint(KeyEvent.KEYCODE_BUTTON_A, if (elementAt(cursorX, cursorY) >= 0) tr("Optionen") else tr("Hinzufügen"))
                 hint(KeyEvent.KEYCODE_BUTTON_X, tr("Entfernen"))
