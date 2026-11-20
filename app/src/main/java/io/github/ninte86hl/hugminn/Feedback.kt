@@ -235,6 +235,7 @@ object Feedback {
         appendLine("Statusleiste: ${svc.prefs.statusBar}")
         appendLine()
         append(Displays.describe(svc, svc))
+        Displays.beforeOpen.takeIf { it.isNotEmpty() }?.let { appendLine(); append(it) }
         Crash.last(svc)?.let { appendLine(); appendLine("Letzter Fehler:"); appendLine(it) }
         runCatching {
             svc.contentResolver.query(android.provider.Settings.System.CONTENT_URI, arrayOf("name", "value"), null, null, null)?.use { c ->
