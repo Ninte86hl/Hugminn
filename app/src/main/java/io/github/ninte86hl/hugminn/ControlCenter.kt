@@ -2871,6 +2871,7 @@ class ControlCenter(private val svc: HugminnService) {
             MenuEntry(tr("Element hinzufügen"), hint = tr("Schalter, Anzeigen und Regler")) { addMenu() },
             MenuEntry(t("Raster", "Grid"), hint = gridHint()) { gridMenu() },
             MenuEntry(tr("Kachelfarbe"), hint = TILE_COLORS[svc.prefs.tileColor] ?: tr("Eigene")) { colorMenu() },
+            MenuEntry(t("Hintergrund & Kacheln", "Background & tiles"), hint = "${svc.prefs.backdrop.label} · ${svc.prefs.tileStyle.label}") { backdropMenu() },
             MenuEntry(tr("Stil"), hint = svc.prefs.uiStyle.label) {
                 showMenu(tr("Stil"), UiStyle.values().map { st ->
                     MenuEntry(when (st) {
@@ -2971,6 +2972,63 @@ class ControlCenter(private val svc: HugminnService) {
                 }
             }) {},
         ), select)
+    }
+
+    /** Background, tile style and selection mark; every change shows right away (the panel is rebuilt). */
+    private fun backdropMenu(select: Int = -1) {
+        val p = svc.prefs
+        val blurNames = listOf(tr("Aus"), t("Leicht", "Light"), t("Mittel", "Medium"), t("Stark", "Strong"))
+        fun apply(at: Int) { pal = Palette(svc); rebuildPanel(); backdropMenu(at) }
+        val entries = mutableListOf<MenuEntry>()
+        entries += MenuEntry(t("Hintergrund", "Background"), header = true, run = null)
+        BackdropSource.values().filter { it != BackdropSource.WALLPAPER || Root.available() }.forEach { src ->
+            entries += MenuEntry(src.label, checked = p.backdrop == src, hint = when (src) {
+                BackdropSource.IMAGE -> if (Backdrop.imageFile(svc).exists()) t("A: anderes Bild wählen", "A: choose another picture") else t("A: Bild wählen", "A: choose a picture")
+                BackdropSource.WALLPAPER -> t("A: neu laden", "A: reload")
+                else -> null
+            }) {
+                when (src) {
+                    BackdropSource.IMAGE -> {
+                        // picking needs an app screen: Hugminn's settings open the picture picker
+                        close()
+                        svc.startApp(Intent(svc, MainActivity::class.java).putExtra(MainActivity.EXTRA_PICK_BACKDROP, true))
+                    }
+                    BackdropSource.WALLPAPER -> {
+                        p.backdrop = src
+                        Backdrop.fetchWallpaper(svc) { ok ->
+                            if (!ok) Notice.show(svc, t("Hintergrundbild konnte nicht gelesen werden", "Couldn't read the wallpaper"), corner = true)
+                            if (isOpen) apply(menuSel)
+                        }
+                    }
+                    BackdropSource.STYLE -> { p.backdrop = src; apply(menuSel) }
+                }
+            }
+        }
+        if (p.backdrop != BackdropSource.STYLE) {
+            entries += MenuEntry(if (pal.dark) t("Abdunkeln", "Darken") else t("Aufhellen", "Lighten"), hint = "${p.backdropDim} %",
+                side = { dir -> p.backdropDim = (p.backdropDim + 10 * dir).coerceIn(0, 80); apply(menuSel) }) {
+                p.backdropDim = if (p.backdropDim >= 80) 0 else p.backdropDim + 10; apply(menuSel)
+            }
+            entries += MenuEntry(t("Weichzeichnen", "Blur"), hint = blurNames[p.backdropBlur.coerceIn(0, 3)],
+                side = { dir -> p.backdropBlur = (p.backdropBlur + dir).coerceIn(0, 3); Backdrop.forget(); apply(menuSel) }) {
+                p.backdropBlur = (p.backdropBlur + 1) % 4; Backdrop.forget(); apply(menuSel)
+            }
+        }
+        entries += MenuEntry(t("Kacheln", "Tiles"), header = true, run = null)
+        TileStyle.values().forEach { ts ->
+            entries += MenuEntry(ts.label, checked = p.tileStyle == ts,
+                hint = if (ts == TileStyle.OLED && !pal.dark) t("nur im dunklen Farbschema", "dark colour schemes only") else null) {
+                p.tileStyle = ts; apply(menuSel)
+            }
+        }
+        entries += MenuEntry(t("Auswahl-Markierung", "Selection mark"), header = true, run = null)
+        FocusStyle.values().forEach { fs ->
+            entries += MenuEntry(fs.label, checked = p.focusStyle == fs,
+                hint = if (fs == FocusStyle.AUTO) t("Ecken bei Cocoon, sonst Rahmen", "corners in Cocoon, otherwise a frame") else null) {
+                p.focusStyle = fs; apply(menuSel)
+            }
+        }
+        showMenu(t("Hintergrund & Kacheln", "Background & tiles"), entries, select, forceTall = true)
     }
 
     private fun colorMenu() {
