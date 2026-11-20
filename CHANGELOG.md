@@ -8,6 +8,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 **AYN Thor (dual screen)**
 - Game switcher on two screens: the previews take the top screen, the second screen shows the app big, the game, the button hints and – for emulators – their shortcuts (in two columns when there are many). When the switcher closes, the game's own picture is back down there. Can be switched off: Settings → Game Switcher → Second screen.
 - Music and video on the second screen: while Spotify, YouTube & co. play, a card with cover, title, artist, progress and buttons appears below – Start plays/pauses, L2/R2 (also analog triggers) skip, or tap the buttons.
+- Game switcher previews in the game's own shape: black bars are cut off, so a 4:3, 8:7 or square game gets a card in its format (16:9 stays 16:9). On the Thor the cards are also bigger, since the bar moved to the second screen.
 - Device test: lists further screens (dual-screen handhelds like the AYN Thor) – the groundwork for dual-screen support.
 - AYN handhelds: the built-in "Odin Controller" is recognised as the handheld's own controls, not as an external controller.
 - AYN handhelds: the trigger mode tile (digital, analog or both) also shows before the mode was ever changed in AYN's settings, with AYN's own numbering of analog and digital.
@@ -17,6 +18,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 **AYN Thor (zwei Bildschirme)**
 - Game Switcher auf zwei Bildschirmen: Oben die Vorschaubilder, unten groß die App, das Spiel, die Tastenhinweise und – bei Emulatoren – deren Tastenkürzel (bei vielen in zwei Spalten). Schließt der Switcher, ist unten sofort wieder das Bild des Spiels da. Abschaltbar: Einstellungen → Game Switcher → Zweiter Bildschirm.
 - Musik und Video auf dem zweiten Bildschirm: Solange Spotify, YouTube & Co. spielen, erscheint unten eine Karte mit Cover, Titel, Interpret, Fortschritt und Tasten – Start spielt/pausiert, L2/R2 (auch analoge Trigger) springen, oder die Tasten antippen.
+- Vorschaubilder im Game Switcher im Format des Spiels: Schwarze Balken werden abgeschnitten, ein 4:3-, 8:7- oder quadratisches Spiel bekommt eine Karte in seinem Format (16:9 bleibt 16:9). Auf dem Thor werden die Karten zudem größer, weil die Leiste auf den zweiten Bildschirm gewandert ist.
 - Gerätetest: zeigt weitere Bildschirme an (Dual-Screen-Handhelds wie der AYN Thor) – die Grundlage für die Dual-Screen-Unterstützung.
 - AYN-Handhelds: Der eingebaute „Odin Controller“ wird als eigene Steuerung des Geräts erkannt, nicht als externer Controller.
 - AYN-Handhelds: Die Kachel Trigger-Modus (digital, analog oder beides) erscheint auch, wenn der Modus in AYNs Einstellungen noch nie umgestellt wurde, mit AYNs eigener Zuordnung von analog und digital.
