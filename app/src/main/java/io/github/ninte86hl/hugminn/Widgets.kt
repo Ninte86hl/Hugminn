@@ -103,7 +103,20 @@ class BigSlider(
     var value = initial.coerceIn(0, max)
         private set
     // Same look as the cards: card colour as track, tile colour as fill
-    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh }
+    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.tile }
+    /** Edge of OLED-black and glass tiles, so the slider body stands apart from the background. */
+    private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = ctx.resources.displayMetrics.density * 1.5f
+        color = pal.tileEdge
+    }
+    private fun body(c: Canvas, w: Float, h: Float, r: Float) {
+        c.drawRoundRect(0f, 0f, w, h, r, r, track)
+        if (pal.tileEdge != 0) {
+            val i = edge.strokeWidth / 2
+            c.drawRoundRect(i, i, w - i, h - i, r - i, r - i, edge)
+        }
+    }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.primary }
     private var onFill = pal.onPrimary
     private val dim = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHighest }
@@ -156,7 +169,7 @@ class BigSlider(
         val r = h / 2f
         val fw = (h + (w - h) * value / max.coerceAtLeast(1).toFloat())
         if (pal.dots) {
-            c.drawRoundRect(0f, 0f, w, h, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh })
+            body(c, w, h, r)
             val n = 24
             val step = (w - h) / n
             val lit = Math.round(value.toFloat() / max.coerceAtLeast(1) * n)
@@ -180,7 +193,7 @@ class BigSlider(
                 c.drawRect(x + gap / 2, h * 0.14f, x + bw - gap / 2, h * 0.86f, if (i < lit) fill else dim)
             }
         } else {
-            c.drawRoundRect(0f, 0f, w, h, r, r, track)
+            body(c, w, h, r)
             c.drawRoundRect(0f, 0f, fw, h, r, r, fill)
         }
         // icon inside the filled part
@@ -206,7 +219,7 @@ class BigSlider(
         val r = minOf(w, h) * 0.28f
         val f = value / max.coerceAtLeast(1).toFloat()
         if (pal.dots) {
-            c.drawRoundRect(0f, 0f, w, h, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh })
+            body(c, w, h, r)
             val top = w * 0.55f
             val bottom = h - w * 0.55f
             val n = ((bottom - top) / (w * 0.16f)).toInt().coerceAtLeast(6)
@@ -231,7 +244,7 @@ class BigSlider(
                 c.drawRect(w * 0.14f, y + gap / 2, w * 0.86f, y + bh - gap / 2, if (i < lit) fill else dim)
             }
         } else {
-            c.drawRoundRect(0f, 0f, w, h, r, r, track)
+            body(c, w, h, r)
             val top = h - (w * 0.6f + (h - w * 0.6f) * f)
             c.save()
             c.clipRect(0f, top, w, h)

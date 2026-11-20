@@ -86,6 +86,8 @@ class HugminnService : AccessibilityService() {
         prefs = Prefs(this)
         prefs.keepOldStyle()
         prefs.forgetOld()
+        // the Android wallpaper may have changed while Hugminn was off: copy it again in the background
+        if (prefs.backdrop == BackdropSource.WALLPAPER) ui.postDelayed({ if (Root.available()) Backdrop.fetchWallpaper(this) { } }, 8_000)
         Lang.init(this)
         watchScreenshots()
         switcher = Switcher(this)

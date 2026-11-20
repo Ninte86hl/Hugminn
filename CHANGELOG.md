@@ -2,6 +2,22 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.13.0 (in testing / im Test)
+
+### 🇬🇧 English
+**Background & tiles** (Settings → Appearance)
+- Background of the Control Center and the game switcher: the style's colour, the Android wallpaper (root) or a picture of your own – with darkening (lightening in light themes) and blur.
+- Tiles in three styles: standard, OLED black (pitch-black tiles, dark colour schemes) or glass (see-through). Active tiles keep the tile colour you chose, including your own colour from the wheel.
+- New selection mark: corner brackets that settle in briefly and then stay still – the default in the Cocoon style, selectable for every style. The full frame stays available.
+- Readability first: text on active tiles and the selection mark adapt to light or dark tiles, glass tiles always keep a calm background behind them, and a very dark own colour on OLED tiles gets a light edge.
+
+### 🇩🇪 Deutsch
+**Hintergrund & Kacheln** (Einstellungen → Darstellung)
+- Hintergrund von Control Center und Game Switcher: die Farbe des Stils, das Android-Hintergrundbild (Root) oder ein eigenes Bild – mit Abdunkeln (bei hellen Farbschemen Aufhellen) und Weichzeichnen.
+- Kacheln in drei Varianten: Standard, OLED-Schwarz (tiefschwarze Kacheln, dunkle Farbschemen) oder Glas (durchscheinend). Aktive Kacheln behalten die gewählte Kachelfarbe, auch die eigene Farbe vom Farbrad.
+- Neue Auswahl-Markierung: Ecken, die kurz einrasten und dann ruhig stehen – Standard im Stil Cocoon, für jeden Stil wählbar. Der volle Rahmen bleibt wählbar.
+- Lesbarkeit zuerst: Schrift auf aktiven Kacheln und die Markierung passen sich hellen oder dunklen Kacheln an, Glas-Kacheln haben immer einen ruhigen Hintergrund, und eine sehr dunkle eigene Farbe bekommt auf OLED-Kacheln einen hellen Rand.
+
 ## 1.12.2
 - Control Center: the large Wi-Fi and Bluetooth cards work with the D-pad – A steps into the list, up/down picks a network or device, A connects (or disconnects), B leaves the list. When the radio is off, A still switches it on; X opens the options as before.
 - Controlcenter: Die großen WLAN- und Bluetooth-Kacheln lassen sich mit dem Steuerkreuz bedienen – A geht in die Liste, hoch/runter wählt ein Netz oder Gerät, A verbindet (bzw. trennt), B verlässt die Liste. Ist der Funk aus, schaltet A ihn wie bisher ein; X öffnet weiter die Optionen.

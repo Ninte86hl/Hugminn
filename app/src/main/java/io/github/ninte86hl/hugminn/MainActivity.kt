@@ -420,6 +420,61 @@ class MainActivity : Activity() {
             content.post { build() } // all colours change
         }
 
+        // Background and tiles of the Control Center and the switcher
+        val bgs = section(t("Hintergrund & Kacheln", "Background & tiles"))
+        row(bgs, t("Hintergrund", "Background"),
+            t("Was hinter Control Center und Game Switcher liegt. Android-Hintergrundbild braucht Root", "What lies behind the Control Center and the game switcher. The Android wallpaper needs root"),
+            { prefs.backdrop.label }) {
+            val options = BackdropSource.values().filter { it != BackdropSource.WALLPAPER || Root.available() }
+            val next = cycle(options, prefs.backdrop)
+            prefs.backdrop = next
+            when (next) {
+                BackdropSource.IMAGE -> if (!Backdrop.imageFile(this).exists()) pickBackdrop()
+                BackdropSource.WALLPAPER -> Backdrop.fetchWallpaper(this) { ok ->
+                    if (!ok) Toast.makeText(this, t("Hintergrundbild konnte nicht gelesen werden", "Couldn't read the wallpaper"), Toast.LENGTH_LONG).show()
+                }
+                BackdropSource.STYLE -> Unit
+            }
+            content.post { build() }
+        }
+        if (prefs.backdrop == BackdropSource.IMAGE) {
+            row(bgs, t("Eigenes Bild", "Own picture"), t("Wird in Hugminn kopiert – das Original darfst du danach verschieben oder löschen",
+                "Copied into Hugminn – you may move or delete the original afterwards"), { t("Wählen …", "Choose …") }) { pickBackdrop() }
+        }
+        if (prefs.backdrop == BackdropSource.WALLPAPER) {
+            row(bgs, t("Hintergrundbild neu laden", "Reload wallpaper"), t("Nach einem Wechsel des Android-Hintergrundbilds", "After changing the Android wallpaper"),
+                { t("Neu laden", "Reload") }) {
+                Backdrop.fetchWallpaper(this) { ok ->
+                    Toast.makeText(this, if (ok) t("Hintergrundbild übernommen", "Wallpaper taken over") else t("Hintergrundbild konnte nicht gelesen werden", "Couldn't read the wallpaper"), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        if (prefs.backdrop != BackdropSource.STYLE) {
+            val dark = Palette(this).dark
+            row(bgs, if (dark) t("Abdunkeln", "Darken") else t("Aufhellen", "Lighten"),
+                t("Damit Schrift und Werte auch auf hellen oder bunten Bildern gut lesbar bleiben", "So text and values stay readable on bright or colourful pictures"),
+                { "${prefs.backdropDim} %" }) {
+                prefs.backdropDim = cycle(listOf(0, 10, 20, 30, 40, 50, 60, 70, 80), prefs.backdropDim)
+            }
+            row(bgs, t("Weichzeichnen", "Blur"), t("Lässt das Bild verschwimmen, die Kacheln bleiben scharf", "Blurs the picture, the tiles stay sharp"),
+                { listOf(tr("Aus"), t("Leicht", "Light"), t("Mittel", "Medium"), t("Stark", "Strong"))[prefs.backdropBlur.coerceIn(0, 3)] }) {
+                prefs.backdropBlur = (prefs.backdropBlur + 1) % 4
+                Backdrop.forget()
+            }
+        }
+        row(bgs, t("Kacheln", "Tiles"),
+            t("OLED-Schwarz: tiefschwarze Kacheln (nur im dunklen Farbschema). Glas: durchscheinend, am schönsten mit Hintergrundbild",
+                "OLED black: pitch-black tiles (dark colour schemes only). Glass: see-through, nicest with a background picture"),
+            { prefs.tileStyle.label }) {
+            prefs.tileStyle = cycle(TileStyle.values().toList(), prefs.tileStyle)
+        }
+        row(bgs, t("Auswahl-Markierung", "Selection mark"),
+            t("Wie das gewählte Element beim Steuern mit dem Steuerkreuz markiert wird. Automatisch: Ecken beim Stil Cocoon, sonst Rahmen",
+                "How the selected element is marked when steering with the D-pad. Automatic: corners in the Cocoon style, otherwise a frame"),
+            { prefs.focusStyle.label }) {
+            prefs.focusStyle = cycle(FocusStyle.values().toList(), prefs.focusStyle)
+        }
+
         // Switcher look
         val sw = section("Game Switcher")
         row(sw, tr("Eigene Übersicht"), tr("An: Hugminn zeigt die letzten Apps selbst (mit eigenen Vorschaubildern), Androids Übersicht bleibt zu. Aus: Rahmen über Androids Übersicht"), { if (prefs.ownSwitcher) tr("An") else tr("Aus") }) {
@@ -702,10 +757,34 @@ class MainActivity : Activity() {
 
 
     @Deprecated("Deprecated in Java")
+    /** Lets the user pick a picture for the background (copied in, see [Backdrop.importImage]). */
+    private fun pickBackdrop() {
+        runCatching {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*"), REQ_BACKDROP)
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_BACKDROP && resultCode != RESULT_OK && !Backdrop.imageFile(this).exists()) {
+            // nothing picked and no picture yet: back to the style's own background
+            prefs.backdrop = BackdropSource.STYLE
+            build()
+            return
+        }
         val uri = data?.data ?: return
         if (resultCode != RESULT_OK) return
+        if (requestCode == REQ_BACKDROP) {
+            Thread {
+                val ok = Backdrop.importImage(this, uri)
+                runOnUiThread {
+                    if (ok) prefs.backdrop = BackdropSource.IMAGE
+                    Toast.makeText(this, if (ok) t("Bild übernommen", "Picture set") else t("Bild konnte nicht geladen werden", "Couldn't load the picture"), Toast.LENGTH_SHORT).show()
+                    build()
+                }
+            }.start()
+            return
+        }
         when (requestCode) {
             REQ_EXPORT -> Toast.makeText(this,
                 if (Backup.export(this, uri)) t("Einstellungen gesichert", "Settings saved") else t("Sichern fehlgeschlagen", "Saving failed"),
@@ -727,6 +806,7 @@ class MainActivity : Activity() {
     private companion object {
         const val REQ_EXPORT = 41
         const val REQ_IMPORT = 42
+        const val REQ_BACKDROP = 43
     }
 
 }

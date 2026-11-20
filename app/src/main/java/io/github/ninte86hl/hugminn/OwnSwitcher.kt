@@ -695,7 +695,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         private val framePad = if (cocoon) ctx.dp(8).toFloat() else 0f
         private val unit = ctx.dp(3).toFloat()
         private val bmpPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-        private val cardFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHigh }
+        private val cardFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.tile }
         private val dim = Paint(Paint.ANTI_ALIAS_FLAG)
         private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE

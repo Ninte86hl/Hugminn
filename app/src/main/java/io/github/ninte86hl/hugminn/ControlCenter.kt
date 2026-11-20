@@ -228,6 +228,31 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** Colour of active tiles: chosen in the editor, or the Material You accent. */
     private fun tileOn() = svc.prefs.tileColor.takeIf { it != 0 } ?: if (pal.dots) pal.onSurface else pal.primary
+    /**
+     * Background of a tile: switched on in the tile colour, off in the tile style with its edge.
+     * A very dark own colour on OLED-black tiles would look switched off, so those get a light edge.
+     */
+    private fun tileFill(on: Boolean, r: Float): android.graphics.drawable.Drawable {
+        val fill = if (on) tileOn() else pal.tile
+        val edge = if (on) (if (pal.tileStyle == TileStyle.OLED && Color.luminance(fill) < 0.06f) pal.onSurface else 0) else pal.tileEdge
+        val w = if (edge != 0) (1.5f * d).toInt().coerceAtLeast(1) else 0
+        return if (r >= 999f) rounded(fill, 999f, w, edge) else shape(fill, r, w, edge)
+    }
+
+    private val markKeys = java.util.WeakHashMap<View, String>()
+
+    /**
+     * Focus mark for [v]: corner brackets or the full frame, as chosen. The same mark on the same
+     * element is kept, so the corners settle in once per move and never replay while standing still.
+     */
+    private fun focusMark(v: View, r: Float, width: Int, color: Int): android.graphics.drawable.Drawable {
+        val key = "${System.identityHashCode(v)}|$r|$width|$color|${pal.focusCorners}"
+        val old = v.foreground
+        if (markKeys[v] == key && old != null) return old
+        markKeys[v] = key
+        return if (pal.focusCorners) CornerFrame(color, r, width.toFloat()) else shape(0, r, width, color)
+    }
+
     private fun tileOnFg() = if (svc.prefs.tileColor == 0) (if (pal.dots) pal.surface else pal.onPrimary) else onColor(svc.prefs.tileColor)
 
     private var gearItem: Item? = null
@@ -1134,11 +1159,11 @@ class ControlCenter(private val svc: HugminnService) {
             val r = if (round && e.w == 1 && e.h == 1) 999f else 22f * d
             v.background = when {
                 // dot matrix: switched off = only a ring of dots; on = filled
-                pal.dots && !on -> DotOutline(pal.surfaceHigh, r, 2f * d, pal.outline)
-                round && e.w == 1 && e.h == 1 -> rounded(if (on) tileOn() else pal.surfaceHigh, 999f)
+                pal.dots && !on -> DotOutline(pal.tile, r, 2f * d, pal.outline)
+                round && e.w == 1 && e.h == 1 -> tileFill(on, 999f)
                 // pixel: switched off with a pixel frame
-                pixel && !on -> shape(pal.surfaceHigh, r, 2 * d, pal.outline)
-                else -> shape(if (on) tileOn() else pal.surfaceHigh, r)
+                pixel && !on -> shape(pal.tile, r, 2 * d, pal.outline)
+                else -> tileFill(on, r)
             }
             val fg = if (on) tileOnFg() else pal.onSurface
             icon.setColor(fg)
@@ -1186,8 +1211,9 @@ class ControlCenter(private val svc: HugminnService) {
             col.addView(state)
             addView(col, lp(0, WRAP, 1f).apply { marginStart = 14 * d })
         }
-        v.background = shape(pal.surfaceHigh, 22f * d)
-        v.elevation = 3f * d
+        v.background = tileFill(false, 22f * d)
+        // a shadow under black or see-through tiles only looks dirty
+        v.elevation = if (pal.tileStyle == TileStyle.STANDARD) 3f * d else 0f
         v.setOnClickListener { if (!editing) t.act() }
         val colors = Look.badge(e.id, pal.primary).let { c -> if (svc.prefs.tileColor != 0) intArrayOf(svc.prefs.tileColor, svc.prefs.tileColor) else c }
         val refresh = {
@@ -1371,7 +1397,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun card() = LinearLayout(svc).apply {
         orientation = LinearLayout.VERTICAL
-        background = shape(pal.surfaceHigh, 22f * d)
+        background = tileFill(false, 22f * d)
         setPadding(14 * d, 10 * d, 14 * d, 10 * d)
     }
 
@@ -2496,16 +2522,21 @@ class ControlCenter(private val svc: HugminnService) {
     private fun markRows() {
         val r = inside
         if (r != null && items.getOrNull(focus)?.rows !== r) inside = null
-        items.forEach { it.rows?.list?.forEach { (v, _) -> v.foreground = null } }
-        val rows = inside ?: return
-        if (rows.list.isEmpty()) { inside = null; renderFooter(); return }
-        insideKey?.let { k -> rows.keys.indexOf(k).takeIf { it >= 0 }?.let { insideSel = it } }
-        insideSel = insideSel.coerceIn(0, rows.list.lastIndex)
-        insideKey = rows.keys.getOrNull(insideSel)
-        val v = rows.list[insideSel].first
+        val rows = inside
+        if (rows != null && rows.list.isEmpty()) inside = null
+        var v: View? = null
+        if (rows != null && inside != null) {
+            insideKey?.let { k -> rows.keys.indexOf(k).takeIf { it >= 0 }?.let { insideSel = it } }
+            insideSel = insideSel.coerceIn(0, rows.list.lastIndex)
+            insideKey = rows.keys.getOrNull(insideSel)
+            v = rows.list[insideSel].first
+        }
+        // clear the other lines (the selected one keeps its mark, so it does not settle in again)
+        items.forEach { it.rows?.list?.forEach { (row, _) -> if (row !== v) row.foreground = null } }
+        if (v == null) { if (rows != null && rows.list.isEmpty()) renderFooter(); return }
         val fill = (v.background as? android.graphics.drawable.GradientDrawable)?.color?.defaultColor ?: 0
         val light = android.graphics.Color.alpha(fill) > 128 && android.graphics.Color.luminance(fill) > 0.6f
-        v.foreground = shape(0, 14f * d, 3 * d, if (light) 0xFF101010.toInt() else if (pal.cocoon) pal.primary else pal.onSurface)
+        v.foreground = focusMark(v, 14f * d, (if (pal.focusCorners) 4 else 3) * d, if (light) 0xFF101010.toInt() else if (pal.cocoon) pal.primary else pal.onSurface)
     }
 
     /** Leaves the list card again (B, moving away, re-drawing). */
@@ -2533,7 +2564,7 @@ class ControlCenter(private val svc: HugminnService) {
             val adj = adjusting && i == focus && it.onAdjust != null
             if (pal.cocoon) {
                 // Cocoon: a thick accent ring and the selected element lifts a little
-                v.foreground = if (i == focus) shape(0, r, (if (adj) 6 else 4) * d, pal.primary) else null
+                v.foreground = if (i == focus) focusMark(v, r, (if (adj) 6 else 4) * d, pal.primary) else null
                 val sc = if (i == focus && !adj && v.width < 420 * d) 1.04f else 1f
                 v.animate().scaleX(sc).scaleY(sc).setDuration(120).start()
             } else
@@ -2542,7 +2573,7 @@ class ControlCenter(private val svc: HugminnService) {
                 val fill = (v.background as? android.graphics.drawable.GradientDrawable)?.color?.defaultColor ?: 0
                 val light = android.graphics.Color.alpha(fill) > 128 && android.graphics.Color.luminance(fill) > 0.6f
                 val ring = when { adj -> tileOn(); light -> 0xFF101010.toInt(); else -> pal.onSurface }
-                shape(0, r, (if (adj) 5 else 3) * d, ring)
+                focusMark(v, r, (if (adj) 5 else if (pal.focusCorners) 4 else 3) * d, ring)
             } else null
         }
     }
