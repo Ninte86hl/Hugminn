@@ -80,19 +80,22 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
             val more = extras[c].orEmpty().let { if (shift) it.uppercase() else it }
             Key(o, o, 1f, more = more)
         }
+        // German: QWERTZ; every other language: QWERTY
+        val de = Lang.de
+        val space = if (de) "Leerzeichen" else "Space"
         rows = if (!symbols) listOf(
-            chars("qwertzuiop") + Key("⌫", null, 1.4f, Act.BACK),
+            chars(if (de) "qwertzuiop" else "qwertyuiop") + Key("⌫", null, 1.4f, Act.BACK),
             chars("asdfghjkl") + Key("@", "@", 1f, more = "#&%"),
-            listOf(Key(if (shift) "⇪" else "⇧", null, 1.4f, Act.SHIFT)) + chars("yxcvbnm") +
+            listOf(Key(if (shift) "⇪" else "⇧", null, 1.4f, Act.SHIFT)) + chars(if (de) "yxcvbnm" else "zxcvbnm") +
                 Key("-", "-", 1f, more = "_+=/") + Key(".", ".", 1f, more = ",;:!?"),
             listOf(Key("?123", null, 1.6f, Act.SYM), Key("‹", null, 1f, Act.LEFT),
-                Key("Leerzeichen", " ", 4.6f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
+                Key(space, " ", 4.6f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
         ) else listOf(
             "1234567890".map { Key(it.toString(), it.toString(), 1f) } + Key("⌫", null, 1.4f, Act.BACK),
             "!\"§$%&/()=?".map { Key(it.toString(), it.toString(), 1f) },
             "+*#'<>;:,_~".map { Key(it.toString(), it.toString(), 1f) } + Key(".", ".", 1f),
             listOf(Key("ABC", null, 1.6f, Act.SYM), Key("@", "@", 1f), Key("‹", null, 1f, Act.LEFT),
-                Key("Leerzeichen", " ", 4.6f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
+                Key(space, " ", 4.6f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
         )
         row = row.coerceIn(0, rows.lastIndex)
         col = col.coerceIn(0, rows[row].lastIndex)
