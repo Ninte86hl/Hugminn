@@ -669,28 +669,38 @@ class OwnSwitcher(private val svc: HugminnService) {
                     if (Hotkeys.isPinned(svc, a.pkg)) t(" · angeheftet", " · pinned") else "", 14f, onGround))
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             v.addView(head)
-            // the emulator's shortcuts, always in view here instead of a card on top
-            val keys = runCatching { Hotkeys.list(svc, a.pkg) }.getOrDefault(emptyList())
+            // the emulator's shortcuts, always in view here instead of a card on top (only for emulators)
+            val emu = Apps.typeOf(a.pkg) != AppType.APP
+            val keys = if (emu) runCatching { Hotkeys.list(svc, a.pkg) }.getOrDefault(emptyList()) else emptyList()
             if (m == null && keys.isNotEmpty()) {
                 val card = LinearLayout(svc).apply {
                     orientation = LinearLayout.VERTICAL
                     // a card made like the tiles (standard, OLED black or glass)
                     background = Look.shape(svc, Look.pixel(svc), pal.tile, svc.dp(22).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
-                    setPadding(svc.dp(18), svc.dp(12), svc.dp(18), svc.dp(10))
+                    setPadding(svc.dp(16), svc.dp(10), svc.dp(12), svc.dp(8))
                 }
-                card.addView(text(t("Tastenkürzel", "Shortcuts"), 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, 0, svc.dp(6)) })
-                for ((act, combo) in keys) {
-                    val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, svc.dp(3), 0, svc.dp(3)) }
-                    val chips = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-                    combo.forEachIndexed { i, k ->
-                        if (i > 0) chips.addView(text(if (k == KeyEvent.KEYCODE_DPAD_RIGHT) "/" else "+", 13f, onGround).apply { setPadding(svc.dp(4), 0, svc.dp(4), 0) })
-                        chips.addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
+                card.addView(text(t("Tastenkürzel", "Shortcuts"), 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, 0, svc.dp(4)) })
+                // many shortcuts: two columns, so none are cut off on the shorter screen
+                val two = keys.size > 5
+                val cols = LinearLayout(svc)
+                val columns = if (two) listOf(keys.take((keys.size + 1) / 2), keys.drop((keys.size + 1) / 2)) else listOf(keys)
+                columns.forEach { part ->
+                    val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+                    for ((act, combo) in part) {
+                        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, svc.dp(2), svc.dp(6), svc.dp(2)) }
+                        val chips = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+                        combo.forEachIndexed { i, k ->
+                            if (i > 0) chips.addView(text(if (k == KeyEvent.KEYCODE_DPAD_RIGHT) "/" else "+", 12f, onGround).apply { setPadding(svc.dp(3), 0, svc.dp(3), 0) })
+                            chips.addView(Glyphs.chip(svc, svc.prefs, pal, k, if (two) 20 else 22))
+                        }
+                        row.addView(chips, LinearLayout.LayoutParams(svc.dp(if (two) 96 else 130), LinearLayout.LayoutParams.WRAP_CONTENT))
+                        row.addView(text(act.label, if (two) 12f else 14f, pal.onSurface), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                        col.addView(row)
                     }
-                    row.addView(chips, LinearLayout.LayoutParams(svc.dp(130), LinearLayout.LayoutParams.WRAP_CONTENT))
-                    row.addView(text(act.label, 14f, pal.onSurface), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-                    card.addView(row)
+                    cols.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
                 }
-                v.addView(card, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = svc.dp(18) })
+                card.addView(cols)
+                v.addView(card, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = svc.dp(14) })
             } else v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
         }
         if (a == null) v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
