@@ -2,7 +2,7 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
-## 1.12.2 (in testing / im Test)
+## 1.12.2
 - Control Center: the large Wi-Fi and Bluetooth cards work with the D-pad – A steps into the list, up/down picks a network or device, A connects (or disconnects), B leaves the list. When the radio is off, A still switches it on; X opens the options as before.
 - Controlcenter: Die großen WLAN- und Bluetooth-Kacheln lassen sich mit dem Steuerkreuz bedienen – A geht in die Liste, hoch/runter wählt ein Netz oder Gerät, A verbindet (bzw. trennt), B verlässt die Liste. Ist der Funk aus, schaltet A ihn wie bisher ein; X öffnet weiter die Optionen.
 - The selection stays on the same network or device when the list re-sorts itself (new scan, a device connects).
