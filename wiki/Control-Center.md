@@ -32,8 +32,8 @@ Each element comes in the sizes that suit it (in [edit mode](Editing-the-Control
 | Element | Sizes | What the large sizes show |
 | --- | --- | --- |
 | Switches (Wi-Fi, Bluetooth, LEDs …) | 1×1, 2×1 | 1×1 the icon, 2×1 with name and state |
-| Wi-Fi | 1×1, 2×1, 2×2, 4×2 | Current network and the strongest ones in range; tap one to connect |
-| Bluetooth | 1×1, 2×1, 2×2, 4×2 | Paired devices with battery level; tap one to connect or disconnect |
+| Wi-Fi | 1×1, 2×1, 2×2, 4×2 | Current network and the strongest ones in range; tap one or pick it with the D-pad to connect |
+| Bluetooth | 1×1, 2×1, 2×2, 4×2 | Paired devices with battery level; tap one or pick it with the D-pad to connect or disconnect |
 | Music | 1×1, 2×1, 2×2, 4×2, 4×4 | Song, artist, cover, progress and ⏮ ⏯ ⏭ buttons; long songs scroll |
 | System overview | 4×2, 4×4 | FPS, CPU, GPU, RAM, battery and power draw as rings; 4×4 adds frame time and temperature graphs |
 | Performance / Fan | 2×1, 2×2, 3×2 | The current profile, big, with the live CPU clock or fan speed and a bar |
@@ -45,6 +45,8 @@ Each element comes in the sizes that suit it (in [edit mode](Editing-the-Control
 Every element may be added more than once (e.g. a small and a large music tile). Elements stay exactly where you put them in edit mode.
 
 On large tiles, A does the same as on the small one (switch, play/pause, open the menu) and □ / X opens the submenu.
+
+The large **Wi-Fi** and **Bluetooth** tiles are lists: A steps into the list, up/down picks a network or device, A connects (or disconnects) and B leaves the list. When Wi-Fi or Bluetooth is off, A switches it on; turning it off is in the submenu (□ / X).
 
 ## Submenus
 - **Wi-Fi:** networks in range with their signal; saved networks connect directly, new ones open a password window you can fill in with the controller.

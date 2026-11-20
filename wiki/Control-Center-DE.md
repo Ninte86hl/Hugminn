@@ -32,8 +32,8 @@ Jedes Element gibt es in den Größen, die zu ihm passen (im [Bearbeitungsmodus]
 | Element | Größen | Was die großen Größen zeigen |
 | --- | --- | --- |
 | Schalter (WLAN, Bluetooth, LEDs …) | 1×1, 2×1 | 1×1 das Symbol, 2×1 mit Name und Zustand |
-| WLAN | 1×1, 2×1, 2×2, 4×2 | Aktuelles Netz und die stärksten in Reichweite; antippen verbindet |
-| Bluetooth | 1×1, 2×1, 2×2, 4×2 | Gekoppelte Geräte mit Akkustand; antippen verbindet oder trennt |
+| WLAN | 1×1, 2×1, 2×2, 4×2 | Aktuelles Netz und die stärksten in Reichweite; antippen oder mit dem Steuerkreuz wählen verbindet |
+| Bluetooth | 1×1, 2×1, 2×2, 4×2 | Gekoppelte Geräte mit Akkustand; antippen oder mit dem Steuerkreuz wählen verbindet oder trennt |
 | Musik | 1×1, 2×1, 2×2, 4×2, 4×4 | Titel, Interpret, Cover, Fortschritt und Tasten ⏮ ⏯ ⏭; lange Titel laufen durch |
 | System-Übersicht | 4×2, 4×4 | FPS, CPU, GPU, RAM, Akku und Leistungsaufnahme als Ringe; 4×4 zusätzlich Frametime- und Temperatur-Graph |
 | Leistung / Lüfter | 2×1, 2×2, 3×2 | Das aktuelle Profil groß, mit aktuellem CPU-Takt bzw. Lüfter-Drehzahl und Balken |
@@ -45,6 +45,8 @@ Jedes Element gibt es in den Größen, die zu ihm passen (im [Bearbeitungsmodus]
 Jedes Element darf mehrfach vorkommen (z. B. eine kleine und eine große Musik-Kachel). Elemente sitzen genau dort, wo du sie im Bearbeitungsmodus hingelegt hast.
 
 Auf großen Kacheln macht A dasselbe wie auf der kleinen (schalten, Play/Pause, Menü öffnen), □ / X öffnet das Untermenü.
+
+Die großen Kacheln **WLAN** und **Bluetooth** sind Listen: A geht in die Liste, hoch/runter wählt ein Netz oder Gerät, A verbindet (bzw. trennt) und B verlässt die Liste. Ist WLAN bzw. Bluetooth aus, schaltet A es ein; ausschalten geht über das Untermenü (□ / X).
 
 ## Untermenüs
 - **WLAN:** Netze in Reichweite mit Signalstärke; gespeicherte Netze verbinden sich direkt, für neue öffnet sich ein Passwortfenster, das du mit dem Controller ausfüllen kannst.
