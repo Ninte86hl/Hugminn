@@ -13,8 +13,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - On a picture, the headers show their texts in full colour, and the button hints (Control Center) and the bottom bar (game switcher) sit on a capsule made like the tiles – standard, OLED black or glass.
 - Readability first: text on active tiles and the selection mark adapt to light or dark tiles, glass tiles always keep a calm background behind them, and a very dark own colour on OLED tiles gets a light edge.
 
-**Colour scheme Liquid Glass**
-- A fifth colour scheme next to System, Light, Dark and OLED black: dark, with glass tiles over the blurred Android wallpaper (root) or your own picture – one choice, the whole look.
+**New style: Liquid Glass**
+- A fifth style next to Modern, Pixel, Dot matrix and Cocoon: see-through glass tiles over your blurred Android wallpaper (root) or your own picture, clean type, a soft blue accent and corner marks – smoked glass in dark colour schemes, frosted glass in light ones. Without a picture, a soft colour wash lies behind the glass.
 
 **Edit menu (Y) in categories**
 - Layout, Style, Background and Overlay side by side, switched with L1/R1. Values change right in their line with ◀ ▶ and show at once behind the menu – far fewer submenus.
@@ -30,8 +30,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Auf einem Bild zeigen die Kopfzeilen ihre Texte in voller Farbe, und die Tastenhinweise (Control Center) und die untere Leiste (Game Switcher) liegen auf einer Kapsel im Stil der Kacheln – Standard, OLED-Schwarz oder Glas.
 - Lesbarkeit zuerst: Schrift auf aktiven Kacheln und die Markierung passen sich hellen oder dunklen Kacheln an, Glas-Kacheln haben immer einen ruhigen Hintergrund, und eine sehr dunkle eigene Farbe bekommt auf OLED-Kacheln einen hellen Rand.
 
-**Farbschema Liquid Glass**
-- Ein fünftes Farbschema neben System, Hell, Dunkel und OLED-Schwarz: dunkel, mit Glas-Kacheln über dem weichgezeichneten Android-Hintergrundbild (Root) oder deinem eigenen Bild – eine Auswahl, der ganze Look.
+**Neuer Stil: Liquid Glass**
+- Ein fünfter Stil neben Modern, Pixel, Punktmatrix und Cocoon: durchscheinende Glas-Kacheln über deinem weichgezeichneten Android-Hintergrundbild (Root) oder eigenen Bild, klare Schrift, ein sanfter blauer Akzent und Ecken als Markierung – Rauchglas im dunklen, Milchglas im hellen Farbschema. Ohne Bild liegt ein sanfter Farbverlauf hinter dem Glas.
 
 **Bearbeiten-Menü (Y) in Kategorien**
 - Layout, Stil, Hintergrund und Overlay nebeneinander, umgeschaltet mit L1/R1. Werte ändern sich direkt in ihrer Zeile mit ◀ ▶ und sind sofort hinter dem Menü zu sehen – deutlich weniger Untermenüs.

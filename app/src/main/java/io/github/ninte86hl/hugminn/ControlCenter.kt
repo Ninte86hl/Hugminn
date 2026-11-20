@@ -2939,11 +2939,11 @@ class ControlCenter(private val svc: HugminnService) {
         val style = mutableListOf<MenuEntry>()
         style += value(tr("Stil"), { p.uiStyle.label }, rebuild = false) { dir ->
             p.uiStyle = step(UiStyle.values().toList(), p.uiStyle, dir); restyle(menuSel)
+            val at = menuSel
+            Backdrop.prepareGlass(svc) { if (isOpen && menuView != null) restyle(at) }
         }
         style += value(tr("Farbschema"), { p.theme.label }, rebuild = false) { dir ->
             p.theme = step(Theme.values().toList(), p.theme, dir); restyle(menuSel)
-            val at = menuSel
-            Backdrop.prepareGlass(svc) { if (isOpen && menuView != null) restyle(at) }
         }
         val iColor = style.size
         style += value(tr("Kachelfarbe"), { TILE_COLORS[p.tileColor] ?: tr("Eigene") }, hint = t("A: Farbrad", "A: colour wheel"), rebuild = false,
@@ -2995,7 +2995,7 @@ class ControlCenter(private val svc: HugminnService) {
         bg += MenuEntry(t("Kacheln", "Tiles"), header = true, run = null)
         bg += value(t("Kacheln", "Tiles"), { p.tileStyle.label },
             hint = when {
-                p.theme == Theme.GLASS -> t("Farbschema Liquid Glass: immer Glas", "colour scheme Liquid Glass: always glass")
+                p.uiStyle == UiStyle.GLASS -> t("Stil Liquid Glass: immer Glas", "Liquid Glass style: always glass")
                 p.tileStyle == TileStyle.OLED && !pal.dark -> t("nur im dunklen Farbschema", "dark colour schemes only")
                 else -> null
             }) { dir ->

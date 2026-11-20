@@ -21,11 +21,13 @@ class Palette(private val ctx: Context) {
     val dots = Prefs(ctx).uiStyle == UiStyle.DOTS
     /** Cocoon style: soft grey ground, white cards, colourful icon badges, mint green accent. */
     val cocoon = Prefs(ctx).uiStyle == UiStyle.COCOON
+    /** Liquid Glass style: see-through tiles over the (blurred) wallpaper, clean type, corner marks. */
+    val glass = Prefs(ctx).uiStyle == UiStyle.GLASS
     /** OLED: dark with pure black backgrounds. */
     val oled = theme == Theme.OLED
     val dark: Boolean = when (theme) {
         Theme.LIGHT -> false
-        Theme.DARK, Theme.OLED, Theme.GLASS -> true
+        Theme.DARK, Theme.OLED -> true
         Theme.SYSTEM -> {
             // Services keep an old configuration, so ask the system for the current night mode first.
             val um = ctx.getSystemService(android.app.UiModeManager::class.java)
@@ -46,9 +48,10 @@ class Palette(private val ctx: Context) {
     private val chosen = Prefs(ctx).tileColor.takeIf { it != 0 }
     /** Dot-matrix accent: the chosen tile colour, otherwise Nothing-like red. */
     private val dotAccent = chosen ?: if (cocoon) (if (dark) 0xFF6CCB72.toInt() else 0xFF3FA348.toInt())
+        else if (glass) (if (dark) 0xFF8CC4FF.toInt() else 0xFF1F6FE0.toInt())
         else if (dark) 0xFFE5262E.toInt() else 0xFFD71920.toInt()
     /** Styles other than dot matrix use the chosen colour like the dot matrix does, else Material You. */
-    private val useDot = dots || cocoon || chosen != null
+    private val useDot = dots || cocoon || glass || chosen != null
     private fun mix(a: Int, b: Int, t: Float) = Color.rgb(
         (Color.red(a) + (Color.red(b) - Color.red(a)) * t).toInt(),
         (Color.green(a) + (Color.green(b) - Color.green(a)) * t).toInt(),
@@ -71,7 +74,7 @@ class Palette(private val ctx: Context) {
     val scrim = 0x99000000.toInt()
 
     /** Tile style: OLED black only means something in dark colour schemes, light ones stay standard. */
-    val tileStyle = if (theme == Theme.GLASS) TileStyle.GLASS
+    val tileStyle = if (glass) TileStyle.GLASS
         else Prefs(ctx).tileStyle.let { if (it == TileStyle.OLED && !dark) TileStyle.STANDARD else it }
     /** Fill of tiles, cards and slider tracks (not of menus and dialogs: those always stay opaque). */
     val tile = when (tileStyle) {
@@ -93,7 +96,7 @@ class Palette(private val ctx: Context) {
     val focusCorners = when (Prefs(ctx).focusStyle) {
         FocusStyle.CORNERS -> true
         FocusStyle.FRAME -> false
-        FocusStyle.AUTO -> cocoon
+        FocusStyle.AUTO -> cocoon || glass
     }
 
     // Dot-matrix style overrides: black/white/grey, red as the only colour
@@ -331,7 +334,7 @@ class DpadView(ctx: Context, pal: Palette, private val sizeDp: Int) : View(ctx) 
 }
 
 /** Visual style of Hugminn's own screens. */
-enum class UiStyle(private val labelDe: String) { MODERN("Modern"), PIXEL("Pixel"), DOTS("Punktmatrix"), COCOON("Cocoon");
+enum class UiStyle(private val labelDe: String) { MODERN("Modern"), PIXEL("Pixel"), DOTS("Punktmatrix"), COCOON("Cocoon"), GLASS("Liquid Glass");
 
     val label get() = tr(labelDe)
 }
@@ -402,7 +405,12 @@ object Look {
     }
 
     fun ground(ctx: Context, pal: Palette): android.graphics.drawable.Drawable =
-        Backdrop.drawable(ctx, pal) ?: if (pal.cocoon && !pal.oled) Stripes(pal.surface, if (pal.dark) 0xFF1C1F26.toInt() else 0xFFE5E8EE.toInt(), ctx.dp(34).toFloat())
+        Backdrop.drawable(ctx, pal) ?: if (pal.glass) {
+            // no picture yet: a soft colour wash, so the glass has something to show
+            GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                if (pal.dark) intArrayOf(0xFF1B2440.toInt(), 0xFF2A1F45.toInt(), 0xFF14303A.toInt())
+                else intArrayOf(0xFFDCE8FF.toInt(), 0xFFEADFFF.toInt(), 0xFFD8F1EE.toInt()))
+        } else if (pal.cocoon && !pal.oled) Stripes(pal.surface, if (pal.dark) 0xFF1C1F26.toInt() else 0xFFE5E8EE.toInt(), ctx.dp(34).toFloat())
         else android.graphics.drawable.ColorDrawable(pal.surface)
 
     /** Icon badge colours of the Cocoon style, per tile. */
@@ -425,7 +433,7 @@ object Look {
     fun font(ctx: Context, pixel: Boolean, b: Boolean): Typeface = when {
         pixel -> pixelFont(ctx, b)
         Prefs(ctx).uiStyle == UiStyle.DOTS -> dotFont(ctx, b)
-        Prefs(ctx).uiStyle == UiStyle.COCOON -> interFont(ctx, b)
+        Prefs(ctx).uiStyle == UiStyle.COCOON || Prefs(ctx).uiStyle == UiStyle.GLASS -> interFont(ctx, b)
         else -> Typeface.create(Typeface.DEFAULT, if (b) Typeface.BOLD else Typeface.NORMAL)
     }
 
