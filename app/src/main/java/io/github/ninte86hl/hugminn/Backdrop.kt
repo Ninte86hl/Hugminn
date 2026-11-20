@@ -46,6 +46,13 @@ object Backdrop {
         return Picture(bmp, veil)
     }
 
+    /** True when a picture lies behind the overlays (texts on the ground then need more contrast). */
+    fun active(ctx: Context): Boolean = when (Prefs(ctx).backdrop) {
+        BackdropSource.STYLE -> false
+        BackdropSource.IMAGE -> imageFile(ctx).exists()
+        BackdropSource.WALLPAPER -> wallFile(ctx).exists()
+    }
+
     /** Drops the decoded picture (after a new one was chosen or the blur changed). */
     fun forget() { cache = null }
 
