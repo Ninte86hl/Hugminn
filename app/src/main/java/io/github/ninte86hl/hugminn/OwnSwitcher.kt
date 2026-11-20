@@ -674,7 +674,13 @@ class OwnSwitcher(private val svc: HugminnService) {
     /** Shown once something played while the switcher is open: pausing it then keeps the card. */
     private var mediaSeen = false
 
-    private fun mediaWanted() = Media.title != null && (Media.playing || mediaSeen)
+    /** Only for the app that plays: its card is selected up top, and music/video comes from it. */
+    private fun mediaWanted() = Media.title != null && (Media.playing || mediaSeen) &&
+        Media.app != null && apps.getOrNull(sel)?.pkg == Media.app
+
+    /** Video apps show only the title (no cover, no artist). */
+    private fun isVideo(pkg: String?) = pkg != null &&
+        Regex("youtube|newpipe|vlc|video|player|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll", RegexOption.IGNORE_CASE).containsMatchIn(pkg)
 
     private val mediaTick = object : Runnable {
         override fun run() {
@@ -683,8 +689,8 @@ class OwnSwitcher(private val svc: HugminnService) {
                 runCatching { Media.refresh(svc) }
                 svc.ui.post {
                     if (!isOpen || lower == null) return@post
-                    val key = if (mediaWanted()) "${Media.app}|${Media.title}|${Media.art?.generationId}" else null
-                    if (Media.playing && Media.title != null) mediaSeen = true
+                    val key = if (mediaWanted()) "${Media.app}|${Media.title}|${Media.art?.generationId}|$sel" else null
+                    if (Media.playing && Media.title != null && apps.getOrNull(sel)?.pkg == Media.app) mediaSeen = true
                     // something new (or gone): draw the screen anew, else only the moving parts
                     if (key != mediaKeyShown) renderLower() else updateMedia()
                 }
@@ -720,7 +726,7 @@ class OwnSwitcher(private val svc: HugminnService) {
     /** Adds the card for music/video (Spotify, YouTube …) to [v] – only while something plays. */
     private fun mediaCardInto(v: LinearLayout) {
         mediaCard = null
-        mediaKeyShown = if (mediaWanted()) "${Media.app}|${Media.title}|${Media.art?.generationId}" else null
+        mediaKeyShown = if (mediaWanted()) "${Media.app}|${Media.title}|${Media.art?.generationId}|$sel" else null
         if (!mediaWanted() || menu != null) return
         if (Media.playing) mediaSeen = true
         val picture = Backdrop.active(svc)
@@ -738,12 +744,13 @@ class OwnSwitcher(private val svc: HugminnService) {
                 override fun getOutline(view: View, o: android.graphics.Outline) { o.setRoundRect(0, 0, view.width, view.height, svc.dp(14).toFloat()) }
             }
         }
-        card.addView(cover, LinearLayout.LayoutParams(svc.dp(84), svc.dp(84)))
-        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(svc.dp(14), 0, 0, 0) }
+        val video = isVideo(Media.app)
+        if (!video) card.addView(cover, LinearLayout.LayoutParams(svc.dp(84), svc.dp(84)))
+        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(svc.dp(if (video) 4 else 14), 0, 0, 0) }
         val song = text("", 16f, pal.onSurface, bold = true)
         val who = text("", 13f, onGround)
-        col.addView(song)
-        col.addView(who)
+        col.addView(song.apply { if (video) maxLines = 2 })
+        if (!video) col.addView(who)
         // progress: a thin bar in the accent colour
         val track = LinearLayout(svc).apply { background = rounded(pal.surfaceHighest, svc.dp(2).toFloat()) }
         val done = View(svc).apply { background = rounded(pal.primary, svc.dp(2).toFloat()) }
