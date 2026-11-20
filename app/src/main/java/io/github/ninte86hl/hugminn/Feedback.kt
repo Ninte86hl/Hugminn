@@ -43,8 +43,24 @@ object Feedback {
                 val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
                 val bmp = hw?.copy(Bitmap.Config.ARGB_8888, false)
                 result.hardwareBuffer.close()
-                val p = Pending(token, where, bmp, info)
-                if (quick) { pending = p; sendPending(svc, "[Schnellbericht aus dem Overlay]") } else ask(svc, p)
+                val go: (Bitmap?) -> Unit = { full ->
+                    val p = Pending(token, where, full, info)
+                    if (quick) { pending = p; sendPending(svc, "[Schnellbericht aus dem Overlay]") } else ask(svc, p)
+                }
+                // dual screen: the second screen too, drawn below the first like on the device
+                // (Android allows one screenshot per second, hence the short wait)
+                val second = Displays.second(svc)
+                if (second == null || bmp == null) { go(bmp); return }
+                svc.ui.postDelayed({
+                    svc.takeScreenshot(second.id, svc.mainExecutor, object : AccessibilityService.TakeScreenshotCallback {
+                        override fun onSuccess(r2: AccessibilityService.ScreenshotResult) {
+                            val b2 = Bitmap.wrapHardwareBuffer(r2.hardwareBuffer, r2.colorSpace)?.copy(Bitmap.Config.ARGB_8888, false)
+                            r2.hardwareBuffer.close()
+                            go(if (b2 == null) bmp else stack(bmp, b2))
+                        }
+                        override fun onFailure(errorCode: Int) { go(bmp) }
+                    })
+                }, 1100)
             }
 
             override fun onFailure(errorCode: Int) {
@@ -52,6 +68,17 @@ object Feedback {
                 if (quick) { pending = p; sendPending(svc, "[Schnellbericht aus dem Overlay]") } else ask(svc, p)
             }
         })
+    }
+
+    /** Both screens in one picture: the first on top, the second centred below it, a thin dark gap between. */
+    private fun stack(top: Bitmap, bottom: Bitmap): Bitmap {
+        val gap = 24
+        val out = Bitmap.createBitmap(maxOf(top.width, bottom.width), top.height + gap + bottom.height, Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(out)
+        c.drawColor(0xFF101010.toInt())
+        c.drawBitmap(top, ((out.width - top.width) / 2).toFloat(), 0f, null)
+        c.drawBitmap(bottom, ((out.width - bottom.width) / 2).toFloat(), (top.height + gap).toFloat(), null)
+        return out
     }
 
     /** Screenshot and report waiting for the user's description. */
