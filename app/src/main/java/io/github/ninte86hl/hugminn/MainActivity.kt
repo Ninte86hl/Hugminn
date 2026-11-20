@@ -26,6 +26,11 @@ class MainActivity : Activity() {
     private val afterChange = mutableListOf<() -> Unit>()
     private var scroll: ScrollView? = null
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Crash.install(this)
@@ -42,6 +47,13 @@ class MainActivity : Activity() {
             startActivity(Intent(this, SetupActivity::class.java))
         }
         build()
+        // opened from the Control Center's "Background & tiles" menu: straight to the picture picker
+        if (intent?.getBooleanExtra(EXTRA_PICK_BACKDROP, false) == true) {
+            intent.removeExtra(EXTRA_PICK_BACKDROP)
+            page = "look"
+            build()
+            pickBackdrop()
+        }
         // Android switches the service off after a crash: bring it back automatically (root only).
         if (HugminnService.instance == null && Root.available() && Device.whitelisted(this)) {
             thread {
@@ -807,6 +819,7 @@ class MainActivity : Activity() {
         const val REQ_EXPORT = 41
         const val REQ_IMPORT = 42
         const val REQ_BACKDROP = 43
+        const val EXTRA_PICK_BACKDROP = "pickBackdrop"
     }
 
 }
