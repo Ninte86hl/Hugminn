@@ -46,6 +46,33 @@ enum class GaugePalette(private val labelDe: String) {
     val label get() = tr(labelDe)
 }
 
+/** What lies behind the Control Center and the switcher. */
+enum class BackdropSource(private val labelDe: String) {
+    STYLE("Stil-Farbe"),
+    WALLPAPER("Android-Hintergrundbild"),
+    IMAGE("Eigenes Bild");
+
+    val label get() = tr(labelDe)
+}
+
+/** How tiles and cards are filled. */
+enum class TileStyle(private val labelDe: String) {
+    STANDARD("Standard"),
+    OLED("OLED-Schwarz"),
+    GLASS("Glas");
+
+    val label get() = tr(labelDe)
+}
+
+/** How the selected element is marked when steering with the D-pad. */
+enum class FocusStyle(private val labelDe: String) {
+    AUTO("Automatisch"),
+    CORNERS("Ecken"),
+    FRAME("Rahmen");
+
+    val label get() = tr(labelDe)
+}
+
 enum class TileShape(private val labelDe: String) {
     ROUND("Rund"),
     SQUARE("Abgerundetes Quadrat");
@@ -134,6 +161,29 @@ class Prefs(ctx: Context) {
     var tileColor: Int
         get() = p.getInt("tileColor", 0)
         set(v) = p.edit().putInt("tileColor", v).apply()
+
+    /** Background of the Control Center and the switcher. */
+    var backdrop: BackdropSource
+        get() = enumOr(p.getString("backdrop", null), BackdropSource.STYLE)
+        set(v) = p.edit().putString("backdrop", v.name).apply()
+
+    /** Darkening (dark themes) or lightening (light themes) over the background picture, in percent. */
+    var backdropDim: Int
+        get() = p.getInt("backdropDim", 50)
+        set(v) = p.edit().putInt("backdropDim", v).apply()
+
+    /** Blur of the background picture: 0 off, 1 light, 2 medium, 3 strong. */
+    var backdropBlur: Int
+        get() = p.getInt("backdropBlur", 2)
+        set(v) = p.edit().putInt("backdropBlur", v).apply()
+
+    var tileStyle: TileStyle
+        get() = enumOr(p.getString("tileStyle", null), TileStyle.STANDARD)
+        set(v) = p.edit().putString("tileStyle", v.name).apply()
+
+    var focusStyle: FocusStyle
+        get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
+        set(v) = p.edit().putString("focusStyle", v.name).apply()
 
     /** Control Center layout: "left blocks|right blocks", comma separated ids; missing blocks are hidden. */
     var ccLayout: Pair<List<String>, List<String>>

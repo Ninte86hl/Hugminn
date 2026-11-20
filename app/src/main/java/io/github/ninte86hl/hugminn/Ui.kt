@@ -70,6 +70,28 @@ class Palette(private val ctx: Context) {
     val outline = if (c) (if (dark) 0xFF4A505C.toInt() else 0xFFC9CED8.toInt()) else if (dots) (if (dark) 0xFF3C3C3C.toInt() else 0xFFBDBDBD.toInt()) else if (dark) sys("system_neutral2_400", 0xFFA08C8A.toInt()) else sys("system_neutral2_500", 0xFF857371.toInt())
     val scrim = 0x99000000.toInt()
 
+    /** Tile style: OLED black only means something in dark colour schemes, light ones stay standard. */
+    val tileStyle = Prefs(ctx).tileStyle.let { if (it == TileStyle.OLED && !dark) TileStyle.STANDARD else it }
+    /** Fill of tiles, cards and slider tracks (not of menus and dialogs: those always stay opaque). */
+    val tile = when (tileStyle) {
+        TileStyle.OLED -> Color.BLACK
+        // smoked glass on dark themes, frosted on light ones: enough body for the text on top
+        TileStyle.GLASS -> if (dark) Color.argb(120, 24, 26, 30) else Color.argb(175, 255, 255, 255)
+        TileStyle.STANDARD -> surfaceHigh
+    }
+    /** Edge of switched-off tiles (0 = none): keeps black or see-through tiles apart from the ground. */
+    val tileEdge = when (tileStyle) {
+        TileStyle.OLED -> 0xFF2C2C2C.toInt()
+        TileStyle.GLASS -> if (dark) Color.argb(70, 255, 255, 255) else Color.argb(110, 255, 255, 255)
+        TileStyle.STANDARD -> 0
+    }
+    /** Focus marks: corners (default of the Cocoon style) or the full frame. */
+    val focusCorners = when (Prefs(ctx).focusStyle) {
+        FocusStyle.CORNERS -> true
+        FocusStyle.FRAME -> false
+        FocusStyle.AUTO -> cocoon
+    }
+
     // Dot-matrix style overrides: black/white/grey, red as the only colour
     val dotsPrimary get() = dotAccent
 }
@@ -367,7 +389,7 @@ object Look {
 
     /** Background of a whole screen: plain, or Cocoon's soft diagonal stripes. */
     fun ground(ctx: Context, pal: Palette): android.graphics.drawable.Drawable =
-        if (pal.cocoon && !pal.oled) Stripes(pal.surface, if (pal.dark) 0xFF1C1F26.toInt() else 0xFFE5E8EE.toInt(), ctx.dp(34).toFloat())
+        Backdrop.drawable(ctx, pal) ?: if (pal.cocoon && !pal.oled) Stripes(pal.surface, if (pal.dark) 0xFF1C1F26.toInt() else 0xFFE5E8EE.toInt(), ctx.dp(34).toFloat())
         else android.graphics.drawable.ColorDrawable(pal.surface)
 
     /** Icon badge colours of the Cocoon style, per tile. */
@@ -563,6 +585,70 @@ class DotOutline(private val color: Int, private val radius: Float, private val 
 
     override fun setAlpha(alpha: Int) {}
     override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+}
+
+
+/**
+ * Focus mark made of four corner brackets that follow the element's rounded corners. It settles in
+ * once (the brackets grow to their length and fade in, about 180 ms) and then stays still.
+ */
+class CornerFrame(private val color: Int, private val radius: Float, private val width: Float, private val settle: Boolean = true) :
+    android.graphics.drawable.Drawable() {
+    private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.STROKE
+        strokeWidth = width
+        strokeCap = android.graphics.Paint.Cap.ROUND
+        this.color = this@CornerFrame.color
+    }
+    private var t = if (settle) 0f else 1f
+    private val anim = if (settle) android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+        duration = 180
+        interpolator = android.view.animation.DecelerateInterpolator()
+        addUpdateListener { t = it.animatedValue as Float; invalidateSelf() }
+    } else null
+    private var started = false
+
+    override fun draw(c: android.graphics.Canvas) {
+        if (!started) { started = true; anim?.start() }
+        val b = android.graphics.RectF(bounds)
+        val h = width / 2
+        b.inset(h, h)
+        if (b.width() <= 0 || b.height() <= 0) return
+        val r = (radius - h).coerceIn(0f, minOf(b.width(), b.height()) / 2)
+        // straight part of each bracket: a share of the shorter side, grown in while settling
+        val full = minOf(b.width(), b.height()) * 0.22f
+        val len = full * (0.45f + 0.55f * t)
+        paint.alpha = (android.graphics.Color.alpha(color) * (0.25f + 0.75f * t)).toInt()
+        if (r >= minOf(b.width(), b.height()) / 2 - 0.5f && b.width() - b.height() < 1f && b.height() - b.width() < 1f) {
+            // a round element: four short arcs on the diagonals instead of brackets
+            val sweep = 44f * (0.5f + 0.5f * t)
+            for (mid in floatArrayOf(225f, 315f, 45f, 135f)) c.drawArc(b, mid - sweep / 2, sweep, false, paint)
+            return
+        }
+        val p = android.graphics.Path()
+        val l = b.left; val tp = b.top; val rt = b.right; val bt = b.bottom
+        // straight parts never run past the middle of a side (pill shapes have none there)
+        val lh = len.coerceAtMost(b.width() / 2 - r).coerceAtLeast(0f)
+        val lv = len.coerceAtMost(b.height() / 2 - r).coerceAtLeast(0f)
+        // top left
+        p.moveTo(l, tp + r + lv); p.lineTo(l, tp + r)
+        p.arcTo(android.graphics.RectF(l, tp, l + 2 * r, tp + 2 * r), 180f, 90f); p.lineTo(l + r + lh, tp)
+        // top right
+        p.moveTo(rt - r - lh, tp); p.lineTo(rt - r, tp)
+        p.arcTo(android.graphics.RectF(rt - 2 * r, tp, rt, tp + 2 * r), 270f, 90f); p.lineTo(rt, tp + r + lv)
+        // bottom right
+        p.moveTo(rt, bt - r - lv); p.lineTo(rt, bt - r)
+        p.arcTo(android.graphics.RectF(rt - 2 * r, bt - 2 * r, rt, bt), 0f, 90f); p.lineTo(rt - r - lh, bt)
+        // bottom left
+        p.moveTo(l + r + lh, bt); p.lineTo(l + r, bt)
+        p.arcTo(android.graphics.RectF(l, bt - 2 * r, l + 2 * r, bt), 90f, 90f); p.lineTo(l, bt - r - lv)
+        c.drawPath(p, paint)
+    }
+
+    override fun setAlpha(alpha: Int) { paint.alpha = alpha }
+    override fun setColorFilter(cf: android.graphics.ColorFilter?) { paint.colorFilter = cf }
     @Deprecated("Deprecated in Java")
     override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
 }
