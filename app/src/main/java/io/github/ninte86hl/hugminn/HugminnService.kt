@@ -270,6 +270,8 @@ class HugminnService : AccessibilityService() {
     private fun onKeyEventInner(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
         keyWatch?.let { w -> if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) { val c = event.keyCode; ui.post { w(c) } } }
+        // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
+        if (Device.isAynKey(event)) return false
         // the device test asks for the Home button: it goes there instead of opening anything
         keyProbe?.let { probe ->
             if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME) {
