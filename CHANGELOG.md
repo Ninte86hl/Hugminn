@@ -13,6 +13,9 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - On a picture, the headers show their texts in full colour, and the button hints (Control Center) and the bottom bar (game switcher) sit on a calm capsule.
 - Readability first: text on active tiles and the selection mark adapt to light or dark tiles, glass tiles always keep a calm background behind them, and a very dark own colour on OLED tiles gets a light edge.
 
+**Colour scheme Liquid Glass**
+- A fifth colour scheme next to System, Light, Dark and OLED black: dark, with glass tiles over the blurred Android wallpaper (root) or your own picture – one choice, the whole look.
+
 **Edit menu (Y) in categories**
 - Layout, Style, Background and Overlay side by side, switched with L1/R1. Values change right in their line with ◀ ▶ and show at once behind the menu – far fewer submenus.
 - The menu sits at the side as a panel, so every change can be watched right next to it on the Control Center – including the selection mark. Wider on 4:3 screens like the Pocket Nova.
@@ -26,6 +29,9 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Neue Auswahl-Markierung im Control Center und im Game Switcher: Ecken, die kurz einrasten und dann ruhig stehen – Standard im Stil Cocoon, für jeden Stil wählbar. Der volle Rahmen bleibt wählbar.
 - Auf einem Bild zeigen die Kopfzeilen ihre Texte in voller Farbe, und die Tastenhinweise (Control Center) und die untere Leiste (Game Switcher) liegen auf einer ruhigen Kapsel.
 - Lesbarkeit zuerst: Schrift auf aktiven Kacheln und die Markierung passen sich hellen oder dunklen Kacheln an, Glas-Kacheln haben immer einen ruhigen Hintergrund, und eine sehr dunkle eigene Farbe bekommt auf OLED-Kacheln einen hellen Rand.
+
+**Farbschema Liquid Glass**
+- Ein fünftes Farbschema neben System, Hell, Dunkel und OLED-Schwarz: dunkel, mit Glas-Kacheln über dem weichgezeichneten Android-Hintergrundbild (Root) oder deinem eigenen Bild – eine Auswahl, der ganze Look.
 
 **Bearbeiten-Menü (Y) in Kategorien**
 - Layout, Stil, Hintergrund und Overlay nebeneinander, umgeschaltet mit L1/R1. Werte ändern sich direkt in ihrer Zeile mit ◀ ▶ und sind sofort hinter dem Menü zu sehen – deutlich weniger Untermenüs.

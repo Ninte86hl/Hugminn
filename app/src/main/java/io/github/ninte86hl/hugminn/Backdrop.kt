@@ -27,9 +27,28 @@ object Backdrop {
     private var cache: Pair<String, Bitmap>? = null
 
     /** The background as a drawable, or null when the style's own ground is used. */
+    /**
+     * The source in use: the chosen one; with the colour scheme Liquid Glass and no picture chosen,
+     * the Android wallpaper (or else the own picture), since glass needs something behind it.
+     */
+    fun source(ctx: Context): BackdropSource {
+        val p = Prefs(ctx)
+        if (p.backdrop != BackdropSource.STYLE || p.theme != Theme.GLASS) return p.backdrop
+        return when {
+            wallFile(ctx).exists() -> BackdropSource.WALLPAPER
+            imageFile(ctx).exists() -> BackdropSource.IMAGE
+            else -> BackdropSource.STYLE
+        }
+    }
+
+    /** For Liquid Glass: copies the wallpaper once if there is no picture yet (root). */
+    fun prepareGlass(ctx: Context, done: () -> Unit) {
+        if (Prefs(ctx).theme == Theme.GLASS && source(ctx) == BackdropSource.STYLE && Root.available()) fetchWallpaper(ctx) { done() }
+    }
+
     fun drawable(ctx: Context, pal: Palette): Drawable? {
         val p = Prefs(ctx)
-        val f = when (p.backdrop) {
+        val f = when (source(ctx)) {
             BackdropSource.STYLE -> return null
             BackdropSource.IMAGE -> imageFile(ctx)
             BackdropSource.WALLPAPER -> wallFile(ctx)
@@ -41,13 +60,13 @@ object Backdrop {
             ?: runCatching { load(f, blur) }.getOrNull()?.also { cache = key to it }
             ?: return null
         // glass tiles need some calm behind them, whatever the slider says
-        val pct = p.backdropDim.coerceIn(0, 80).let { if (p.tileStyle == TileStyle.GLASS) it.coerceAtLeast(30) else it }
+        val pct = p.backdropDim.coerceIn(0, 80).let { if (pal.tileStyle == TileStyle.GLASS) it.coerceAtLeast(30) else it }
         val veil = ((pct * 255) / 100 shl 24) or (if (pal.dark) 0x000000 else 0xFFFFFF)
         return Picture(bmp, veil)
     }
 
     /** True when a picture lies behind the overlays (texts on the ground then need more contrast). */
-    fun active(ctx: Context): Boolean = when (Prefs(ctx).backdrop) {
+    fun active(ctx: Context): Boolean = when (source(ctx)) {
         BackdropSource.STYLE -> false
         BackdropSource.IMAGE -> imageFile(ctx).exists()
         BackdropSource.WALLPAPER -> wallFile(ctx).exists()

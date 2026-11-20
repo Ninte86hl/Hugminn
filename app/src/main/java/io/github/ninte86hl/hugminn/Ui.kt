@@ -25,7 +25,7 @@ class Palette(private val ctx: Context) {
     val oled = theme == Theme.OLED
     val dark: Boolean = when (theme) {
         Theme.LIGHT -> false
-        Theme.DARK, Theme.OLED -> true
+        Theme.DARK, Theme.OLED, Theme.GLASS -> true
         Theme.SYSTEM -> {
             // Services keep an old configuration, so ask the system for the current night mode first.
             val um = ctx.getSystemService(android.app.UiModeManager::class.java)
@@ -71,7 +71,8 @@ class Palette(private val ctx: Context) {
     val scrim = 0x99000000.toInt()
 
     /** Tile style: OLED black only means something in dark colour schemes, light ones stay standard. */
-    val tileStyle = Prefs(ctx).tileStyle.let { if (it == TileStyle.OLED && !dark) TileStyle.STANDARD else it }
+    val tileStyle = if (theme == Theme.GLASS) TileStyle.GLASS
+        else Prefs(ctx).tileStyle.let { if (it == TileStyle.OLED && !dark) TileStyle.STANDARD else it }
     /** Fill of tiles, cards and slider tracks (not of menus and dialogs: those always stay opaque). */
     val tile = when (tileStyle) {
         TileStyle.OLED -> Color.BLACK

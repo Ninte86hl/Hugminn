@@ -31,7 +31,9 @@ enum class Theme(private val labelDe: String) {
     SYSTEM("System"),
     LIGHT("Hell"),
     DARK("Dunkel"),
-    OLED("OLED-Schwarz");
+    OLED("OLED-Schwarz"),
+    /** Dark, with glass tiles over the (blurred) wallpaper or the own picture. */
+    GLASS("Liquid Glass");
 
     val label get() = tr(labelDe)
 }

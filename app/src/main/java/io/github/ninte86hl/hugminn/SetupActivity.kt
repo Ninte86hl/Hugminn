@@ -391,6 +391,7 @@ class SetupActivity : Activity() {
                 Theme.LIGHT -> t("Immer hell", "Always light")
                 Theme.DARK -> t("Immer dunkel", "Always dark")
                 Theme.OLED -> t("Echtes Schwarz, spart Strom auf OLED-Bildschirmen", "True black, saves power on OLED screens")
+                Theme.GLASS -> t("Dunkel, mit Glas-Kacheln über deinem Hintergrundbild", "Dark, with glass tiles over your wallpaper")
                 else -> t("Folgt dem Dunkelmodus von Android", "Follows Android's dark mode")
             }
         }, { prefs.theme.label }) { prefs.theme = cycle(Theme.values().toList(), prefs.theme) }

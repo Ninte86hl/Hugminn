@@ -2942,6 +2942,8 @@ class ControlCenter(private val svc: HugminnService) {
         }
         style += value(tr("Farbschema"), { p.theme.label }, rebuild = false) { dir ->
             p.theme = step(Theme.values().toList(), p.theme, dir); restyle(menuSel)
+            val at = menuSel
+            Backdrop.prepareGlass(svc) { if (isOpen && menuView != null) restyle(at) }
         }
         val iColor = style.size
         style += value(tr("Kachelfarbe"), { TILE_COLORS[p.tileColor] ?: tr("Eigene") }, hint = t("A: Farbrad", "A: colour wheel"), rebuild = false,
@@ -2961,7 +2963,10 @@ class ControlCenter(private val svc: HugminnService) {
             p.backdrop == BackdropSource.WALLPAPER -> t("A: neu laden", "A: reload")
             else -> null
         }
-        bg += value(t("Bild", "Picture"), { p.backdrop.label }, hint = srcHint, onA = {
+        bg += value(t("Bild", "Picture"), {
+            val used = Backdrop.source(svc)
+            if (used != p.backdrop) "${used.label} (Liquid Glass)" else p.backdrop.label
+        }, hint = srcHint, onA = {
             when (p.backdrop) {
                 BackdropSource.IMAGE -> {
                     // picking needs an app screen: Hugminn's settings open the picture picker
@@ -2978,7 +2983,7 @@ class ControlCenter(private val svc: HugminnService) {
             p.backdrop = step(sources, p.backdrop, dir)
             if (p.backdrop == BackdropSource.WALLPAPER && !Backdrop.wallFile(svc).exists()) Backdrop.fetchWallpaper(svc) { if (isOpen && menuView != null) refresh(menuSel) }
         }
-        if (p.backdrop != BackdropSource.STYLE) {
+        if (Backdrop.source(svc) != BackdropSource.STYLE) {
             bg += value(if (pal.dark) t("Abdunkeln", "Darken") else t("Aufhellen", "Lighten"), { "${p.backdropDim} %" }) { dir ->
                 p.backdropDim = (p.backdropDim + 10 * dir).coerceIn(0, 80)
             }
@@ -2989,10 +2994,14 @@ class ControlCenter(private val svc: HugminnService) {
         }
         bg += MenuEntry(t("Kacheln", "Tiles"), header = true, run = null)
         bg += value(t("Kacheln", "Tiles"), { p.tileStyle.label },
-            hint = if (p.tileStyle == TileStyle.OLED && !pal.dark) t("nur im dunklen Farbschema", "dark colour schemes only") else null) { dir ->
+            hint = when {
+                p.theme == Theme.GLASS -> t("Farbschema Liquid Glass: immer Glas", "colour scheme Liquid Glass: always glass")
+                p.tileStyle == TileStyle.OLED && !pal.dark -> t("nur im dunklen Farbschema", "dark colour schemes only")
+                else -> null
+            }) { dir ->
             p.tileStyle = step(TileStyle.values().toList(), p.tileStyle, dir)
         }
-        if (p.tileStyle == TileStyle.GLASS) {
+        if (pal.tileStyle == TileStyle.GLASS) {
             val names = listOf(t("klar", "clear"), t("leicht", "light"), t("mittel", "medium"), t("kräftig", "strong"), t("milchig", "frosted"))
             bg += value(t("Glas-Stärke", "Glass strength"), { "${p.glassLevel}/5 · ${names[p.glassLevel - 1]}" }) { dir ->
                 p.glassLevel = p.glassLevel + dir
