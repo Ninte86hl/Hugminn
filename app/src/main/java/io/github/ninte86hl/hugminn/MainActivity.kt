@@ -429,6 +429,7 @@ class MainActivity : Activity() {
         }
         row(look, tr("Farbschema"), tr("OLED-Schwarz: echtes Schwarz als Hintergrund, spart auf OLED-Bildschirmen Strom"), { prefs.theme.label }) {
             prefs.theme = cycle(Theme.values().toList(), prefs.theme)
+            Backdrop.prepareGlass(this) { build() }
             content.post { build() } // all colours change
         }
 
@@ -461,7 +462,7 @@ class MainActivity : Activity() {
                 }
             }
         }
-        if (prefs.backdrop != BackdropSource.STYLE) {
+        if (Backdrop.source(this) != BackdropSource.STYLE) {
             val dark = Palette(this).dark
             row(bgs, if (dark) t("Abdunkeln", "Darken") else t("Aufhellen", "Lighten"),
                 t("Damit Schrift und Werte auch auf hellen oder bunten Bildern gut lesbar bleiben", "So text and values stay readable on bright or colourful pictures"),
