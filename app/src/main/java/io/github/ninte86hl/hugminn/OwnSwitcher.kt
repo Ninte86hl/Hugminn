@@ -262,8 +262,6 @@ class OwnSwitcher(private val svc: HugminnService) {
         // removed at once: a fade-out left a ghost of the cards over the home screen
         r?.let { runCatching { wm.removeViewImmediate(it) } }
         closeLower()
-        svc.ui.removeCallbacks(mediaTick)
-        mediaSeen = false
         val under = recentsUnder
         recentsUnder = false
         if (back && (fromSwipe || under)) {
@@ -425,12 +423,6 @@ class OwnSwitcher(private val svc: HugminnService) {
     }
 
     private fun key(code: Int) {
-        // music/video on the second screen: Start plays/pauses, L2/R2 previous/next (like the Control Center)
-        if (menu == null && help == null && mediaCard != null &&
-            (code == KeyEvent.KEYCODE_BUTTON_START || code == KeyEvent.KEYCODE_BUTTON_L2 || code == KeyEvent.KEYCODE_BUTTON_R2)) {
-            mediaKey(code)
-            return
-        }
         if (help != null) {
             if (code == KeyEvent.KEYCODE_BUTTON_B || code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_BUTTON_Y || code == KeyEvent.KEYCODE_BUTTON_A) hideHelp()
             return
@@ -527,7 +519,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         val statusH = m.windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top.takeIf { it > 0 } ?: svc.dp(24)
         val mode = svc.prefs.statusBar
         val r = object : FrameLayout(svc) {
-            override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean = triggerMotion(event) || hat.onMotion(event) || super.dispatchGenericMotionEvent(event)
+            override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean = hat.onMotion(event) || super.dispatchGenericMotionEvent(event)
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
                 // left behind by a close that went wrong: remove it instead of swallowing keys
                 if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(this) }; return false }
@@ -647,8 +639,6 @@ class OwnSwitcher(private val svc: HugminnService) {
             dwm.addView(v, lp)
             lower = v
             lowerWm = dwm
-            svc.ui.removeCallbacks(mediaTick)
-            svc.ui.post(mediaTick)
             true
         }.onFailure { Crash.note(svc, it) }.getOrDefault(false)
     }
@@ -660,156 +650,9 @@ class OwnSwitcher(private val svc: HugminnService) {
         lowerWm = null
     }
 
-    // ---------- music and video on the second screen ----------
-
-    /** The media card (null when nothing plays) and its parts that change every second. */
-    private var mediaCard: View? = null
-    private var mediaPlay: IconView? = null
-    private var mediaPause: IconView? = null
-    private var mediaBar: View? = null
-    private var mediaRest: View? = null
-    private var mediaSong: TextView? = null
-    private var mediaWho: TextView? = null
-    private var mediaCover: ImageView? = null
-    private var mediaKeyShown: String? = null
-    /** Shown once something played while the switcher is open: pausing it then keeps the card. */
-    private var mediaSeen = false
-
-    /** Only for the app that plays: its card is selected up top, and music/video comes from it. */
-    private fun mediaWanted() = Media.title != null && (Media.playing || mediaSeen) &&
-        Media.app != null && apps.getOrNull(sel)?.pkg == Media.app
-
-    /** Video apps show only the title (no cover, no artist). */
-    private fun isVideo(pkg: String?) = pkg != null &&
-        Regex("youtube|newpipe|vlc|video|player|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll", RegexOption.IGNORE_CASE).containsMatchIn(pkg)
-
-    private val mediaTick = object : Runnable {
-        override fun run() {
-            if (!isOpen || lower == null) return
-            thread {
-                runCatching { Media.refresh(svc) }
-                svc.ui.post {
-                    if (!isOpen || lower == null) return@post
-                    val key = if (mediaWanted()) "${Media.app}|${Media.title}|${Media.art?.generationId}|$sel" else null
-                    if (Media.playing && Media.title != null && apps.getOrNull(sel)?.pkg == Media.app) mediaSeen = true
-                    // something new (or gone): draw the screen anew, else only the moving parts
-                    if (key != mediaKeyShown) renderLower() else updateMedia()
-                }
-            }
-            svc.ui.postDelayed(this, 1000)
-        }
-    }
-
-    private fun mediaKey(code: Int) {
-        val k = when (code) {
-            KeyEvent.KEYCODE_BUTTON_START -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
-            KeyEvent.KEYCODE_BUTTON_L2 -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
-            KeyEvent.KEYCODE_BUTTON_R2 -> KeyEvent.KEYCODE_MEDIA_NEXT
-            else -> return
-        }
-        Media.key(svc, k)
-        svc.ui.postDelayed({ thread { runCatching { Media.refresh(svc) }; svc.ui.post { if (isOpen) updateMedia() } } }, 350)
-    }
-
-    // analog triggers (Thor: digital, analog or both) act like L2/R2 for the music
-    private var trigL = false
-    private var trigR = false
-    private fun triggerMotion(e: MotionEvent): Boolean {
-        if (mediaCard == null || menu != null || help != null) return false
-        val l = maxOf(e.getAxisValue(MotionEvent.AXIS_LTRIGGER), e.getAxisValue(MotionEvent.AXIS_BRAKE))
-        val r = maxOf(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS))
-        var used = false
-        if (l > 0.6f && !trigL) { trigL = true; mediaKey(KeyEvent.KEYCODE_BUTTON_L2); used = true } else if (l < 0.3f) trigL = false
-        if (r > 0.6f && !trigR) { trigR = true; mediaKey(KeyEvent.KEYCODE_BUTTON_R2); used = true } else if (r < 0.3f) trigR = false
-        return used
-    }
-
-    /** Adds the card for music/video (Spotify, YouTube …) to [v] – only while something plays. */
-    private fun mediaCardInto(v: LinearLayout) {
-        mediaCard = null
-        mediaKeyShown = if (mediaWanted()) "${Media.app}|${Media.title}|${Media.art?.generationId}|$sel" else null
-        if (!mediaWanted() || menu != null) return
-        if (Media.playing) mediaSeen = true
-        val picture = Backdrop.active(svc)
-        val onGround = if (picture) pal.onSurface else pal.onSurfaceVariant
-        val card = LinearLayout(svc).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            background = Look.shape(svc, Look.pixel(svc), pal.tile, svc.dp(22).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
-            setPadding(svc.dp(12), svc.dp(10), svc.dp(14), svc.dp(10))
-        }
-        // cover (or the app's icon for videos without one)
-        val cover = ImageView(svc).apply {
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            clipToOutline = true
-            outlineProvider = object : android.view.ViewOutlineProvider() {
-                override fun getOutline(view: View, o: android.graphics.Outline) { o.setRoundRect(0, 0, view.width, view.height, svc.dp(14).toFloat()) }
-            }
-        }
-        val video = isVideo(Media.app)
-        if (!video) card.addView(cover, LinearLayout.LayoutParams(svc.dp(84), svc.dp(84)))
-        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(svc.dp(if (video) 4 else 14), 0, 0, 0) }
-        val song = text("", 16f, pal.onSurface, bold = true)
-        val who = text("", 13f, onGround)
-        col.addView(song.apply { if (video) maxLines = 2 })
-        if (!video) col.addView(who)
-        // progress: a thin bar in the accent colour
-        val track = LinearLayout(svc).apply { background = rounded(pal.surfaceHighest, svc.dp(2).toFloat()) }
-        val done = View(svc).apply { background = rounded(pal.primary, svc.dp(2).toFloat()) }
-        val rest = View(svc)
-        track.addView(done, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0f))
-        track.addView(rest, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
-        col.addView(track, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, svc.dp(4)).apply { topMargin = svc.dp(8); bottomMargin = svc.dp(6) })
-        // buttons (touch on the second screen) with the controller keys next to them
-        val ctrl = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-        fun btn(kind: IconView.Kind, keyCode: Int, main: Boolean): FrameLayout {
-            val f = FrameLayout(svc).apply {
-                background = if (main) rounded(pal.primary, svc.dp(19).toFloat()) else null
-                setOnClickListener { mediaKey(keyCode) }
-            }
-            ctrl.addView(f, LinearLayout.LayoutParams(svc.dp(38), svc.dp(38)).apply { marginEnd = svc.dp(6) })
-            return f
-        }
-        val iconLp = { FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER) }
-        btn(IconView.Kind.PREV, KeyEvent.KEYCODE_BUTTON_L2, false).addView(IconView(svc, IconView.Kind.PREV, 18).styled(pal, Look.pixel(svc)).apply { setColor(pal.onSurface) }, iconLp())
-        val pb = btn(IconView.Kind.PLAY, KeyEvent.KEYCODE_BUTTON_START, true)
-        val play = IconView(svc, IconView.Kind.PLAY, 20).styled(pal, Look.pixel(svc)).apply { setColor(pal.onPrimary) }
-        val pause = IconView(svc, IconView.Kind.PAUSE, 20).styled(pal, Look.pixel(svc)).apply { setColor(pal.onPrimary) }
-        pb.addView(play, iconLp()); pb.addView(pause, iconLp())
-        btn(IconView.Kind.NEXT, KeyEvent.KEYCODE_BUTTON_R2, false).addView(IconView(svc, IconView.Kind.NEXT, 18).styled(pal, Look.pixel(svc)).apply { setColor(pal.onSurface) }, iconLp())
-        ctrl.addView(View(svc), LinearLayout.LayoutParams(0, 1, 1f))
-        ctrl.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_L2, 20))
-        ctrl.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_START, 20).apply { setPadding(svc.dp(4), 0, svc.dp(4), 0) })
-        ctrl.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_R2, 20))
-        col.addView(ctrl)
-        card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        v.addView(card, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(14) })
-        mediaCard = card; mediaPlay = play; mediaPause = pause; mediaBar = done; mediaRest = rest
-        mediaSong = song; mediaWho = who; mediaCover = cover
-        updateMedia()
-    }
-
-    /** The parts of the media card that move: play/pause, progress, title, cover. */
-    private fun updateMedia() {
-        if (mediaCard == null) return
-        mediaPlay?.visibility = if (Media.playing) View.GONE else View.VISIBLE
-        mediaPause?.visibility = if (Media.playing) View.VISIBLE else View.GONE
-        val song = Media.song ?: Media.title ?: ""
-        val who = listOfNotNull(Media.artist?.takeIf { Media.song != null }, Media.app?.let { Apps.label(svc, it) }).joinToString(" · ")
-        mediaSong?.text = song
-        mediaWho?.text = who
-        val art = Media.art
-        if (art != null) mediaCover?.setImageBitmap(art) else Media.app?.let { mediaCover?.setImageDrawable(Apps.icon(svc, it)) }
-        val dur = Media.duration
-        val pos = Media.positionNow()
-        val f = if (dur > 0 && pos >= 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
-        (mediaBar?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = f; mediaBar?.layoutParams = it }
-        (mediaRest?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = 1f - f; mediaRest?.layoutParams = it }
-    }
-
     /**
      * The second screen – "look up top, operate down here":
-     * top: the app's icon, name, game and "2 of 3"; middle: the player (when this app plays) or the
-     * emulator's shortcuts; bottom: the pin, in a field of its own, only as big as it needs.
+     * top: the app's icon, name, game and "2 of 3"; middle: the emulator's shortcuts; bottom: the pin, in a field of its own, only as big as it needs.
      * The button hints stay small on the top screen.
      */
     private fun renderLower() {
@@ -819,7 +662,6 @@ class OwnSwitcher(private val svc: HugminnService) {
         val m = menu
         val picture = Backdrop.active(svc)
         val onGround = if (picture) pal.onSurface else pal.onSurfaceVariant
-        mediaCard = null
         if (a == null) {
             v.addView(text("Muninn", 18f, 0xFF2F7DF0.toInt(), bold = true).apply { setPadding(0, 0, 0, svc.dp(14)) })
             v.addView(text(tr("Keine offenen Apps"), 24f, pal.onSurface, bold = true))
@@ -838,10 +680,9 @@ class OwnSwitcher(private val svc: HugminnService) {
             addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}"), 14f, onGround))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         v.addView(head)
-        // --- middle: the player when this app plays, otherwise the emulator's shortcuts
+        // --- middle: the emulator's shortcuts (music/video has its own player outside the switcher)
         val middle = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
-        if (m == null) mediaCardInto(middle)
-        if (mediaCard == null && m == null) {
+        if (m == null) {
             val emu = Apps.typeOf(a.pkg) != AppType.APP
             val keys = if (emu) runCatching { Hotkeys.list(svc, a.pkg) }.getOrDefault(emptyList()) else emptyList()
             if (keys.isNotEmpty()) middle.addView(shortcutCard(keys, onGround), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))

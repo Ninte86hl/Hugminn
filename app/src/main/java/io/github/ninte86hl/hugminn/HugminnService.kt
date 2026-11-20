@@ -56,6 +56,7 @@ class HugminnService : AccessibilityService() {
         }
     }
     private lateinit var controlCenter: ControlCenter
+    private var dualMedia: DualMedia? = null
     lateinit var overlay: PerfOverlay
         private set
 
@@ -95,6 +96,7 @@ class HugminnService : AccessibilityService() {
         own.refresh()
         ui.postDelayed(snapshotTick, 7000)
         controlCenter = ControlCenter(this)
+        dualMedia = DualMedia(this).also { it.start() }
         overlay = PerfOverlay(this)
         instance = this
         if (prefs.overlayOn) ui.post { runCatching { overlay.show() } }
@@ -178,11 +180,13 @@ class HugminnService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         closeOverlays()
+        dualMedia?.stop()
         instance = null
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
+        dualMedia?.stop()
         if (::overlay.isInitialized) overlay.hide()
         LedFx.stop()
         FanCurve.stop(restoreSmart = true)
