@@ -180,7 +180,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             }
         }
         // the game titles need a few more root calls: in the background, the list is shown at once
-        thread { runCatching { GameTitle.update(svc, data) }; svc.ui.post { renderTitle() } }
+        thread { runCatching { GameTitle.update(svc, data) }; svc.ui.post { renderTitle(); renderLower() } }
         diag = "Taskliste: ${starts.size} Tasks, ${res.size} Apps: ${res.joinToString { it.pkg }}" +
             (if (skipped.isNotEmpty()) "\nÜbergangen: ${skipped.distinct().joinToString()}" else "")
         return res
@@ -605,7 +605,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         carousel = c
         bar = b
         // dual screen: name, hints and shortcuts move to the second screen, the cards get the room
-        if (openLower()) (c.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = svc.dp(16); c.layoutParams = it }
+        if (openLower()) {
+            (c.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = svc.dp(16); c.layoutParams = it }
+            c.wide = 0.64f
+        }
         c.set(apps, sel, animate = false)
         renderBar()
     }
@@ -694,7 +697,7 @@ class OwnSwitcher(private val svc: HugminnService) {
                             chips.addView(Glyphs.chip(svc, svc.prefs, pal, k, if (two) 20 else 22))
                         }
                         row.addView(chips, LinearLayout.LayoutParams(svc.dp(if (two) 96 else 130), LinearLayout.LayoutParams.WRAP_CONTENT))
-                        row.addView(text(act.label, if (two) 12f else 14f, pal.onSurface), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                        row.addView(text(act.label, if (two) 12f else 14f, pal.onSurface).apply { maxLines = 2 }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
                         col.addView(row)
                     }
                     cols.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -859,6 +862,8 @@ class OwnSwitcher(private val svc: HugminnService) {
             typeface = Look.font(ctx, pixel, false)
         }
         private val icons = HashMap<String, android.graphics.drawable.Drawable?>()
+        /** Share of the width the selected card may take: more when the bar sits on a second screen. */
+        var wide = 0.56f
 
         /** Corner brackets around the selected card (when chosen): made anew per card, so they settle in once. */
         private var corners: CornerFrame? = null
@@ -897,7 +902,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         /** Card frame of item [i] for the current scroll position. */
         private fun frame(i: Int): Pair<RectF, Float> {
             val h = height * 0.70f
-            val w = min(h * 16f / 9f, width * 0.56f)
+            val w = min(h * 16f / 9f, width * wide)
             val ch = w * 9f / 16f
             val gap = context.dp(22).toFloat()
             val d = i - pos
@@ -990,7 +995,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         /** Distance between two neighbouring cards (for dragging). */
         private fun pitch(): Float {
             val h = height * 0.70f
-            val w = min(h * 16f / 9f, width * 0.56f)
+            val w = min(h * 16f / 9f, width * wide)
             return w * 0.66f + context.dp(22)
         }
 
