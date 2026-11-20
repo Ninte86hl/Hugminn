@@ -5,6 +5,7 @@
 - [Home button](Home-Button)
 - [Shortcuts](Shortcuts)
 - [External controller](External-Controller)
+- [Devices](Devices)
 - [Device test](Device-Test)
 
 **Features**
@@ -32,6 +33,7 @@
 - [Home-Taste](Home-Taste)
 - [Verknüpfungen](Verknuepfungen)
 - [Externer Controller](Externer-Controller)
+- [Geräte](Geraete)
 - [Gerätetest](Geraetetest)
 - [Game Switcher](Game-Switcher-DE)
 - [Control Center](Control-Center-DE)

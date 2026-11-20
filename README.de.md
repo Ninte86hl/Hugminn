@@ -5,7 +5,7 @@
 <h1 align="center">Hugminn</h1>
 
 <p align="center">
-  <b>Ein Game Switcher und Control Center für Retroid-Handhelds</b><br>
+  <b>Ein Game Switcher und Control Center für Handhelds von Retroid und AYN</b><br>
   Android 13 · für den Controller gemacht · Material Design
 </p>
 
@@ -17,7 +17,7 @@
 
 ---
 
-> **Stand:** getestet auf dem Retroid Pocket 6 und dem Retroid Pocket Nova; der Pocket 5 läuft laut Testern aus der Community.
+> **Stand:** getestet auf dem Retroid Pocket 6 und dem Retroid Pocket Nova; der Pocket 5 läuft laut Testern aus der Community. AYN-Geräte sind noch nicht getestet – die ganze Liste und was wo funktioniert steht unter [Geräte](https://github.com/Ninte86hl/Hugminn/wiki/Geraete).
 
 ## Was ist Hugminn?
 
@@ -26,7 +26,7 @@
 </p>
 <p align="center"><sub>Das Control Center in allen vier Stilen, hell und dunkel</sub></p>
 
-Hugminn ergänzt den Retroid Pocket 6, Pocket Nova und Pocket 5 um zwei Oberflächen wie bei einer Konsole, ohne deinen Launcher zu ersetzen. Du behältst dein Lieblings-Frontend (zum Beispiel Cocoon) für deine Spielesammlung; Hugminn liegt darüber und ist immer nur einen Tastendruck entfernt.
+Hugminn ergänzt Android-Handhelds von Retroid und AYN – getestet auf dem Retroid Pocket 6, Pocket Nova und Pocket 5 – um zwei Oberflächen wie bei einer Konsole, ohne deinen Launcher zu ersetzen. Du behältst dein Lieblings-Frontend (zum Beispiel Cocoon) für deine Spielesammlung; Hugminn liegt darüber und ist immer nur einen Tastendruck entfernt.
 
 ### Das Wichtigste
 
@@ -112,7 +112,7 @@ Pausieren: Auf Wunsch hält das Spiel (Bild und Ton) an, solange der Switcher od
 | G2, AYN Odin 2 und andere Handhelds mit einem Bildschirm | | | ungetestet – bitte den [Gerätetest](https://github.com/Ninte86hl/Hugminn/wiki/Geraetetest) laufen lassen |
 | Dual-Screen-Geräte (AYN Thor, Retroid Pocket Dual) | | | später geplant, als eigenes Update |
 
-Hugminn erkennt das Gerät und zeigt nur, was es kann. Auf dem Pocket Nova nutzt das Control Center ein 4:3-Layout. Du hast ein anderes Handheld? Einstellungen → Hilfe & Info → **Gerätetest**, dann *Auf GitHub melden* – so wissen wir genau, was geht.
+Welche Funktionen auf welchem Gerät laufen: [Geräte](https://github.com/Ninte86hl/Hugminn/wiki/Geraete) im Wiki. Hugminn erkennt das Gerät und zeigt nur, was es kann. Auf dem Pocket Nova nutzt das Control Center ein 4:3-Layout. Du hast ein anderes Handheld? Einstellungen → Hilfe & Info → **Gerätetest**, dann *Auf GitHub melden* – so wissen wir genau, was geht.
 
 ## Voraussetzungen
 

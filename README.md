@@ -5,7 +5,7 @@
 <h1 align="center">Hugminn</h1>
 
 <p align="center">
-  <b>A game switcher and control center for Retroid handhelds</b><br>
+  <b>A game switcher and control center for Retroid and AYN handhelds</b><br>
   Android 13 · controller-first · Material Design
 </p>
 
@@ -17,7 +17,7 @@
 
 ---
 
-> **Status:** tested on the Retroid Pocket 6 and the Retroid Pocket Nova; the Pocket 5 works according to community testers.
+> **Status:** tested on the Retroid Pocket 6 and the Retroid Pocket Nova; the Pocket 5 works according to community testers. AYN devices are not tested yet – see [Devices](https://github.com/Ninte86hl/Hugminn/wiki/Devices) for the full list and what works where.
 
 ## What is Hugminn?
 
@@ -26,7 +26,7 @@
 </p>
 <p align="center"><sub>The Control Center in all four styles, light and dark</sub></p>
 
-Hugminn adds two console-style overlays to the Retroid Pocket 6, Pocket Nova and Pocket 5 without replacing your launcher. You keep your favourite frontend (such as Cocoon) for your library; Hugminn sits on top and is always one button press away.
+Hugminn adds two console-style overlays to Android handhelds from Retroid and AYN – tested on the Retroid Pocket 6, Pocket Nova and Pocket 5 – without replacing your launcher. You keep your favourite frontend (such as Cocoon) for your library; Hugminn sits on top and is always one button press away.
 
 ### Highlights
 
@@ -112,7 +112,7 @@ Pausing: the game can pause (picture and sound) while the switcher or the Contro
 | G2, AYN Odin 2 and other single-screen handhelds | | | untested – please run the [device test](https://github.com/Ninte86hl/Hugminn/wiki/Device-Test) |
 | Dual-screen devices (AYN Thor, Retroid Pocket Dual) | | | planned later, as their own update |
 
-Hugminn detects the device and only shows what it supports. On the Pocket Nova, the Control Center uses a 4:3 layout. Got another handheld? Settings → Help & about → **Device test**, then *Report on GitHub* – that tells us exactly what works.
+Which features work on which device: [Devices](https://github.com/Ninte86hl/Hugminn/wiki/Devices) in the wiki. Hugminn detects the device and only shows what it supports. On the Pocket Nova, the Control Center uses a 4:3 layout. Got another handheld? Settings → Help & about → **Device test**, then *Report on GitHub* – that tells us exactly what works.
 
 ## Requirements
 

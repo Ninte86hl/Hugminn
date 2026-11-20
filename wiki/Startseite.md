@@ -2,7 +2,7 @@
 
 *[English version](Home)*
 
-Hugminn ergänzt Retroid-Handhelds um einen **Game Switcher** (Muninn) und ein **Control Center** (Huginn), beide komplett mit dem Controller bedienbar. Dein Launcher bleibt, wie er ist.
+Hugminn ergänzt Android-Handhelds von Retroid und AYN um einen **Game Switcher** (Muninn) und ein **Control Center** (Huginn), beide komplett mit dem Controller bedienbar. Dein Launcher bleibt, wie er ist.
 
 ![Control Center in allen Stilen](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/styles.gif)
 
@@ -11,6 +11,7 @@ Hugminn ergänzt Retroid-Handhelds um einen **Game Switcher** (Muninn) und ein *
 - [Home-Taste](Home-Taste) – so öffnest du Switcher und Control Center
 - [Verknüpfungen](Verknuepfungen) – Schnelleinstellungs-Kachel, Startbildschirm und Cocoon
 - [Externer Controller](Externer-Controller) – Home-/Guide-Taste, eingebaute Steuerung ausschalten
+- [Geräte](Geraete) – welche Handhelds getestet sind und was darauf funktioniert
 - [Gerätetest](Geraetetest) – was auf deinem Handheld geht, und wie du es uns mitteilst
 
 ## Funktionen
