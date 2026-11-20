@@ -61,10 +61,10 @@ object Device {
     fun padList() = android.view.InputDevice.getDeviceIds().toList().mapNotNull { android.view.InputDevice.getDevice(it) }
         .filter { it.isExternal }.joinToString { "${it.name} (${it.vendorId}/${it.productId}${if (builtinPad(it)) ", built-in" else ""})" }
 
-    /** Retroid's own controls also show up as "external": the "Xbox Wireless Controller" (vendor 0x2022,
-     *  product 0x3002) and the virtual mouse. */
+    /** The handheld's own controls also show up as "external": Retroid's "Xbox Wireless Controller" (vendor
+     *  0x2022, product 0x3002) and virtual mouse, AYN's "Odin Controller" (Thor, Odin 2 family). */
     private fun builtinPad(d: android.view.InputDevice) =
-        d.name.contains("Retroid", true) || (d.vendorId == 0x2022 && d.productId == 0x3002)
+        d.name.contains("Retroid", true) || (d.vendorId == 0x2022 && d.productId == 0x3002) || d.name.contains("Odin Controller", true)
 
     fun profileLabel(ctx: Context, key: String, table: Map<String, String>): String {
         val v = sys(ctx, key) ?: return "–"
