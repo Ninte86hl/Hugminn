@@ -31,9 +31,7 @@ enum class Theme(private val labelDe: String) {
     SYSTEM("System"),
     LIGHT("Hell"),
     DARK("Dunkel"),
-    OLED("OLED-Schwarz"),
-    /** Dark, with glass tiles over the (blurred) wallpaper or the own picture. */
-    GLASS("Liquid Glass");
+    OLED("OLED-Schwarz");
 
     val label get() = tr(labelDe)
 }
@@ -144,7 +142,11 @@ class Prefs(ctx: Context) {
         e.putBoolean("styleChecked", true).apply()
     }
 
-    fun forgetOld() = p.edit().remove("githubToken").remove("pixelNf").apply()
+    fun forgetOld() {
+        p.edit().remove("githubToken").remove("pixelNf").apply()
+        // Liquid Glass was a colour scheme in early 1.13 tests and became a style of its own
+        if (p.getString("theme", null) == "GLASS") p.edit().putString("theme", Theme.DARK.name).putString("uiStyle", UiStyle.GLASS.name).apply()
+    }
 
     /** Performance/fan profile per app: "pkg=perf|fan;…" (empty part = not set). */
     var appProfiles: String?

@@ -28,12 +28,12 @@ object Backdrop {
 
     /** The background as a drawable, or null when the style's own ground is used. */
     /**
-     * The source in use: the chosen one; with the colour scheme Liquid Glass and no picture chosen,
+     * The source in use: the chosen one; in the Liquid Glass style with no picture chosen,
      * the Android wallpaper (or else the own picture), since glass needs something behind it.
      */
     fun source(ctx: Context): BackdropSource {
         val p = Prefs(ctx)
-        if (p.backdrop != BackdropSource.STYLE || p.theme != Theme.GLASS) return p.backdrop
+        if (p.backdrop != BackdropSource.STYLE || p.uiStyle != UiStyle.GLASS) return p.backdrop
         return when {
             wallFile(ctx).exists() -> BackdropSource.WALLPAPER
             imageFile(ctx).exists() -> BackdropSource.IMAGE
@@ -43,7 +43,7 @@ object Backdrop {
 
     /** For Liquid Glass: copies the wallpaper once if there is no picture yet (root). */
     fun prepareGlass(ctx: Context, done: () -> Unit) {
-        if (Prefs(ctx).theme == Theme.GLASS && source(ctx) == BackdropSource.STYLE && Root.available()) fetchWallpaper(ctx) { done() }
+        if (Prefs(ctx).uiStyle == UiStyle.GLASS && source(ctx) == BackdropSource.STYLE && Root.available()) fetchWallpaper(ctx) { done() }
     }
 
     fun drawable(ctx: Context, pal: Palette): Drawable? {

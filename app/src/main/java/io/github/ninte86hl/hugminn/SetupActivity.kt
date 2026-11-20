@@ -383,15 +383,15 @@ class SetupActivity : Activity() {
                 UiStyle.PIXEL -> t("Pixel-Schrift und stufige Ecken wie beim Retroid Pocket Classic", "Pixel font and stepped corners like the Retroid Pocket Classic")
                 UiStyle.DOTS -> t("Schwarz-weiß aus Punkten mit einer Akzentfarbe, wie ein Punktmatrix-Display", "Black and white dots with one accent colour, like a dot-matrix display")
                 UiStyle.COCOON -> t("Hell und verspielt mit bunten Symbolen, passend zum Cocoon-Launcher", "Light and playful with colourful icons, matching the Cocoon launcher")
+                UiStyle.GLASS -> t("Durchscheinende Glas-Kacheln über deinem weichgezeichneten Hintergrundbild", "See-through glass tiles over your blurred wallpaper")
                 else -> t("Material You: Farben passend zu deinem Hintergrundbild, runde Formen", "Material You: colours matching your wallpaper, round shapes")
             }
-        }, { prefs.uiStyle.label }) { prefs.uiStyle = cycle(UiStyle.values().toList(), prefs.uiStyle) }
+        }, { prefs.uiStyle.label }) { prefs.uiStyle = cycle(UiStyle.values().toList(), prefs.uiStyle); Backdrop.prepareGlass(this) { } }
         option(c, tr("Farbschema"), {
             when (prefs.theme) {
                 Theme.LIGHT -> t("Immer hell", "Always light")
                 Theme.DARK -> t("Immer dunkel", "Always dark")
                 Theme.OLED -> t("Echtes Schwarz, spart Strom auf OLED-Bildschirmen", "True black, saves power on OLED screens")
-                Theme.GLASS -> t("Dunkel, mit Glas-Kacheln über deinem Hintergrundbild", "Dark, with glass tiles over your wallpaper")
                 else -> t("Folgt dem Dunkelmodus von Android", "Follows Android's dark mode")
             }
         }, { prefs.theme.label }) { prefs.theme = cycle(Theme.values().toList(), prefs.theme) }

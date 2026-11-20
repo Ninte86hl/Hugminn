@@ -422,6 +422,7 @@ class MainActivity : Activity() {
         }
         row(look, tr("Stil"), tr("Gilt überall: Control Center, Game Switcher, Overlay und diese Einstellungen"), { prefs.uiStyle.label }) {
             prefs.uiStyle = cycle(UiStyle.values().toList(), prefs.uiStyle)
+            Backdrop.prepareGlass(this) { build() }
             content.post { build() }
         }
         row(look, tr("Kachelfarbe"), tr("Farbe aktiver Kacheln im Control Center"), { TILE_COLORS[prefs.tileColor] ?: "" }) {
@@ -429,7 +430,6 @@ class MainActivity : Activity() {
         }
         row(look, tr("Farbschema"), tr("OLED-Schwarz: echtes Schwarz als Hintergrund, spart auf OLED-Bildschirmen Strom"), { prefs.theme.label }) {
             prefs.theme = cycle(Theme.values().toList(), prefs.theme)
-            Backdrop.prepareGlass(this) { build() }
             content.post { build() } // all colours change
         }
 
