@@ -76,7 +76,10 @@ class Palette(private val ctx: Context) {
     val tile = when (tileStyle) {
         TileStyle.OLED -> Color.BLACK
         // smoked glass on dark themes, frosted on light ones: enough body for the text on top
-        TileStyle.GLASS -> if (dark) Color.argb(120, 24, 26, 30) else Color.argb(175, 255, 255, 255)
+        TileStyle.GLASS -> Prefs(ctx).glassLevel.let { g ->
+            if (dark) Color.argb(intArrayOf(60, 90, 120, 155, 190)[g - 1], 24, 26, 30)
+            else Color.argb(intArrayOf(110, 140, 175, 205, 230)[g - 1], 255, 255, 255)
+        }
         TileStyle.STANDARD -> surfaceHigh
     }
     /** Edge of switched-off tiles (0 = none): keeps black or see-through tiles apart from the ground. */
