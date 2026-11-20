@@ -5,22 +5,30 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 ## 1.13.0 (in testing / im Test)
 
 ### 🇬🇧 English
-**Background & tiles** (Control Center → Y → Edit → Background & tiles, or Settings → Appearance)
+**Background & tiles** (Control Center → Y → Background, or Settings → Appearance)
 - Background of the Control Center and the game switcher: the style's colour, the Android wallpaper (root) or a picture of your own – with darkening (lightening in light themes) and blur.
 - Tiles in three styles: standard, OLED black (pitch-black tiles, dark colour schemes) or glass (see-through). Active tiles keep the tile colour you chose, including your own colour from the wheel.
-- Glass strength in five steps, from clear to frosted: L1/R1 in the Control Center's "Background & tiles" menu.
+- Glass strength in five steps, from clear to frosted.
 - New selection mark in the Control Center and the game switcher: corner brackets that settle in briefly and then stay still – the default in the Cocoon style, selectable for every style. The full frame stays available.
 - On a picture, the headers show their texts in full colour, and the button hints (Control Center) and the bottom bar (game switcher) sit on a calm capsule.
 - Readability first: text on active tiles and the selection mark adapt to light or dark tiles, glass tiles always keep a calm background behind them, and a very dark own colour on OLED tiles gets a light edge.
 
+**Edit menu (Y) in categories**
+- Layout, Style, Background and Overlay side by side, switched with L1/R1. Values change right in their line with ◀ ▶ and show at once behind the menu – far fewer submenus.
+- The window adapts to the screen: wider on 4:3 screens like the Pocket Nova.
+
 ### 🇩🇪 Deutsch
-**Hintergrund & Kacheln** (Control Center → Y → Bearbeiten → Hintergrund & Kacheln, oder Einstellungen → Darstellung)
+**Hintergrund & Kacheln** (Control Center → Y → Hintergrund, oder Einstellungen → Darstellung)
 - Hintergrund von Control Center und Game Switcher: die Farbe des Stils, das Android-Hintergrundbild (Root) oder ein eigenes Bild – mit Abdunkeln (bei hellen Farbschemen Aufhellen) und Weichzeichnen.
 - Kacheln in drei Varianten: Standard, OLED-Schwarz (tiefschwarze Kacheln, dunkle Farbschemen) oder Glas (durchscheinend). Aktive Kacheln behalten die gewählte Kachelfarbe, auch die eigene Farbe vom Farbrad.
-- Glas-Stärke in fünf Stufen, von klar bis milchig: L1/R1 im Control-Center-Menü „Hintergrund & Kacheln“.
+- Glas-Stärke in fünf Stufen, von klar bis milchig.
 - Neue Auswahl-Markierung im Control Center und im Game Switcher: Ecken, die kurz einrasten und dann ruhig stehen – Standard im Stil Cocoon, für jeden Stil wählbar. Der volle Rahmen bleibt wählbar.
 - Auf einem Bild zeigen die Kopfzeilen ihre Texte in voller Farbe, und die Tastenhinweise (Control Center) und die untere Leiste (Game Switcher) liegen auf einer ruhigen Kapsel.
 - Lesbarkeit zuerst: Schrift auf aktiven Kacheln und die Markierung passen sich hellen oder dunklen Kacheln an, Glas-Kacheln haben immer einen ruhigen Hintergrund, und eine sehr dunkle eigene Farbe bekommt auf OLED-Kacheln einen hellen Rand.
+
+**Bearbeiten-Menü (Y) in Kategorien**
+- Layout, Stil, Hintergrund und Overlay nebeneinander, umgeschaltet mit L1/R1. Werte ändern sich direkt in ihrer Zeile mit ◀ ▶ und sind sofort hinter dem Menü zu sehen – deutlich weniger Untermenüs.
+- Das Fenster passt sich dem Bildschirm an: breiter auf 4:3-Bildschirmen wie dem Pocket Nova.
 
 ## 1.12.2
 

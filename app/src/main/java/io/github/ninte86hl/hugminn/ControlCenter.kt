@@ -2362,7 +2362,10 @@ class ControlCenter(private val svc: HugminnService) {
         val sc = android.widget.ScrollView(svc).apply { addView(list) }
         menuScroll = sc
         box.addView(sc, if (tall) lp(MATCH, 0, 1f) else lp(MATCH, WRAP))
-        val w = (r.width * (if (title == t("Aufnahme", "Capture")) 0.6f else 0.42f)).toInt().coerceAtLeast(320 * d)
+        // the menus with categories get more room; on 4:3 screens (Pocket Nova) even more
+        val wide = title == t("Aufnahme", "Capture") || title == tr("Bearbeiten")
+        val fourThree = r.width.toFloat() / r.height.coerceAtLeast(1) < 1.5f
+        val w = (r.width * (if (wide) (if (fourThree) 0.75f else 0.6f) else 0.42f)).toInt().coerceAtLeast(320 * d)
         r.addView(box, FrameLayout.LayoutParams(w, if (tall) (r.height * 0.86f).toInt() else FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
         if (refresh) {
@@ -2823,8 +2826,8 @@ class ControlCenter(private val svc: HugminnService) {
         popupKeys = { code ->
             when (code) {
                 // in the Capture menu ◀ ▶ only change values; the tabs there go with L1/R1
-                KeyEvent.KEYCODE_DPAD_LEFT -> menuEntries.getOrNull(menuSel)?.side?.invoke(-1) ?: if (title != t("Aufnahme", "Capture")) tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size) else Unit
-                KeyEvent.KEYCODE_DPAD_RIGHT -> menuEntries.getOrNull(menuSel)?.side?.invoke(1) ?: if (title != t("Aufnahme", "Capture")) tabMenu(title, tabs, (tab + 1) % tabs.size) else Unit
+                KeyEvent.KEYCODE_DPAD_LEFT -> menuEntries.getOrNull(menuSel)?.side?.invoke(-1) ?: if (title != t("Aufnahme", "Capture") && title != tr("Bearbeiten")) tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size) else Unit
+                KeyEvent.KEYCODE_DPAD_RIGHT -> menuEntries.getOrNull(menuSel)?.side?.invoke(1) ?: if (title != t("Aufnahme", "Capture") && title != tr("Bearbeiten")) tabMenu(title, tabs, (tab + 1) % tabs.size) else Unit
                 KeyEvent.KEYCODE_BUTTON_L1 -> tabMenu(title, tabs, (tab - 1 + tabs.size) % tabs.size)
                 KeyEvent.KEYCODE_BUTTON_R1 -> tabMenu(title, tabs, (tab + 1) % tabs.size)
                 KeyEvent.KEYCODE_DPAD_UP -> moveMenu(-1)
@@ -2874,44 +2877,153 @@ class ControlCenter(private val svc: HugminnService) {
         svc.ui.postDelayed({ open() }, 60)
     }
 
-    private fun editMenu() {
-        showMenu(tr("Bearbeiten"), listOf(
-            MenuEntry(tr("Anordnen & Größe"), hint = tr("Elemente verschieben, vergrößern, entfernen")) { startEdit() },
-            MenuEntry(tr("Element hinzufügen"), hint = tr("Schalter, Anzeigen und Regler")) { addMenu() },
-            MenuEntry(t("Raster", "Grid"), hint = gridHint()) { gridMenu() },
-            MenuEntry(tr("Kachelfarbe"), hint = TILE_COLORS[svc.prefs.tileColor] ?: tr("Eigene")) { colorMenu() },
-            MenuEntry(t("Hintergrund & Kacheln", "Background & tiles"), hint = "${svc.prefs.backdrop.label} · ${svc.prefs.tileStyle.label}") { backdropMenu() },
-            MenuEntry(tr("Stil"), hint = svc.prefs.uiStyle.label) {
-                showMenu(tr("Stil"), UiStyle.values().map { st ->
-                    MenuEntry(when (st) {
-                        UiStyle.PIXEL -> tr("Pixel (Retroid-Pocket-Classic-Look)")
-                        UiStyle.DOTS -> tr("Punktmatrix (schwarz-weiß, rot als Akzent)")
-                        UiStyle.COCOON -> t("Cocoon (hell, verspielt, bunte Symbole)", "Cocoon (light, playful, colourful icons)")
-                        else -> "Modern (Material You)"
-                    }, checked = svc.prefs.uiStyle == st) {
-                        svc.prefs.uiStyle = st
-                        reopen()
-                    }
-                })
-            },
-            MenuEntry(tr("Leistungs-Overlay"), hint = if (svc.prefs.overlayOn) tr("An") else tr("Aus")) { overlayMenu() },
-            MenuEntry(tr("Farben der Anzeigen"), hint = svc.prefs.gaugePalette.label) {
-                showMenu(tr("Farben der Anzeigen"), GaugePalette.values().map { g ->
-                    MenuEntry(g.label, checked = svc.prefs.gaugePalette == g) { svc.prefs.gaugePalette = g; reopen() }
-                })
-            },
-            MenuEntry(tr("Farbschema"), hint = svc.prefs.theme.label) {
-                showMenu(tr("Farbschema"), Theme.values().map { t ->
-                    MenuEntry(t.label, checked = svc.prefs.theme == t) { svc.prefs.theme = t; reopen() }
-                })
-            },
-            MenuEntry(tr("Standard wiederherstellen"), hint = tr("Layout, Kacheln, Größen und Farben zurücksetzen")) {
-                showMenu(tr("Wirklich zurücksetzen?"), listOf(
-                    MenuEntry(tr("Ja, Standard wiederherstellen")) { svc.prefs.resetControlCenter(); reopen() },
-                    MenuEntry(tr("Abbrechen")) {},
-                ))
-            },
-        ))
+    /**
+     * The edit menu (Y) in four categories, switched with L1/R1: layout, style, background, overlay.
+     * Values change in their line with ◀ ▶ and show right away behind the menu.
+     */
+    private fun editMenu(tab: Int = 0, select: Int = -1) {
+        val p = svc.prefs
+        val title = tr("Bearbeiten")
+        fun arrows(v: String) = "◀  $v  ▶"
+        fun <T> step(list: List<T>, cur: T, dir: Int): T = list[(list.indexOf(cur).coerceAtLeast(0) + dir).mod(list.size)]
+        // shows the change: the panel is rebuilt with fresh colours, the menu keeps its place
+        fun refresh(at: Int) { pal = Palette(svc); rebuildPanel(); editMenu(curTab, at) }
+        // style and colour scheme change the menu itself too: the Control Center opens anew, the menu with it
+        fun restyle(at: Int) {
+            val tb = curTab
+            reopen()
+            svc.ui.postDelayed({ if (isOpen) editMenu(tb, at) }, 180)
+        }
+        fun value(label: String, show: () -> String, hint: String? = null, rebuild: Boolean = true, onA: (() -> Unit)? = null, change: (Int) -> Unit): MenuEntry {
+            val side: (Int) -> Unit = { dir ->
+                change(dir)
+                if (rebuild) refresh(menuSel) else setMenuHint(menuSel, arrows(show()))
+            }
+            return MenuEntry(if (hint != null) "$label · $hint" else label, hint = arrows(show()), side = side) { onA?.invoke() ?: side(1) }
+        }
+
+        // ---- layout ----
+        val layout = mutableListOf<MenuEntry>()
+        layout += MenuEntry(tr("Anordnen & Größe"), hint = tr("Elemente verschieben, vergrößern, entfernen")) { startEdit() }
+        layout += MenuEntry(tr("Element hinzufügen"), hint = tr("Schalter, Anzeigen und Regler")) { addMenu() }
+        layout += MenuEntry(t("Raster", "Grid"), header = true, run = null)
+        layout += value(t("Zeilen", "Rows"), { "${p.gridRows}" }, rebuild = false) { dir ->
+            p.gridRows = (p.gridRows + dir).coerceIn(3, 6); renderGrid()
+        }
+        layout += value(t("Spalten", "Columns"), { if (p.gridCols == 0) t("Automatisch ($gridCols)", "Automatic ($gridCols)") else "${p.gridCols}" }, rebuild = false) { dir ->
+            p.gridCols = step(listOf(0, 4, 5, 6, 7, 8, 9, 10), p.gridCols, dir); renderGrid()
+        }
+        layout += MenuEntry(t("Zurücksetzen", "Reset"), header = true, run = null)
+        layout += MenuEntry(tr("Standard wiederherstellen"), hint = tr("Layout, Kacheln, Größen und Farben zurücksetzen")) {
+            showMenu(tr("Wirklich zurücksetzen?"), listOf(
+                MenuEntry(tr("Ja, Standard wiederherstellen")) { svc.prefs.resetControlCenter(); reopen() },
+                MenuEntry(tr("Abbrechen")) {},
+            ))
+        }
+
+        // ---- style ----
+        val style = mutableListOf<MenuEntry>()
+        style += value(tr("Stil"), { p.uiStyle.label }, rebuild = false) { dir ->
+            p.uiStyle = step(UiStyle.values().toList(), p.uiStyle, dir); restyle(menuSel)
+        }
+        style += value(tr("Farbschema"), { p.theme.label }, rebuild = false) { dir ->
+            p.theme = step(Theme.values().toList(), p.theme, dir); restyle(menuSel)
+        }
+        style += MenuEntry(tr("Kachelfarbe"), hint = TILE_COLORS[p.tileColor] ?: tr("Eigene")) { colorMenu() }
+        style += value(tr("Farben der Anzeigen"), { p.gaugePalette.label }) { dir ->
+            p.gaugePalette = step(GaugePalette.values().toList(), p.gaugePalette, dir)
+        }
+
+        // ---- background & tiles ----
+        val bg = mutableListOf<MenuEntry>()
+        bg += MenuEntry(t("Hintergrund", "Background"), header = true, run = null)
+        val sources = BackdropSource.values().filter { it != BackdropSource.WALLPAPER || Root.available() }
+        val srcHint = when {
+            p.backdrop == BackdropSource.IMAGE -> if (Backdrop.imageFile(svc).exists()) t("A: anderes Bild", "A: other picture") else t("A: Bild wählen", "A: choose picture")
+            p.backdrop == BackdropSource.WALLPAPER -> t("A: neu laden", "A: reload")
+            else -> null
+        }
+        bg += value(t("Bild", "Picture"), { p.backdrop.label }, hint = srcHint, onA = {
+            when (p.backdrop) {
+                BackdropSource.IMAGE -> {
+                    // picking needs an app screen: Hugminn's settings open the picture picker
+                    close()
+                    svc.startApp(Intent(svc, MainActivity::class.java).putExtra(MainActivity.EXTRA_PICK_BACKDROP, true))
+                }
+                BackdropSource.WALLPAPER -> Backdrop.fetchWallpaper(svc) { ok ->
+                    if (!ok) Notice.show(svc, t("Hintergrundbild konnte nicht gelesen werden", "Couldn't read the wallpaper"), corner = true)
+                    if (isOpen && menuView != null) refresh(menuSel)
+                }
+                BackdropSource.STYLE -> { p.backdrop = step(sources, p.backdrop, 1); refresh(menuSel) }
+            }
+        }) { dir ->
+            p.backdrop = step(sources, p.backdrop, dir)
+            if (p.backdrop == BackdropSource.WALLPAPER && !Backdrop.wallFile(svc).exists()) Backdrop.fetchWallpaper(svc) { if (isOpen && menuView != null) refresh(menuSel) }
+        }
+        if (p.backdrop != BackdropSource.STYLE) {
+            bg += value(if (pal.dark) t("Abdunkeln", "Darken") else t("Aufhellen", "Lighten"), { "${p.backdropDim} %" }) { dir ->
+                p.backdropDim = (p.backdropDim + 10 * dir).coerceIn(0, 80)
+            }
+            val blurNames = listOf(tr("Aus"), t("Leicht", "Light"), t("Mittel", "Medium"), t("Stark", "Strong"))
+            bg += value(t("Weichzeichnen", "Blur"), { blurNames[p.backdropBlur.coerceIn(0, 3)] }) { dir ->
+                p.backdropBlur = (p.backdropBlur + dir).coerceIn(0, 3); Backdrop.forget()
+            }
+        }
+        bg += MenuEntry(t("Kacheln", "Tiles"), header = true, run = null)
+        bg += value(t("Kacheln", "Tiles"), { p.tileStyle.label },
+            hint = if (p.tileStyle == TileStyle.OLED && !pal.dark) t("nur im dunklen Farbschema", "dark colour schemes only") else null) { dir ->
+            p.tileStyle = step(TileStyle.values().toList(), p.tileStyle, dir)
+        }
+        if (p.tileStyle == TileStyle.GLASS) {
+            val names = listOf(t("klar", "clear"), t("leicht", "light"), t("mittel", "medium"), t("kräftig", "strong"), t("milchig", "frosted"))
+            bg += value(t("Glas-Stärke", "Glass strength"), { "${p.glassLevel}/5 · ${names[p.glassLevel - 1]}" }) { dir ->
+                p.glassLevel = p.glassLevel + dir
+            }
+        }
+        bg += MenuEntry(t("Auswahl", "Selection"), header = true, run = null)
+        bg += value(t("Markierung", "Mark"), { p.focusStyle.label },
+            hint = if (p.focusStyle == FocusStyle.AUTO) t("Ecken bei Cocoon, sonst Rahmen", "corners in Cocoon, else frame") else null) { dir ->
+            p.focusStyle = step(FocusStyle.values().toList(), p.focusStyle, dir)
+        }
+
+        // ---- performance overlay ----
+        val ov = mutableListOf<MenuEntry>()
+        val iOn = ov.size
+        ov += MenuEntry(tr("Leistungs-Overlay"), checked = p.overlayOn, hint = tr("Kleine Anzeige über dem Spiel, wie bei Steam")) {
+            p.overlayOn = !p.overlayOn
+            svc.overlay.refresh()
+            editMenu(curTab, iOn)
+        }
+        ov += MenuEntry(tr("Angezeigte Werte"), hint = p.overlayItems.mapNotNull { OverlayItem.of(it)?.label }.joinToString(", ")) {
+            openEditor(tr("Overlay-Werte"), listOf(
+                EditSection(tr("Angezeigt"), p.overlayItems.toMutableList()),
+                EditSection(tr("Ausgeblendet"), OverlayItem.values().map { it.id }.filter { it !in p.overlayItems }.toMutableList()),
+            ), enableTo = 0, label = { OverlayItem.of(it)?.label ?: it }, note = { "" }) {
+                p.overlayItems = editSections[0].ids.toList()
+                if (p.overlayOn) svc.overlay.show()
+            }
+        }
+        ov += value("Position", { p.overlayPos.label }, rebuild = false) { dir ->
+            p.overlayPos = step(OverlayPos.values().toList(), p.overlayPos, dir); if (p.overlayOn) svc.overlay.show()
+        }
+        ov += value(tr("Anordnung"), { if (p.overlayRow) tr("Nebeneinander") else tr("Untereinander") }, rebuild = false) { _ ->
+            p.overlayRow = !p.overlayRow; if (p.overlayOn) svc.overlay.show()
+        }
+        ov += value(tr("Größe"), { "${Math.round(p.overlayScale * 100)} %" }, rebuild = false) { dir ->
+            val sizes = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
+            p.overlayScale = sizes[(sizes.indexOfFirst { it >= p.overlayScale - 0.01f }.coerceAtLeast(0) + dir).coerceIn(0, sizes.lastIndex)]
+            if (p.overlayOn) svc.overlay.show()
+        }
+
+        val keep = addTab
+        tabMenu(title, listOf(
+            "Layout" to layout,
+            tr("Stil") to style,
+            t("Hintergrund", "Background") to bg,
+            "Overlay" to ov,
+        ), tab)
+        addTab = keep
+        if (select >= 0 && menuEntries.getOrNull(select)?.run != null) { menuSel = select; showMenuSel() }
     }
 
     private fun gridHint() = t("${GridLayout.ROWS} Zeilen · ", "${GridLayout.ROWS} rows · ") +
@@ -2983,85 +3095,6 @@ class ControlCenter(private val svc: HugminnService) {
         ), select)
     }
 
-    /** Background, tile style and selection mark; every change shows right away (the panel is rebuilt). */
-    private fun backdropMenu(select: Int = -1) {
-        val p = svc.prefs
-        val blurNames = listOf(tr("Aus"), t("Leicht", "Light"), t("Mittel", "Medium"), t("Stark", "Strong"))
-        fun apply(at: Int) { pal = Palette(svc); rebuildPanel(); backdropMenu(at) }
-        val entries = mutableListOf<MenuEntry>()
-        entries += MenuEntry(t("Hintergrund", "Background"), header = true, run = null)
-        BackdropSource.values().filter { it != BackdropSource.WALLPAPER || Root.available() }.forEach { src ->
-            entries += MenuEntry(src.label, checked = p.backdrop == src, hint = when (src) {
-                BackdropSource.IMAGE -> if (Backdrop.imageFile(svc).exists()) t("A: anderes Bild wählen", "A: choose another picture") else t("A: Bild wählen", "A: choose a picture")
-                BackdropSource.WALLPAPER -> t("A: neu laden", "A: reload")
-                else -> null
-            }) {
-                when (src) {
-                    BackdropSource.IMAGE -> {
-                        // picking needs an app screen: Hugminn's settings open the picture picker
-                        close()
-                        svc.startApp(Intent(svc, MainActivity::class.java).putExtra(MainActivity.EXTRA_PICK_BACKDROP, true))
-                    }
-                    BackdropSource.WALLPAPER -> {
-                        p.backdrop = src
-                        Backdrop.fetchWallpaper(svc) { ok ->
-                            if (!ok) Notice.show(svc, t("Hintergrundbild konnte nicht gelesen werden", "Couldn't read the wallpaper"), corner = true)
-                            if (isOpen) apply(menuSel)
-                        }
-                    }
-                    BackdropSource.STYLE -> { p.backdrop = src; apply(menuSel) }
-                }
-            }
-        }
-        if (p.backdrop != BackdropSource.STYLE) {
-            entries += MenuEntry(if (pal.dark) t("Abdunkeln", "Darken") else t("Aufhellen", "Lighten"), hint = "${p.backdropDim} %",
-                side = { dir -> p.backdropDim = (p.backdropDim + 10 * dir).coerceIn(0, 80); apply(menuSel) }) {
-                p.backdropDim = if (p.backdropDim >= 80) 0 else p.backdropDim + 10; apply(menuSel)
-            }
-            entries += MenuEntry(t("Weichzeichnen", "Blur"), hint = blurNames[p.backdropBlur.coerceIn(0, 3)],
-                side = { dir -> p.backdropBlur = (p.backdropBlur + dir).coerceIn(0, 3); Backdrop.forget(); apply(menuSel) }) {
-                p.backdropBlur = (p.backdropBlur + 1) % 4; Backdrop.forget(); apply(menuSel)
-            }
-        }
-        entries += MenuEntry(t("Kacheln", "Tiles"), header = true, run = null)
-        // glass strength: L1/R1 anywhere in this menu (or ◀ ▶ on the glass line); it switches to glass if needed
-        fun glass(dir: Int) {
-            p.tileStyle = TileStyle.GLASS
-            p.glassLevel = p.glassLevel + dir
-            apply(menuSel)
-        }
-        TileStyle.values().forEach { ts ->
-            entries += MenuEntry(ts.label, checked = p.tileStyle == ts,
-                hint = when {
-                    ts == TileStyle.OLED && !pal.dark -> t("nur im dunklen Farbschema", "dark colour schemes only")
-                    ts == TileStyle.GLASS -> t("Stärke ${p.glassLevel}/5 · L1 R1", "strength ${p.glassLevel}/5 · L1 R1")
-                    else -> null
-                },
-                side = if (ts == TileStyle.GLASS) ({ dir: Int -> glass(dir) }) else null) {
-                p.tileStyle = ts; apply(menuSel)
-            }
-        }
-        entries += MenuEntry(t("Auswahl-Markierung", "Selection mark"), header = true, run = null)
-        FocusStyle.values().forEach { fs ->
-            entries += MenuEntry(fs.label, checked = p.focusStyle == fs,
-                hint = if (fs == FocusStyle.AUTO) t("Ecken bei Cocoon, sonst Rahmen", "corners in Cocoon, otherwise a frame") else null) {
-                p.focusStyle = fs; apply(menuSel)
-            }
-        }
-        showMenu(t("Hintergrund & Kacheln", "Background & tiles"), entries, select, forceTall = true)
-        popupKeys = { code ->
-            when (code) {
-                KeyEvent.KEYCODE_BUTTON_L1 -> glass(-1)
-                KeyEvent.KEYCODE_BUTTON_R1 -> glass(1)
-                KeyEvent.KEYCODE_DPAD_UP -> moveMenu(-1)
-                KeyEvent.KEYCODE_DPAD_DOWN -> moveMenu(1)
-                KeyEvent.KEYCODE_DPAD_LEFT -> menuEntries.getOrNull(menuSel)?.side?.invoke(-1)
-                KeyEvent.KEYCODE_DPAD_RIGHT -> menuEntries.getOrNull(menuSel)?.side?.invoke(1)
-                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> runMenu(menuSel)
-                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> closeMenu()
-            }
-        }
-    }
 
     private fun colorMenu() {
         val own = svc.prefs.tileColor.takeIf { it != 0 && it !in TILE_COLORS }
