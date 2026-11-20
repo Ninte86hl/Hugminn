@@ -542,11 +542,14 @@ class OwnSwitcher(private val svc: HugminnService) {
             setPadding(svc.dp(28), svc.dp(14), svc.dp(28), 0)
         }
         head.addView(text("Muninn", 20f, 0xFF2F7DF0.toInt(), bold = true)) // blue, like its shortcut icon
-        head.addView(text("  ·  Game Switcher", 15f, pal.onSurfaceVariant), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        // on a picture the grey texts of the ground would drown: they take the full text colour there
+        val picture = Backdrop.active(svc)
+        val onGround = if (picture) pal.onSurface else pal.onSurfaceVariant
+        head.addView(text("  ·  Game Switcher", 15f, onGround), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         if (mode != StatusBar.OVERLAY) {
             val bm = svc.getSystemService(android.os.BatteryManager::class.java)
             val pct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
-            if (pct >= 0) head.addView(text("$pct %", 14f, pal.onSurfaceVariant).apply { setPadding(0, 0, svc.dp(14), 0) })
+            if (pct >= 0) head.addView(text("$pct %", 14f, onGround).apply { setPadding(0, 0, svc.dp(14), 0) })
             head.addView(android.widget.TextClock(svc).apply {
                 format24Hour = "HH:mm"
                 format12Hour = "h:mm"
@@ -569,7 +572,13 @@ class OwnSwitcher(private val svc: HugminnService) {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(svc.dp(24), 0, svc.dp(10), 0)
         }
-        r.addView(b, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, barH, Gravity.BOTTOM))
+        if (picture) {
+            // on a picture the bottom bar sits on a calm capsule, like the Control Center's hints
+            b.background = rounded((pal.surface and 0x00FFFFFF) or 0xC8000000.toInt(), 999f)
+            r.addView(b, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, barH - svc.dp(14), Gravity.BOTTOM).apply {
+                leftMargin = svc.dp(16); rightMargin = svc.dp(16); bottomMargin = svc.dp(8)
+            })
+        } else r.addView(b, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, barH, Gravity.BOTTOM))
         val sysTop = if (mode == StatusBar.SYSTEM) statusH else 0
         val lp = WindowManager.LayoutParams(
             m.bounds.width(), m.bounds.height() - sysTop,
@@ -712,7 +721,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             }
         }
         private val labelPaint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = pal.onSurfaceVariant
+            color = if (Backdrop.active(ctx)) pal.onSurface else pal.onSurfaceVariant
             textAlign = Paint.Align.CENTER
             textSize = ctx.resources.displayMetrics.scaledDensity * 13f
             typeface = Look.font(ctx, pixel, false)
@@ -724,6 +733,22 @@ class OwnSwitcher(private val svc: HugminnService) {
             typeface = Look.font(ctx, pixel, false)
         }
         private val icons = HashMap<String, android.graphics.drawable.Drawable?>()
+
+        /** Corner brackets around the selected card (when chosen): made anew per card, so they settle in once. */
+        private var corners: CornerFrame? = null
+        private var cornersFor = -1
+        override fun verifyDrawable(who: android.graphics.drawable.Drawable) = who === corners || super.verifyDrawable(who)
+
+        private fun drawMark(c: Canvas, i: Int, o: RectF, r: Float) {
+            if (!pal.focusCorners) return
+            if (cornersFor != i || corners == null) {
+                cornersFor = i
+                corners = CornerFrame(if (cocoon) pal.primary else pal.onSurface, r, context.dp(4).toFloat()).also { it.callback = this }
+            }
+            val cf = corners ?: return
+            cf.setBounds(o.left.toInt(), o.top.toInt(), o.right.toInt(), o.bottom.toInt())
+            cf.draw(c)
+        }
 
         fun set(list: List<RecentApp>, selected: Int, animate: Boolean) {
             apps = list
@@ -807,7 +832,11 @@ class OwnSwitcher(private val svc: HugminnService) {
                 }
                 c.restore()
                 if (abs(i - pos) < 0.5f) {
-                    if (cocoon) {
+                    if (pal.focusCorners) {
+                        // corner brackets just outside the card (outside the white frame in Cocoon)
+                        val g = context.dp(7).toFloat() + framePad
+                        drawMark(c, i, RectF(r).apply { inset(-g, -g) }, radius + g)
+                    } else if (cocoon) {
                         val o = RectF(r).apply { inset(-framePad - edge.strokeWidth / 2, -framePad - edge.strokeWidth / 2) }
                         c.drawRoundRect(o, radius + framePad + edge.strokeWidth / 2, radius + framePad + edge.strokeWidth / 2, edge)
                     } else c.drawPath(shape(r), edge)

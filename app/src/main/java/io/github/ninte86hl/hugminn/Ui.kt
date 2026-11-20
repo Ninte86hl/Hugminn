@@ -527,7 +527,7 @@ class StatusBand(ctx: Context, pal: Palette, title: String) : android.widget.Lin
             text = title
             typeface = Look.font(ctx, pixel, false)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            setTextColor(pal.onSurfaceVariant)
+            setTextColor(if (Backdrop.active(ctx)) pal.onSurface else pal.onSurfaceVariant)
             gravity = Gravity.CENTER
             maxLines = 1
         }, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
