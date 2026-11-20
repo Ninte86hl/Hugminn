@@ -134,6 +134,7 @@ object Lang {
         "Wirklich zurücksetzen?" to "Really reset?",
         "Ja, Standard wiederherstellen" to "Yes, restore defaults",
         "Abbrechen" to "Cancel",
+        "Verbinden" to "Connect",
         "Overlay ausschalten" to "Turn overlay off",
         "Overlay einschalten" to "Turn overlay on",
         "Kleine Anzeige über dem Spiel, wie bei Steam" to "Small display over the game, like on Steam",
