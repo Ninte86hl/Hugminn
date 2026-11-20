@@ -15,7 +15,9 @@ object Device {
     // Values as used by the shared Retroid/AYN firmware (fan 6 = custom speed from fan_speed).
     val perfProfiles get() = linkedMapOf("0" to "Normal", "1" to tr("Leistung"), "2" to tr("Hohe Leistung"))
     val fanProfiles get() = linkedMapOf("0" to tr("Aus"), "1" to tr("Leise"), "4" to "Smart", "5" to "Sport", "6" to tr("Eigene Kurve"))
-    val triggerModes get() = linkedMapOf("2" to tr("Analog + Digital"), "1" to tr("Nur analog"), "0" to tr("Nur digital"))
+    /** Trigger modes; AYN numbers analog and digital the other way round than Retroid. */
+    val triggerModes get() = if (isAyn) linkedMapOf("2" to tr("Analog + Digital"), "0" to tr("Nur analog"), "1" to tr("Nur digital"))
+        else linkedMapOf("2" to tr("Analog + Digital"), "1" to tr("Nur analog"), "0" to tr("Nur digital"))
 
     /** Simple on/off system settings of the firmware (1 = on). */
     fun sysOn(ctx: Context, key: String) = sys(ctx, key)?.trim() == "1"
