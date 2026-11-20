@@ -167,7 +167,7 @@ Hugminn is an independent project and is not affiliated with Retroid, AYN or any
 
 ## Author
 
-Created by [Ninte86hl](https://github.com/Ninte86hl).
+Created by [Ninte86hl](https://github.com/Ninte86hl) – ideas, design and every test on real devices; the code is written with the help of AI. The whole story: [About the developer](https://github.com/Ninte86hl/Hugminn/wiki/About-the-Developer).
 
 ## License
 

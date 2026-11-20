@@ -31,3 +31,4 @@ Hugminn ergänzt Android-Handhelds von Retroid und AYN um einen **Game Switcher*
 - [Berechtigungen](Berechtigungen) – wofür jede Berechtigung gebraucht wird
 - [So funktioniert es](So-funktioniert-es) – technische Details
 - [Fehler melden](Fehler-melden)
+- [Über den Entwickler](Ueber-den-Entwickler) – warum es Hugminn gibt und wie Ideen, Tests und KI zusammenspielen

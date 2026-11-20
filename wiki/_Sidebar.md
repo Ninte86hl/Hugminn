@@ -24,6 +24,7 @@
 - [Permissions](Permissions)
 - [How it works](How-It-Works)
 - [Reporting bugs](Reporting-Bugs)
+- [About the developer](About-the-Developer)
 
 ---
 
@@ -48,3 +49,4 @@
 - [Berechtigungen](Berechtigungen)
 - [So funktioniert es](So-funktioniert-es)
 - [Fehler melden](Fehler-melden)
+- [Über den Entwickler](Ueber-den-Entwickler)

@@ -31,3 +31,4 @@ Hugminn adds a **Game Switcher** (Muninn) and a **Control Center** (Huginn) to A
 - [Permissions](Permissions) – what each permission is used for
 - [How it works](How-It-Works) – technical details
 - [Reporting bugs](Reporting-Bugs)
+- [About the developer](About-the-Developer) – why Hugminn exists, and how ideas, tests and AI work together

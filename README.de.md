@@ -167,7 +167,7 @@ Hugminn ist ein unabhängiges Projekt und gehört weder zu Retroid, AYN noch zu 
 
 ## Autor
 
-Erstellt von [Ninte86hl](https://github.com/Ninte86hl).
+Erstellt von [Ninte86hl](https://github.com/Ninte86hl) – Ideen, Design und jeder Test auf echten Geräten; der Code entsteht mit Hilfe von KI. Die ganze Geschichte: [Über den Entwickler](https://github.com/Ninte86hl/Hugminn/wiki/Ueber-den-Entwickler).
 
 ## Lizenz
 
