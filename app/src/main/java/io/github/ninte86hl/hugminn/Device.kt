@@ -73,6 +73,12 @@ object Device {
      * Firmware settings that exist on the device but are only written once they were changed (AYN's
      * trigger mode): until then the tile shows "Standard" instead of being hidden.
      */
+    /**
+     * The AYN button (Thor): it arrives as Home, but from "gpio-keys" instead of the controller.
+     * Hugminn leaves it to AYN (press/double press open and close AYN's menu, a long press turns the screen off).
+     */
+    fun isAynKey(e: android.view.KeyEvent) = isAyn && e.keyCode == android.view.KeyEvent.KEYCODE_HOME && e.device?.name == "gpio-keys"
+
     fun lazySetting(key: String) = isAyn && key == "trigger_input_mode"
 
     fun profileLabel(ctx: Context, key: String, table: Map<String, String>): String {
