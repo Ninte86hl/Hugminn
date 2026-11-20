@@ -93,6 +93,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     fun open() {
         if (isOpen) return
+        Displays.snapshot(svc, svc, "Control Center")
         isOpen = true
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("cc") } }
         pal = Palette(svc)

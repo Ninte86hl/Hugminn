@@ -70,10 +70,29 @@ object Displays {
             }
         }.onFailure { appendLine("  Fenster: ${it.javaClass.simpleName}") }
         if (Root.available()) {
-            Root.exec("dumpsys display | grep -E 'mDisplayId=|DisplayDeviceInfo\\{' | head -12", 3_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
-                appendLine("  dumpsys display:")
-                it.lines().forEach { l -> appendLine("    " + l.trim().take(220)) }
+            // what really runs where: tasks per display and the visible windows (also presentations,
+            // which the accessibility window list leaves out), plus the focus
+            Root.exec("dumpsys activity activities | grep -E 'Display #|\\* Task\\{|topResumedActivity|ResumedActivity:' | head -30", 4_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
+                appendLine("  Tasks je Bildschirm:")
+                it.lines().forEach { l -> appendLine("    " + l.trim().take(200)) }
+            }
+            Root.exec("dumpsys window displays | grep -E 'Display: mDisplayId|mCurrentFocus|mFocusedApp|Window #' | head -40", 4_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
+                appendLine("  Fenster je Bildschirm (dumpsys):")
+                it.lines().forEach { l -> appendLine("    " + l.trim().take(200)) }
             }
         }
+    }
+
+    /** What was on the screens right before Hugminn opened (only on handhelds with a second screen). */
+    @Volatile var beforeOpen: String = ""
+        private set
+
+    /** Takes that picture in the background, so opening is not slowed down. */
+    fun snapshot(ctx: Context, svc: AccessibilityService, where: String) {
+        if (second(ctx) == null) return
+        Thread {
+            val t = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.ROOT).format(java.util.Date())
+            beforeOpen = "Vor dem Öffnen ($where, $t):\n" + runCatching { describe(ctx, svc) }.getOrDefault("")
+        }.start()
     }
 }
