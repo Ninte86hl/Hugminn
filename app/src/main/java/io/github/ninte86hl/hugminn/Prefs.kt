@@ -186,6 +186,11 @@ class Prefs(ctx: Context) {
         get() = enumOr(p.getString("tileStyle", null), TileStyle.STANDARD)
         set(v) = p.edit().putString("tileStyle", v.name).apply()
 
+    /** Strength of the glass tiles: 1 clear … 5 frosted. */
+    var glassLevel: Int
+        get() = p.getInt("glassLevel", 3).coerceIn(1, 5)
+        set(v) = p.edit().putInt("glassLevel", v.coerceIn(1, 5)).apply()
+
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()

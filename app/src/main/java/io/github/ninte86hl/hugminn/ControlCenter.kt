@@ -3015,9 +3015,20 @@ class ControlCenter(private val svc: HugminnService) {
             }
         }
         entries += MenuEntry(t("Kacheln", "Tiles"), header = true, run = null)
+        // glass strength: L1/R1 anywhere in this menu (or ◀ ▶ on the glass line); it switches to glass if needed
+        fun glass(dir: Int) {
+            p.tileStyle = TileStyle.GLASS
+            p.glassLevel = p.glassLevel + dir
+            apply(menuSel)
+        }
         TileStyle.values().forEach { ts ->
             entries += MenuEntry(ts.label, checked = p.tileStyle == ts,
-                hint = if (ts == TileStyle.OLED && !pal.dark) t("nur im dunklen Farbschema", "dark colour schemes only") else null) {
+                hint = when {
+                    ts == TileStyle.OLED && !pal.dark -> t("nur im dunklen Farbschema", "dark colour schemes only")
+                    ts == TileStyle.GLASS -> t("Stärke ${p.glassLevel}/5 · L1 R1", "strength ${p.glassLevel}/5 · L1 R1")
+                    else -> null
+                },
+                side = if (ts == TileStyle.GLASS) ({ dir: Int -> glass(dir) }) else null) {
                 p.tileStyle = ts; apply(menuSel)
             }
         }
@@ -3029,6 +3040,18 @@ class ControlCenter(private val svc: HugminnService) {
             }
         }
         showMenu(t("Hintergrund & Kacheln", "Background & tiles"), entries, select, forceTall = true)
+        popupKeys = { code ->
+            when (code) {
+                KeyEvent.KEYCODE_BUTTON_L1 -> glass(-1)
+                KeyEvent.KEYCODE_BUTTON_R1 -> glass(1)
+                KeyEvent.KEYCODE_DPAD_UP -> moveMenu(-1)
+                KeyEvent.KEYCODE_DPAD_DOWN -> moveMenu(1)
+                KeyEvent.KEYCODE_DPAD_LEFT -> menuEntries.getOrNull(menuSel)?.side?.invoke(-1)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> menuEntries.getOrNull(menuSel)?.side?.invoke(1)
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> runMenu(menuSel)
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> closeMenu()
+            }
+        }
     }
 
     private fun colorMenu() {
