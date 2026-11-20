@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.12.2 (in testing / im Test)
+- Control Center: the large Wi-Fi and Bluetooth cards work with the D-pad – A steps into the list, up/down picks a network or device, A connects (or disconnects), B leaves the list. When the radio is off, A still switches it on; X opens the options as before.
+- Controlcenter: Die großen WLAN- und Bluetooth-Kacheln lassen sich mit dem Steuerkreuz bedienen – A geht in die Liste, hoch/runter wählt ein Netz oder Gerät, A verbindet (bzw. trennt), B verlässt die Liste. Ist der Funk aus, schaltet A ihn wie bisher ein; X öffnet weiter die Optionen.
+
 ## 1.12.1
 - Capture: the stick LEDs pulse red while recording even when they are switched off – they go on just for the recording and off again afterwards.
 - Aufnahme: Die Stick-LEDs pulsieren während der Aufnahme auch dann rot, wenn sie ausgeschaltet sind – sie gehen nur für die Aufnahme an und danach wieder aus.

@@ -34,7 +34,10 @@ import kotlin.math.roundToInt
  * Controller: D-pad moves, A chooses, left/right change sliders, B goes back/closes.
  */
 class ControlCenter(private val svc: HugminnService) {
-    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false, val onY: (() -> Unit)? = null, val round: Boolean = false)
+    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false, val onY: (() -> Unit)? = null, val round: Boolean = false, val rows: Rows? = null)
+
+    /** The lines of a large list card (networks, devices) that A steps into and the D-pad walks. */
+    private class Rows { val list = mutableListOf<Pair<View, () -> Unit>>() }
     private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val swatch: Int = 0, val header: Boolean = false, val side: ((Int) -> Unit)? = null, val run: (() -> Unit)?)
 
     var isOpen = false
@@ -49,6 +52,9 @@ class ControlCenter(private val svc: HugminnService) {
     private var focusVisible = false
     /** A slider was confirmed with A: the D-pad now changes its value instead of moving. */
     private var adjusting = false
+    /** The large list card the D-pad is inside of (A entered it), and the selected line. */
+    private var inside: Rows? = null
+    private var insideSel = 0
     private var metrics: Metrics? = null
     private val refreshers = mutableListOf<() -> Unit>()
     private val graphUpdates = mutableListOf<(Metrics.Sample) -> Unit>()
@@ -87,6 +93,7 @@ class ControlCenter(private val svc: HugminnService) {
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("cc") } }
         pal = Palette(svc)
         items.clear()
+        inside = null
         refreshers.clear()
         graphUpdates.clear()
         focus = 0
@@ -236,6 +243,7 @@ class ControlCenter(private val svc: HugminnService) {
         graphUpdates.clear()
         refreshers.clear()
         items.clear()
+        inside = null
         val p = build()
         p.setPadding(p.paddingLeft, p.paddingTop + padTop(), p.paddingRight, p.paddingBottom)
         panelView?.let { r.removeView(it) }
@@ -335,6 +343,7 @@ class ControlCenter(private val svc: HugminnService) {
         volumeSliders.clear()
         cardItems.clear()
         items.clear()
+        inside = null
         itemEntry.clear()
         body.removeAllViews()
         val board = GridBoard(svc, gridCols, 10 * d)
@@ -510,9 +519,14 @@ class ControlCenter(private val svc: HugminnService) {
             if (pages() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
             if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_X, tr("Optionen"))
-            hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Bearbeiten"))
-            hint(KeyEvent.KEYCODE_BUTTON_A, if (adjusting) tr("Fertig") else tr("Auswählen"))
-            hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück"))
+            if (inside != null) {
+                hint(KeyEvent.KEYCODE_BUTTON_A, t("Verbinden/Trennen", "Connect/disconnect"))
+                hint(KeyEvent.KEYCODE_BUTTON_B, t("Liste verlassen", "Leave list"))
+            } else {
+                hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Bearbeiten"))
+                hint(KeyEvent.KEYCODE_BUTTON_A, if (adjusting) tr("Fertig") else tr("Auswählen"))
+                hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück"))
+            }
         }
     }
 
@@ -821,7 +835,9 @@ class ControlCenter(private val svc: HugminnService) {
         val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         c.addView(list, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
         val maxRows = if (e.h >= 4) 6 else 3
+        val rows = Rows()
         val refresh = {
+            rows.list.clear()
             val on = Device.btOn(svc)
             right.text = if (on) tr("An") else tr("Aus")
             right.setTextColor(if (on) tileOn() else pal.onSurfaceVariant)
@@ -834,17 +850,22 @@ class ControlCenter(private val svc: HugminnService) {
                     val conn = Bt.isConnected(dv)
                     val bat = if (conn) Bt.battery(dv) else null
                     val sub = if (!conn) t("Gekoppelt", "Paired") else if (bat != null) t("Verbunden · Akku $bat %", "Connected · battery $bat %") else tr("Verbunden")
-                    list.addView(listRow(Bt.name(dv), sub, conn) {
+                    val act: () -> Unit = {
+                        Toast.makeText(svc, if (conn) t("Trenne ${Bt.name(dv)} …", "Disconnecting ${Bt.name(dv)} …") else t("Verbinde mit ${Bt.name(dv)} …", "Connecting to ${Bt.name(dv)} …"), Toast.LENGTH_SHORT).show()
                         Bt.toggle(svc, dv, !conn) { svc.ui.postDelayed({ refreshAll() }, 1500) }
-                    }, lp(MATCH, 0, 1f).apply { if (i > 0) topMargin = 5 * d })
+                    }
+                    val row = listRow(Bt.name(dv), sub, conn, act)
+                    rows.list += row to act
+                    list.addView(row, lp(MATCH, 0, 1f).apply { if (i > 0) topMargin = 5 * d })
                 }
                 repeat((maxRows - devs.size).coerceAtLeast(0)) { list.addView(View(svc), lp(MATCH, 0, 1f).apply { topMargin = 5 * d }) }
             }
+            if (inside === rows) markRows()
         }
         refresh()
         refreshers += refresh
         whileShown(c, 5000) { refresh() }
-        return c to Item(c, tile.act, onY = tile.menu)
+        return c to Item(c, tile.act, onY = tile.menu, rows = rows)
     }
 
     /** Networks for the large Wi-Fi card (shared, so a re-drawn grid keeps them). */
@@ -887,7 +908,9 @@ class ControlCenter(private val svc: HugminnService) {
         val list = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         c.addView(list, lp(MATCH, 0, 1f).apply { topMargin = 6 * d })
         val maxRows = if (e.h >= 4) 6 else 3
+        val rows = Rows()
         val refresh = {
+            rows.list.clear()
             val nets = wifiNets
             val saved = wifiSaved
             val on = Device.wifiOn(svc)
@@ -908,7 +931,7 @@ class ControlCenter(private val svc: HugminnService) {
                         n.security == "open" -> tr("offen")
                         else -> tr("gesichert")
                     }
-                    list.addView(listRow(n.ssid, sub, connected) {
+                    val act: () -> Unit = {
                         when {
                             connected -> {}
                             known || n.security == "open" || n.security == "owe" -> {
@@ -918,16 +941,21 @@ class ControlCenter(private val svc: HugminnService) {
                             // new secured network: the Wi-Fi menu asks for the password
                             else -> tile.menu?.invoke()
                         }
-                    }, lp(MATCH, 0, 1f).apply { if (i > 0) topMargin = 5 * d })
+                        Unit
+                    }
+                    val row = listRow(n.ssid, sub, connected, act)
+                    rows.list += row to act
+                    list.addView(row, lp(MATCH, 0, 1f).apply { if (i > 0) topMargin = 5 * d })
                 }
                 repeat((maxRows - shown.size).coerceAtLeast(0)) { list.addView(View(svc), lp(MATCH, 0, 1f).apply { topMargin = 5 * d }) }
             }
+            if (inside === rows) markRows()
         }
         refresh()
         refreshers += refresh
         wifiScan()
         whileShown(c, 20_000) { wifiScan() }
-        return c to Item(c, tile.act, onY = tile.menu)
+        return c to Item(c, tile.act, onY = tile.menu, rows = rows)
     }
 
     /** Square whose side is the height it gets (cover next to the text in a wide music tile). */
@@ -1650,6 +1678,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
         }
         items.clear()
+        inside = null
         items += tileItems
         items += cardItems
         items += sliderItems
@@ -2455,8 +2484,31 @@ class ControlCenter(private val svc: HugminnService) {
 
     // ---------- controller focus ----------
 
+    /** Ring around the selected line of the list card the D-pad is inside of (none on the others). */
+    private fun markRows() {
+        val r = inside
+        if (r != null && items.getOrNull(focus)?.rows !== r) inside = null
+        items.forEach { it.rows?.list?.forEach { (v, _) -> v.foreground = null } }
+        val rows = inside ?: return
+        if (rows.list.isEmpty()) { inside = null; renderFooter(); return }
+        insideSel = insideSel.coerceIn(0, rows.list.lastIndex)
+        val v = rows.list[insideSel].first
+        val fill = (v.background as? android.graphics.drawable.GradientDrawable)?.color?.defaultColor ?: 0
+        val light = android.graphics.Color.alpha(fill) > 128 && android.graphics.Color.luminance(fill) > 0.6f
+        v.foreground = shape(0, 14f * d, 3 * d, if (light) 0xFF101010.toInt() else if (pal.cocoon) pal.primary else pal.onSurface)
+    }
+
+    /** Leaves the list card again (B, moving away, re-drawing). */
+    private fun leaveRows() {
+        if (inside == null) return
+        inside = null
+        markRows()
+        showFocus()
+    }
+
     private fun showFocus() {
         if (editing) return
+        markRows()
         val round = pal.dots
         renderFooter()
         if (!focusVisible) {
@@ -3303,6 +3355,10 @@ class ControlCenter(private val svc: HugminnService) {
                         !focusVisible -> { focusVisible = true; showFocus() }
                         // sliders: A starts/ends changing the value with the D-pad
                         it?.onAdjust != null -> { adjusting = !adjusting; showFocus() }
+                        // inside a list card: connect/disconnect the selected line
+                        inside != null && it?.rows === inside -> inside!!.list.getOrNull(insideSel)?.second?.invoke()
+                        // a list card with lines: A steps in, the D-pad then walks the lines
+                        it?.rows != null && it.rows.list.isNotEmpty() -> { inside = it.rows; insideSel = 0; showFocus() }
                         else -> it?.onA?.invoke()
                     }
                 }
@@ -3374,6 +3430,16 @@ class ControlCenter(private val svc: HugminnService) {
             adjusting = false
             showFocus()
             if (adj != null) return true
+        }
+        if (inside != null && item?.rows !== inside) inside = null
+        inside?.let { rows ->
+            when (e.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> { insideSel = (insideSel - 1).coerceAtLeast(0); markRows(); return true }
+                KeyEvent.KEYCODE_DPAD_DOWN -> { insideSel = (insideSel + 1).coerceAtMost(rows.list.lastIndex.coerceAtLeast(0)); markRows(); return true }
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> { leaveRows(); return true }
+                // sideways (and pages, edit, menu) leave the card first
+                else -> { inside = null; markRows() }
+            }
         }
         val vert = item?.vertical == true
         when (e.keyCode) {
