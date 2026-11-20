@@ -504,6 +504,10 @@ class MainActivity : Activity() {
                 t("Name, Spiel, Tastenhinweise und Tastenkürzel des Emulators unten auf dem zweiten Bildschirm – oben bleibt mehr Platz für die Vorschaubilder",
                     "Name, game, button hints and the emulator's shortcuts on the second screen – more room for the previews up top"),
                 { if (prefs.dualSwitcher) tr("An") else tr("Aus") }) { prefs.dualSwitcher = !prefs.dualSwitcher }
+            row(sw, t("Player auf dem zweiten Bildschirm", "Player on the second screen"),
+                t("Läuft oben Musik oder ein Video (Spotify, YouTube …), zeigt der untere Bildschirm Cover, Titel und Tasten – bei Videos nur den Titel. Mit × ausblenden",
+                    "While music or a video plays up top (Spotify, YouTube …), the lower screen shows cover, title and buttons – for videos only the title. Hide it with ×"),
+                { if (prefs.dualMedia) tr("An") else tr("Aus") }) { prefs.dualMedia = !prefs.dualMedia }
         }
         row(sw, tr("Statusleiste"), tr("Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)

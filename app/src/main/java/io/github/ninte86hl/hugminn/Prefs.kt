@@ -195,6 +195,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("dualSwitcher", true)
         set(v) = p.edit().putBoolean("dualSwitcher", v).apply()
 
+    /** Dual-screen handhelds: music/video in front on the top screen → player on the second screen. */
+    var dualMedia: Boolean
+        get() = p.getBoolean("dualMedia", true)
+        set(v) = p.edit().putBoolean("dualMedia", v).apply()
+
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()
