@@ -184,6 +184,7 @@ class OwnSwitcher(private val svc: HugminnService) {
     }
 
     fun open(swipe: Boolean) {
+        Displays.snapshot(svc, svc, "Switcher")
         if (isOpen) return
         isOpen = true
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
