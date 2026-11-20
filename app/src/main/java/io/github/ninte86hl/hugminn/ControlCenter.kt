@@ -1586,7 +1586,7 @@ class ControlCenter(private val svc: HugminnService) {
         "mouse" -> sysTile(rootOk, tr("Mausmodus"), IconView.Kind.MOUSE, "global_gamepad_to_mouse_mode")
         "homelock" -> sysTile(rootOk, tr("Home-Sperre"), IconView.Kind.LOCK, "prevent_press_home_accidentally")
         "chargesep" -> sysTile(rootOk, tr("Direkte Stromversorgung"), IconView.Kind.PLUG, "is_charging_separation")
-        "trigger" -> if (rootOk && Device.sys(svc, "trigger_input_mode") != null) Tile(tr("Trigger-Modus"), IconView.Kind.GAMEPAD, {
+        "trigger" -> if (rootOk && (Device.sys(svc, "trigger_input_mode") != null || Device.lazySetting("trigger_input_mode"))) Tile(tr("Trigger-Modus"), IconView.Kind.GAMEPAD, {
             Device.profileLabel(svc, "trigger_input_mode", Device.triggerModes)
         }, { false }) {
             profileMenu(tr("Trigger-Modus"), "trigger_input_mode", Device.triggerModes) { v -> Device.setSys("trigger_input_mode", v) { refreshAll() } }
