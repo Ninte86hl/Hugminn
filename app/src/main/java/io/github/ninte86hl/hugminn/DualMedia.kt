@@ -1,11 +1,18 @@
 package io.github.ninte86hl.hugminn
 
+import android.annotation.SuppressLint
 import android.graphics.PixelFormat
+import android.graphics.Rect
+import android.os.SystemClock
 import android.util.TypedValue
+import android.view.Display
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -13,74 +20,110 @@ import android.widget.TextView
 import kotlin.concurrent.thread
 
 /**
- * Dual-screen handhelds (AYN Thor): while a music or video app is in front on the top screen,
- * the second screen shows what plays – cover, song and artist for music, only the title for
- * videos – with progress and touch buttons. Gone when the app leaves the front or nothing is
- * left to play. The switcher's own second-screen view lies over it while it is open.
+ * Dual-screen handhelds (AYN Thor): while a music or video app is in front on the top screen
+ * (playing or paused), the second screen shows it the whole time – cover, song and artist for
+ * music, only the title for videos – with a progress bar to seek and touch buttons. Gone as soon
+ * as the app leaves the top screen. The switcher's own second-screen view lies over it while open.
+ *
+ * The top screen's app is read from the windows of display 0 only: the Thor's lower screen runs
+ * its own launcher (Cocoon), whose events must not count as "home".
  */
 class DualMedia(private val svc: HugminnService) {
+
+    companion object {
+        /** For feedback reports. */
+        @Volatile var diag = ""
+    }
 
     private var view: LinearLayout? = null
     private var wm: WindowManager? = null
     private var shownKey: String? = null
-    /** Closed by hand (×): stays away until something else plays. */
-    private var dismissed: String? = null
     private var running = false
     private var hasSecond: Boolean? = null
+    @Volatile private var busy = false
+    /** The last app seen on the top screen (kept while Hugminn's own windows lie over it). */
+    private var top: String? = null
 
     private var play: IconView? = null
     private var pause: IconView? = null
     private var bar: View? = null
     private var rest: View? = null
+    private var thumb: View? = null
     private var song: TextView? = null
     private var who: TextView? = null
     private var cover: ImageView? = null
     private var time: TextView? = null
+    private var dragging = false
 
     fun start() {
         if (running) return
         running = true
-        svc.ui.postDelayed(tick, 3000)
+        svc.ui.postDelayed(tick, 1500)
     }
 
     fun stop() {
         running = false
         svc.ui.removeCallbacks(tick)
+        svc.ui.removeCallbacks(kickNow)
         hide()
     }
+
+    /** A window changed: look again right away (a little later, so the window list has settled). */
+    fun kick() {
+        if (!running || hasSecond == false) return
+        svc.ui.removeCallbacks(kickNow)
+        svc.ui.postDelayed(kickNow, 120)
+    }
+
+    private val kickNow = Runnable { check() }
 
     private fun second(): Boolean = hasSecond ?: (Displays.second(svc) != null).also { hasSecond = it }
 
     private val tick = object : Runnable {
         override fun run() {
             if (!running) return
-            val awake = svc.getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
-            val fg = svc.foregroundPkg
-            if (!svc.prefs.dualMedia || !second() || !awake || svc.homeInFront || fg == null) {
-                hide()
-                svc.ui.postDelayed(this, 2000)
-                return
-            }
-            thread {
-                runCatching { Media.refresh(svc) }
-                svc.ui.post { if (running) update(fg) }
-            }
-            svc.ui.postDelayed(this, if (view != null) 1000 else 2000)
+            check()
+            svc.ui.removeCallbacks(this)
+            svc.ui.postDelayed(this, if (view != null) 1000 else 1200)
+        }
+    }
+
+    /** The app in front on the top screen, or null on the home screen. */
+    private fun topApp(): String? {
+        if (android.os.Build.VERSION.SDK_INT < 30) return svc.foregroundPkg
+        val wins = runCatching { svc.windowsOnAllDisplays.get(Display.DEFAULT_DISPLAY) }.getOrNull() ?: return top
+        val app = wins.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION } ?: return top
+        val pkg = runCatching { app.root?.packageName?.toString() }.getOrNull() ?: return top
+        // Hugminn's own pause screen (switcher) lies over the app: keep the app
+        if (pkg == svc.packageName) return top
+        return if (Apps.isHome(svc, pkg)) null else pkg
+    }
+
+    private fun check() {
+        val awake = svc.getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
+        if (!svc.prefs.dualMedia || !second() || !awake) { hide(); return }
+        top = topApp()
+        val fg = top
+        if (fg == null) { hide(); diag = "oben: Startbildschirm"; return }
+        if (busy) return
+        busy = true
+        thread {
+            runCatching { Media.refresh(svc, prefer = fg) }
+            busy = false
+            svc.ui.post { if (running) update(fg) }
         }
     }
 
     private fun keyOf() = "${Media.app}|${Media.title}"
 
     private fun update(fg: String) {
-        // the app in front is the one with the music/video (playing or paused)
-        val wanted = Media.title != null && Media.app == fg && svc.foregroundPkg == fg && !svc.homeInFront
+        val wanted = Media.title != null && Media.app == fg && top == fg
+        diag = "oben=$fg · Sitzung=${Media.app} · spielt=${Media.playing} · sichtbar=$wanted"
         if (!wanted) { hide(); return }
-        val key = keyOf()
-        if (dismissed != null && dismissed != key) dismissed = null
-        if (dismissed == key) { hide(); return }
         // the switcher's own second-screen view must stay on top while it is open
         if (view == null && (svc.anySwitcherOpen || !show())) return
-        if (key + "|" + Media.art?.generationId != shownKey) render() else refreshParts()
+        if (keyOf() + "|" + Media.art?.generationId != shownKey) render() else refreshParts()
+        youtubeControls(fg)
     }
 
     private fun show(): Boolean {
@@ -107,6 +150,7 @@ class DualMedia(private val svc: HugminnService) {
         val v = view ?: return
         view = null
         shownKey = null
+        dragging = false
         runCatching { wm?.removeViewImmediate(v) }
         wm = null
     }
@@ -114,7 +158,22 @@ class DualMedia(private val svc: HugminnService) {
     private fun isVideo(pkg: String?) = pkg != null &&
         Regex("youtube|newpipe|vlc|video|player|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll", RegexOption.IGNORE_CASE).containsMatchIn(pkg)
 
-    private fun text(s: String, sp: Float, color: Int, pal: Palette, bold: Boolean = false, lines: Int = 1) = TextView(svc).apply {
+    // ---------- feel ----------
+
+    /** A short click from the motor (works even with touch vibration off in Android). */
+    private fun buzz(strong: Boolean = false) {
+        runCatching {
+            val vib = if (android.os.Build.VERSION.SDK_INT >= 31)
+                svc.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+            else @Suppress("DEPRECATION") svc.getSystemService(android.os.Vibrator::class.java)
+            vib?.vibrate(android.os.VibrationEffect.createPredefined(
+                if (strong) android.os.VibrationEffect.EFFECT_HEAVY_CLICK else android.os.VibrationEffect.EFFECT_CLICK))
+        }
+    }
+
+    // ---------- the view ----------
+
+    private fun text(s: String, sp: Float, color: Int, bold: Boolean = false, lines: Int = 1) = TextView(svc).apply {
         text = s
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
         setTextColor(color)
@@ -124,6 +183,7 @@ class DualMedia(private val svc: HugminnService) {
         gravity = Gravity.CENTER_HORIZONTAL
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private fun render() {
         val v = view ?: return
         v.removeAllViews()
@@ -138,15 +198,11 @@ class DualMedia(private val svc: HugminnService) {
         val video = isVideo(pkg)
         shownKey = keyOf() + "|" + Media.art?.generationId
 
-        // top: the app, and × to put the player away (until something else plays)
+        // top: the app
         val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
         head.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, pkg)) }, LinearLayout.LayoutParams(svc.dp(28), svc.dp(28)))
-        head.addView(text(pkg?.let { Apps.label(svc, it) } ?: "", 15f, onGround, pal).apply { gravity = Gravity.START; setPadding(svc.dp(10), 0, 0, 0) },
+        head.addView(text(pkg?.let { Apps.label(svc, it) } ?: "", 15f, onGround).apply { gravity = Gravity.START; setPadding(svc.dp(10), 0, 0, 0) },
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        head.addView(text("×", 26f, onGround, pal).apply {
-            setPadding(svc.dp(14), 0, svc.dp(4), 0)
-            setOnClickListener { dismissed = keyOf(); hide() }
-        })
         v.addView(head, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
@@ -159,21 +215,44 @@ class DualMedia(private val svc: HugminnService) {
             }
         }
         if (!video) v.addView(c, LinearLayout.LayoutParams(svc.dp(170), svc.dp(170)).apply { bottomMargin = svc.dp(16) })
-        val s = text("", if (video) 22f else 21f, pal.onSurface, pal, bold = true, lines = if (video) 3 else 2)
-        val w = text("", 15f, onGround, pal)
+        val s = text("", if (video) 22f else 21f, pal.onSurface, bold = true, lines = if (video) 3 else 2)
+        val w = text("", 15f, onGround)
         v.addView(s, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         if (!video) v.addView(w, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(4) })
         v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
 
-        // progress in the accent colour, with the time
+        // progress in the accent colour – touch or drag it to jump
+        val seek = FrameLayout(svc)
         val track = LinearLayout(svc).apply { background = rounded(pal.surfaceHighest, svc.dp(3).toFloat()) }
         val done = View(svc).apply { background = rounded(pal.primary, svc.dp(3).toFloat()) }
         val left = View(svc)
         track.addView(done, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0f))
         track.addView(left, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
-        v.addView(track, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, svc.dp(6)))
-        val tm = text("", 12f, onGround, pal).apply { gravity = Gravity.END }
-        v.addView(tm, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(4) })
+        seek.addView(track, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, svc.dp(6), Gravity.CENTER_VERTICAL))
+        val knob = View(svc).apply { background = rounded(pal.primary, svc.dp(9).toFloat(), svc.dp(2), pal.onPrimary) }
+        seek.addView(knob, FrameLayout.LayoutParams(svc.dp(18), svc.dp(18), Gravity.CENTER_VERTICAL or Gravity.START))
+        v.addView(seek, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, svc.dp(36)))
+        val tm = text("", 13f, onGround).apply { gravity = Gravity.END }
+        v.addView(tm, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        seek.setOnTouchListener { sv, e ->
+            val dur = Media.duration
+            if (dur <= 0) return@setOnTouchListener false
+            val f = (e.x / sv.width.coerceAtLeast(1)).coerceIn(0f, 1f)
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { dragging = true; buzz(); showProgress(f, (f * dur).toLong(), dur) }
+                MotionEvent.ACTION_MOVE -> showProgress(f, (f * dur).toLong(), dur)
+                MotionEvent.ACTION_UP -> {
+                    dragging = false
+                    val ms = (f * dur).toLong()
+                    showProgress(f, ms, dur)
+                    buzz(strong = true)
+                    pressedAt = SystemClock.uptimeMillis()
+                    Media.app?.let { p -> thread { Media.seek(svc, p, ms) } }
+                }
+                MotionEvent.ACTION_CANCEL -> { dragging = false; refreshParts() }
+            }
+            true
+        }
 
         // buttons, big enough for a finger
         val ctrl = LinearLayout(svc).apply { gravity = Gravity.CENTER }
@@ -193,20 +272,36 @@ class DualMedia(private val svc: HugminnService) {
         val pa = IconView(svc, IconView.Kind.PAUSE, 28).styled(pal, px).apply { setColor(pal.onPrimary) }
         pb.addView(pl, center()); pb.addView(pa, center())
         btn(KeyEvent.KEYCODE_MEDIA_NEXT, false).addView(IconView(svc, IconView.Kind.NEXT, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
-        v.addView(ctrl, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(14) })
+        v.addView(ctrl, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(12) })
 
-        play = pl; pause = pa; bar = done; rest = left; song = s; who = w; cover = c; time = tm
+        play = pl; pause = pa; bar = done; rest = left; thumb = knob; song = s; who = w; cover = c; time = tm
         refreshParts()
+        // the knob needs the bar's width: place it once laid out
+        seek.post { refreshParts() }
     }
 
     private fun press(code: Int) {
+        buzz()
+        pressedAt = SystemClock.uptimeMillis()
         Media.key(svc, code)
-        svc.ui.postDelayed({ thread { runCatching { Media.refresh(svc) }; svc.ui.post { if (view != null) refreshParts() } } }, 350)
+        svc.ui.postDelayed({ thread { runCatching { Media.refresh(svc, prefer = top) }; svc.ui.post { if (view != null) refreshParts() } } }, 350)
     }
 
     private fun clock(ms: Long): String {
         val s = ms / 1000
         return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s / 60 % 60, s % 60) else "%d:%02d".format(s / 60, s % 60)
+    }
+
+    private fun showProgress(f: Float, pos: Long, dur: Long) {
+        (bar?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = f; bar?.layoutParams = it }
+        (rest?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = 1f - f; rest?.layoutParams = it }
+        thumb?.let { k ->
+            val parent = k.parent as? View
+            val w = (parent?.width ?: 0) - k.width
+            k.translationX = if (w > 0) f * w else 0f
+            k.visibility = if (dur > 0) View.VISIBLE else View.INVISIBLE
+        }
+        time?.text = if (dur > 0 && pos >= 0) "${clock(pos.coerceAtMost(dur))} / ${clock(dur)}" else ""
     }
 
     /** The parts that move: play/pause, progress, time, title, cover. */
@@ -218,11 +313,53 @@ class DualMedia(private val svc: HugminnService) {
         who?.text = Media.artist?.takeIf { Media.song != null } ?: ""
         val art = Media.art
         if (art != null) cover?.setImageBitmap(art) else cover?.setImageDrawable(Apps.icon(svc, Media.app))
+        if (dragging) return
         val dur = Media.duration
         val pos = Media.positionNow()
         val f = if (dur > 0 && pos >= 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
-        (bar?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = f; bar?.layoutParams = it }
-        (rest?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = 1f - f; rest?.layoutParams = it }
-        time?.text = if (dur > 0 && pos >= 0) "${clock(pos.coerceAtMost(dur))} / ${clock(dur)}" else ""
+        showProgress(f, pos, dur)
+    }
+
+    // ---------- YouTube: its controls stay on screen ----------
+
+    private var pressedAt = 0L
+    private var controlsSince = 0L
+
+    /**
+     * YouTube leaves its controls over the video while it is controlled from the other screen.
+     * When they have stood there for a few seconds while the video plays, one tap on an empty spot
+     * of the player puts them away, as a finger would.
+     */
+    private fun youtubeControls(fg: String) {
+        if (!fg.contains("youtube") || !Media.playing || android.os.Build.VERSION.SDK_INT < 30) { controlsSince = 0; return }
+        val root = runCatching {
+            svc.windowsOnAllDisplays.get(Display.DEFAULT_DISPLAY)?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }?.root
+        }.getOrNull() ?: return
+        val btn = runCatching { root.findAccessibilityNodeInfosByViewId("$fg:id/player_control_play_pause_replay_button") }.getOrNull()
+            ?.firstOrNull { it.isVisibleToUser }
+        diag += " · YouTube-Tasten sichtbar=${btn != null}"
+        if (btn == null) { controlsSince = 0; return }
+        val now = SystemClock.uptimeMillis()
+        if (controlsSince == 0L) { controlsSince = now; return }
+        if (now - controlsSince < 3500 || now - pressedAt < 3000) return
+        // the player: the first parent clearly bigger than the play button
+        val b = Rect().also { btn.getBoundsInScreen(it) }
+        var area = Rect(b)
+        var n: AccessibilityNodeInfo? = btn.parent
+        while (n != null) {
+            val r = Rect().also { n!!.getBoundsInScreen(it) }
+            if (r.width() >= b.width() * 4 && r.height() >= b.height() * 2) { area = r; break }
+            n = n.parent
+        }
+        if (area.width() < b.width() * 4) return
+        // left edge, a bit above the middle: no button there (a single tap only toggles the controls)
+        val x = area.left + area.width() * 0.08f
+        val y = area.top + area.height() * 0.4f
+        val path = android.graphics.Path().apply { moveTo(x, y) }
+        val g = android.accessibilityservice.GestureDescription.Builder()
+            .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 40)).build()
+        controlsSince = 0
+        diag += " · YouTube-Tasten weggetippt bei ${x.toInt()},${y.toInt()}"
+        runCatching { svc.dispatchGesture(g, null, null) }
     }
 }

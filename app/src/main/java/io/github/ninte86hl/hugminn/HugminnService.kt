@@ -233,6 +233,7 @@ class HugminnService : AccessibilityService() {
                 homeInFront = true
             }
         }
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) dualMedia?.kick()
         if (event.packageName?.toString() == foregroundPkg) appEventAt = SystemClock.uptimeMillis()
         if (::switcher.isInitialized) try {
             switcher.onEvent(event)
