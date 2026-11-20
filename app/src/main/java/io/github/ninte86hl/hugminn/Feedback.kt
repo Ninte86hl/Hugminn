@@ -263,6 +263,20 @@ object Feedback {
             Root.exec("getprop | grep -iE 'gamepad|handle|controller|joy|abxy' 2>/dev/null")?.lines()?.filter { it.isNotBlank() }?.forEach { lines += "  prop $it" }
             if (lines.isNotEmpty()) { appendLine(); appendLine("Controller-Einstellungen:"); lines.forEach { appendLine(it) } }
         }
+        // every firmware setting (to find unknown switches by comparing a log before and after changing them)
+        runCatching {
+            val all = mutableListOf<String>()
+            for ((tbl, uri) in listOf("system" to android.provider.Settings.System.CONTENT_URI, "global" to android.provider.Settings.Global.CONTENT_URI, "secure" to android.provider.Settings.Secure.CONTENT_URI)) {
+                runCatching {
+                    svc.contentResolver.query(uri, arrayOf("name", "value"), null, null, null)?.use { c ->
+                        while (c.moveToNext()) all += "  $tbl/${c.getString(0)} = ${c.getString(1)?.take(120)}"
+                    }
+                }
+            }
+            Root.exec("getprop | grep -iE 'odin|ayn|trig|hall|joy|gamepad|key' 2>/dev/null", 4_000)?.lines()?.filter { it.isNotBlank() }?.forEach { all += "  prop $it" }
+            Root.exec("grep -E '^N: Name|^H: Handlers' /proc/bus/input/devices 2>/dev/null", 3_000)?.lines()?.filter { it.isNotBlank() }?.forEach { all += "  input ${it.trim()}" }
+            if (all.isNotEmpty()) { appendLine(); appendLine("Alle Einstellungen (${all.size}):"); all.sorted().forEach { appendLine(it) } }
+        }
         runCatching { svc.own.diag + svc.own.removeDiag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
         appendLine(); appendLine("Spieltitel: ${GameTitle.titles}"); if (GameTitle.diag.isNotEmpty()) appendLine(GameTitle.diag)
         appendLine(); appendLine("Musik: Listener ${Media.listenerInfo} · spielt=${Media.playing} · app=${Media.app} · titel=${Media.title} · cover=${Media.art != null}"); if (Media.diag.isNotEmpty()) appendLine(Media.diag)
