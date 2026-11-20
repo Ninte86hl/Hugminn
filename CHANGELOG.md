@@ -7,10 +7,12 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 ### 🇬🇧 English
 - Device test: lists further screens (dual-screen handhelds like the AYN Thor) – the groundwork for dual-screen support.
 - AYN handhelds: the built-in "Odin Controller" is recognised as the handheld's own controls, not as an external controller.
+- AYN handhelds: the trigger mode tile (digital, analog or both) also shows before the mode was ever changed in AYN's settings.
 
 ### 🇩🇪 Deutsch
 - Gerätetest: zeigt weitere Bildschirme an (Dual-Screen-Handhelds wie der AYN Thor) – die Grundlage für die Dual-Screen-Unterstützung.
 - AYN-Handhelds: Der eingebaute „Odin Controller“ wird als eigene Steuerung des Geräts erkannt, nicht als externer Controller.
+- AYN-Handhelds: Die Kachel Trigger-Modus (digital, analog oder beides) erscheint auch, wenn der Modus in AYNs Einstellungen noch nie umgestellt wurde.
 
 ## 1.13.0
 

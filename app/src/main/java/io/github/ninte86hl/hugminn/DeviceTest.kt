@@ -249,7 +249,7 @@ object DeviceReport {
             if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != 0) t("Wird bei der ersten Aufnahme erteilt", "Granted on the first recording") else "")
 
         // the handheld's own settings
-        val fw = t("Retroid-Funktionen", "Retroid features")
+        val fw = if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features")
         listOf(
             "performance_mode" to t("Leistungsprofile", "Performance profiles"),
             "fan_mode" to t("Lüfterprofile", "Fan profiles"),
@@ -259,7 +259,12 @@ object DeviceReport {
             "is_charging_separation" to t("Direkte Stromversorgung", "Charging separation"),
         ).forEach { (key, name) ->
             val v = Device.sys(this, key)
-            add(fw, name, if (v != null) CheckState.OK else CheckState.FAIL, if (v != null) "$key = $v" else t("Einstellung fehlt – Kachel wird ausgeblendet", "Setting missing – the tile is hidden"))
+            when {
+                v != null -> add(fw, name, CheckState.OK, "$key = $v")
+                // AYN writes the trigger mode only after it was changed once: the tile still works
+                Device.lazySetting(key) -> add(fw, name, CheckState.OK, t("noch nie umgestellt – Standard", "never changed yet – default"))
+                else -> add(fw, name, CheckState.FAIL, t("Einstellung fehlt – Kachel wird ausgeblendet", "Setting missing – the tile is hidden"))
+            }
         }
         val ledDrv = root && Root.exec("test -e /sys/class/sn3112l/led/brightness && test -e /sys/class/sn3112r/led/brightness && echo yes")?.contains("yes") == true
         add(fw, t("LED-Treiber (Effekte)", "LED driver (effects)"), if (ledDrv) CheckState.OK else CheckState.WARN, if (!ledDrv) t("Effekte und Aufnahme-Pulsieren nicht möglich", "Effects and recording pulse not possible") else "sn3112")

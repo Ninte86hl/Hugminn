@@ -66,8 +66,17 @@ object Device {
     private fun builtinPad(d: android.view.InputDevice) =
         d.name.contains("Retroid", true) || (d.vendorId == 0x2022 && d.productId == 0x3002) || d.name.contains("Odin Controller", true)
 
+    /** AYN handhelds (Thor, Odin 2 family): same firmware settings as Retroid, plus their own quirks. */
+    val isAyn get() = android.os.Build.MANUFACTURER.equals("AYN", true)
+
+    /**
+     * Firmware settings that exist on the device but are only written once they were changed (AYN's
+     * trigger mode): until then the tile shows "Standard" instead of being hidden.
+     */
+    fun lazySetting(key: String) = isAyn && key == "trigger_input_mode"
+
     fun profileLabel(ctx: Context, key: String, table: Map<String, String>): String {
-        val v = sys(ctx, key) ?: return "–"
+        val v = sys(ctx, key) ?: return if (lazySetting(key)) t("Standard", "Default") else "–"
         return table[v] ?: t("Profil $v", "Profile $v")
     }
 
