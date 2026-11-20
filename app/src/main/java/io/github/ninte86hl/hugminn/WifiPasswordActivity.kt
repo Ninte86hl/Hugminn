@@ -97,7 +97,7 @@ class WifiPasswordActivity : Activity() {
         input.setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_DONE) { connect(); true } else false }
         buttons.addView(button(tr("Abbrechen"), false) { finish() })
         buttons.addView(View(this), LinearLayout.LayoutParams(dp(10), 1))
-        buttons.addView(button("Verbinden", true) { connect() })
+        buttons.addView(button(tr("Verbinden"), true) { connect() })
         box.addView(buttons, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // Hugminn's own keyboard in the chosen style (the system keyboard stays hidden)
