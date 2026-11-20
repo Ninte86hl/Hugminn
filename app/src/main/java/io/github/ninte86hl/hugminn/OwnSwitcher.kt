@@ -615,7 +615,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         // dual screen: name, hints and shortcuts move to the second screen, the cards get the room
         if (openLower()) {
             (c.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = svc.dp(16); c.layoutParams = it }
-            c.wide = 0.64f
+            c.wide = 0.66f
+            c.tall = 0.80f
         }
         c.set(apps, sel, animate = false)
         renderBar()
@@ -1052,10 +1053,47 @@ class OwnSwitcher(private val svc: HugminnService) {
         private fun shape(r: RectF): Path = if (pixel) pixelPath(r, unit, 3) else Path().apply { addRoundRect(r, radius, radius, Path.Direction.CW) }
 
         /** Card frame of item [i] for the current scroll position. */
+        /** Height share of the cards: taller when the bar sits on a second screen. */
+        var tall = 0.70f
+
+        /**
+         * The picture inside a preview without black bars (letterbox/pillarbox), so a 4:3 or 8:7 game
+         * gets a card in its own shape. Measured once per preview.
+         */
+        private val content = java.util.WeakHashMap<Bitmap, Rect>()
+
+        private fun contentOf(b: Bitmap): Rect = content.getOrPut(b) {
+            fun dark(c: Int) = (android.graphics.Color.red(c) + android.graphics.Color.green(c) + android.graphics.Color.blue(c)) < 3 * 22
+            // a line is a bar when (almost) every sample on it is near black
+            fun rowDark(y: Int): Boolean { var n = 0; for (k in 0 until 24) if (dark(b.getPixel((b.width * (k + 0.5f) / 24).toInt(), y))) n++; return n >= 22 }
+            fun colDark(x: Int): Boolean { var n = 0; for (k in 0 until 24) if (dark(b.getPixel(x, (b.height * (k + 0.5f) / 24).toInt()))) n++; return n >= 22 }
+            runCatching {
+                var l = 0; var r = b.width - 1; var t = 0; var btm = b.height - 1
+                val maxX = (b.width * 0.3f).toInt(); val maxY = (b.height * 0.3f).toInt()
+                while (l < maxX && colDark(l)) l++
+                while (r > b.width - 1 - maxX && colDark(r)) r--
+                while (t < maxY && rowDark(t)) t++
+                while (btm > b.height - 1 - maxY && rowDark(btm)) btm--
+                if (r - l < b.width / 3 || btm - t < b.height / 3) Rect(0, 0, b.width, b.height) else Rect(l, t, r + 1, btm + 1)
+            }.getOrDefault(Rect(0, 0, b.width, b.height))
+        }
+
+        /** Shape of a card: the game's own (snapped to 1:1, 8:7, 4:3, 3:2 or 16:9), else 16:9. */
+        private fun aspectOf(i: Int): Float {
+            val shot = apps.getOrNull(i)?.let { Snapshots.get(context, it.pkg) } ?: return 16f / 9f
+            val c = contentOf(shot)
+            val a = (c.width().toFloat() / c.height().coerceAtLeast(1)).coerceIn(1f, 16f / 9f)
+            return floatArrayOf(1f, 8f / 7f, 4f / 3f, 3f / 2f, 16f / 9f).minByOrNull { abs(it - a) }!!.let { if (abs(it - a) / it < 0.05f) it else a }
+        }
+
         private fun frame(i: Int): Pair<RectF, Float> {
-            val h = height * 0.70f
+            val h = height * tall
+            // the slot every card sits in: 16:9, as wide as allowed
             val w = min(h * 16f / 9f, width * wide)
-            val ch = w * 9f / 16f
+            // the card in the game's own shape: narrower shapes may use the full height
+            val a = aspectOf(i)
+            val cw = min(w, h * a)
+            val ch = cw / a
             val gap = context.dp(22).toFloat()
             val d = i - pos
             val ad = abs(d)
@@ -1067,7 +1105,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             val off = if (ad <= 1f) ad * first else first + (ad - 1f) * next
             val cx = width / 2f + Math.signum(d) * off
             val cy = height * 0.47f
-            return RectF(cx - w * scale / 2f, cy - ch * scale / 2f, cx + w * scale / 2f, cy + ch * scale / 2f) to scale
+            return RectF(cx - cw * scale / 2f, cy - ch * scale / 2f, cx + cw * scale / 2f, cy + ch * scale / 2f) to scale
         }
 
         override fun onDraw(c: Canvas) {
@@ -1089,15 +1127,16 @@ class OwnSwitcher(private val svc: HugminnService) {
                 c.save()
                 c.clipPath(path)
                 if (shot != null) {
-                    // centre crop into the card
-                    val sr = shot.width / shot.height.toFloat()
+                    // the picture without black bars, centre-cropped into the card
+                    val cr = contentOf(shot)
+                    val sr = cr.width() / cr.height().toFloat()
                     val rr = r.width() / r.height()
                     val src = if (sr > rr) {
-                        val w = shot.height * rr
-                        Rect(((shot.width - w) / 2).toInt(), 0, ((shot.width + w) / 2).toInt(), shot.height)
+                        val w = cr.height() * rr
+                        Rect((cr.centerX() - w / 2).toInt(), cr.top, (cr.centerX() + w / 2).toInt(), cr.bottom)
                     } else {
-                        val h = shot.width / rr
-                        Rect(0, ((shot.height - h) / 2).toInt(), shot.width, ((shot.height + h) / 2).toInt())
+                        val h = cr.width() / rr
+                        Rect(cr.left, (cr.centerY() - h / 2).toInt(), cr.right, (cr.centerY() + h / 2).toInt())
                     }
                     c.drawBitmap(shot, src, r, bmpPaint)
                 } else {
@@ -1146,7 +1185,7 @@ class OwnSwitcher(private val svc: HugminnService) {
 
         /** Distance between two neighbouring cards (for dragging). */
         private fun pitch(): Float {
-            val h = height * 0.70f
+            val h = height * tall
             val w = min(h * 16f / 9f, width * wide)
             return w * 0.66f + context.dp(22)
         }
