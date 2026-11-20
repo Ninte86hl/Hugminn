@@ -2,7 +2,7 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
-## 1.12.1 (in testing)
+## 1.12.1
 - Capture: the stick LEDs pulse red while recording even when they are switched off – they go on just for the recording and off again afterwards.
 - Aufnahme: Die Stick-LEDs pulsieren während der Aufnahme auch dann rot, wenn sie ausgeschaltet sind – sie gehen nur für die Aufnahme an und danach wieder aus.
 

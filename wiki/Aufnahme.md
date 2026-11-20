@@ -19,7 +19,7 @@ Zwei Reiter, gewechselt mit **L1 / R1**; Werte ändern sich mit **◀ ▶** auf 
 | | Bildrate | 60, 30 FPS |
 | | Maximale Länge | Unbegrenzt, 5 s, 10 s, 15 s, 30 s, 1, 3, 5, 10 min – das Video endet und speichert sich selbst |
 | Ton | Aufnehmen | Spielton · Spielton + Mikrofon · Nur Mikrofon · Kein Ton |
-| Während der Aufnahme | Anzeige | Stick-LEDs pulsieren rot · roter Punkt mit Zeit · beides · nichts |
+| Während der Aufnahme | Anzeige | Stick-LEDs pulsieren rot (auch wenn sie ausgeschaltet sind – sie gehen nur für die Aufnahme an) · roter Punkt mit Zeit · beides · nichts |
 | | Bildschirm aus speichert das Video | an/aus – Bildschirm aus beendet und speichert sauber |
 | Letzte Sekunden | Mitschneiden | nimmt ständig im Hintergrund auf und behält nur die letzten 15/30/60 s |
 | | Länge des Clips | 15, 30, 60 s |

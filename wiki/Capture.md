@@ -19,7 +19,7 @@ Two tabs, switched with **L1 / R1**; values change with **◀ ▶** on the D-pad
 | | Frame rate | 60, 30 FPS |
 | | Maximum length | No limit, 5 s, 10 s, 15 s, 30 s, 1, 3, 5, 10 min – the video stops and saves itself |
 | Sound | Record | Game sound · Game sound + microphone · Microphone only · No sound |
-| While recording | Indicator | Stick LEDs pulse red · red dot with time on screen · both · nothing |
+| While recording | Indicator | Stick LEDs pulse red (even when they are switched off – they go on just for the recording) · red dot with time on screen · both · nothing |
 | | Screen off saves the video | on/off – turning the screen off stops and saves cleanly |
 | Last seconds | Keep recording | records in the background all the time and keeps only the last 15/30/60 s |
 | | Clip length | 15, 30, 60 s |
