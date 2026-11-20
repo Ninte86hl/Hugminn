@@ -614,9 +614,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         bar = b
         // dual screen: name, hints and shortcuts move to the second screen, the cards get the room
         if (openLower()) {
-            (c.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = svc.dp(16); c.layoutParams = it }
-            c.wide = 0.66f
-            c.tall = 0.80f
+            // room for the small hint capsule at the bottom; 16:9 a bit narrower, so the corner marks fit
+            (c.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = svc.dp(58); c.layoutParams = it }
+            c.wide = 0.60f
+            c.tall = 0.84f
         }
         c.set(apps, sel, animate = false)
         renderBar()
@@ -805,7 +806,12 @@ class OwnSwitcher(private val svc: HugminnService) {
         (mediaRest?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = 1f - f; mediaRest?.layoutParams = it }
     }
 
-    /** The second screen: the selected app big, the game, the button hints and the emulator's shortcuts. */
+    /**
+     * The second screen – "look up top, operate down here":
+     * top: the app's icon, name, game and "2 of 3"; middle: the player (when this app plays) or the
+     * emulator's shortcuts; bottom: the pin, in a field of its own, only as big as it needs.
+     * The button hints stay small on the top screen.
+     */
     private fun renderLower() {
         val v = lower ?: return
         v.removeAllViews()
@@ -813,80 +819,77 @@ class OwnSwitcher(private val svc: HugminnService) {
         val m = menu
         val picture = Backdrop.active(svc)
         val onGround = if (picture) pal.onSurface else pal.onSurfaceVariant
-        // with music playing the screen gets tight: the name goes, the app's icon gets smaller
-        val busy = mediaWanted() && m == null
-        if (!busy) v.addView(text("Muninn", 18f, 0xFF2F7DF0.toInt(), bold = true).apply { setPadding(0, 0, 0, svc.dp(14)) })
+        mediaCard = null
         if (a == null) {
+            v.addView(text("Muninn", 18f, 0xFF2F7DF0.toInt(), bold = true).apply { setPadding(0, 0, 0, svc.dp(14)) })
             v.addView(text(tr("Keine offenen Apps"), 24f, pal.onSurface, bold = true))
             v.addView(text(tr("Starte ein Spiel, dann taucht es hier auf"), 15f, onGround))
-        } else {
-            val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-            head.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, a.pkg)) }, LinearLayout.LayoutParams(svc.dp(if (busy) 56 else 72), svc.dp(if (busy) 56 else 72)))
-            head.addView(LinearLayout(svc).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(svc.dp(18), 0, 0, 0)
-                addView(text(Apps.label(svc, a.pkg), if (busy) 22f else 26f, pal.onSurface, bold = true))
-                GameTitle.titles[a.pkg]?.let { addView(text(it, 17f, pal.onSurface)) }
-                addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}") +
-                    if (Hotkeys.isPinned(svc, a.pkg)) t(" · angeheftet", " · pinned") else "", 14f, onGround))
-            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            v.addView(head)
-            mediaCardInto(v)
-            // the emulator's shortcuts, always in view here instead of a card on top (only for emulators)
+            v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
+            return
+        }
+        // --- top: the app
+        val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+        head.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, a.pkg)) }, LinearLayout.LayoutParams(svc.dp(64), svc.dp(64)))
+        head.addView(LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(svc.dp(16), 0, 0, 0)
+            addView(text(Apps.label(svc, a.pkg), 24f, pal.onSurface, bold = true))
+            GameTitle.titles[a.pkg]?.let { addView(text(it, 16f, pal.onSurface)) }
+            addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}"), 14f, onGround))
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        v.addView(head)
+        // --- middle: the player when this app plays, otherwise the emulator's shortcuts
+        val middle = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
+        if (m == null) mediaCardInto(middle)
+        if (mediaCard == null && m == null) {
             val emu = Apps.typeOf(a.pkg) != AppType.APP
             val keys = if (emu) runCatching { Hotkeys.list(svc, a.pkg) }.getOrDefault(emptyList()) else emptyList()
-            if (m == null && keys.isNotEmpty()) {
-                val card = LinearLayout(svc).apply {
-                    orientation = LinearLayout.VERTICAL
-                    // a card made like the tiles (standard, OLED black or glass)
-                    background = Look.shape(svc, Look.pixel(svc), pal.tile, svc.dp(22).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
-                    setPadding(svc.dp(16), svc.dp(10), svc.dp(12), svc.dp(8))
-                }
-                card.addView(text(t("Tastenkürzel", "Shortcuts"), 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, 0, svc.dp(4)) })
-                // many shortcuts: two columns, so none are cut off on the shorter screen
-                val two = keys.size > 5
-                val cols = LinearLayout(svc)
-                val columns = if (two) listOf(keys.take((keys.size + 1) / 2), keys.drop((keys.size + 1) / 2)) else listOf(keys)
-                columns.forEach { part ->
-                    val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-                    for ((act, combo) in part) {
-                        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, svc.dp(2), svc.dp(6), svc.dp(2)) }
-                        val chips = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-                        combo.forEachIndexed { i, k ->
-                            if (i > 0) chips.addView(text(if (k == KeyEvent.KEYCODE_DPAD_RIGHT) "/" else "+", 12f, onGround).apply { setPadding(svc.dp(3), 0, svc.dp(3), 0) })
-                            chips.addView(Glyphs.chip(svc, svc.prefs, pal, k, if (two) 20 else 22))
-                        }
-                        row.addView(chips, LinearLayout.LayoutParams(svc.dp(if (two) 96 else 130), LinearLayout.LayoutParams.WRAP_CONTENT))
-                        row.addView(text(act.label, if (two) 12f else 14f, pal.onSurface).apply { maxLines = 2 }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-                        col.addView(row)
-                    }
-                    cols.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-                }
-                card.addView(cols)
-                v.addView(card, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = svc.dp(14) })
-            } else v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
+            if (keys.isNotEmpty()) middle.addView(shortcutCard(keys, onGround), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         }
-        if (a == null) { mediaCardInto(v); v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f)) }
-        // the button hints, in two rows so they fit the narrower screen
-        val hints = when {
-            m != null -> listOf(KeyEvent.KEYCODE_BUTTON_A to tr("Ausführen"), KeyEvent.KEYCODE_BUTTON_B to tr("Zurück"))
-            a == null -> listOf(KeyEvent.KEYCODE_BUTTON_B to tr("Zurück"))
-            else -> listOfNotNull(
-                if (apps.size > 1) KeyEvent.KEYCODE_DPAD_LEFT to tr("Wechseln") else null,
-                KeyEvent.KEYCODE_BUTTON_A to tr("Öffnen"), KeyEvent.KEYCODE_BUTTON_X to tr("Schließen"),
-                KeyEvent.KEYCODE_BUTTON_Y to tr("Optionen"), KeyEvent.KEYCODE_BUTTON_B to tr("Zurück"),
-            )
+        v.addView(middle, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = svc.dp(12); bottomMargin = svc.dp(12) })
+        // --- bottom: the pin, a field of its own (tap to pin or unpin; Y → options does the same)
+        val pinned = Hotkeys.isPinned(svc, a.pkg)
+        val pin = LinearLayout(svc).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            background = Look.shape(svc, Look.pixel(svc), if (pinned) pal.primaryContainer else pal.tile, svc.dp(18).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+            setPadding(svc.dp(14), svc.dp(8), svc.dp(16), svc.dp(8))
+            addView(IconView(svc, IconView.Kind.PIN, 18).styled(pal, Look.pixel(svc)).apply { setColor(if (pinned) pal.onPrimaryContainer else pal.onSurface) },
+                LinearLayout.LayoutParams(svc.dp(20), svc.dp(20)))
+            addView(text(if (pinned) t("Angeheftet – bleibt im Switcher", "Pinned – stays in the switcher") else t("Anheften", "Pin"), 14f,
+                if (pinned) pal.onPrimaryContainer else pal.onSurface, bold = pinned).apply { setPadding(svc.dp(10), 0, 0, 0) })
+            setOnClickListener { Hotkeys.setPinned(svc, a.pkg, !pinned); renderBar() }
         }
-        val box = LinearLayout(svc).apply {
+        v.addView(pin, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+    }
+
+    /** The emulator's shortcuts as a card made like the tiles; two columns when there are many. */
+    private fun shortcutCard(keys: List<Pair<Hotkeys.Act, IntArray>>, onGround: Int): View {
+        val card = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
-            if (picture) { background = Look.capsule(svc, pal); setPadding(svc.dp(18), svc.dp(8), svc.dp(6), svc.dp(8)) }
+            background = Look.shape(svc, Look.pixel(svc), pal.tile, svc.dp(22).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+            setPadding(svc.dp(16), svc.dp(10), svc.dp(12), svc.dp(8))
         }
-        hints.chunked(3).forEach { part ->
-            val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, svc.dp(4), 0, svc.dp(4)) }
-            part.forEach { (k, l) -> row.addView(hint(k, l)) }
-            box.addView(row)
+        card.addView(text(t("Tastenkürzel", "Shortcuts"), 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, 0, svc.dp(4)) })
+        val two = keys.size > 5
+        val cols = LinearLayout(svc)
+        val columns = if (two) listOf(keys.take((keys.size + 1) / 2), keys.drop((keys.size + 1) / 2)) else listOf(keys)
+        columns.forEach { part ->
+            val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+            for ((act, combo) in part) {
+                val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, svc.dp(2), svc.dp(6), svc.dp(2)) }
+                val chips = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+                combo.forEachIndexed { i, k ->
+                    if (i > 0) chips.addView(text(if (k == KeyEvent.KEYCODE_DPAD_RIGHT) "/" else "+", 12f, onGround).apply { setPadding(svc.dp(3), 0, svc.dp(3), 0) })
+                    chips.addView(Glyphs.chip(svc, svc.prefs, pal, k, if (two) 20 else 22))
+                }
+                row.addView(chips, LinearLayout.LayoutParams(svc.dp(if (two) 96 else 130), LinearLayout.LayoutParams.WRAP_CONTENT))
+                row.addView(text(act.label, if (two) 12f else 14f, pal.onSurface).apply { maxLines = 2 }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                col.addView(row)
+            }
+            cols.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
-        v.addView(box, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(14) })
+        card.addView(cols)
+        return card
     }
 
     private fun text(s: String, sizeSp: Float, color: Int, bold: Boolean = false) = TextView(svc).apply {
@@ -898,12 +901,20 @@ class OwnSwitcher(private val svc: HugminnService) {
         ellipsize = TextUtils.TruncateAt.END
     }
 
-    private fun hint(key: Int, label: String) = LinearLayout(svc).apply {
+    private fun hint(key: Int, label: String, small: Boolean = false) = LinearLayout(svc).apply {
         gravity = Gravity.CENTER_VERTICAL
-        addView(Glyphs.chip(svc, svc.prefs, pal, key, 24))
+        addView(Glyphs.chip(svc, svc.prefs, pal, key, if (small) 20 else 24))
         // narrow 4:3 screens (Pocket Nova): smaller labels and gaps, so the app name keeps its room
-        val narrow = svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density < 720
-        addView(text(label, if (narrow) 11f else 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(svc.dp(if (narrow) 4 else 7), 0, svc.dp(if (narrow) 9 else 16), 0) })
+        val narrow = small || svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density < 720
+        addView(text(label, if (narrow) 12f else 13f, if (Backdrop.active(svc) || small) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(svc.dp(if (narrow) 5 else 7), 0, svc.dp(if (narrow) 12 else 16), 0) })
+    }
+
+    /** See-through capsule (glass look) for the hints on the top screen of dual-screen handhelds. */
+    private fun glassCapsule(): android.graphics.drawable.Drawable {
+        val fill = if (pal.tileStyle == TileStyle.GLASS) pal.tile
+            else (pal.surface and 0x00FFFFFF) or ((if (pal.dark) 150 else 190) shl 24)
+        val edge = if (pal.dark) android.graphics.Color.argb(70, 255, 255, 255) else android.graphics.Color.argb(110, 255, 255, 255)
+        return rounded(fill, 999f, svc.dp(1), edge)
     }
 
     private var titleView: TextView? = null
@@ -922,8 +933,35 @@ class OwnSwitcher(private val svc: HugminnService) {
         renderLower()
         val b = bar ?: return
         b.removeAllViews()
-        // with a second screen the bar up here is only needed for the options menu
-        b.visibility = if (lower != null && menu == null) View.GONE else View.VISIBLE
+        // with a second screen the bar up here becomes a small see-through capsule with the button
+        // hints only ("look up top, a small reminder"); the options menu still uses the full bar
+        if (lower != null) {
+            val compact = menu == null
+            (b.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                if (compact) {
+                    lp.width = FrameLayout.LayoutParams.WRAP_CONTENT; lp.height = svc.dp(42)
+                    lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; lp.bottomMargin = svc.dp(10)
+                } else {
+                    lp.width = FrameLayout.LayoutParams.MATCH_PARENT; lp.height = svc.dp(62)
+                    lp.gravity = Gravity.BOTTOM; lp.bottomMargin = svc.dp(8)
+                }
+                b.layoutParams = lp
+            }
+            b.background = glassCapsule()
+            b.setPadding(svc.dp(if (compact) 16 else 24), 0, svc.dp(if (compact) 2 else 10), 0)
+            if (compact) {
+                val a = apps.getOrNull(sel)
+                if (a == null) b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück"), small = true))
+                else {
+                    if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln"), small = true))
+                    b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Öffnen"), small = true))
+                    b.addView(hint(KeyEvent.KEYCODE_BUTTON_X, tr("Schließen"), small = true))
+                    b.addView(hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Optionen"), small = true))
+                    b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück"), small = true))
+                }
+                return
+            }
+        }
         val m = menu
         val a = apps.getOrNull(sel)
         if (m != null) {
