@@ -7,6 +7,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Controlcenter: Die großen WLAN- und Bluetooth-Kacheln lassen sich mit dem Steuerkreuz bedienen – A geht in die Liste, hoch/runter wählt ein Netz oder Gerät, A verbindet (bzw. trennt), B verlässt die Liste. Ist der Funk aus, schaltet A ihn wie bisher ein; X öffnet weiter die Optionen.
 - Wi-Fi password window: the "Connect" button follows the app language (it was always German).
 - WLAN-Passwortfenster: Der Knopf „Verbinden“ folgt jetzt der App-Sprache (war immer deutsch).
+- On-screen keyboard: QWERTY layout and "Space" when the app is not in German (QWERTZ stays for German).
+- Bildschirmtastatur: QWERTY-Belegung und „Space“, wenn die App nicht auf Deutsch ist (auf Deutsch bleibt QWERTZ).
 
 ## 1.12.1
 - Capture: the stick LEDs pulse red while recording even when they are switched off – they go on just for the recording and off again afterwards.
