@@ -9,6 +9,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - WLAN-Passwortfenster: Der Knopf „Verbinden“ folgt jetzt der App-Sprache (war immer deutsch).
 - On-screen keyboard: QWERTY layout and "Space" when the app is not in German (QWERTZ stays for German).
 - Bildschirmtastatur: QWERTY-Belegung und „Space“, wenn die App nicht auf Deutsch ist (auf Deutsch bleibt QWERTZ).
+- Bluetooth search: devices that are already paired no longer show up again under "New devices" (also the "LE_" twin that LE-Audio headphones like the Sony WH-1000XM3 announce).
+- Bluetooth-Suche: Bereits gekoppelte Geräte tauchen nicht mehr zusätzlich unter „Neue Geräte“ auf (auch nicht der „LE_“-Zwilling, den LE-Audio-Kopfhörer wie der Sony WH-1000XM3 aussenden).
 
 ## 1.12.1
 - Capture: the stick LEDs pulse red while recording even when they are switched off – they go on just for the recording and off again afterwards.
