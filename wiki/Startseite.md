@@ -11,6 +11,7 @@ Hugminn ergänzt Android-Handhelds von Retroid und AYN um einen **Game Switcher*
 - [Home-Taste](Home-Taste) – so öffnest du Switcher und Control Center
 - [Verknüpfungen](Verknuepfungen) – Schnelleinstellungs-Kachel, Startbildschirm und Cocoon
 - [Externer Controller](Externer-Controller) – Home-/Guide-Taste, eingebaute Steuerung ausschalten
+- Anbernic RG DS / RG DS Plus mit ROCKNIX? Schau beim großen Bruder **[RetroDualStation](https://github.com/Ninte86hl/RetroDualStation)** vorbei
 - [Geräte](Geraete) – welche Handhelds getestet sind und was darauf funktioniert
 - [Gerätetest](Geraetetest) – was auf deinem Handheld geht, und wie du es uns mitteilst
 

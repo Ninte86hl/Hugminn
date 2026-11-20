@@ -11,6 +11,7 @@ Hugminn adds a **Game Switcher** (Muninn) and a **Control Center** (Huginn) to A
 - [Home button](Home-Button) – how to open the switcher and the Control Center
 - [Shortcuts](Shortcuts) – quick settings tile, home screen and Cocoon shortcuts
 - [External controller](External-Controller) – Home/Guide button, turning off the built-in controls
+- Anbernic RG DS / RG DS Plus with ROCKNIX? See the big brother **[RetroDualStation](https://github.com/Ninte86hl/RetroDualStation)**
 - [Devices](Devices) – which handhelds are tested and what works on them
 - [Device test](Device-Test) – what works on your handheld, and how to tell us
 

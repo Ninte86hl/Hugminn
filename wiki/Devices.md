@@ -73,3 +73,5 @@ Nothing confirmed yet. Hugminn's basics (game switcher, Control Center, Home but
 
 ### Dual-screen devices (AYN Thor, Retroid Pocket Dual)
 Planned as their own update – including brightness for both screens and where the overlays appear.
+
+For the **Anbernic RG DS** and **RG DS Plus** (ROCKNIX, not Android) there is already the sister project **[RetroDualStation](https://github.com/Ninte86hl/RetroDualStation)**.

@@ -114,6 +114,12 @@ Pausieren: Auf Wunsch hält das Spiel (Bild und Ton) an, solange der Switcher od
 
 Welche Funktionen auf welchem Gerät laufen: [Geräte](https://github.com/Ninte86hl/Hugminn/wiki/Geraete) im Wiki. Hugminn erkennt das Gerät und zeigt nur, was es kann. Auf dem Pocket Nova nutzt das Control Center ein 4:3-Layout. Du hast ein anderes Handheld? Einstellungen → Hilfe & Info → **Gerätetest**, dann *Auf GitHub melden* – so wissen wir genau, was geht.
 
+## Schwesterprojekt: RetroDualStation
+
+Du hast ein **Anbernic RG DS** oder **RG DS Plus**? **[RetroDualStation](https://github.com/Ninte86hl/RetroDualStation)** ist der große Bruder von Hugminn: dieselbe Idee – Control Center und Game Switcher über jedem Spiel – für **ROCKNIX**, mit EmulationStation über beide Bildschirme. Ebenfalls kostenlos und Open Source.
+
+Hinweis: Hugminn ist für Android-Handhelds, RetroDualStation für ROCKNIX (Linux) – jedes läuft nur auf seinem eigenen System.
+
 ## Voraussetzungen
 
 - Eines der Geräte oben mit Original-Firmware

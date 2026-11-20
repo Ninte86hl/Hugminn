@@ -73,3 +73,5 @@ Noch nichts bestätigt. Die Grundfunktionen (Game Switcher, Control Center, Home
 
 ### Dual-Screen-Geräte (AYN Thor, Retroid Pocket Dual)
 Als eigenes Update geplant – inklusive Helligkeit für beide Bildschirme und der Frage, wo die Overlays erscheinen.
+
+Für das **Anbernic RG DS** und **RG DS Plus** (ROCKNIX, kein Android) gibt es bereits das Schwesterprojekt **[RetroDualStation](https://github.com/Ninte86hl/RetroDualStation)**.
