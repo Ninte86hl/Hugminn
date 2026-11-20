@@ -574,7 +574,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
         if (picture) {
             // on a picture the bottom bar sits on a calm capsule, like the Control Center's hints
-            b.background = rounded((pal.surface and 0x00FFFFFF) or 0xC8000000.toInt(), 999f)
+            b.background = Look.capsule(svc, pal)
             r.addView(b, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, barH - svc.dp(14), Gravity.BOTTOM).apply {
                 leftMargin = svc.dp(16); rightMargin = svc.dp(16); bottomMargin = svc.dp(8)
             })
@@ -617,7 +617,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         addView(Glyphs.chip(svc, svc.prefs, pal, key, 24))
         // narrow 4:3 screens (Pocket Nova): smaller labels and gaps, so the app name keeps its room
         val narrow = svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density < 720
-        addView(text(label, if (narrow) 11f else 13f, pal.onSurfaceVariant).apply { setPadding(svc.dp(if (narrow) 4 else 7), 0, svc.dp(if (narrow) 9 else 16), 0) })
+        addView(text(label, if (narrow) 11f else 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(svc.dp(if (narrow) 4 else 7), 0, svc.dp(if (narrow) 9 else 16), 0) })
     }
 
     private var titleView: TextView? = null

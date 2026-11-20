@@ -332,7 +332,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (Backdrop.active(svc)) {
             // on a picture the button hints sit on a calm capsule on the right, so they stay readable
             footer.gravity = Gravity.CENTER_VERTICAL
-            footer.background = rounded((pal.surface and 0x00FFFFFF) or 0xC8000000.toInt(), 999f)
+            footer.background = Look.capsule(svc, pal)
             footer.setPadding(14 * d, 0, 0, 0)
             panel.addView(footer, lp(WRAP, 38 * d).apply { gravity = Gravity.END })
         } else panel.addView(footer, lp(MATCH, 34 * d))
@@ -540,7 +540,7 @@ class ControlCenter(private val svc: HugminnService) {
         footer.removeAllViews()
         fun hint(k: Int, s: String) {
             footer.addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
-            footer.addView(text(s, 13f, pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+            footer.addView(text(s, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
         }
         val pc = pages() + if (editing) 1 else 0
         if (pc > 1) footer.addView(text(t("Seite ${gridPage + 1}/$pc", "Page ${gridPage + 1}/$pc"), 13f, pal.onSurfaceVariant).apply { setPadding(0, 0, 16 * d, 0) })
