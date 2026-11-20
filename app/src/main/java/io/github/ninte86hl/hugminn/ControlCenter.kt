@@ -1939,8 +1939,14 @@ class ControlCenter(private val svc: HugminnService) {
             } else {
                 if (found.isEmpty()) entries += MenuEntry(tr("Noch nichts gefunden"), run = null)
                 // devices with a name first; nameless ones (often phones, TVs, beacons nearby) only as a count
-                val named = found.filter { runCatching { it.name }.getOrNull() != null }
-                val nameless = found.size - named.size
+                // already paired devices (and their "LE_" twin that LE-Audio headphones announce too) are not new
+                val pairedNames = paired.mapNotNull { runCatching { it.name }.getOrNull() }.toSet()
+                val pairedAddr = paired.map { it.address }.toSet()
+                val named = found.filter { f ->
+                    val n = runCatching { f.name }.getOrNull() ?: return@filter false
+                    f.address !in pairedAddr && n !in pairedNames && n.removePrefix("LE_") !in pairedNames
+                }
+                val nameless = found.count { runCatching { it.name }.getOrNull() == null }
                 named.forEach { d ->
                     entries += MenuEntry(Bt.name(d), hint = tr("A koppelt")) {
                         stopBtScan()
