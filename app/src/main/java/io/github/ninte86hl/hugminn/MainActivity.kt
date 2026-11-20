@@ -777,10 +777,10 @@ class MainActivity : Activity() {
         }
     }
 
-    private companion object {
-        const val REQ_EXPORT = 41
-        const val REQ_IMPORT = 42
-        const val REQ_BACKDROP = 43
+    companion object {
+        internal const val REQ_EXPORT = 41
+        internal const val REQ_IMPORT = 42
+        internal const val REQ_BACKDROP = 43
         const val EXTRA_PICK_BACKDROP = "pickBackdrop"
     }
 
