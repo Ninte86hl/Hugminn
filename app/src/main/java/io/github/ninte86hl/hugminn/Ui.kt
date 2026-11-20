@@ -392,6 +392,15 @@ object Look {
     fun cocoon(ctx: Context) = Prefs(ctx).uiStyle == UiStyle.COCOON
 
     /** Background of a whole screen: plain, or Cocoon's soft diagonal stripes. */
+    /**
+     * Capsule under the button hints on a picture: made like the tiles (standard, OLED black with its
+     * edge, or glass), so the bar belongs to the rest instead of being a dark block of its own.
+     */
+    fun capsule(ctx: Context, pal: Palette): android.graphics.drawable.Drawable {
+        val edge = if (pal.tileEdge != 0) pal.tileEdge else 0
+        return rounded(pal.tile, 999f, if (edge != 0) (ctx.resources.displayMetrics.density * 1.5f).toInt().coerceAtLeast(1) else 0, edge)
+    }
+
     fun ground(ctx: Context, pal: Palette): android.graphics.drawable.Drawable =
         Backdrop.drawable(ctx, pal) ?: if (pal.cocoon && !pal.oled) Stripes(pal.surface, if (pal.dark) 0xFF1C1F26.toInt() else 0xFFE5E8EE.toInt(), ctx.dp(34).toFloat())
         else android.graphics.drawable.ColorDrawable(pal.surface)
