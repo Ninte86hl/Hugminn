@@ -499,6 +499,12 @@ class MainActivity : Activity() {
         row(sw, tr("Auch bei Wischgeste"), tr("Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird"), { if (prefs.autoSwitcher) tr("An") else tr("Aus") }) {
             prefs.autoSwitcher = !prefs.autoSwitcher
         }
+        if (Displays.second(this) != null) {
+            row(sw, t("Zweiter Bildschirm", "Second screen"),
+                t("Name, Spiel, Tastenhinweise und Tastenkürzel des Emulators unten auf dem zweiten Bildschirm – oben bleibt mehr Platz für die Vorschaubilder",
+                    "Name, game, button hints and the emulator's shortcuts on the second screen – more room for the previews up top"),
+                { if (prefs.dualSwitcher) tr("An") else tr("Aus") }) { prefs.dualSwitcher = !prefs.dualSwitcher }
+        }
         row(sw, tr("Statusleiste"), tr("Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
         }

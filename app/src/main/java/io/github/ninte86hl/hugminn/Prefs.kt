@@ -195,6 +195,11 @@ class Prefs(ctx: Context) {
         get() = p.getInt("glassLevel", 3).coerceIn(1, 5)
         set(v) = p.edit().putInt("glassLevel", v.coerceIn(1, 5)).apply()
 
+    /** Dual-screen handhelds (AYN Thor): the switcher shows name, hints and shortcuts on the second screen. */
+    var dualSwitcher: Boolean
+        get() = p.getBoolean("dualSwitcher", true)
+        set(v) = p.edit().putBoolean("dualSwitcher", v).apply()
+
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()
