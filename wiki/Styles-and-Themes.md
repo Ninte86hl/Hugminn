@@ -1,6 +1,6 @@
 # Styles and themes
 
-Hugminn has four styles; new installs start with **Dot matrix**. Each comes in light and dark (plus OLED black), and the chosen tile colour becomes the accent of every style. The style applies to the Control Center, the Game Switcher, the [performance overlay](Performance-Overlay) and the settings.
+Hugminn has five styles; new installs start with **Dot matrix**. Each comes in light and dark (plus OLED black), and the chosen tile colour becomes the accent of every style. The style applies to the Control Center, the Game Switcher, the [performance overlay](Performance-Overlay) and the settings.
 
 | Style | Character |
 | --- | --- |
@@ -8,10 +8,25 @@ Hugminn has four styles; new installs start with **Dot matrix**. Each comes in l
 | **Pixel** | Pixel font and stepped corners, like the Retroid Pocket Classic |
 | **Dot matrix** | Black and white dots with one accent colour, like a dot-matrix display. Its dark mode is always true black |
 | **Cocoon** | Light and playful with colourful icon badges, made to sit next to the Cocoon launcher |
+| **Liquid Glass** | See-through glass tiles over your blurred wallpaper, clean type, corner marks – smoked glass in dark, frosted glass in light. Without a picture, a soft colour wash lies behind the glass |
 
 Each style also shapes the details: **Pixel** uses stepped frames, block bars, stepped graphs and media buttons drawn from blocks; **Dot matrix** draws switched-off tiles, covers, bars, graphs and media buttons from dots and uses its accent only where something is on; **Cocoon** puts colourful badges on large cards and soft round buttons. Graphs take the chosen gauge colours (traffic light, cool → warm, accent or monochrome).
 
-Change it in the [settings](Settings) → *Look* or in the Control Center's edit menu.
+Change it in the [settings](Settings) → *Look* or in the Control Center's edit menu (Y → *Style*).
+
+## Background, tiles and selection mark
+
+Independent of the style, for the Control Center and the Game Switcher (Y → *Background*, or settings → *Look* → *Background & tiles*):
+
+| Setting | Options |
+| --- | --- |
+| **Picture** | Style colour · Android wallpaper (root; copied once, *Reload* after a change) · Own picture (copied into Hugminn, the original may be moved or deleted) |
+| **Darken / Lighten** | 0–80 % (default 50 %) – darkens in dark colour schemes, lightens in light ones, so text stays readable |
+| **Blur** | Off, light, medium, strong – the picture is blurred once and kept, so it costs no performance while open |
+| **Tiles** | Standard · **OLED black** (pitch-black tiles with a fine edge, dark colour schemes) · **Glass** (see-through, five strengths from clear to frosted) |
+| **Selection mark** | Automatic (corners in Cocoon and Liquid Glass, otherwise a frame) · **Corners** that settle in briefly and then stay still · Frame |
+
+Readability comes first: text and the selection mark turn dark on light tiles, glass always keeps a calm background behind it, a very dark own colour on OLED tiles gets a light edge, and on a picture the headers use full text colour while the button hints sit on a capsule made like the tiles.
 
 ## Modern
 

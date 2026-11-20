@@ -1,20 +1,15 @@
 # Control Center bearbeiten
 
-Drück im Control Center **△ / Y**, um das Bearbeiten-Menü zu öffnen.
+Drück im Control Center **△ / Y**, um das Bearbeiten-Menü zu öffnen. Es erscheint als **Seitenleiste** rechts, so siehst du jede Änderung direkt daneben im Control Center. **L1 / R1** wechseln zwischen vier Kategorien; **hoch/runter** wählt eine Zeile, **◀ ▶** ändert ihren Wert (sofort sichtbar), **A** führt Aktionen aus.
 
-![Bearbeiten-Menü](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/modern/dark-editmenu.png)
-
-| Eintrag | Was er macht |
+| Kategorie | Einträge |
 | --- | --- |
-| Anordnen & Größe | Bearbeitungsmodus: Elemente verschieben, vergrößern, entfernen |
-| Element hinzufügen | Schalter, Anzeigen und Regler hinzufügen; die drei Kategorien liegen nebeneinander, ◀ ▶ oder L1/R1 wechselt. Elemente dürfen auch mehrfach vorkommen |
-| Raster | Zeilen (3–6) und Spalten (automatisch oder 4–10); das Raster ändert sich sofort |
-| Kachelfarbe | Farbe aktiver Kacheln; sie wird in jedem Stil zur Akzentfarbe |
-| Stil | Modern, Pixel, Punktmatrix oder Cocoon |
-| Leistungs-Overlay | [Overlay](Leistungs-Overlay) einschalten, Position, Größe und Werte wählen |
-| Farben der Anzeigen | Ampel, kalt → warm, Akzentfarbe oder einfarbig |
-| Farbschema | System, hell, dunkel, OLED-Schwarz |
-| Standard wiederherstellen | Layout, Kacheln, Größen und Farben zurücksetzen |
+| **Layout** | Anordnen & Größe (Bearbeitungsmodus: verschieben, vergrößern, entfernen) · Element hinzufügen (Schalter, Anzeigen, Regler) · Zeilen (3–6) · Spalten (automatisch oder 4–10) · Standard wiederherstellen |
+| **Stil** | Stil (Modern, Pixel, Punktmatrix, Cocoon, Liquid Glass) · Farbschema (System, hell, dunkel, OLED-Schwarz) · Kachelfarbe (◀ ▶ Vorgaben, **A** öffnet das Farbrad) · Farben der Anzeigen |
+| **Hintergrund** | Bild (Stil-Farbe, Android-Hintergrundbild mit Root, eigenes Bild – **A** wählt bzw. lädt neu) · Abdunkeln/Aufhellen · Weichzeichnen · Kacheln (Standard, OLED-Schwarz, Glas) · Glas-Stärke · Auswahl-Markierung (automatisch, Ecken, Rahmen) |
+| **Overlay** | [Leistungs-Overlay](Leistungs-Overlay) an/aus · Werte · Position · Anordnung · Größe |
+
+Zeilen, die gerade nicht passen, bleiben ausgeblendet: Abdunkeln und Weichzeichnen nur mit Bild, Glas-Stärke nur mit Glas-Kacheln. Alles davon gibt es auch in den [Einstellungen](Einstellungen) der App unter *Darstellung* → *Hintergrund & Kacheln*.
 
 ## Bearbeitungsmodus
 

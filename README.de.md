@@ -42,7 +42,8 @@ Hugminn ergänzt Android-Handhelds von Retroid und AYN – getestet auf dem Retr
 - **Bluetooth-Akku** – Controller und Kopfhörer zeigen ihren Ladestand (sofern sie ihn melden).
 - **Externe Controller** – die Home-/Guide-Taste eines 8BitDo o. Ä. wirkt wie die des Handhelds; die eingebaute Steuerung lässt sich ausschalten und geht beim Trennen des Controllers wieder an.
 - **Öffnen ohne Taste** – Schnelleinstellungs-Kachel, Verknüpfungen auf dem Startbildschirm (auch in Cocoon) und Wischen nach unten im Control Center.
-- **Vier Stile** – Modern, Pixel, Punktmatrix und Cocoon, hell und dunkel; Kacheln, Tasten, Balken und Graphen folgen dem Stil.
+- **Fünf Stile** – Modern, Pixel, Punktmatrix, Cocoon und das neue Liquid Glass, hell und dunkel; Kacheln, Tasten, Balken und Graphen folgen dem Stil.
+- **Hintergrund & Kacheln** – dein Hintergrundbild oder ein eigenes Bild hinter Control Center und Switcher (mit Abdunkeln und Weichzeichnen), OLED-schwarze oder gläserne Kacheln, Ecken als Auswahl-Markierung.
 - **Für den Controller gemacht** – alles mit den Tasten, das Spiel pausiert, solange du in den Menüs bist, die Lautstärketasten funktionieren weiter; Touch geht auch.
 
 <p align="center">
@@ -97,7 +98,7 @@ Jede Funktion hat eine eigene Seite im **[Wiki](https://github.com/Ninte86hl/Hug
 | **[Home-Taste](https://github.com/Ninte86hl/Hugminn/wiki/Home-Taste)** | Drücken, zweimal drücken und halten, jeweils mit eigener Aktion. |
 | **[Verknüpfungen](https://github.com/Ninte86hl/Hugminn/wiki/Verknuepfungen)** | Schnelleinstellungs-Kachel, langer Druck aufs App-Symbol, Verknüpfungen auf dem Startbildschirm und in Cocoon für Control Center und Spielwechsler. |
 | **[Externer Controller](https://github.com/Ninte86hl/Hugminn/wiki/Externer-Controller)** | Home-/Guide-Taste von Bluetooth-/USB-Controllern; eingebaute Steuerung aus, beim Trennen automatisch wieder an. |
-| **[Stile und Farbschemata](https://github.com/Ninte86hl/Hugminn/wiki/Stile-und-Farbschemata)** | Modern, Pixel, Punktmatrix und Cocoon; hell, dunkel oder OLED-Schwarz; deine eigene Akzentfarbe. |
+| **[Stile und Farbschemata](https://github.com/Ninte86hl/Hugminn/wiki/Stile-und-Farbschemata)** | Modern, Pixel, Punktmatrix, Cocoon und Liquid Glass; hell, dunkel oder OLED-Schwarz; deine eigene Akzentfarbe; Hintergrundbild oder eigenes Bild; Standard-, OLED- oder Glas-Kacheln. |
 | **[Einstellungen](https://github.com/Ninte86hl/Hugminn/wiki/Einstellungen)** | Alles einstellbar, Sichern und Wiederherstellen, Deutsch und Englisch. |
 
 Pausieren: Auf Wunsch hält das Spiel (Bild und Ton) an, solange der Switcher oder das Control Center offen ist. Alles geht mit dem Controller; Touch funktioniert auch.

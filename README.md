@@ -42,7 +42,8 @@ Hugminn adds two console-style overlays to Android handhelds from Retroid and AY
 - **Bluetooth battery** – controllers and headphones show their charge (if they report it).
 - **External controllers** – the Home/Guide button of an 8BitDo or similar works like the handheld's; the built-in controls can be turned off and come back on when the controller disconnects.
 - **Open without a button** – quick settings tile, home screen shortcuts (also in Cocoon) and a swipe down in the Control Center.
-- **Four styles** – Modern, Pixel, Dot matrix and Cocoon, light and dark; tiles, buttons, bars and graphs all follow the style.
+- **Five styles** – Modern, Pixel, Dot matrix, Cocoon and the new Liquid Glass, light and dark; tiles, buttons, bars and graphs all follow the style.
+- **Background & tiles** – your wallpaper or own picture behind the Control Center and switcher (with darkening and blur), OLED-black or glass tiles, corner selection marks.
 - **Controller first** – everything with the buttons, the game pauses while you are in the menus, volume keys keep working; touch works too.
 
 <p align="center">
@@ -97,7 +98,7 @@ Each feature has its own page in the **[wiki](https://github.com/Ninte86hl/Hugmi
 | **[Home button](https://github.com/Ninte86hl/Hugminn/wiki/Home-Button)** | Press, double press and hold, each with its own action. |
 | **[Shortcuts](https://github.com/Ninte86hl/Hugminn/wiki/Shortcuts)** | Quick settings tile, long press on the app icon, home screen and Cocoon shortcuts for the Control Center and the switcher. |
 | **[External controller](https://github.com/Ninte86hl/Hugminn/wiki/External-Controller)** | Home/Guide button of Bluetooth/USB controllers; built-in controls off, back on automatically when the controller disconnects. |
-| **[Styles and themes](https://github.com/Ninte86hl/Hugminn/wiki/Styles-and-Themes)** | Modern, Pixel, Dot matrix and Cocoon; light, dark or OLED black; your own accent colour. |
+| **[Styles and themes](https://github.com/Ninte86hl/Hugminn/wiki/Styles-and-Themes)** | Modern, Pixel, Dot matrix, Cocoon and Liquid Glass; light, dark or OLED black; your own accent colour; wallpaper or own picture as background; standard, OLED-black or glass tiles. |
 | **[Settings](https://github.com/Ninte86hl/Hugminn/wiki/Settings)** | Everything adjustable, backup and restore, English and German. |
 
 Pausing: the game can pause (picture and sound) while the switcher or the Control Center is open. Everything works with the controller; touch works too.

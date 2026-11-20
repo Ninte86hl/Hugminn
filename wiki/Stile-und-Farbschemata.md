@@ -1,6 +1,6 @@
 # Stile und Farbschemata
 
-Hugminn hat vier Stile; neue Installationen starten mit **Punktmatrix**. Jeder gibt es hell und dunkel (dazu OLED-Schwarz), und die gewählte Kachelfarbe wird in jedem Stil zur Akzentfarbe. Der Stil gilt für Control Center, Game Switcher, [Leistungs-Overlay](Leistungs-Overlay) und die Einstellungen.
+Hugminn hat fünf Stile; neue Installationen starten mit **Punktmatrix**. Jeder gibt es hell und dunkel (dazu OLED-Schwarz), und die gewählte Kachelfarbe wird in jedem Stil zur Akzentfarbe. Der Stil gilt für Control Center, Game Switcher, [Leistungs-Overlay](Leistungs-Overlay) und die Einstellungen.
 
 | Stil | Charakter |
 | --- | --- |
@@ -8,10 +8,25 @@ Hugminn hat vier Stile; neue Installationen starten mit **Punktmatrix**. Jeder g
 | **Pixel** | Pixel-Schrift und stufige Ecken wie beim Retroid Pocket Classic |
 | **Punktmatrix** | Schwarz-weiß aus Punkten mit einer Akzentfarbe, wie ein Punktmatrix-Display. Dunkel ist hier immer echtes Schwarz |
 | **Cocoon** | Hell und verspielt mit bunten Symbolen, passend zum Cocoon-Launcher |
+| **Liquid Glass** | Durchscheinende Glas-Kacheln über deinem weichgezeichneten Hintergrundbild, klare Schrift, Ecken als Markierung – Rauchglas im Dunklen, Milchglas im Hellen. Ohne Bild liegt ein sanfter Farbverlauf hinter dem Glas |
 
 Jeder Stil prägt auch die Details: **Pixel** mit Treppenrahmen, Blockbalken, Stufen-Graphen und Musik-Tasten aus Blöcken; **Punktmatrix** zeichnet ausgeschaltete Kacheln, Cover, Balken, Graphen und Musik-Tasten aus Punkten und nutzt den Akzent nur, wo etwas an ist; **Cocoon** setzt bunte Abzeichen auf große Karten und weiche runde Knöpfe. Graphen nehmen die gewählten Farben der Anzeigen (Ampel, kalt → warm, Akzent oder einfarbig).
 
-Umstellen in den [Einstellungen](Einstellungen) → *Darstellung* oder im Bearbeiten-Menü des Control Centers.
+Umstellen in den [Einstellungen](Einstellungen) → *Darstellung* oder im Bearbeiten-Menü des Control Centers (Y → *Stil*).
+
+## Hintergrund, Kacheln und Auswahl-Markierung
+
+Unabhängig vom Stil, für Control Center und Game Switcher (Y → *Hintergrund* oder Einstellungen → *Darstellung* → *Hintergrund & Kacheln*):
+
+| Einstellung | Möglichkeiten |
+| --- | --- |
+| **Bild** | Stil-Farbe · Android-Hintergrundbild (Root; einmal kopiert, nach einem Wechsel *Neu laden*) · Eigenes Bild (wird in Hugminn kopiert, das Original darf danach verschoben oder gelöscht werden) |
+| **Abdunkeln / Aufhellen** | 0–80 % (Standard 50 %) – dunkelt im dunklen Farbschema ab, hellt im hellen auf, damit Schrift lesbar bleibt |
+| **Weichzeichnen** | Aus, leicht, mittel, stark – das Bild wird einmal weichgezeichnet und gemerkt, kostet also keine Leistung, solange es offen ist |
+| **Kacheln** | Standard · **OLED-Schwarz** (tiefschwarze Kacheln mit feinem Rand, dunkle Farbschemen) · **Glas** (durchscheinend, fünf Stärken von klar bis milchig) |
+| **Auswahl-Markierung** | Automatisch (Ecken bei Cocoon und Liquid Glass, sonst Rahmen) · **Ecken**, die kurz einrasten und dann ruhig stehen · Rahmen |
+
+Lesbarkeit geht vor: Schrift und Markierung werden auf hellen Kacheln dunkel, Glas hat immer einen ruhigen Hintergrund, eine sehr dunkle eigene Farbe bekommt auf OLED-Kacheln einen hellen Rand, und auf einem Bild zeigen die Kopfzeilen volle Textfarbe, während die Tastenhinweise auf einer Kapsel im Stil der Kacheln liegen.
 
 ## Modern
 
