@@ -15,7 +15,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 
 **Edit menu (Y) in categories**
 - Layout, Style, Background and Overlay side by side, switched with L1/R1. Values change right in their line with ◀ ▶ and show at once behind the menu – far fewer submenus.
-- The window adapts to the screen: wider on 4:3 screens like the Pocket Nova.
+- The menu sits at the side as a panel, so every change can be watched right next to it on the Control Center – including the selection mark. Wider on 4:3 screens like the Pocket Nova.
+- Changing style, colour scheme or tile colour (also with the colour wheel) keeps you in the menu, and the values on the cards stay in place while the panel is redrawn.
 
 ### 🇩🇪 Deutsch
 **Hintergrund & Kacheln** (Control Center → Y → Hintergrund, oder Einstellungen → Darstellung)
@@ -28,7 +29,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 
 **Bearbeiten-Menü (Y) in Kategorien**
 - Layout, Stil, Hintergrund und Overlay nebeneinander, umgeschaltet mit L1/R1. Werte ändern sich direkt in ihrer Zeile mit ◀ ▶ und sind sofort hinter dem Menü zu sehen – deutlich weniger Untermenüs.
-- Das Fenster passt sich dem Bildschirm an: breiter auf 4:3-Bildschirmen wie dem Pocket Nova.
+- Das Menü sitzt als Seitenleiste am Rand, so ist jede Änderung direkt daneben im Control Center zu sehen – auch die Auswahl-Markierung. Breiter auf 4:3-Bildschirmen wie dem Pocket Nova.
+- Beim Wechsel von Stil, Farbschema oder Kachelfarbe (auch mit dem Farbrad) bleibst du im Menü, und die Werte auf den Karten bleiben beim Neuzeichnen stehen.
 
 ## 1.12.2
 
