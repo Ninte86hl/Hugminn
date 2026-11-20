@@ -43,11 +43,31 @@ object LedFx {
     @Volatile var recording = false
         private set
 
+    /** Hugminn switched the LEDs on only for a recording. */
+    @Volatile private var switchedOn = false
+
     fun setRecording(ctx: Context, on: Boolean) {
         if (on == recording) return
         recording = on
-        if (on) { load(ctx); start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
+        if (on) {
+            load(ctx)
+            // LEDs switched off in the settings: the firmware shows nothing, so they go on just for the recording
+            if (!Device.stickLeds(ctx)) {
+                switchedOn = true
+                Root.exec(Root.putSetting("system", "joystick_light_enabled", "1,1"))
+                Thread.sleep(150)
+            }
+            start(ctx, LedEffect.PULSE, Color.RED to Color.RED)
+            return
+        }
         stop()
+        if (switchedOn) {
+            // they were off before: dark and off again
+            switchedOn = false
+            Root.exec(command(intArrayOf(0, 0)))
+            Root.exec(Root.putSetting("system", "joystick_light_enabled", "0,0"))
+            return
+        }
         when {
             // the LEDs were off: off again
             !Device.stickLeds(ctx) -> Thread { Root.exec(command(intArrayOf(0, 0))) }.start()

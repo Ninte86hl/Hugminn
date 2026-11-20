@@ -2,6 +2,10 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.12.1 (in testing)
+- Capture: the stick LEDs pulse red while recording even when they are switched off – they go on just for the recording and off again afterwards.
+- Aufnahme: Die Stick-LEDs pulsieren während der Aufnahme auch dann rot, wenn sie ausgeschaltet sind – sie gehen nur für die Aufnahme an und danach wieder aus.
+
 ## 1.12.0
 
 A big one: capture with game sound, a device test, emulator shortcuts in the switcher, a new guided setup that asks before it does anything – and many fixes from community feedback (thanks to the Pocket 5 tester on Reddit!).
