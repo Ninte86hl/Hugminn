@@ -37,7 +37,7 @@ class ControlCenter(private val svc: HugminnService) {
     private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false, val onY: (() -> Unit)? = null, val round: Boolean = false, val rows: Rows? = null)
 
     /** The lines of a large list card (networks, devices) that A steps into and the D-pad walks. */
-    private class Rows { val list = mutableListOf<Pair<View, () -> Unit>>() }
+    private class Rows { val list = mutableListOf<Pair<View, () -> Unit>>(); val keys = mutableListOf<String>() }
     private class MenuEntry(val label: String, val checked: Boolean = false, val hint: String? = null, val swatch: Int = 0, val header: Boolean = false, val side: ((Int) -> Unit)? = null, val run: (() -> Unit)?)
 
     var isOpen = false
@@ -55,6 +55,8 @@ class ControlCenter(private val svc: HugminnService) {
     /** The large list card the D-pad is inside of (A entered it), and the selected line. */
     private var inside: Rows? = null
     private var insideSel = 0
+    /** Name of the selected line, so a list that re-sorts itself (new scan) keeps the same network/device. */
+    private var insideKey: String? = null
     private var metrics: Metrics? = null
     private val refreshers = mutableListOf<() -> Unit>()
     private val graphUpdates = mutableListOf<(Metrics.Sample) -> Unit>()
@@ -837,7 +839,7 @@ class ControlCenter(private val svc: HugminnService) {
         val maxRows = if (e.h >= 4) 6 else 3
         val rows = Rows()
         val refresh = {
-            rows.list.clear()
+            rows.list.clear(); rows.keys.clear()
             val on = Device.btOn(svc)
             right.text = if (on) tr("An") else tr("Aus")
             right.setTextColor(if (on) tileOn() else pal.onSurfaceVariant)
@@ -855,7 +857,7 @@ class ControlCenter(private val svc: HugminnService) {
                         Bt.toggle(svc, dv, !conn) { svc.ui.postDelayed({ refreshAll() }, 1500) }
                     }
                     val row = listRow(Bt.name(dv), sub, conn, act)
-                    rows.list += row to act
+                    rows.list += row to act; rows.keys += dv.address
                     list.addView(row, lp(MATCH, 0, 1f).apply { if (i > 0) topMargin = 5 * d })
                 }
                 repeat((maxRows - devs.size).coerceAtLeast(0)) { list.addView(View(svc), lp(MATCH, 0, 1f).apply { topMargin = 5 * d }) }
@@ -910,7 +912,7 @@ class ControlCenter(private val svc: HugminnService) {
         val maxRows = if (e.h >= 4) 6 else 3
         val rows = Rows()
         val refresh = {
-            rows.list.clear()
+            rows.list.clear(); rows.keys.clear()
             val nets = wifiNets
             val saved = wifiSaved
             val on = Device.wifiOn(svc)
@@ -944,7 +946,7 @@ class ControlCenter(private val svc: HugminnService) {
                         Unit
                     }
                     val row = listRow(n.ssid, sub, connected, act)
-                    rows.list += row to act
+                    rows.list += row to act; rows.keys += n.ssid
                     list.addView(row, lp(MATCH, 0, 1f).apply { if (i > 0) topMargin = 5 * d })
                 }
                 repeat((maxRows - shown.size).coerceAtLeast(0)) { list.addView(View(svc), lp(MATCH, 0, 1f).apply { topMargin = 5 * d }) }
@@ -2497,7 +2499,9 @@ class ControlCenter(private val svc: HugminnService) {
         items.forEach { it.rows?.list?.forEach { (v, _) -> v.foreground = null } }
         val rows = inside ?: return
         if (rows.list.isEmpty()) { inside = null; renderFooter(); return }
+        insideKey?.let { k -> rows.keys.indexOf(k).takeIf { it >= 0 }?.let { insideSel = it } }
         insideSel = insideSel.coerceIn(0, rows.list.lastIndex)
+        insideKey = rows.keys.getOrNull(insideSel)
         val v = rows.list[insideSel].first
         val fill = (v.background as? android.graphics.drawable.GradientDrawable)?.color?.defaultColor ?: 0
         val light = android.graphics.Color.alpha(fill) > 128 && android.graphics.Color.luminance(fill) > 0.6f
@@ -3364,7 +3368,7 @@ class ControlCenter(private val svc: HugminnService) {
                         // inside a list card: connect/disconnect the selected line
                         inside != null && it?.rows === inside -> inside!!.list.getOrNull(insideSel)?.second?.invoke()
                         // a list card with lines: A steps in, the D-pad then walks the lines
-                        it?.rows != null && it.rows.list.isNotEmpty() -> { inside = it.rows; insideSel = 0; showFocus() }
+                        it?.rows != null && it.rows.list.isNotEmpty() -> { inside = it.rows; insideSel = 0; insideKey = null; showFocus() }
                         else -> it?.onA?.invoke()
                     }
                 }
@@ -3440,8 +3444,8 @@ class ControlCenter(private val svc: HugminnService) {
         if (inside != null && item?.rows !== inside) inside = null
         inside?.let { rows ->
             when (e.keyCode) {
-                KeyEvent.KEYCODE_DPAD_UP -> { insideSel = (insideSel - 1).coerceAtLeast(0); markRows(); return true }
-                KeyEvent.KEYCODE_DPAD_DOWN -> { insideSel = (insideSel + 1).coerceAtMost(rows.list.lastIndex.coerceAtLeast(0)); markRows(); return true }
+                KeyEvent.KEYCODE_DPAD_UP -> { insideSel = (insideSel - 1).coerceAtLeast(0); insideKey = null; markRows(); return true }
+                KeyEvent.KEYCODE_DPAD_DOWN -> { insideSel = (insideSel + 1).coerceAtMost(rows.list.lastIndex.coerceAtLeast(0)); insideKey = null; markRows(); return true }
                 KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> { leaveRows(); return true }
                 // sideways (and pages, edit, menu) leave the card first
                 else -> { inside = null; markRows() }
