@@ -2,7 +2,7 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
-## 1.13.0 (in testing / im Test)
+## 1.13.0
 
 ### 🇬🇧 English
 **Background & tiles** (Control Center → Y → Background, or Settings → Appearance)
