@@ -514,6 +514,13 @@ class MainActivity : Activity() {
                 t("Solange YouTube vorne ist, hält es das Gerät für ein Tablet und zeigt die ganze App quer, nicht nur Videos im Vollbild. Hugminn selbst bleibt normal groß. Braucht Root",
                     "While YouTube is in front it takes the handheld for a tablet and shows the whole app in landscape, not only full-screen videos. Hugminn itself keeps its size. Needs root"),
                 { if (prefs.wideOn) tr("An") else tr("Aus") }) { prefs.wideOn = !prefs.wideOn }
+            row(sw, t("Tablet-Dichte", "Tablet density"),
+                t("Wie groß YouTube in der Tablet-Ansicht ist: kleinere Zahl = mehr passt drauf, aber alles kleiner. Auto nimmt den größten Wert, der noch als Tablet gilt",
+                    "How big YouTube is in the tablet view: a smaller number fits more, but everything is smaller. Auto takes the biggest value that still counts as a tablet"),
+                { prefs.wideDpi.let { if (it > 0) "$it dpi" else "Auto" } }) {
+                val c = WideApps.CHOICES
+                prefs.wideDpi = c[(c.indexOf(prefs.wideDpi) + 1) % c.size]
+            }
         }
         row(sw, tr("Statusleiste"), tr("Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)

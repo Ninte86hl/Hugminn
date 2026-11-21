@@ -4,10 +4,13 @@ import kotlin.concurrent.thread
 
 /**
  * "Tablet view" for apps that think the handheld is a phone (YouTube): while such an app is in front
- * on the top screen, the top screen's density is lowered for the time being, so its smallest side
- * counts as a tablet (600 dp and more) – the app then shows its whole tablet layout in landscape,
- * not only full-screen videos. Back to the old value as soon as another app comes to the front.
- * Needs root (wm density). Everything gets a little smaller meanwhile.
+ * on a screen, that screen's density is lowered for the time being, so its smallest side counts as a
+ * tablet – the app then shows its whole tablet layout in landscape, not only full-screen videos.
+ *
+ * Only the screen the app is on changes (wm density -d): on the Thor, YouTube on the lower screen
+ * leaves the game on the top screen alone and the other way round. Hugminn's own windows keep their
+ * size (the service draws with the density from before). Android has no density per app, so on the
+ * same screen the status bar and quick settings get smaller meanwhile. Needs root.
  */
 class WideApps(private val svc: HugminnService) {
 
@@ -15,63 +18,90 @@ class WideApps(private val svc: HugminnService) {
         @Volatile var diag = ""
         /** Smallest side Android treats as a tablet, plus a little room. */
         private const val TABLET_DP = 616
+        /** Choices in the settings (0 = automatic). */
+        val CHOICES = listOf(0, 270, 260, 250, 240, 230, 220)
     }
 
-    @Volatile private var applied = false
-    @Volatile private var busy = false
-    private var last: String? = null
+    /** Screen → density set by Hugminn right now. */
+    private val applied = java.util.concurrent.ConcurrentHashMap<Int, Int>()
+    private val busy = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
 
-    /** Called with the app on the top screen (null: home screen) whenever it may have changed. */
-    fun onTop(pkg: String?) {
-        val want = pkg != null && pkg in svc.prefs.wideApps && svc.prefs.wideOn
-        if (want == applied || busy) { last = pkg; return }
-        last = pkg
-        busy = true
-        thread {
-            runCatching { if (want) apply() else restore() }.onFailure { Crash.note(svc, it) }
-            busy = false
-            // the app may have changed meanwhile
-            svc.ui.post { val p = last; val w = p != null && p in svc.prefs.wideApps && svc.prefs.wideOn; if (w != applied) onTop(p) }
+    private fun screens(): List<Int> = listOfNotNull(0, Displays.second(svc)?.id)
+
+    /** Looks at every screen: a tablet app in front gets its density, the others go back. */
+    fun check() {
+        for (id in screens()) {
+            val pkg = svc.topAppOn(id)
+            val want = svc.prefs.wideOn && pkg != null && pkg in svc.prefs.wideApps
+            val on = applied.containsKey(id)
+            if (want == on || id in busy) continue
+            busy += id
+            thread {
+                runCatching { if (want) apply(id) else restore(id) }.onFailure { Crash.note(svc, it) }
+                busy -= id
+                // the app may have changed meanwhile
+                svc.ui.postDelayed({ check() }, 200)
+            }
         }
     }
 
-    private fun apply() {
+    /** The density the tablet view uses on screen [id] right now (null: off there). */
+    fun current(id: Int = 0): Int? = applied[id]
+
+    /** A new value chosen (settings or the test buttons): use it at once where the tablet view is on. */
+    fun reapply() {
+        for (id in applied.keys.toList()) thread {
+            val t = target(id) ?: return@thread
+            Root.exec("wm density $t -d $id")
+            applied[id] = t
+            diag = "Tablet #$id: $t dpi (neu gewählt)"
+        }
+    }
+
+    private fun target(id: Int): Int? {
+        svc.prefs.wideDpi.takeIf { it > 0 }?.let { return it }
+        val info = Displays.list(svc).firstOrNull { it.id == id } ?: return null
+        return minOf(info.width, info.height) * 160 / TABLET_DP
+    }
+
+    private fun apply(id: Int) {
         if (!Root.available()) { diag = "kein Root"; return }
-        val out = Root.execLong("wm density -d 0", 3_000) ?: run { diag = "wm density: keine Antwort"; return }
+        val out = Root.execLong("wm density -d $id", 3_000) ?: run { diag = "wm density: keine Antwort"; return }
         val physical = Regex("""Physical density:\s*(\d+)""").find(out)?.groupValues?.get(1)?.toIntOrNull() ?: return
         val override = Regex("""Override density:\s*(\d+)""").find(out)?.groupValues?.get(1)?.toIntOrNull()
         val now = override ?: physical
-        val short = Displays.list(svc).firstOrNull { it.isDefault }?.let { minOf(it.width, it.height) } ?: return
-        val target = short * 160 / TABLET_DP
-        if (now <= target) { diag = "schon Tablet ($now dpi)"; return }
+        val t = target(id) ?: return
+        if (now <= t) { diag = "#$id schon Tablet ($now dpi)"; applied[id] = now; return }
         // remember what to go back to – also across a restart of Hugminn
-        svc.prefs.wideRestore = override ?: 0
-        svc.prefs.wideKeep = now
-        svc.ui.post { svc.keepDensity(now) }
-        Root.exec("wm density $target -d 0")
-        applied = true
-        diag = "Tablet an: $now → $target dpi"
+        svc.prefs.setWideRestore(id, override ?: 0)
+        if (id == 0) {
+            // Hugminn's Control Center, switcher and overlays keep the size from before
+            svc.prefs.wideKeep = now
+            svc.ui.post { svc.keepDensity(now) }
+        }
+        Root.exec("wm density $t -d $id")
+        applied[id] = t
+        diag = "Tablet #$id an: $now → $t dpi"
     }
 
-    private fun restore() {
-        if (!applied && svc.prefs.wideRestore < 0) return
-        val back = svc.prefs.wideRestore
-        Root.exec(if (back > 0) "wm density $back -d 0" else "wm density reset -d 0")
-        svc.prefs.wideRestore = -1
-        applied = false
+    private fun restore(id: Int) {
+        val back = svc.prefs.wideRestoreOf(id)
+        if (back < 0) { applied.remove(id); return }
+        Root.exec(if (back > 0) "wm density $back -d $id" else "wm density reset -d $id")
+        svc.prefs.setWideRestore(id, -1)
+        applied.remove(id)
+        diag = "Tablet #$id aus" + if (back > 0) " ($back dpi)" else ""
         // Hugminn's own size follows Android again once the change has arrived
-        svc.ui.postDelayed({ if (!applied) svc.keepDensity(0) }, 1200)
-        diag = "Tablet aus" + if (back > 0) " ($back dpi)" else ""
+        if (id == 0) svc.ui.postDelayed({ if (!applied.containsKey(0)) svc.keepDensity(0) }, 1200)
     }
 
-    /** Hugminn (re)started: a density left over from before is put back. */
+    /** Hugminn (re)started: densities left over from before are put back. */
     fun recover() {
-        if (svc.prefs.wideRestore < 0) return
-        svc.prefs.wideKeep.takeIf { it > 0 }?.let { svc.keepDensity(it) }
-        thread { runCatching { applied = true; restore() } }
+        if (svc.prefs.wideRestore >= 0) svc.prefs.wideKeep.takeIf { it > 0 }?.let { svc.keepDensity(it) }
+        thread { for (id in screens()) runCatching { if (svc.prefs.wideRestoreOf(id) >= 0) restore(id) } }
     }
 
     fun stop() {
-        if (applied) thread { runCatching { restore() } }
+        if (applied.isNotEmpty()) thread { for (id in applied.keys.toList()) runCatching { restore(id) } }
     }
 }

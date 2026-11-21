@@ -252,6 +252,21 @@ class DualMedia(private val svc: HugminnService) {
                 setOnClickListener { buzz(strong = true); runCatching { report() }.onFailure { Crash.note(svc, it) } }
             }, LinearLayout.LayoutParams(svc.dp(40), svc.dp(40)).apply { marginEnd = svc.dp(10) })
         }
+        // test builds: try densities for the tablet view right here (YouTube up top changes at once)
+        if (quickReport != null && svc.prefs.wideOn) {
+            fun label() = svc.prefs.wideDpi.let { if (it > 0) "$it dpi" else "Auto" + (svc.wideApps()?.current(0)?.let { c -> " $c" } ?: "") }
+            head.addView(text(label(), 13f, pal.onSurface).apply {
+                background = rounded(pal.tile, svc.dp(14).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+                setPadding(svc.dp(12), svc.dp(8), svc.dp(12), svc.dp(8))
+                setOnClickListener {
+                    val c = WideApps.CHOICES
+                    svc.prefs.wideDpi = c[(c.indexOf(svc.prefs.wideDpi) + 1) % c.size]
+                    buzz()
+                    svc.wideApps()?.reapply()
+                    text = label()
+                }
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = svc.dp(10) })
+        }
         // dark at once: the lower screen goes black, a touch brings it back
         head.addView(FrameLayout(svc).apply {
             background = rounded(pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
