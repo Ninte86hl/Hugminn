@@ -190,6 +190,20 @@ object Media {
         }.getOrDefault(false)
     }
 
+    private val playerApps = Regex("youtube|newpipe|spotify|music|deezer|tidal|soundcloud|podcast|audible|vlc|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll|player|radio", RegexOption.IGNORE_CASE)
+
+    /**
+     * Music or a video plays in [pkg] right now (Spotify, YouTube & co.): Hugminn's switcher and
+     * Control Center then leave it running instead of pausing it – that would only break the flow.
+     */
+    fun playsIn(ctx: Context, pkg: String?): Boolean {
+        if (pkg == null) return false
+        val sound = ctx.getSystemService(AudioManager::class.java)?.isMusicActive == true
+        if (!sound) return false
+        // the session read last, or a player by its name (sessions are not read on every handheld all the time)
+        return (app == pkg && playing) || playerApps.containsMatchIn(pkg)
+    }
+
     fun key(ctx: Context, code: Int) {
         val am = ctx.getSystemService(AudioManager::class.java) ?: return
         val t = SystemClock.uptimeMillis()
