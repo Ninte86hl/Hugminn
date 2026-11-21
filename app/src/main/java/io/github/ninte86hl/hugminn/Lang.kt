@@ -182,6 +182,7 @@ object Lang {
         "Statisch" to "Static",
         "Farbwechsel" to "Colour cycle",
         "Regenbogen versetzt" to "Rainbow ring",
+        "Regenbogen" to "Rainbow",
         "Atmen" to "Breathing",
         "Pulsieren" to "Pulsing",
         "Hugminn wurde neu gestartet" to "Hugminn was restarted",
