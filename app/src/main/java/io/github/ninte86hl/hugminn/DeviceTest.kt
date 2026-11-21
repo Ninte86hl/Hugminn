@@ -253,7 +253,7 @@ object DeviceReport {
         listOf(
             "performance_mode" to t("Leistungsprofile", "Performance profiles"),
             "fan_mode" to t("Lüfterprofile", "Fan profiles"),
-            "temp_abxy_layout_mode" to t("Tastenlayout / eingebaute Steuerung aus", "Button layout / built-in controls off"),
+            Device.controllerKey(this) to t("Tastenlayout / eingebaute Steuerung aus", "Button layout / built-in controls off"),
             "trigger_input_mode" to t("Trigger-Modus", "Trigger mode"),
             Device.stickLedKey(this) to t("Stick-LEDs", "Stick LEDs"),
             "is_charging_separation" to t("Direkte Stromversorgung", "Charging separation"),

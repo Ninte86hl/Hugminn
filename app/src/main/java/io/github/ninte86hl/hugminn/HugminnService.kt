@@ -135,6 +135,8 @@ class HugminnService : AccessibilityService() {
         dualMedia = DualMedia(this).also { it.start() }
         landscape = Landscape(this)
         NavBar.resume(this)
+        Device.refreshLayout(this)
+        FeedbackBubble.start(this)
         // the tablet view (test builds) is gone for good: a density it left behind goes back to the old value
         Thread {
             val sp = getSharedPreferences("hugminn", MODE_PRIVATE)
@@ -235,6 +237,7 @@ class HugminnService : AccessibilityService() {
     override fun onDestroy() {
         dualMedia?.stop()
         landscape?.hide()
+        FeedbackBubble.stop(this)
         if (::overlay.isInitialized) overlay.hide()
         LedFx.stop()
         FanCurve.stop(restoreSmart = true)
