@@ -205,36 +205,6 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("dualMedia", true)
         set(v) = p.edit().putBoolean("dualMedia", v).apply()
 
-    /** Tablet view: apps that get the top screen as a tablet while in front (lower density, root). */
-    var wideOn: Boolean
-        get() = p.getBoolean("wideOn", true)
-        set(v) = p.edit().putBoolean("wideOn", v).apply()
-
-    var wideApps: Set<String>
-        get() = p.getStringSet("wideApps", null) ?: setOf("com.google.android.youtube")
-        set(v) = p.edit().putStringSet("wideApps", v).apply()
-
-    /** Density to go back to after the tablet view: -1 nothing to do, 0 Android's own, else that value. */
-    var wideRestore: Int
-        get() = p.getInt("wideRestore", -1)
-        set(v) = p.edit().putInt("wideRestore", v).commit().let { }
-
-    /** Tablet view: density for the apps (0 = automatic, the smallest that counts as a tablet). */
-    var wideDpi: Int
-        get() = p.getInt("wideDpi", 0)
-        set(v) = p.edit().putInt("wideDpi", v).apply()
-
-    /** Per screen: density to go back to (-1 nothing to do, 0 Android's own, else that value). */
-    fun wideRestoreOf(display: Int): Int = if (display == 0) wideRestore else p.getInt("wideRestore$display", -1)
-    fun setWideRestore(display: Int, v: Int) {
-        if (display == 0) wideRestore = v else p.edit().putInt("wideRestore$display", v).commit()
-    }
-
-    /** Hugminn's own density while the tablet view is on (the value from before). */
-    var wideKeep: Int
-        get() = p.getInt("wideKeep", 0)
-        set(v) = p.edit().putInt("wideKeep", v).apply()
-
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()
