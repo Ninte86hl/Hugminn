@@ -110,7 +110,11 @@ object LedFx {
         if (recording) { start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
         if (lowBattery) { if (Device.stickLeds(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
         val e = Prefs(ctx).ledEffect
-        if (Device.stickLeds(ctx) && e != LedEffect.NONE) start(ctx, e) else stop()
+        if (Device.stickLeds(ctx) && e != LedEffect.NONE) start(ctx, e) else {
+            stop()
+            // AYN with two stick colours: the firmware only knows one, Hugminn puts the second back
+            if (Device.stickLeds(ctx) && Device.aynSplit(ctx)) restoreStatic(ctx, delayMs = 600)
+        }
     }
 
     fun set(ctx: Context, e: LedEffect) {
@@ -157,10 +161,13 @@ object LedFx {
     }
 
     /** Writes the stored static colours (at the stored brightness) to the sticks. */
-    fun restoreStatic(ctx: Context) {
+    fun restoreStatic(ctx: Context, delayMs: Long = 0) {
         val (l, r) = Device.ledColors(ctx) ?: return
         val k = Device.ledBrightness(ctx)
-        Thread { Root.exec(command(intArrayOf(scale(l, k), scale(r, k)))) }.start()
+        // AYN: only the sticks that are on (the firmware switched the others off)
+        val left = if (Device.isAyn && !Device.stickOn(ctx, true)) 0 else scale(l, k)
+        val right = if (Device.isAyn && !Device.stickOn(ctx, false)) 0 else scale(r, k)
+        Thread { if (delayMs > 0) Thread.sleep(delayMs); Root.exec(command(intArrayOf(left, right))) }.start()
     }
 
     fun stop() {

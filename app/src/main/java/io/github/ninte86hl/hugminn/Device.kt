@@ -182,6 +182,9 @@ object Device {
         Root.run(Root.putSetting("system", "joystick_light_enabled", "${if (l) 1 else 0},${if (r) 1 else 0}"), then = then)
     }
 
+    /** AYN: the two sticks have different colours (Hugminn's own, written to the LED driver). */
+    fun aynSplit(ctx: Context) = isAyn && Prefs(ctx).let { it.aynLedLeft != 0 && it.aynLedRight != 0 }
+
     /** AYN Odin 2: lights in the sides of the case (left_/right_handle_light_enabled), same colour as the sticks. */
     fun hasSideLights(ctx: Context) = isAyn && sys(ctx, "left_handle_light_enabled") != null
     fun sideLights(ctx: Context) = sysOn(ctx, "left_handle_light_enabled") || sysOn(ctx, "right_handle_light_enabled")
@@ -192,7 +195,10 @@ object Device {
     )
 
     /** Colours of the stick LEDs as Retroid's LED window stores them: "#AARRGGBB,#AARRGGBB" (left, right). */
-    fun ledColors(ctx: Context): Pair<Int, Int>? = if (aynLeds(ctx)) sys(ctx, "led_light_picker_color")?.trim()?.toLongOrNull()?.toInt()?.let { it to it } else try {
+    fun ledColors(ctx: Context): Pair<Int, Int>? = if (aynLeds(ctx)) sys(ctx, "led_light_picker_color")?.trim()?.toLongOrNull()?.toInt()?.let { c ->
+        val p = Prefs(ctx)
+        (if (p.aynLedLeft != 0) p.aynLedLeft else c) to (if (p.aynLedRight != 0) p.aynLedRight else c)
+    } else try {
         val parts = sys(ctx, "joystick_led_light_picker_color")?.split(',')?.map { android.graphics.Color.parseColor(it.trim()) }
         if (parts == null || parts.isEmpty()) null else parts[0] to parts.getOrElse(1) { parts[0] }
     } catch (t: Throwable) {
@@ -201,10 +207,19 @@ object Device {
 
     fun setLedColors(ctx: Context, left: Int, right: Int, turnOn: Boolean, then: () -> Unit) {
         fun hex(c: Int) = "#%08x".format(c or 0xFF000000.toInt())
-        // AYN: one colour for both sticks, stored as a number
-        val cmds = if (aynLeds(ctx)) mutableListOf(Root.putSetting("system", "led_light_picker_color", "${left or 0xFF000000.toInt()}"))
+        // AYN keeps one colour (sticks and sides): it gets the left one; two different colours for the
+        // sticks are Hugminn's own and are written to the LED driver right after the firmware
+        val ayn = aynLeds(ctx)
+        if (ayn) {
+            val p = Prefs(ctx)
+            val split = (left or 0xFF000000.toInt()) != (right or 0xFF000000.toInt())
+            p.aynLedLeft = if (split) left or 0xFF000000.toInt() else 0
+            p.aynLedRight = if (split) right or 0xFF000000.toInt() else 0
+        }
+        val cmds = if (ayn) mutableListOf(Root.putSetting("system", "led_light_picker_color", "${left or 0xFF000000.toInt()}"))
             else mutableListOf(Root.putSetting("system", "joystick_led_light_picker_color", "${hex(left)},${hex(right)}"))
         if (turnOn) cmds += stickLedCmds(ctx, true)
+        if (ayn && aynSplit(ctx)) { Root.run(*cmds.toTypedArray()) { LedFx.restoreStatic(ctx, delayMs = 400); then() }; return }
         Root.run(*cmds.toTypedArray(), then = then)
     }
 
