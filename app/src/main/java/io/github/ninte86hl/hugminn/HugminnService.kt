@@ -200,6 +200,9 @@ class HugminnService : AccessibilityService() {
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {
                 WakeDiag.start(this@HugminnService)
+                // AYN with two stick colours: the firmware puts its one colour back on waking
+                if (Device.aynSplit(this@HugminnService) && LedFx.current() == LedEffect.NONE && Device.stickLeds(this@HugminnService))
+                    LedFx.restoreStatic(this@HugminnService, delayMs = 1500)
                 ui.postDelayed({
                     Thread {
                         if (Root.available() && Device.builtinOff(this@HugminnService) && !Device.externalPad())

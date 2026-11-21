@@ -219,6 +219,14 @@ class Prefs(ctx: Context) {
         get() = p.getInt("bubbleY", 0)
         set(v) = p.edit().putInt("bubbleY", v).apply()
 
+    /** AYN: own colours per stick (0 = none, AYN's one colour applies) – AYN itself keeps only one. */
+    var aynLedLeft: Int
+        get() = p.getInt("aynLedLeft", 0)
+        set(v) = p.edit().putInt("aynLedLeft", v).apply()
+    var aynLedRight: Int
+        get() = p.getInt("aynLedRight", 0)
+        set(v) = p.edit().putInt("aynLedRight", v).apply()
+
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()
