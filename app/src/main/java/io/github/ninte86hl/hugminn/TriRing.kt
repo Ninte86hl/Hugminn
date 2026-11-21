@@ -29,7 +29,8 @@ class TriRing(ctx: Context, private val accent: Int, private val line: Int) : Vi
         fun ring(inner: Float, outer: Float, on: Boolean) {
             p.style = Paint.Style.STROKE
             if (on) {
-                p.color = accent
+                // off is shown in grey: a red ring would look like "on"
+                p.color = if (state == 0) line else accent
                 p.strokeWidth = (outer - inner) * r
                 c.drawCircle(cx, cy, (inner + outer) / 2f * r, p)
             } else {
