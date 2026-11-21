@@ -1,6 +1,5 @@
 package io.github.ninte86hl.hugminn
 
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
@@ -9,65 +8,52 @@ import android.view.MotionEvent
 import android.view.View
 
 /**
- * Switch with three positions side by side: left = off, middle = on (keeps its look),
- * right = custom (gets the changes). The knob sits on the active position and shows it by its
- * centre: dark for off, the element's colour for on, the accent for custom. A tap on a position
- * picks it directly; the knob slides there.
+ * Slide switch with [count] stops side by side (LED window: Aus · Farbe · Kombi · Effekt). The knob
+ * sits on the active stop; its centre shows what lights there ([centers], one colour per stop).
+ * A tap on a stop picks it directly.
  */
-class TriRing(ctx: Context, private val accent: Int, private val line: Int, private val track: Int) : View(ctx) {
+class TriRing(ctx: Context, private val line: Int, private val track: Int, private val count: Int = 3) : View(ctx) {
     var state = 0
-        set(v) {
-            if (v == field && pos >= 0f) return
-            val from = if (pos < 0f) v.toFloat() else pos
-            field = v
-            anim?.cancel()
-            if (from == v.toFloat() || !isAttachedToWindow) { pos = v.toFloat(); invalidate(); return }
-            anim = ValueAnimator.ofFloat(from, v.toFloat()).apply {
-                duration = 160
-                addUpdateListener { pos = it.animatedValue as Float; invalidate() }
-                start()
-            }
-        }
+        set(v) { field = v; invalidate() }
 
-    /** Colour of the element (the knob's centre when on). */
-    var color = accent
+    /** Colour in the knob's centre for each stop. */
+    var centers = IntArray(count) { 0xFF2A2A2A.toInt() }
         set(v) { field = v; invalidate() }
 
     var onPick: ((Int) -> Unit)? = null
-    private var pos = -1f
-    private var anim: ValueAnimator? = null
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val dp = resources.displayMetrics.density
 
-    private fun slotX(i: Float): Float {
+    private fun slotX(i: Int): Float {
         val r = height / 2f
-        return r + i * (width - 2 * r) / 2f
+        return r + i * (width - 2 * r) / (count - 1).coerceAtLeast(1)
     }
 
     override fun onDraw(c: Canvas) {
         val h = height.toFloat()
         val cy = h / 2f
-        // the track with three small marks
+        // the track with a small mark per stop
         p.style = Paint.Style.FILL
         p.color = track
         val tr = h * 0.30f
-        c.drawRoundRect(slotX(0f) - tr, cy - tr, slotX(2f) + tr, cy + tr, tr, tr, p)
+        c.drawRoundRect(slotX(0) - tr, cy - tr, slotX(count - 1) + tr, cy + tr, tr, tr, p)
         p.color = line
-        for (i in 0..2) c.drawCircle(slotX(i.toFloat()), cy, h * 0.09f, p)
-        // the knob: grey ring, coloured centre for the state it stands on
-        val x = slotX(if (pos < 0f) state.toFloat() else pos)
+        for (i in 0 until count) c.drawCircle(slotX(i), cy, h * 0.09f, p)
+        // the knob: grey ring, coloured centre for the stop it stands on
+        val x = slotX(state.coerceIn(0, count - 1))
         p.color = line
         c.drawCircle(x, cy, h / 2f - 1f * dp, p)
         p.color = 0xFF000000.toInt()
         c.drawCircle(x, cy, h * 0.30f, p)
-        p.color = when (state) { 0 -> 0xFF2A2A2A.toInt(); 1 -> color; else -> accent }
+        p.color = centers.getOrElse(state) { line }
         c.drawCircle(x, cy, h * 0.24f, p)
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(e: MotionEvent): Boolean {
         if (e.action == MotionEvent.ACTION_UP) {
-            val k = ((e.x - slotX(0f)) / ((slotX(2f) - slotX(0f)) / 2f)).let { Math.round(it) }.coerceIn(0, 2)
+            val step = (slotX(count - 1) - slotX(0)) / (count - 1).coerceAtLeast(1)
+            val k = Math.round((e.x - slotX(0)) / step).coerceIn(0, count - 1)
             onPick?.invoke(k)
         }
         return true

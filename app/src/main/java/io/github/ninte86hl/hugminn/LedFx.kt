@@ -102,7 +102,10 @@ object LedFx {
     private fun load(ctx: Context) {
         speed = Prefs(ctx).ledSpeed
         brightness = (Device.ledBrightness(ctx) * 100).toInt()
-        odin = Device.hasSideLights(ctx)
+        // every device with stick LEDs: Hugminn drives each light itself (per-element modes)
+        // (Retroid with an LED app chosen – Bifrost, AmbiLuma …: that app keeps the LEDs)
+        odin = Device.hasSideLights(ctx) || (Device.hasStickLeds(ctx) && Prefs(ctx).ledApp.isEmpty())
+        sides = Device.hasSideLights(ctx)
     }
 
     /**
@@ -110,6 +113,8 @@ object LedFx {
      * with its own colours and effect. Hugminn then always drives them itself.
      */
     @Volatile private var odin = false
+    /** Odin 2: four lights (sticks zone 2, sides zone 1); otherwise the two sticks (zone 1). */
+    @Volatile private var sides = false
 
     /** The effect of the side lights (Odin 2). */
     fun currentSide() = if (running && !lowBattery && !recording) sideEffect else LedEffect.NONE
@@ -281,17 +286,19 @@ object LedFx {
                     if (now - state > 1000) {
                         state = now
                         st = Device.elStates(app)
-                        if (forced != null) { fx = Array(4) { LedEffect.PULSE }; col = IntArray(4) { forced.first } }
-                        else { fx = Array(4) { Device.elFx(app, it) }; col = Device.elColors(app) }
-                        kb = FloatArray(4) { Device.elBright(app, it) / 100f }
-                        effect = fx[0]
-                        sideEffect = fx[2]
+                        val m = st.size
+                        if (forced != null) { fx = Array(m) { LedEffect.PULSE }; col = IntArray(m) { forced.first } }
+                        else { fx = Array(m) { Device.elOutFx(app, it, st[it]) }; col = IntArray(m) { Device.elOutColor(app, it, st[it]) } }
+                        kb = FloatArray(m) { Device.elBright(app, it) / 100f }
+                        effect = fx.getOrElse(0) { LedEffect.NONE }
+                        sideEffect = fx.getOrElse(2) { LedEffect.NONE }
                     }
-                    val z = IntArray(4) { i ->
+                    val z = IntArray(st.size) { i ->
                         if (st[i] == 0) 0
                         else scale(frame(fx[i], phase + (if (i >= 2) 0.37f else 0f), col[i], col[i])[i % 2], kb[i])
                     }
-                    val cmd = command(intArrayOf(z[0], z[1]), 2) + "; " + command(intArrayOf(z[2], z[3]), 1)
+                    val cmd = if (z.size >= 4) command(intArrayOf(z[0], z[1]), 2) + "; " + command(intArrayOf(z[2], z[3]), 1)
+                        else command(intArrayOf(z[0], z.getOrElse(1) { 0 }), 1)
                     // write when something changed – and every 2 s anyway, the firmware may paint over it
                     if (cmd != lastCmd || now - lastWrite > 2000) {
                         Root.exec(cmd, 1_000)
@@ -313,18 +320,16 @@ object LedFx {
 
     /** Sets the effect of the given elements (Retroid: the one effect of both sticks). */
     fun setEls(ctx: Context, els: List<Int>, e: LedEffect) {
-        if (Device.hasSideLights(ctx)) {
-            val p = Prefs(ctx)
-            els.forEach { p.setLedElFx(it, e) }
-            load(ctx)
-            if (lowBattery || recording) return
-            resume(ctx)
-        } else set(ctx, e)
+        val p = Prefs(ctx)
+        els.forEach { p.setLedElFx(it, e) }
+        load(ctx)
+        if (lowBattery || recording) return
+        resume(ctx)
     }
 
     /** Odin 2: shows four element colours right away (colour wheel), already dimmed; not stored. */
     fun previewEls(z: IntArray, k: Float) {
-        if (z.size < 4) { preview(z[0], z.getOrElse(1) { z[0] }, k); return }
+        if (z.size < 4) { previewZone = 1; preview(z[0], z.getOrElse(1) { z[0] }, k); return }
         stop()
         previewNext = IntArray(4) { scale(z[it], k) }
         synchronized(previewLock) {

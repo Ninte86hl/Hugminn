@@ -240,20 +240,27 @@ object Device {
         listOf(tr("Linker Stick"), tr("Rechter Stick"), tr("Linke Seite"), tr("Rechte Seite"))
         else listOf(tr("Linker Stick"), tr("Rechter Stick"))
 
-    /** 0 off, 1 on (keeps its look), 2 on and chosen for changes. */
+    /**
+     * Mode of an element – what it shows: 0 off, 1 its colour, 2 the combination, 3 its effect.
+     * Colour, combination and effect are each set once; the mode picks which one lights.
+     */
     fun elState(ctx: Context, i: Int): Int {
         val odin = hasSideLights(ctx)
         // switched off by AYN's/Retroid's own setting: off
         val powered = if (odin) (if (i < 2) stickLeds(ctx) else sideLights(ctx)) else stickOn(ctx, i == 0)
         if (!powered) return 0
-        return Prefs(ctx).ledElState.getOrNull(i)?.digitToIntOrNull()?.takeIf { it in 0..2 } ?: 2
+        val p = Prefs(ctx)
+        p.ledElMode.getOrNull(i)?.digitToIntOrNull()?.takeIf { it in 0..3 }?.let { return it }
+        // from the earlier Aus · An · Benutzerdefiniert: on with an effect = effect, otherwise colour
+        val old = p.ledElState.getOrNull(i)?.digitToIntOrNull() ?: 1
+        return if (old == 0) 0 else if (elFx(ctx, i) != LedEffect.NONE) 3 else 1
     }
 
     fun elStates(ctx: Context) = IntArray(ledElNames(ctx).size) { elState(ctx, it) }
 
-    /** Sets all states; AYN's power switches (both sticks / both sides) follow the elements. */
+    /** Sets all modes; the power switches (AYN: both sticks / both sides; Retroid: each stick) follow. */
     fun setElStates(ctx: Context, s: IntArray, then: () -> Unit) {
-        Prefs(ctx).ledElState = s.joinToString("")
+        Prefs(ctx).ledElMode = s.joinToString("")
         if (hasSideLights(ctx)) {
             val sticks = s[0] > 0 || s[1] > 0
             val sides = s[2] > 0 || s[3] > 0
@@ -266,9 +273,10 @@ object Device {
         }
     }
 
+    /** The element's own colour (also the colour of breathing and pulsing). */
     fun elColor(ctx: Context, i: Int): Int {
+        Prefs(ctx).ledElColor(i).takeIf { it != 0 }?.let { return it }
         if (hasSideLights(ctx)) {
-            Prefs(ctx).ledElColor(i).takeIf { it != 0 }?.let { return it }
             val (l, r) = areaColors(ctx, side = i >= 2)
             return if (i % 2 == 0) l else r
         }
@@ -279,34 +287,49 @@ object Device {
     fun elColors(ctx: Context) = IntArray(ledElNames(ctx).size) { elColor(ctx, it) }
 
     fun setElColors(ctx: Context, c: IntArray, then: () -> Unit) {
-        if (hasSideLights(ctx)) {
-            val p = Prefs(ctx)
-            c.forEachIndexed { i, v -> p.setLedElColor(i, v or 0xFF000000.toInt()) }
-            LedFx.resume(ctx)
-            then()
-            return
-        }
-        setLedColors(ctx, c[0], c[1], turnOn = false) { LedFx.resume(ctx); then() }
+        val p = Prefs(ctx)
+        c.forEachIndexed { i, v -> p.setLedElColor(i, v or 0xFF000000.toInt()) }
+        LedFx.resume(ctx)
+        then()
     }
+
+    /** Colour combinations: left lights (left stick, left side) the first, right ones the second. */
+    val ledCombos get() = listOf(
+        "Duo Rot/Blau" to (0xFFFF0000.toInt() to 0xFF0000FF.toInt()),
+        tr("Feuer") to (0xFFFF0000.toInt() to 0xFFFF6600.toInt()),
+        tr("Eisblau") to (0xFF00FFFF.toInt() to 0xFFFFFFFF.toInt()),
+        tr("Ozean") to (0xFF0000FF.toInt() to 0xFF00FF99.toInt()),
+        tr("Wald") to (0xFF00FF00.toInt() to 0xFF99FF00.toInt()),
+        "Retro " + tr("Lila") to (0xFF8800FF.toInt() to 0xFFFF00FF.toInt()),
+        tr("Sonnenuntergang") to (0xFFFF6600.toInt() to 0xFFFF00FF.toInt()),
+        "Neon" to (0xFF99FF00.toInt() to 0xFFFF00FF.toInt()),
+    )
+
+    fun comboColor(ctx: Context, i: Int): Int {
+        val list = ledCombos
+        val pair = list[Prefs(ctx).ledComboSel.coerceIn(0, list.lastIndex)].second
+        return if (i % 2 == 0) pair.first else pair.second
+    }
+
+    /** What an element shows now: its colour, the combination's or – with an effect – the effect in its colour. */
+    fun elOutColor(ctx: Context, i: Int, mode: Int) = if (mode == 2) comboColor(ctx, i) else elColor(ctx, i)
+    fun elOutFx(ctx: Context, i: Int, mode: Int) = if (mode == 3) elFx(ctx, i) else LedEffect.NONE
 
     /** Brightness of an element in percent (Odin 2: each its own; Retroid: the one value of both sticks). */
     fun elBright(ctx: Context, i: Int): Int {
         val global = (ledBrightness(ctx) * 100).toInt().coerceIn(5, 100)
-        if (!hasSideLights(ctx)) return global
         return Prefs(ctx).ledElB(i).takeIf { it in 1..100 } ?: global
     }
 
     fun setElBright(ctx: Context, i: Int, v: Int, then: () -> Unit) {
         val x = v.coerceIn(5, 100)
-        if (hasSideLights(ctx)) { Prefs(ctx).setLedElB(i, x); LedFx.resume(ctx); then(); return }
-        LedFx.setBrightness(ctx, x, then)
+        Prefs(ctx).setLedElB(i, x); LedFx.resume(ctx); then()
     }
 
     /** Effect of an element (Retroid: one effect for both sticks). */
     fun elFx(ctx: Context, i: Int): LedEffect {
         val p = Prefs(ctx)
-        if (!hasSideLights(ctx)) return p.ledEffect
-        return p.ledElFx(i) ?: if (i < 2) p.ledEffect else p.ledEffectSide
+        return p.ledElFx(i) ?: if (i < 2 || !hasSideLights(ctx)) p.ledEffect else p.ledEffectSide
     }
 
     /** Any light on: a stick or (Odin 2) the side lights – what the tile shows. */
@@ -316,7 +339,7 @@ object Device {
     fun setAllLights(ctx: Context, on: Boolean, then: () -> Unit) {
         val cmds = stickLedCmds(ctx, on).toMutableList()
         // everything on: elements that were switched off one by one light again too
-        if (on) Prefs(ctx).let { p -> p.ledElState = p.ledElState.replace('0', '2') }
+        if (on) Prefs(ctx).let { p -> p.ledElMode = p.ledElMode.replace('0', '1') }
         if (hasSideLights(ctx)) {
             cmds += Root.putSetting("system", "left_handle_light_enabled", if (on) "1" else "0")
             cmds += Root.putSetting("system", "right_handle_light_enabled", if (on) "1" else "0")
