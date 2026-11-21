@@ -393,6 +393,18 @@ class Prefs(ctx: Context) {
         get() = p.getInt("aynStickRight", 0)
         set(v) = p.edit().putInt("aynStickRight", v).apply()
 
+    /**
+     * LED elements (Odin 2: left stick, right stick, left side, right side; Retroid: the two sticks):
+     * state per element as one digit – 0 off, 1 on (keeps its look), 2 on and chosen for changes.
+     */
+    var ledElState: String
+        get() = p.getString("ledElState", "") ?: ""
+        set(v) = p.edit().putString("ledElState", v).apply()
+    fun ledElColor(i: Int) = p.getInt("ledElC$i", 0)
+    fun setLedElColor(i: Int, c: Int) = p.edit().putInt("ledElC$i", c).apply()
+    fun ledElFx(i: Int): LedEffect? = p.getString("ledElFx$i", null)?.let { enumOr(it, LedEffect.NONE) }
+    fun setLedElFx(i: Int, e: LedEffect) = p.edit().putString("ledElFx$i", e.name).apply()
+
     var gaugePalette: GaugePalette
         get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)
         set(v) = p.edit().putString("gaugePalette", v.name).apply()
