@@ -16,8 +16,8 @@ class WideApps(private val svc: HugminnService) {
 
     companion object {
         @Volatile var diag = ""
-        /** Smallest side Android treats as a tablet (Michel's test on the Thor: 600 is the game changer). */
-        private const val TABLET_DP = 600
+        /** Smallest side Android treats as a tablet (Michel's test on the Thor: 600 chosen, Android made it 632 – that is what looked right). */
+        private const val TABLET_DP = 632
     }
 
     /** Screen → density set by Hugminn right now. */
