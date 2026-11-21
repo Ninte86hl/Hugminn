@@ -276,7 +276,7 @@ object DeviceReport {
         val s = runCatching { metrics.sample() }.getOrNull()
         if (s != null) {
             add(live, "CPU", if (s.cpuMhz > 0) CheckState.OK else CheckState.WARN, if (s.cpuMhz > 0) "${s.cpuMhz} MHz · ${s.cpuPct.toInt()} %" else t("Takt nicht lesbar", "Clock not readable"))
-            add(live, "GPU", if (File("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage").canRead()) CheckState.OK else CheckState.WARN, "${s.gpuPct.toInt()} % · ${s.gpuMhz} MHz")
+            add(live, "GPU", if (File("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage").canRead() || s.gpuMhz > 0) CheckState.OK else CheckState.WARN, "${s.gpuPct.toInt()} % · ${s.gpuMhz} MHz")
             add(live, t("Temperaturen", "Temperatures"), if (s.cpuTemp > 0) CheckState.OK else CheckState.WARN, "CPU ${s.cpuTemp.toInt()} °C · GPU ${s.gpuTemp.toInt()} °C · " + t("Akku", "Battery") + " ${s.batTemp.toInt()} °C")
             add(live, t("Akku", "Battery"), if (s.batPct > 0) CheckState.OK else CheckState.WARN, "${s.batPct} % · " + "%.1f W".format(s.watts))
         } else add(live, t("Systemwerte", "System values"), CheckState.FAIL, t("Nicht lesbar", "Not readable"))
