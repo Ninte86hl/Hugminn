@@ -120,8 +120,7 @@ class DualMedia(private val svc: HugminnService) {
         if (!wanted) { hide(); return }
         // the switcher's own second-screen view must stay on top while it is open
         if (view == null && (svc.anySwitcherOpen || !show())) return
-        if (listMode) { if (keyOf() != shownKey) { shownKey = keyOf(); loadList() } }
-        else if (keyOf() != shownKey) { render(); setDark(false) } else if (!dark) refreshParts()
+        if (keyOf() != shownKey) { render(); setDark(false) } else if (!dark) refreshParts()
         focusBack(fg)
         youtubeControls(fg)
     }
@@ -178,8 +177,6 @@ class DualMedia(private val svc: HugminnService) {
         svc.ui.removeCallbacks(goDark)
         shownKey = null
         dragging = false
-        listMode = false
-        rows = emptyList()
         runCatching { wm?.removeViewImmediate(v) }
         wm = null
     }
@@ -291,7 +288,7 @@ class DualMedia(private val svc: HugminnService) {
         val s = text("", if (video) 20f else 21f, pal.onSurface, bold = true, lines = if (video && Media.art == null) 3 else 2)
         val w = text("", 15f, onGround)
         v.addView(s, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        if (!video) v.addView(w, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(4) })
+        v.addView(w, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(2) })
         v.addView(View(svc), LinearLayout.LayoutParams(1, svc.dp(10)))
 
         // progress in the accent colour – touch or drag it to jump
@@ -347,8 +344,10 @@ class DualMedia(private val svc: HugminnService) {
         pb.addView(pl, center()); pb.addView(pa, center())
         btn(KeyEvent.KEYCODE_MEDIA_NEXT, false).addView(IconView(svc, IconView.Kind.NEXT, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
         v.addView(ctrl, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(12) })
-        // the playlist down here (Y); for YouTube also its own playlist and full screen up top
-        run {
+        // volume: a bar like the progress, drag or tap
+        v.addView(volumeBar(pal, px, onGround), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, svc.dp(34)).apply { topMargin = svc.dp(6) })
+        // YouTube: full screen ⇄ its normal pages
+        if (pkg?.contains("youtube") == true) {
             val extra = LinearLayout(svc).apply { gravity = Gravity.CENTER }
             fun small(kind: IconView.Kind, label: String, act: () -> Unit) {
                 extra.addView(LinearLayout(svc).apply {
@@ -360,11 +359,7 @@ class DualMedia(private val svc: HugminnService) {
                     setOnClickListener { buzz(); pressedAt = SystemClock.uptimeMillis(); thread { runCatching { act() }.onFailure { Crash.note(svc, it) } } }
                 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = svc.dp(5); marginEnd = svc.dp(5) })
             }
-            small(IconView.Kind.LIST, t("Liste (Y)", "List (Y)")) { svc.ui.post { openList() } }
-            if (pkg?.contains("youtube") == true) {
-                small(IconView.Kind.LIST, t("Liste oben", "List up top")) { ytPlaylist(pkg) }
-                small(IconView.Kind.EXPAND, t("Groß / klein", "Big / small")) { ytFullscreen(pkg) }
-            }
+            small(IconView.Kind.EXPAND, t("Vollbild", "Full screen")) { ytFullscreen(pkg) }
             v.addView(extra, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(10) })
         }
 
@@ -372,6 +367,53 @@ class DualMedia(private val svc: HugminnService) {
         refreshParts()
         // the knob needs the bar's width: place it once laid out
         seek.post { refreshParts() }
+    }
+
+    private var volFill: View? = null
+    private var volRest: View? = null
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun volumeBar(pal: Palette, px: Boolean, onGround: Int): View {
+        val am = svc.getSystemService(android.media.AudioManager::class.java)
+        val max = am?.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)?.coerceAtLeast(1) ?: 15
+        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+        row.addView(IconView(svc, IconView.Kind.SPEAKER, 18).styled(pal, px).apply { setColor(onGround) }, LinearLayout.LayoutParams(svc.dp(20), svc.dp(20)))
+        val area = FrameLayout(svc)
+        val track = LinearLayout(svc).apply { background = rounded(pal.surfaceHighest, svc.dp(3).toFloat()) }
+        val fill = View(svc).apply { background = rounded(pal.onSurface, svc.dp(3).toFloat()) }
+        val rest = View(svc)
+        track.addView(fill, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0f))
+        track.addView(rest, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+        area.addView(track, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, svc.dp(6), Gravity.CENTER_VERTICAL))
+        row.addView(area, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { marginStart = svc.dp(12) })
+        volFill = fill; volRest = rest
+        var last = -1
+        area.setOnTouchListener { a, e ->
+            if (e.actionMasked == MotionEvent.ACTION_DOWN || e.actionMasked == MotionEvent.ACTION_MOVE) {
+                a.parent?.requestDisallowInterceptTouchEvent(true)
+                val step = ((e.x / a.width.coerceAtLeast(1)) * max).roundToIntSafe().coerceIn(0, max)
+                if (step != last) {
+                    last = step
+                    runCatching { am?.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, step, 0) }
+                    buzz()
+                    showVolume()
+                }
+            } else if (e.actionMasked == MotionEvent.ACTION_UP || e.actionMasked == MotionEvent.ACTION_CANCEL) last = -1
+            true
+        }
+        showVolume()
+        return row
+    }
+
+    private fun Float.roundToIntSafe(): Int = kotlin.math.round(this).toInt()
+
+    /** The volume bar follows Android (also when the volume keys are used). */
+    private fun showVolume() {
+        val am = svc.getSystemService(android.media.AudioManager::class.java) ?: return
+        val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val f = am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / max
+        (volFill?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = f; volFill?.layoutParams = it }
+        (volRest?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = 1f - f; volRest?.layoutParams = it }
     }
 
     private fun press(code: Int) {
@@ -409,6 +451,7 @@ class DualMedia(private val svc: HugminnService) {
         who?.text = Media.artist?.takeIf { Media.song != null } ?: ""
         val art = Media.art
         if (art != null) cover?.setImageBitmap(art) else cover?.setImageDrawable(Apps.icon(svc, Media.app))
+        showVolume()
         if (dragging) return
         val dur = Media.duration
         val pos = Media.positionNow()
@@ -446,240 +489,6 @@ class DualMedia(private val svc: HugminnService) {
             svc.startApp(it.addFlags(android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))
         }
         diag += " · Fokus zurück nach oben (${if (moved) "Task $task" else "Start"})"
-    }
-
-    // ---------- the playlist on the lower screen ----------
-
-    /** One line of the list: what it shows, and how to play it. */
-    private class Row(val title: String, val sub: String?, val icon: android.graphics.Bitmap?, val current: Boolean, val go: () -> Unit)
-
-    private var listMode = false
-    private var rows: List<Row> = emptyList()
-    private var listSel = 0
-    private var listScroll: android.widget.ScrollView? = null
-    private var listBox: LinearLayout? = null
-
-    /** Buttons for the list (Y: list on/off; in the list ↑↓ choose, A play, B back). False: not for Hugminn. */
-    fun onKey(e: KeyEvent): Boolean {
-        if (view == null) return false
-        val code = e.keyCode
-        val mine = code == KeyEvent.KEYCODE_BUTTON_Y || (listMode && code in listOf(
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK))
-        if (!mine) return false
-        if (e.action != KeyEvent.ACTION_DOWN) return true
-        svc.ui.post {
-            setDark(false)
-            when (code) {
-                KeyEvent.KEYCODE_BUTTON_Y -> if (listMode) closeList() else openList()
-                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> closeList()
-                KeyEvent.KEYCODE_DPAD_UP -> moveSel(-1)
-                KeyEvent.KEYCODE_DPAD_DOWN -> moveSel(1)
-                KeyEvent.KEYCODE_BUTTON_A -> rows.getOrNull(listSel)?.let { playRow(it) }
-            }
-        }
-        return true
-    }
-
-    private fun openList() {
-        if (view == null) return
-        buzz()
-        listMode = true
-        rows = emptyList()
-        renderList(loading = true)
-        loadList()
-    }
-
-    private fun closeList() {
-        if (!listMode) return
-        buzz()
-        listMode = false
-        shownKey = null
-        render()
-    }
-
-    private fun playRow(r: Row) {
-        buzz(strong = true)
-        pressedAt = SystemClock.uptimeMillis()
-        thread { runCatching { r.go() }.onFailure { Crash.note(svc, it) } }
-        // back to the player: what plays now is the point
-        svc.ui.postDelayed({ closeList() }, 500)
-    }
-
-    private fun moveSel(d: Int) {
-        if (rows.isEmpty()) return
-        listSel = (listSel + d).coerceIn(0, rows.size - 1)
-        buzz()
-        markSel()
-    }
-
-    /** Reads the list: the queue the player shares with Android, else YouTube's own playlist panel. */
-    private fun loadList() {
-        val pkg = Media.app ?: return
-        thread {
-            val (items, active) = runCatching { Media.queue(svc, pkg) }.getOrDefault(emptyList<Media.QItem>() to -1L)
-            var list = items.map { q -> Row(q.title, q.sub, q.icon, q.id == active) { Media.skipTo(svc, pkg, q.id) } }
-            var from = "Warteschlange ${items.size}"
-            if (list.isEmpty() && pkg.contains("youtube")) { list = ytRows(pkg); from = "YouTube-Liste ${list.size}" }
-            action = " · Liste: $from"
-            svc.ui.post {
-                if (!listMode || view == null) return@post
-                rows = list
-                listSel = list.indexOfFirst { it.current }.coerceAtLeast(0)
-                renderList(loading = false)
-            }
-        }
-    }
-
-    private val duration = Regex("^\\d{1,2}(:\\d{2}){1,2}$")
-
-    /** The last playlist read from YouTube: shown again if it can't be read this time. */
-    private var ytCache: List<Pair<String, String?>> = emptyList()
-
-    /** YouTube shares no queue: its playlist panel up top is read (opened for a moment if need be). */
-    private fun ytRows(pkg: String): List<Row> {
-        var root = ytRoot() ?: return cachedRows(pkg)
-        var opened = false
-        if (ytPanel(root, pkg) == null) {
-            if (!ytOpenPanel(root, pkg)) return cachedRows(pkg)
-            Thread.sleep(900)
-            root = ytRoot() ?: return cachedRows(pkg)
-            opened = true
-        }
-        val panel = ytPanel(root, pkg) ?: return cachedRows(pkg)
-        val found = linkedMapOf<String, String?>()
-        // the panel shows only a few entries at a time: read, scroll on, read again
-        val list = scrollerIn(panel)
-        var steps = 0
-        while (true) {
-            val before = found.size
-            ytItems(ytRoot() ?: root, pkg).forEach { (t, s) -> if (t !in found) found[t] = s }
-            if (list == null || steps++ >= 12 || (steps > 1 && found.size == before)) break
-            if (!list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) break
-            Thread.sleep(250)
-        }
-        // back to the top of the list
-        if (list != null) repeat(steps) { if (!list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) return@repeat }
-        // the list stays below: close YouTube's panel up top again if Hugminn opened it
-        if (opened) { Thread.sleep(200); ytRoot()?.let { ytClosePanel(it, pkg) } }
-        if (found.isNotEmpty()) ytCache = found.toList()
-        return cachedRows(pkg)
-    }
-
-    private fun cachedRows(pkg: String): List<Row> {
-        val playing = Media.song ?: Media.title
-        return ytCache.map { (title, sub) ->
-            Row(title, sub, null, playing != null && (title.contains(playing, true) || playing.contains(title, true))) { ytPlayTitle(pkg, title) }
-        }
-    }
-
-    /** The entries of YouTube's playlist panel on screen right now: title and channel. */
-    private fun ytItems(root: AccessibilityNodeInfo, pkg: String): List<Pair<String, String?>> {
-        val items = runCatching { root.findAccessibilityNodeInfosByViewId("$pkg:id/playlist_panel_video_item") }.getOrNull().orEmpty()
-        return items.mapNotNull { n ->
-            val t = mutableListOf<String>()
-            texts(n, t, 0)
-            val words = t.filterNot { duration.matches(it) }
-            words.firstOrNull()?.let { it to words.getOrNull(1) }
-        }
-    }
-
-    private fun texts(n: AccessibilityNodeInfo, out: MutableList<String>, depth: Int) {
-        if (depth > 12) return
-        n.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out += it }
-        for (i in 0 until n.childCount) n.getChild(i)?.let { texts(it, out, depth + 1) }
-    }
-
-    /** The scrolling list inside [n] (YouTube's playlist). */
-    private fun scrollerIn(n: AccessibilityNodeInfo, depth: Int = 0): AccessibilityNodeInfo? {
-        if (n.isScrollable) return n
-        if (depth > 25) return null
-        for (i in 0 until n.childCount) n.getChild(i)?.let { c -> scrollerIn(c, depth + 1)?.let { return it } }
-        return null
-    }
-
-    /** Plays [title] from YouTube's playlist (opens the panel for it, finds and taps the entry, closes it again). */
-    private fun ytPlayTitle(pkg: String, title: String) {
-        var root = ytRoot() ?: return
-        var opened = false
-        if (ytPanel(root, pkg) == null) {
-            if (!ytOpenPanel(root, pkg)) { action = " · Liste oben ließ sich nicht öffnen"; return }
-            Thread.sleep(900); root = ytRoot() ?: return; opened = true
-        }
-        val panel = ytPanel(root, pkg) ?: return
-        val list = scrollerIn(panel)
-        var hit: AccessibilityNodeInfo? = null
-        var steps = 0
-        while (hit == null && steps <= 12) {
-            val r = ytRoot() ?: root
-            hit = runCatching { r.findAccessibilityNodeInfosByViewId("$pkg:id/playlist_panel_video_item") }.getOrNull().orEmpty()
-                .firstOrNull { n -> mutableListOf<String>().also { texts(n, it, 0) }.firstOrNull() == title }
-            if (hit != null || list == null || !list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) break
-            steps++
-            Thread.sleep(250)
-        }
-        val ok = click(hit)
-        action = if (ok) " · gespielt aus der Liste" else " · Listeneintrag nicht gefunden"
-        if (opened) { Thread.sleep(700); ytRoot()?.let { ytClosePanel(it, pkg) } }
-    }
-
-    private fun renderList(loading: Boolean) {
-        val v = content ?: return
-        v.removeAllViews()
-        val pal = Palette(svc)
-        val px = Look.pixel(svc)
-        v.background = Look.ground(svc, pal)
-        v.setPadding(svc.dp(24), svc.dp(20), svc.dp(24), svc.dp(16))
-        v.gravity = Gravity.NO_GRAVITY
-        val onGround = if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant
-        val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-        head.addView(IconView(svc, IconView.Kind.LIST, 22).styled(pal, px).apply { setColor(pal.onSurface) }, LinearLayout.LayoutParams(svc.dp(24), svc.dp(24)))
-        head.addView(text(t("Wiedergabeliste", "Playlist"), 18f, pal.onSurface, bold = true).apply { gravity = Gravity.START; setPadding(svc.dp(10), 0, 0, 0) },
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        head.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_B, 22))
-        head.addView(text(t("Zurück", "Back"), 13f, onGround).apply { setPadding(svc.dp(6), 0, svc.dp(4), 0); setOnClickListener { closeList() } })
-        v.addView(head)
-        val scroll = android.widget.ScrollView(svc).apply { isVerticalScrollBarEnabled = false }
-        val box = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-        scroll.addView(box)
-        v.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = svc.dp(12) })
-        listScroll = scroll
-        listBox = box
-        if (loading || rows.isEmpty()) {
-            box.addView(text(if (loading) t("Liste wird geladen …", "Loading the list …") else t("Keine Wiedergabeliste gefunden", "No playlist found"), 15f, onGround).apply { setPadding(0, svc.dp(24), 0, 0) })
-            return
-        }
-        rows.forEachIndexed { i, r ->
-            val row = LinearLayout(svc).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(svc.dp(10), svc.dp(8), svc.dp(12), svc.dp(8))
-                setOnClickListener { listSel = i; markSel(); playRow(r) }
-            }
-            if (r.icon != null) row.addView(ImageView(svc).apply {
-                setImageBitmap(r.icon); scaleType = ImageView.ScaleType.CENTER_CROP; clipToOutline = true
-                outlineProvider = object : android.view.ViewOutlineProvider() {
-                    override fun getOutline(view: View, o: android.graphics.Outline) { o.setRoundRect(0, 0, view.width, view.height, svc.dp(8).toFloat()) }
-                }
-            }, LinearLayout.LayoutParams(svc.dp(80), svc.dp(45)).apply { marginEnd = svc.dp(12) })
-            val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-            col.addView(text(r.title, 15f, if (r.current) pal.primary else pal.onSurface, bold = r.current, lines = 2).apply { gravity = Gravity.START })
-            r.sub?.let { col.addView(text(it, 12f, onGround).apply { gravity = Gravity.START }) }
-            row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            if (r.current) row.addView(IconView(svc, IconView.Kind.PLAY, 16).styled(pal, px).apply { setColor(pal.primary) }, LinearLayout.LayoutParams(svc.dp(18), svc.dp(18)))
-            box.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = svc.dp(4) })
-        }
-        markSel()
-    }
-
-    /** The chosen line: framed in the accent colour, scrolled into view. */
-    private fun markSel() {
-        val box = listBox ?: return
-        val pal = Palette(svc)
-        for (i in 0 until box.childCount) {
-            val c = box.getChildAt(i)
-            c.background = if (i == listSel) rounded(pal.surfaceHigh, svc.dp(14).toFloat(), svc.dp(2), pal.primary)
-                else if (rows.getOrNull(i)?.current == true) rounded(pal.tile, svc.dp(14).toFloat()) else null
-        }
-        box.getChildAt(listSel)?.let { c -> listScroll?.post { listScroll?.smoothScrollTo(0, (c.top - (listScroll?.height ?: 0) / 3).coerceAtLeast(0)) } }
     }
 
     // ---------- YouTube remote: playlist and full screen ----------
@@ -757,33 +566,6 @@ class DualMedia(private val svc: HugminnService) {
             .filter { it.isVisibleToUser && pr.contains(bounds(it)) }
             .minByOrNull { bounds(it).top }
         return click(close)
-    }
-
-    /** Opens the playlist panel with YouTube's "show playlist videos" button. */
-    private fun ytOpenPanel(rootIn: AccessibilityNodeInfo, pkg: String): Boolean {
-        var start = rootIn
-        // YouTube made small: big again first, the playlist lives in the big player
-        val pb = ytNode(start, pkg, "watch_player")?.let { bounds(it) }
-        if (pb != null && pb.width() in 1..999) {
-            tap(pb.exactCenterX(), pb.exactCenterY())
-            Thread.sleep(1000)
-            start = ytRoot() ?: return false
-        }
-        val root = ytControlsUp(start, pkg)
-        val words = listOf("Playlist-Videos anzeigen", "Show playlist videos", "Playlist-Videos", "playlist videos")
-        val hit = findAll(root) { n -> words.any { w -> n.label().contains(w, true) } }
-            .firstOrNull { n ->
-                val d = (n.contentDescription ?: n.text)?.toString().orEmpty()
-                // not "add to playlist"
-                n.isVisibleToUser && !d.contains("hinzufügen", true) && !d.contains("add to", true) && !d.contains("save", true)
-            }
-        return click(hit)
-    }
-
-    private fun ytPlaylist(pkg: String) {
-        val root = ytRoot() ?: return
-        if (ytClosePanel(root, pkg)) { action = " · Liste oben zu"; return }
-        action = if (ytOpenPanel(root, pkg)) " · Liste oben auf" else " · Liste oben: kein Knopf gefunden"
     }
 
     /**

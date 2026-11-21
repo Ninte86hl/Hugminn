@@ -338,8 +338,7 @@ class HugminnService : AccessibilityService() {
                 controlCenter.isOpen -> controlCenter.onKey(event)
                 own.isOpen -> own.onKey(event)
                 switcher.isOpen -> switcher.onKey(event)
-                // the player on the lower screen: Y opens its playlist, which then takes ↑↓, A and B
-                else -> dualMedia?.onKey(event) ?: false
+                else -> false
             }
         } catch (t: Throwable) {
             Crash.note(this, t)
