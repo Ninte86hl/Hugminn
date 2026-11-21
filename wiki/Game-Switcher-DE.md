@@ -28,3 +28,8 @@ Touch geht auch: seitlich wischen zum Blättern, Karte nach oben wischen zum Sch
 - **Spiel pausieren:** Solange der Switcher offen ist, wird das Spiel verdeckt und hält an, auch der Ton. Es läuft weiter, wenn du zurückgehst.
 - **Wischgeste:** Wischen vom unteren Rand kann statt Androids Übersicht Hugminns Switcher öffnen.
 - **Klassischer Modus:** Statt des eigenen Switchers legt Hugminn einen Rahmen über Androids Übersicht (Einstellungen → Game Switcher → *Eigene Übersicht* aus).
+
+## Tipp: Bild-im-Bild ausschalten
+Empfehlung für alle, die Hugminn nutzen: Schalte **Bild im Bild** für deine Video-Apps aus (YouTube, Netflix, Disney+, Prime Video …). Sonst schrumpft ein Video beim Wechsel zu einer anderen App in ein kleines schwebendes Fenster, und das liegt dann über deinem Spiel und dem Switcher.
+
+Android-Einstellungen → **Apps** → **Spezieller App-Zugriff** → **Bild im Bild** → für jede Video-App ausschalten (die genauen Bezeichnungen können je nach Gerät leicht abweichen).

@@ -28,3 +28,8 @@ Touch works too: swipe sideways to browse, swipe a card up to close it, tap to o
 - **Pause the game:** while the switcher is open, the game is covered and pauses, including its sound. It continues when you go back.
 - **Swipe gesture:** swiping up from the bottom of the screen can open Hugminn's switcher instead of Android's recent apps.
 - **Classic mode:** instead of its own switcher, Hugminn can lay a frame over Android's own recent-apps view (Settings → Game Switcher → *Own overview* off).
+
+## Tip: turn off picture-in-picture
+Recommended for everyone who uses Hugminn: switch off **picture-in-picture** for your video apps (YouTube, Netflix, Disney+, Prime Video …). Otherwise a video shrinks into a small floating window when you switch to another app, and that window then lies over your game and the switcher.
+
+Android settings → **Apps** → **Special app access** → **Picture-in-picture** → switch it off for each video app (the exact names can differ slightly between devices).
