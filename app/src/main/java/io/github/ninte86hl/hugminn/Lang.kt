@@ -53,6 +53,7 @@ object Lang {
         "Lüfter" to "Fan",
         "Bildrate" to "Refresh rate",
         "Stick-LEDs" to "Stick LEDs",
+        "Beleuchtung" to "Lights",
         "Nicht stören" to "Do not disturb",
         "Flugmodus" to "Airplane mode",
         "Drehung sperren" to "Rotation lock",
