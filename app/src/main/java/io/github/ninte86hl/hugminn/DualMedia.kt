@@ -35,7 +35,13 @@ class DualMedia(private val svc: HugminnService) {
         @Volatile var diag = ""
     }
 
-    private var view: LinearLayout? = null
+    /** The window: the player, and over it a black shade that falls after a while (battery, OLED). */
+    private var view: FrameLayout? = null
+    private var content: LinearLayout? = null
+    private var shade: View? = null
+    private var dark = false
+    private val darkAfter = 20_000L
+    private val goDark = Runnable { setDark(true) }
     private var wm: WindowManager? = null
     private var shownKey: String? = null
     private var running = false
@@ -114,7 +120,7 @@ class DualMedia(private val svc: HugminnService) {
         }
     }
 
-    private fun keyOf() = "${Media.app}|${Media.title}"
+    private fun keyOf() = "${Media.app}|${Media.title}|${Media.art != null}"
 
     private fun update(fg: String) {
         val wanted = Media.title != null && Media.app == fg && top == fg
@@ -122,7 +128,7 @@ class DualMedia(private val svc: HugminnService) {
         if (!wanted) { hide(); return }
         // the switcher's own second-screen view must stay on top while it is open
         if (view == null && (svc.anySwitcherOpen || !show())) return
-        if (keyOf() + "|" + Media.art?.generationId != shownKey) render() else refreshParts()
+        if (keyOf() != shownKey) { render(); setDark(false) } else if (!dark) refreshParts()
         youtubeControls(fg)
     }
 
@@ -131,7 +137,24 @@ class DualMedia(private val svc: HugminnService) {
         val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(info.id) ?: return false
         return runCatching {
             val dwm = svc.createDisplayContext(display).getSystemService(WindowManager::class.java)
-            val v = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+            val c = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+            val sh = View(svc).apply { setBackgroundColor(android.graphics.Color.BLACK); alpha = 0f }
+            val v = object : FrameLayout(svc) {
+                // every touch: light up again (the first touch on a dark screen only wakes it)
+                override fun dispatchTouchEvent(e: MotionEvent): Boolean {
+                    if (e.actionMasked == MotionEvent.ACTION_DOWN) {
+                        val wasDark = dark
+                        setDark(false)
+                        if (wasDark) { swallow = true; return true }
+                        swallow = false
+                    }
+                    if (swallow) return true
+                    super.dispatchTouchEvent(e)
+                    return true
+                }
+            }
+            v.addView(c, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            v.addView(sh, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             val lp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
@@ -140,8 +163,13 @@ class DualMedia(private val svc: HugminnService) {
             ).apply { fitInsetsTypes = 0; layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS }
             dwm.addView(v, lp)
             view = v
+            content = c
+            shade = sh
+            dark = false
             wm = dwm
             shownKey = null
+            svc.ui.removeCallbacks(goDark)
+            svc.ui.postDelayed(goDark, darkAfter)
             true
         }.onFailure { Crash.note(svc, it) }.getOrDefault(false)
     }
@@ -149,6 +177,10 @@ class DualMedia(private val svc: HugminnService) {
     fun hide() {
         val v = view ?: return
         view = null
+        content = null
+        shade = null
+        dark = false
+        svc.ui.removeCallbacks(goDark)
         shownKey = null
         dragging = false
         runCatching { wm?.removeViewImmediate(v) }
@@ -157,6 +189,20 @@ class DualMedia(private val svc: HugminnService) {
 
     private fun isVideo(pkg: String?) = pkg != null &&
         Regex("youtube|newpipe|vlc|video|player|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll", RegexOption.IGNORE_CASE).containsMatchIn(pkg)
+
+    private var swallow = false
+
+    /** Dark: the lower screen goes black (OLED pixels off); a touch brings the player back. */
+    private fun setDark(on: Boolean) {
+        svc.ui.removeCallbacks(goDark)
+        val sh = shade ?: return
+        if (!on) svc.ui.postDelayed(goDark, darkAfter)
+        if (on == dark) return
+        dark = on
+        sh.animate().cancel()
+        sh.animate().alpha(if (on) 1f else 0f).setDuration(if (on) 900 else 160).start()
+        if (!on) refreshParts()
+    }
 
     // ---------- feel ----------
 
@@ -185,7 +231,7 @@ class DualMedia(private val svc: HugminnService) {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun render() {
-        val v = view ?: return
+        val v = content ?: return
         v.removeAllViews()
         val pal = Palette(svc)
         val px = Look.pixel(svc)
@@ -196,7 +242,7 @@ class DualMedia(private val svc: HugminnService) {
         val onGround = if (picture) pal.onSurface else pal.onSurfaceVariant
         val pkg = Media.app
         val video = isVideo(pkg)
-        shownKey = keyOf() + "|" + Media.art?.generationId
+        shownKey = keyOf()
 
         // top: the app
         val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
@@ -214,8 +260,10 @@ class DualMedia(private val svc: HugminnService) {
                 override fun getOutline(view: View, o: android.graphics.Outline) { o.setRoundRect(0, 0, view.width, view.height, svc.dp(if (px) 4 else 20).toFloat()) }
             }
         }
+        // music: square cover; video: the thumbnail in 16:9 (as in the Control Center)
         if (!video) v.addView(c, LinearLayout.LayoutParams(svc.dp(170), svc.dp(170)).apply { bottomMargin = svc.dp(16) })
-        val s = text("", if (video) 22f else 21f, pal.onSurface, bold = true, lines = if (video) 3 else 2)
+        else if (Media.art != null) v.addView(c, LinearLayout.LayoutParams(svc.dp(304), svc.dp(171)).apply { bottomMargin = svc.dp(14) })
+        val s = text("", if (video) 20f else 21f, pal.onSurface, bold = true, lines = if (video && Media.art == null) 3 else 2)
         val w = text("", 15f, onGround)
         v.addView(s, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         if (!video) v.addView(w, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(4) })
@@ -236,7 +284,8 @@ class DualMedia(private val svc: HugminnService) {
         v.addView(tm, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         seek.setOnTouchListener { sv, e ->
             val dur = Media.duration
-            if (dur <= 0) return@setOnTouchListener false
+            if (dur <= 0 || !Media.canSeek) return@setOnTouchListener false
+            sv.parent?.requestDisallowInterceptTouchEvent(true)
             val f = (e.x / sv.width.coerceAtLeast(1)).coerceIn(0f, 1f)
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> { dragging = true; buzz(); showProgress(f, (f * dur).toLong(), dur) }
@@ -299,14 +348,16 @@ class DualMedia(private val svc: HugminnService) {
             val parent = k.parent as? View
             val w = (parent?.width ?: 0) - k.width
             k.translationX = if (w > 0) f * w else 0f
-            k.visibility = if (dur > 0) View.VISIBLE else View.INVISIBLE
+            // the knob only where jumping works; without a length no bar at all
+            k.visibility = if (dur > 0 && Media.canSeek) View.VISIBLE else View.INVISIBLE
+            parent?.visibility = if (dur > 0) View.VISIBLE else View.INVISIBLE
         }
         time?.text = if (dur > 0 && pos >= 0) "${clock(pos.coerceAtMost(dur))} / ${clock(dur)}" else ""
     }
 
     /** The parts that move: play/pause, progress, time, title, cover. */
     private fun refreshParts() {
-        if (view == null) return
+        if (view == null || dark) return
         play?.visibility = if (Media.playing) View.GONE else View.VISIBLE
         pause?.visibility = if (Media.playing) View.VISIBLE else View.GONE
         song?.text = Media.song ?: Media.title ?: ""

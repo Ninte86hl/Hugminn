@@ -25,6 +25,8 @@ object Media {
         private set
     /** Length and position in ms (-1 = unknown); position at [positionAt] (uptime), moving while playing. */
     @Volatile var duration = -1L
+    /** The player takes jumps (seekTo) – the progress bar on the second screen only works then. */
+    @Volatile var canSeek = false
         private set
     @Volatile private var position = -1L
     @Volatile private var positionAt = 0L
@@ -132,6 +134,7 @@ object Media {
         val md = mc?.metadata
         val st = mc?.playbackState
         playing = st?.state == android.media.session.PlaybackState.STATE_PLAYING
+        canSeek = st != null && (st.actions and android.media.session.PlaybackState.ACTION_SEEK_TO) != 0L
         app = mc?.packageName
         song = md?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)?.takeIf { it.isNotBlank() }
         artist = (md?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: md?.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM_ARTIST))?.takeIf { it.isNotBlank() }
@@ -183,7 +186,7 @@ object Media {
             Thread.sleep(300)
             if (fromSessions(ctx)) return
         }
-        song = null; artist = null; art = null; duration = -1L; position = -1L
+        song = null; artist = null; art = null; duration = -1L; position = -1L; canSeek = false
         val out = Root.execLong("dumpsys media_session | grep -E 'package=|state=PlaybackState|description='", 3_000) ?: return
         class S(val pkg: String) { var state = 0; var desc: String? = null }
         val list = mutableListOf<S>()
