@@ -2240,8 +2240,12 @@ class ControlCenter(private val svc: HugminnService) {
         val dm = svc.resources.displayMetrics
         val boxW = (dm.widthPixels * 0.9f).toInt().coerceAtMost(1100 * d)
         // one height for every tab: the window never jumps
-        val bodyH = (dm.heightPixels - 230 * d).coerceIn(160 * d, 400 * d)
-        val colW = minOf(boxW - 44 * d, 360 * d)
+        val bodyH = (dm.heightPixels - 180 * d).coerceIn(160 * d, 440 * d)
+        // 16:9: the Gerät tab in two columns (element + status | brightness + saturation), the
+        // combinations below; 4:3 or narrow: one column that scrolls
+        val twoCol = ledTab == 0 && boxW - 44 * d >= 600 * d
+        val colW = if (twoCol) minOf(boxW - 44 * d, 760 * d) else minOf(boxW - 44 * d, 360 * d)
+        val halfW = (colW - 16 * d) / 2
         val box = reuse?.apply { removeAllViews() } ?: LinearLayout(svc).apply {
             tag = "led"
             orientation = LinearLayout.VERTICAL
@@ -2267,7 +2271,7 @@ class ControlCenter(private val svc: HugminnService) {
             return true
         }
         /** ◀ card ▶ – left/right (or the arrows) step through, A on the card runs [act]. */
-        fun carousel(key: String, content: View, step: (Int) -> Unit, act: () -> Unit): View {
+        fun carousel(key: String, content: View, step: (Int) -> Unit, width: Int = minOf(colW, 360 * d), act: () -> Unit): View {
             val car = LinearLayout(svc).apply { gravity = Gravity.CENTER }
             fun arrow(sym: String, dir: Int) = text(sym, 18f, pal.onSurfaceVariant, bold = true).apply {
                 gravity = Gravity.CENTER
@@ -2275,7 +2279,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
             car.addView(arrow("◀", -1), lp(36 * d, 40 * d))
             content.setOnClickListener { act() }
-            car.addView(content, lp(colW - 72 * d - 40 * d, 40 * d))
+            car.addView(content, lp(width - 72 * d - 40 * d, 40 * d))
             car.addView(arrow("▶", 1), lp(36 * d, 40 * d))
             cells += LedCell(key, content, act)
             side[key] = step
@@ -2293,7 +2297,7 @@ class ControlCenter(private val svc: HugminnService) {
             val p = LinearLayout(svc).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(12 * d, 7 * d, 12 * d, 7 * d)
-                background = shape(pal.surfaceHighest, 16f * d)
+                background = shape(pal.surface, 16f * d, 1 * d, pal.outline)
             }
             val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
             head.addView(text(title, 12f, pal.onSurfaceVariant), lp(0, WRAP, 1f))
@@ -2359,11 +2363,22 @@ class ControlCenter(private val svc: HugminnService) {
         when (ledTab) {
             0 -> {
                 val i = ledEl
+                val colA: LinearLayout
+                val colB: LinearLayout
+                if (twoCol) {
+                    val row = LinearLayout(svc).apply { gravity = Gravity.TOP }
+                    colA = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+                    colB = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+                    row.addView(colA, lp(halfW, WRAP))
+                    row.addView(View(svc), lp(16 * d, 1))
+                    row.addView(colB, lp(halfW, WRAP))
+                    body.addView(row, lp(MATCH, WRAP))
+                } else { colA = body; colB = body }
                 // which element
                 val elCard = card(dot(if (st[i] == 0) android.graphics.Color.BLACK else cols[i]).also { it.layoutParams = lp(14 * d, 14 * d).apply { marginEnd = 10 * d } },
                     text(names[i], 14f, pal.onSurface, bold = true))
-                body.addView(carousel("el", elCard, { dir -> ledEl += dir; again("el") }) { ledEl += 1; again("el") }, lp(MATCH, WRAP))
-                body.addView(desc(tr("Welches Licht du gerade einstellst")), lp(MATCH, WRAP))
+                colA.addView(carousel("el", elCard, { dir -> ledEl += dir; again("el") }, if (twoCol) halfW else minOf(colW, 360 * d)) { ledEl += 1; again("el") }, lp(MATCH, WRAP))
+                colA.addView(desc(tr("Welches Licht du gerade einstellst")), lp(MATCH, WRAP))
                 // status: Aus · An · Benutzerdefiniert
                 val pick: (Int) -> Unit = { k ->
                     val ns = st.copyOf().also { it[i] = k.coerceIn(0, 2) }
@@ -2376,7 +2391,7 @@ class ControlCenter(private val svc: HugminnService) {
                 }
                 val stNames = listOf(tr("Aus"), tr("An"), tr("Benutzerdefiniert"))
                 val (sp, _) = panel(tr("Status"), stNames[st[i]])
-                val sw = TriRing(svc, pal.primary, pal.onSurfaceVariant, pal.surface).apply { color = cols[i]; state = st[i] }
+                val sw = TriRing(svc, pal.primary, pal.onSurfaceVariant, pal.surfaceHighest).apply { color = cols[i]; state = st[i] }
                 sw.onPick = { k -> ledFocus = "st"; pick(k) }
                 sp.addView(sw, lp(MATCH, 28 * d))
                 val labels = LinearLayout(svc).apply { setPadding(0, 4 * d, 0, 0) }
@@ -2389,16 +2404,16 @@ class ControlCenter(private val svc: HugminnService) {
                 sp.addView(labels)
                 sp.addView(text(listOf(tr("Bleibt dunkel"), tr("Leuchtet und behält Farbe und Effekt"), tr("Bekommt Farbe, Effekt und Kombis"))[st[i]], 11f, pal.onSurfaceVariant)
                     .apply { gravity = Gravity.CENTER; setPadding(0, 2 * d, 0, 0) }, lp(MATCH, WRAP))
-                body.addView(sp, lp(MATCH, WRAP))
+                colA.addView(sp, lp(MATCH, WRAP))
                 cells += LedCell("st", sp) { pick((st[i] + 1) % 3) }
                 side["st"] = { dir -> if (st[i] + dir in 0..2) pick(st[i] + dir) }
-                gap()
+                if (!twoCol) gap()
                 // brightness and saturation, 5 % steps
-                body.addView(barPanel("br", tr("Helligkeit"), kb[i] / 5, "${kb[i]} %", pal.primary, st[i] == 0, tr("Leuchtstärke der LED"), 20) { v ->
+                colB.addView(barPanel("br", tr("Helligkeit"), kb[i] / 5, "${kb[i]} %", pal.primary, st[i] == 0, tr("Leuchtstärke der LED"), 20) { v ->
                     Device.setElBright(svc, i, (v * 5).coerceIn(5, 100)) { again("br") }
                 }, lp(MATCH, WRAP))
-                gap()
-                body.addView(barPanel("sa", tr("Sättigung"), sat[i] / 5, "${sat[i]} %", cols[i], st[i] == 0, tr("Farbkraft der LED"), 20) { v ->
+                colB.addView(View(svc), lp(1, 6 * d))
+                colB.addView(barPanel("sa", tr("Sättigung"), sat[i] / 5, "${sat[i]} %", cols[i], st[i] == 0, tr("Farbkraft der LED"), 20) { v ->
                     val h = FloatArray(3).also { android.graphics.Color.colorToHSV(cols[i], it) }
                     h[1] = (v * 5).coerceIn(0, 100) / 100f
                     if (h[2] < 0.05f) h[2] = 1f
