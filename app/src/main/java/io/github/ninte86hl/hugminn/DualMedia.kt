@@ -243,6 +243,13 @@ class DualMedia(private val svc: HugminnService) {
         head.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, pkg)) }, LinearLayout.LayoutParams(svc.dp(28), svc.dp(28)))
         head.addView(text(pkg?.let { Apps.label(svc, it) } ?: "", 15f, onGround).apply { gravity = Gravity.START; setPadding(svc.dp(10), 0, 0, 0) },
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        // YouTube: full screen ⇄ its normal pages with the video small in the corner
+        if (pkg?.contains("youtube") == true) head.addView(FrameLayout(svc).apply {
+            background = rounded(pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+            addView(IconView(svc, IconView.Kind.EXPAND, 18).styled(pal, px).apply { setColor(pal.onSurface) },
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+            setOnClickListener { buzz(); pressedAt = SystemClock.uptimeMillis(); thread { runCatching { ytFullscreen(pkg) }.onFailure { Crash.note(svc, it) } } }
+        }, LinearLayout.LayoutParams(svc.dp(40), svc.dp(40)).apply { marginEnd = svc.dp(10) })
         // test builds: a feedback report with screenshots of both screens, without asking for a text
         quickReport?.let { report ->
             head.addView(FrameLayout(svc).apply {
@@ -289,9 +296,38 @@ class DualMedia(private val svc: HugminnService) {
         val w = text("", 15f, onGround)
         v.addView(s, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         v.addView(w, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(2) })
-        v.addView(View(svc), LinearLayout.LayoutParams(1, svc.dp(10)))
+        v.addView(View(svc), LinearLayout.LayoutParams(1, svc.dp(12)))
 
-        // progress in the accent colour – touch or drag it to jump
+        // buttons, big enough for a finger: volume down, back, play/pause, next, volume up
+        val ctrl = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+        fun btn(size: Int, main: Boolean, act: () -> Unit): FrameLayout {
+            val f = FrameLayout(svc).apply {
+                background = if (main) rounded(pal.primary, svc.dp(size / 2).toFloat()) else rounded(pal.tile, svc.dp(size / 2).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+                setOnClickListener { act() }
+            }
+            ctrl.addView(f, LinearLayout.LayoutParams(svc.dp(size), svc.dp(size)).apply { marginStart = svc.dp(9); marginEnd = svc.dp(9) })
+            return f
+        }
+        val center = { FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER) }
+        fun vol(sign: String, dir: Int) = btn(52, false) { volume(dir) }.addView(LinearLayout(svc).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(IconView(svc, IconView.Kind.SPEAKER, 16).styled(pal, px).apply { setColor(pal.onSurface) }, LinearLayout.LayoutParams(svc.dp(18), svc.dp(18)))
+            addView(text(sign, 16f, pal.onSurface, bold = true).apply { setPadding(svc.dp(1), 0, 0, 0) })
+        }, center())
+        vol("−", android.media.AudioManager.ADJUST_LOWER)
+        btn(58, false) { press(KeyEvent.KEYCODE_MEDIA_PREVIOUS) }.addView(IconView(svc, IconView.Kind.PREV, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
+        val pb = btn(72, true) { press(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) }
+        val pl = IconView(svc, IconView.Kind.PLAY, 28).styled(pal, px).apply { setColor(pal.onPrimary) }
+        val pa = IconView(svc, IconView.Kind.PAUSE, 28).styled(pal, px).apply { setColor(pal.onPrimary) }
+        pb.addView(pl, center()); pb.addView(pa, center())
+        btn(58, false) { press(KeyEvent.KEYCODE_MEDIA_NEXT) }.addView(IconView(svc, IconView.Kind.NEXT, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
+        vol("+", android.media.AudioManager.ADJUST_RAISE)
+        v.addView(ctrl, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
+        // at the very bottom: progress in the accent colour with the times – touch or drag it to jump
+        val bottom = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+        val tm = text("", 13f, onGround).apply { gravity = Gravity.START }
+        val all = text("", 13f, onGround).apply { gravity = Gravity.END }
         val seek = FrameLayout(svc)
         val track = LinearLayout(svc).apply { background = rounded(pal.surfaceHighest, svc.dp(3).toFloat()) }
         val done = View(svc).apply { background = rounded(pal.primary, svc.dp(3).toFloat()) }
@@ -301,9 +337,11 @@ class DualMedia(private val svc: HugminnService) {
         seek.addView(track, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, svc.dp(6), Gravity.CENTER_VERTICAL))
         val knob = View(svc).apply { background = rounded(pal.primary, svc.dp(9).toFloat(), svc.dp(2), pal.onPrimary) }
         seek.addView(knob, FrameLayout.LayoutParams(svc.dp(18), svc.dp(18), Gravity.CENTER_VERTICAL or Gravity.START))
-        v.addView(seek, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, svc.dp(36)))
-        val tm = text("", 13f, onGround).apply { gravity = Gravity.END }
-        v.addView(tm, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        bottom.addView(tm, LinearLayout.LayoutParams(svc.dp(52), LinearLayout.LayoutParams.WRAP_CONTENT))
+        bottom.addView(seek, LinearLayout.LayoutParams(0, svc.dp(40), 1f).apply { marginStart = svc.dp(8); marginEnd = svc.dp(8) })
+        bottom.addView(all, LinearLayout.LayoutParams(svc.dp(52), LinearLayout.LayoutParams.WRAP_CONTENT))
+        v.addView(bottom, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(10) })
+        timeAll = all
         seek.setOnTouchListener { sv, e ->
             val dur = Media.duration
             if (dur <= 0 || !Media.canSeek) return@setOnTouchListener false
@@ -325,95 +363,18 @@ class DualMedia(private val svc: HugminnService) {
             true
         }
 
-        // buttons, big enough for a finger
-        val ctrl = LinearLayout(svc).apply { gravity = Gravity.CENTER }
-        fun btn(code: Int, main: Boolean): FrameLayout {
-            val size = if (main) 72 else 58
-            val f = FrameLayout(svc).apply {
-                background = if (main) rounded(pal.primary, svc.dp(size / 2).toFloat()) else rounded(pal.tile, svc.dp(size / 2).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
-                setOnClickListener { press(code) }
-            }
-            ctrl.addView(f, LinearLayout.LayoutParams(svc.dp(size), svc.dp(size)).apply { marginStart = svc.dp(14); marginEnd = svc.dp(14) })
-            return f
-        }
-        val center = { FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER) }
-        btn(KeyEvent.KEYCODE_MEDIA_PREVIOUS, false).addView(IconView(svc, IconView.Kind.PREV, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
-        val pb = btn(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, true)
-        val pl = IconView(svc, IconView.Kind.PLAY, 28).styled(pal, px).apply { setColor(pal.onPrimary) }
-        val pa = IconView(svc, IconView.Kind.PAUSE, 28).styled(pal, px).apply { setColor(pal.onPrimary) }
-        pb.addView(pl, center()); pb.addView(pa, center())
-        btn(KeyEvent.KEYCODE_MEDIA_NEXT, false).addView(IconView(svc, IconView.Kind.NEXT, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
-        v.addView(ctrl, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(12) })
-        // volume: a bar like the progress, drag or tap
-        v.addView(volumeBar(pal, px, onGround), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, svc.dp(34)).apply { topMargin = svc.dp(6) })
-        // YouTube: full screen ⇄ its normal pages
-        if (pkg?.contains("youtube") == true) {
-            val extra = LinearLayout(svc).apply { gravity = Gravity.CENTER }
-            fun small(kind: IconView.Kind, label: String, act: () -> Unit) {
-                extra.addView(LinearLayout(svc).apply {
-                    gravity = Gravity.CENTER_VERTICAL
-                    background = rounded(pal.tile, svc.dp(18).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
-                    setPadding(svc.dp(12), svc.dp(6), svc.dp(14), svc.dp(6))
-                    addView(IconView(svc, kind, 18).styled(pal, px).apply { setColor(pal.onSurface) }, LinearLayout.LayoutParams(svc.dp(20), svc.dp(20)))
-                    addView(text(label, 13f, pal.onSurface).apply { setPadding(svc.dp(6), 0, 0, 0) })
-                    setOnClickListener { buzz(); pressedAt = SystemClock.uptimeMillis(); thread { runCatching { act() }.onFailure { Crash.note(svc, it) } } }
-                }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = svc.dp(5); marginEnd = svc.dp(5) })
-            }
-            small(IconView.Kind.EXPAND, t("Vollbild", "Full screen")) { ytFullscreen(pkg) }
-            v.addView(extra, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(10) })
-        }
-
         play = pl; pause = pa; bar = done; rest = left; thumb = knob; song = s; who = w; cover = c; time = tm
         refreshParts()
         // the knob needs the bar's width: place it once laid out
         seek.post { refreshParts() }
     }
 
-    private var volFill: View? = null
-    private var volRest: View? = null
+    private var timeAll: TextView? = null
 
-    @SuppressLint("ClickableViewAccessibility")
-    private fun volumeBar(pal: Palette, px: Boolean, onGround: Int): View {
-        val am = svc.getSystemService(android.media.AudioManager::class.java)
-        val max = am?.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)?.coerceAtLeast(1) ?: 15
-        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-        row.addView(IconView(svc, IconView.Kind.SPEAKER, 18).styled(pal, px).apply { setColor(onGround) }, LinearLayout.LayoutParams(svc.dp(20), svc.dp(20)))
-        val area = FrameLayout(svc)
-        val track = LinearLayout(svc).apply { background = rounded(pal.surfaceHighest, svc.dp(3).toFloat()) }
-        val fill = View(svc).apply { background = rounded(pal.onSurface, svc.dp(3).toFloat()) }
-        val rest = View(svc)
-        track.addView(fill, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0f))
-        track.addView(rest, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
-        area.addView(track, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, svc.dp(6), Gravity.CENTER_VERTICAL))
-        row.addView(area, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { marginStart = svc.dp(12) })
-        volFill = fill; volRest = rest
-        var last = -1
-        area.setOnTouchListener { a, e ->
-            if (e.actionMasked == MotionEvent.ACTION_DOWN || e.actionMasked == MotionEvent.ACTION_MOVE) {
-                a.parent?.requestDisallowInterceptTouchEvent(true)
-                val step = ((e.x / a.width.coerceAtLeast(1)) * max).roundToIntSafe().coerceIn(0, max)
-                if (step != last) {
-                    last = step
-                    runCatching { am?.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, step, 0) }
-                    buzz()
-                    showVolume()
-                }
-            } else if (e.actionMasked == MotionEvent.ACTION_UP || e.actionMasked == MotionEvent.ACTION_CANCEL) last = -1
-            true
-        }
-        showVolume()
-        return row
-    }
-
-    private fun Float.roundToIntSafe(): Int = kotlin.math.round(this).toInt()
-
-    /** The volume bar follows Android (also when the volume keys are used). */
-    private fun showVolume() {
-        val am = svc.getSystemService(android.media.AudioManager::class.java) ?: return
-        val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-        val f = am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / max
-        (volFill?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = f; volFill?.layoutParams = it }
-        (volRest?.layoutParams as? LinearLayout.LayoutParams)?.let { it.weight = 1f - f; volRest?.layoutParams = it }
+    /** Volume one step down or up (media), like the volume keys. */
+    private fun volume(dir: Int) {
+        buzz()
+        runCatching { svc.getSystemService(android.media.AudioManager::class.java)?.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, dir, 0) }
     }
 
     private fun press(code: Int) {
@@ -439,7 +400,8 @@ class DualMedia(private val svc: HugminnService) {
             k.visibility = if (dur > 0 && Media.canSeek) View.VISIBLE else View.INVISIBLE
             parent?.visibility = if (dur > 0) View.VISIBLE else View.INVISIBLE
         }
-        time?.text = if (dur > 0 && pos >= 0) "${clock(pos.coerceAtMost(dur))} / ${clock(dur)}" else ""
+        time?.text = if (dur > 0 && pos >= 0) clock(pos.coerceAtMost(dur)) else ""
+        timeAll?.text = if (dur > 0) clock(dur) else ""
     }
 
     /** The parts that move: play/pause, progress, time, title, cover. */
@@ -451,7 +413,6 @@ class DualMedia(private val svc: HugminnService) {
         who?.text = Media.artist?.takeIf { Media.song != null } ?: ""
         val art = Media.art
         if (art != null) cover?.setImageBitmap(art) else cover?.setImageDrawable(Apps.icon(svc, Media.app))
-        showVolume()
         if (dragging) return
         val dur = Media.duration
         val pos = Media.positionNow()
