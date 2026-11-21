@@ -514,8 +514,8 @@ class MainActivity : Activity() {
                 { if (prefs.dualMedia) tr("An") else tr("Aus") }) { prefs.dualMedia = !prefs.dualMedia }
         }
         row(sw, t("Video-Apps immer quer", "Video apps always landscape"),
-            t("YouTube, Disney+, Prime Video und Crunchyroll werden komplett quer angezeigt, nicht nur Videos im Vollbild – auch Startseite, Suche und Menüs",
-                "YouTube, Disney+, Prime Video and Crunchyroll are shown fully in landscape, not only full-screen videos – also home page, search and menus"),
+            t("YouTube, Netflix, Disney+, Prime Video und Crunchyroll werden komplett quer angezeigt, nicht nur Videos im Vollbild – auch Startseite, Suche und Menüs",
+                "YouTube, Netflix, Disney+, Prime Video and Crunchyroll are shown fully in landscape, not only full-screen videos – also home page, search and menus"),
             { if (prefs.landscapeOn) tr("An") else tr("Aus") }) { prefs.landscapeOn = !prefs.landscapeOn }
         row(sw, tr("Statusleiste"), tr("Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
