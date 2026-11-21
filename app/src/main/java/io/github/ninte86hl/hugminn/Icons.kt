@@ -9,7 +9,7 @@ import android.view.View
 
 /** Simple line icons drawn in code, so they look the same everywhere and follow the theme colour. */
 class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 22) : View(ctx) {
-    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC, POWER, BATTERY, PLAY, PAUSE, PREV, NEXT, PIN }
+    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC, POWER, BATTERY, PLAY, PAUSE, PREV, NEXT, PIN, LIST, EXPAND }
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -225,6 +225,23 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
             Kind.NEXT -> {
                 c.drawPath(Path().apply { moveTo(s * 0.2f, s * 0.22f); lineTo(s * 0.66f, m); lineTo(s * 0.2f, s * 0.78f); close() }, p)
                 c.drawLine(s * 0.78f, s * 0.22f, s * 0.78f, s * 0.78f, p)
+            }
+            Kind.LIST -> {
+                // a playlist: three rows, the last with a small play mark
+                c.drawLine(s * 0.16f, s * 0.26f, s * 0.84f, s * 0.26f, p)
+                c.drawLine(s * 0.16f, s * 0.5f, s * 0.84f, s * 0.5f, p)
+                c.drawLine(s * 0.16f, s * 0.74f, s * 0.5f, s * 0.74f, p)
+                c.drawPath(Path().apply { moveTo(s * 0.64f, s * 0.64f); lineTo(s * 0.86f, s * 0.76f); lineTo(s * 0.64f, s * 0.88f); close() }, p)
+            }
+            Kind.EXPAND -> {
+                // full screen: four corners
+                val a = s * 0.16f; val b = s * 0.84f; val k = s * 0.22f
+                c.drawPath(Path().apply {
+                    moveTo(a, a + k); lineTo(a, a); lineTo(a + k, a)
+                    moveTo(b - k, a); lineTo(b, a); lineTo(b, a + k)
+                    moveTo(b, b - k); lineTo(b, b); lineTo(b - k, b)
+                    moveTo(a + k, b); lineTo(a, b); lineTo(a, b - k)
+                }, p)
             }
             Kind.MOUSE -> {
                 c.drawRoundRect(RectF(s * 0.26f, s * 0.12f, s * 0.74f, s * 0.88f), s * 0.24f, s * 0.24f, p)
