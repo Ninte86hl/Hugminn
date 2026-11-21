@@ -182,16 +182,37 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
     private var longFired = false
     private var dragging = false
     private val slop = android.view.ViewConfiguration.get(ctx).scaledTouchSlop
+    /** How long a tile must be held to move it by touch (long enough not to catch a slider by mistake). */
+    private val HOLD_MS = 800L
     private val longPress = Runnable {
         val v = dragView ?: return@Runnable
         longFired = true
-        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        buzz()
         // the element must not also be "clicked"
         val cancel = android.view.MotionEvent.obtain(0, 0, android.view.MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
         v.dispatchTouchEvent(cancel)
         cancel.recycle()
         onLongPress?.invoke(v)
         lift(v)
+    }
+
+    /** A short, clear buzz when moving starts (also with touch vibration off in Android). */
+    private fun buzz() {
+        runCatching {
+            val vib = if (android.os.Build.VERSION.SDK_INT >= 31)
+                context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+            else @Suppress("DEPRECATION") context.getSystemService(android.os.Vibrator::class.java)
+            vib?.vibrate(android.os.VibrationEffect.createPredefined(android.os.VibrationEffect.EFFECT_HEAVY_CLICK))
+        }.onFailure { performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS) }
+    }
+
+    /**
+     * A slider (brightness, volume) wants the finger for itself: then the hold must not start moving
+     * the tile – before, holding the slider still for a moment picked up the whole tile.
+     */
+    override fun requestDisallowInterceptTouchEvent(disallow: Boolean) {
+        if (disallow && !longFired) removeCallbacks(longPress)
+        super.requestDisallowInterceptTouchEvent(disallow)
     }
 
     private fun lift(v: View) {
@@ -216,7 +237,7 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
                 longFired = false
                 dragging = false
                 dragView = childAt(e.x, e.y)
-                if (dragView != null && !editing()) postDelayed(longPress, 450)
+                if (dragView != null && !editing()) postDelayed(longPress, HOLD_MS)
             }
             android.view.MotionEvent.ACTION_MOVE -> {
                 val far = Math.hypot((e.x - downX).toDouble(), (e.y - downY).toDouble()) > slop

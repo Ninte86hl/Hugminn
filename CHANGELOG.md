@@ -2,6 +2,14 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.13.1
+
+### 🇬🇧 English
+- Control Center: moving a slider (brightness, volume) no longer picks up the whole tile by mistake. Moving a tile by touch now needs a longer hold (0.8 s), and a short vibration tells you when moving starts.
+
+### 🇩🇪 Deutsch
+- Control Center: Wer einen Schieberegler bedient (Helligkeit, Lautstärke), verschiebt nicht mehr versehentlich die ganze Kachel. Kacheln per Touch verschieben braucht jetzt etwas länger Gedrückthalten (0,8 s), und eine kurze Vibration zeigt an, wann das Verschieben beginnt.
+
 ## 1.13.0
 
 ### 🇬🇧 English
