@@ -2484,7 +2484,7 @@ class ControlCenter(private val svc: HugminnService) {
                     cells += LedCell("wheel", wheelBox, steer)
                     body.addView(desc(tr("Eigene Farbe: A drücken und mit dem Steuerkreuz suchen. Die LED zeigt jede Farbe sofort an, A übernimmt, B verwirft.")), lp(MATCH, WRAP))
                     val back = chip(tr("Zurück zu den Farben"), false)
-                    val backAct = { ledWheelView = false; LedFx.resume(svc); again("c15") }
+                    val backAct: () -> Unit = { ledWheelView = false; LedFx.resume(svc); again("c15") }
                     back.setOnClickListener { backAct() }
                     body.addView(LinearLayout(svc).apply { gravity = Gravity.CENTER; addView(back, lp(WRAP, 34 * d)) }, lp(MATCH, WRAP))
                     cells += LedCell("back", back, backAct)
