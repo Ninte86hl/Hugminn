@@ -57,6 +57,20 @@ class HugminnService : AccessibilityService() {
     }
     private lateinit var controlCenter: ControlCenter
     private var dualMedia: DualMedia? = null
+    private var wide: WideApps? = null
+    private val wideCheck = Runnable { wide?.onTop(topScreenApp()) }
+    private var lastTop: String? = null
+
+    /** The app in front on the top screen (null: home screen) – only display 0 counts, not the Thor's lower screen. */
+    fun topScreenApp(): String? {
+        if (android.os.Build.VERSION.SDK_INT < 30) return if (homeInFront) null else foregroundPkg
+        val wins = runCatching { windowsOnAllDisplays.get(android.view.Display.DEFAULT_DISPLAY) }.getOrNull() ?: return lastTop
+        val app = wins.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION } ?: return lastTop
+        val pkg = runCatching { app.root?.packageName?.toString() }.getOrNull() ?: return lastTop
+        // Hugminn's own pause screen (switcher) lies over the app: keep the app
+        if (pkg == packageName) return lastTop
+        return (if (Apps.isHome(this, pkg)) null else pkg).also { lastTop = it }
+    }
     lateinit var overlay: PerfOverlay
         private set
 
@@ -97,6 +111,7 @@ class HugminnService : AccessibilityService() {
         ui.postDelayed(snapshotTick, 7000)
         controlCenter = ControlCenter(this)
         dualMedia = DualMedia(this).also { it.start() }
+        wide = WideApps(this).also { it.recover() }
         overlay = PerfOverlay(this)
         instance = this
         if (prefs.overlayOn) ui.post { runCatching { overlay.show() } }
@@ -184,6 +199,7 @@ class HugminnService : AccessibilityService() {
 
     override fun onDestroy() {
         dualMedia?.stop()
+        wide?.stop()
         if (::overlay.isInitialized) overlay.hide()
         LedFx.stop()
         FanCurve.stop(restoreSmart = true)
@@ -230,7 +246,11 @@ class HugminnService : AccessibilityService() {
                 homeInFront = true
             }
         }
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) dualMedia?.kick()
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            dualMedia?.kick()
+            ui.removeCallbacks(wideCheck)
+            ui.postDelayed(wideCheck, 300)
+        }
         if (event.packageName?.toString() == foregroundPkg) appEventAt = SystemClock.uptimeMillis()
         if (::switcher.isInitialized) try {
             switcher.onEvent(event)
