@@ -46,6 +46,8 @@ class WideApps(private val svc: HugminnService) {
         if (now <= target) { diag = "schon Tablet ($now dpi)"; return }
         // remember what to go back to – also across a restart of Hugminn
         svc.prefs.wideRestore = override ?: 0
+        svc.prefs.wideKeep = now
+        svc.ui.post { svc.keepDensity(now) }
         Root.exec("wm density $target -d 0")
         applied = true
         diag = "Tablet an: $now → $target dpi"
@@ -57,12 +59,15 @@ class WideApps(private val svc: HugminnService) {
         Root.exec(if (back > 0) "wm density $back -d 0" else "wm density reset -d 0")
         svc.prefs.wideRestore = -1
         applied = false
+        // Hugminn's own size follows Android again once the change has arrived
+        svc.ui.postDelayed({ if (!applied) svc.keepDensity(0) }, 1200)
         diag = "Tablet aus" + if (back > 0) " ($back dpi)" else ""
     }
 
     /** Hugminn (re)started: a density left over from before is put back. */
     fun recover() {
         if (svc.prefs.wideRestore < 0) return
+        svc.prefs.wideKeep.takeIf { it > 0 }?.let { svc.keepDensity(it) }
         thread { runCatching { applied = true; restore() } }
     }
 

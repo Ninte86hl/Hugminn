@@ -243,6 +243,13 @@ class DualMedia(private val svc: HugminnService) {
         head.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, pkg)) }, LinearLayout.LayoutParams(svc.dp(28), svc.dp(28)))
         head.addView(text(pkg?.let { Apps.label(svc, it) } ?: "", 15f, onGround).apply { gravity = Gravity.START; setPadding(svc.dp(10), 0, 0, 0) },
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        // dark at once: the lower screen goes black, a touch brings it back
+        head.addView(FrameLayout(svc).apply {
+            background = rounded(pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+            addView(IconView(svc, IconView.Kind.MOON, 18).styled(pal, px).apply { setColor(pal.onSurface) },
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+            setOnClickListener { buzz(); svc.ui.postDelayed({ setDark(true) }, 120) }
+        }, LinearLayout.LayoutParams(svc.dp(40), svc.dp(40)))
         v.addView(head, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
@@ -397,6 +404,21 @@ class DualMedia(private val svc: HugminnService) {
     // ---------- YouTube: its controls stay on screen ----------
 
     private var pressedAt = 0L
+    private var ytIdsFor: String? = null
+    private var ytIds = ""
+
+    /** For feedback: the view names of YouTube's visible player parts (to find its controls). */
+    private fun playerIds(root: AccessibilityNodeInfo): String {
+        val found = sortedSetOf<String>()
+        fun walk(n: AccessibilityNodeInfo?, depth: Int) {
+            if (n == null || depth > 30 || found.size > 40) return
+            val id = n.viewIdResourceName
+            if (id != null && n.isVisibleToUser && Regex("player|control|play|pause|overlay", RegexOption.IGNORE_CASE).containsMatchIn(id)) found += id.substringAfter(":id/")
+            for (i in 0 until n.childCount) walk(n.getChild(i), depth + 1)
+        }
+        runCatching { walk(root, 0) }
+        return found.joinToString(",")
+    }
     private var controlsSince = 0L
 
     /**
@@ -409,8 +431,11 @@ class DualMedia(private val svc: HugminnService) {
         val root = runCatching {
             svc.windowsOnAllDisplays.get(Display.DEFAULT_DISPLAY)?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }?.root
         }.getOrNull() ?: return
-        val btn = runCatching { root.findAccessibilityNodeInfosByViewId("$fg:id/player_control_play_pause_replay_button") }.getOrNull()
-            ?.firstOrNull { it.isVisibleToUser }
+        val btn = listOf("player_control_play_pause_replay_button", "player_control_play_pause_button", "play_pause_button").firstNotNullOfOrNull { id ->
+            runCatching { root.findAccessibilityNodeInfosByViewId("$fg:id/$id") }.getOrNull()?.firstOrNull { it.isVisibleToUser }
+        }
+        if (btn == null && ytIdsFor != Media.title) { ytIdsFor = Media.title; ytIds = playerIds(root) }
+        if (ytIds.isNotEmpty()) diag += " · YouTube-IDs: $ytIds"
         diag += " · YouTube-Tasten sichtbar=${btn != null}"
         if (btn == null) { controlsSince = 0; return }
         val now = SystemClock.uptimeMillis()
