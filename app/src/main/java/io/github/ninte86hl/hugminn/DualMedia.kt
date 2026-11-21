@@ -116,7 +116,7 @@ class DualMedia(private val svc: HugminnService) {
 
     private fun update(fg: String) {
         val wanted = Media.title != null && Media.app == fg && top == fg
-        diag = "oben=$fg · Sitzung=${Media.app} · spielt=${Media.playing} · sichtbar=$wanted"
+        diag = "oben=$fg · Sitzung=${Media.app} · spielt=${Media.playing} · sichtbar=$wanted" + action
         if (!wanted) { hide(); return }
         // the switcher's own second-screen view must stay on top while it is open
         if (view == null && (svc.anySwitcherOpen || !show())) return
@@ -332,6 +332,23 @@ class DualMedia(private val svc: HugminnService) {
         pb.addView(pl, center()); pb.addView(pa, center())
         btn(KeyEvent.KEYCODE_MEDIA_NEXT, false).addView(IconView(svc, IconView.Kind.NEXT, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
         v.addView(ctrl, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(12) })
+        // YouTube: playlist and full screen, worked up top through YouTube's own buttons
+        if (pkg?.contains("youtube") == true) {
+            val extra = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+            fun small(kind: IconView.Kind, label: String, act: () -> Unit) {
+                extra.addView(LinearLayout(svc).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                    background = rounded(pal.tile, svc.dp(18).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+                    setPadding(svc.dp(14), svc.dp(8), svc.dp(16), svc.dp(8))
+                    addView(IconView(svc, kind, 18).styled(pal, px).apply { setColor(pal.onSurface) }, LinearLayout.LayoutParams(svc.dp(20), svc.dp(20)))
+                    addView(text(label, 14f, pal.onSurface).apply { setPadding(svc.dp(8), 0, 0, 0) })
+                    setOnClickListener { buzz(); pressedAt = SystemClock.uptimeMillis(); thread { runCatching { act() }.onFailure { Crash.note(svc, it) } } }
+                }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = svc.dp(8); marginEnd = svc.dp(8) })
+            }
+            small(IconView.Kind.LIST, t("Wiedergabeliste", "Playlist")) { ytPlaylist(pkg) }
+            small(IconView.Kind.EXPAND, t("Vollbild", "Full screen")) { ytFullscreen(pkg) }
+            v.addView(extra, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(14) })
+        }
 
         play = pl; pause = pa; bar = done; rest = left; thumb = knob; song = s; who = w; cover = c; time = tm
         refreshParts()
@@ -393,9 +410,12 @@ class DualMedia(private val svc: HugminnService) {
     private fun focusBack(pkg: String) {
         if (android.os.Build.VERSION.SDK_INT < 30 || view == null) return
         val all = runCatching { svc.windowsOnAllDisplays }.getOrNull() ?: return
-        var lowerHasFocus = false
-        for (k in 0 until all.size()) if (all.keyAt(k) != Display.DEFAULT_DISPLAY && all.valueAt(k).any { it.isFocused }) lowerHasFocus = true
-        if (!lowerHasFocus) return
+        // the top app still active (it gets the buttons): nothing to do – each screen keeps a focused
+        // window of its own on the Thor, so "focused" on the lower screen says nothing
+        val topApp = all.get(Display.DEFAULT_DISPLAY)?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION } ?: return
+        if (topApp.isActive) return
+        val lowerActive = (0 until all.size()).any { k -> all.keyAt(k) != Display.DEFAULT_DISPLAY && all.valueAt(k).any { it.isActive } }
+        if (!lowerActive) return
         val now = SystemClock.uptimeMillis()
         if (now - focusAt < 1500) return
         focusAt = now
@@ -410,9 +430,87 @@ class DualMedia(private val svc: HugminnService) {
         diag += " · Fokus zurück nach oben (${if (moved) "Task $task" else "Start"})"
     }
 
+    // ---------- YouTube remote: playlist and full screen ----------
+
+    private fun ytRoot(): AccessibilityNodeInfo? = runCatching {
+        svc.windowsOnAllDisplays.get(Display.DEFAULT_DISPLAY)?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }?.root
+    }.getOrNull()
+
+    private fun ytNode(root: AccessibilityNodeInfo, pkg: String, id: String): AccessibilityNodeInfo? =
+        runCatching { root.findAccessibilityNodeInfosByViewId("$pkg:id/$id") }.getOrNull()?.firstOrNull()
+
+    private fun bounds(n: AccessibilityNodeInfo) = Rect().also { n.getBoundsInScreen(it) }
+
+    /** Clicks [n] or the first clickable parent. */
+    private fun click(n: AccessibilityNodeInfo?): Boolean {
+        var c = n
+        var i = 0
+        while (c != null && i++ < 6) {
+            if (c.isClickable && c.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+            c = c.parent
+        }
+        return false
+    }
+
+    private fun tap(x: Float, y: Float) {
+        val path = android.graphics.Path().apply { moveTo(x, y) }
+        val g = android.accessibilityservice.GestureDescription.Builder()
+            .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 40)).build()
+        svc.ui.post { runCatching { svc.dispatchGesture(g, null, null) } }
+    }
+
+    /** YouTube's controls up (a tap on an empty spot of the video), so its buttons can be pressed. */
+    private fun ytControlsUp(root: AccessibilityNodeInfo, pkg: String): AccessibilityNodeInfo {
+        val btn = ytNode(root, pkg, "player_control_play_pause_replay_button")
+        if (btn?.isVisibleToUser == true) return root
+        val player = ytNode(root, pkg, "watch_player") ?: ytNode(root, pkg, "player_view") ?: return root
+        val r = bounds(player)
+        tap(r.left + r.width() * 0.08f, r.top + r.height() * 0.4f)
+        Thread.sleep(450)
+        return ytRoot() ?: root
+    }
+
+    /** The playlist panel (right side) when it is open. */
+    private fun ytPanel(root: AccessibilityNodeInfo, pkg: String): AccessibilityNodeInfo? =
+        ytNode(root, pkg, "fullscreen_engagement_panel_holder")?.takeIf { it.isVisibleToUser && it.childCount > 0 && bounds(it).width() > 0 }
+
+    private fun ytClosePanel(root: AccessibilityNodeInfo, pkg: String): Boolean {
+        val panel = ytPanel(root, pkg) ?: return false
+        val pr = bounds(panel)
+        val close = listOf("Schließen", "Close").flatMap { runCatching { root.findAccessibilityNodeInfosByText(it) }.getOrNull().orEmpty() }
+            .filter { it.isVisibleToUser && pr.contains(bounds(it)) }
+            .minByOrNull { bounds(it).top }
+        if (click(close)) return true
+        // no button found: Back closes the panel in YouTube
+        return svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+    }
+
+    private fun ytPlaylist(pkg: String) {
+        var root = ytRoot() ?: return
+        if (ytClosePanel(root, pkg)) { action = " · Wiedergabeliste zu"; return }
+        root = ytControlsUp(root, pkg)
+        // the playlist's own button: its name says "playlist" / "Wiedergabeliste" / "Mix"
+        val words = listOf("Wiedergabeliste", "Playlist", "Mix")
+        val player = ytNode(root, pkg, "watch_player")?.let { bounds(it) }
+        val hit = words.flatMap { runCatching { root.findAccessibilityNodeInfosByText(it) }.getOrNull().orEmpty() }
+            .firstOrNull { it.isVisibleToUser && (player == null || player.contains(bounds(it))) }
+        action = if (click(hit)) " · Wiedergabeliste auf" else " · Wiedergabeliste: kein Knopf gefunden"
+    }
+
+    private fun ytFullscreen(pkg: String) {
+        var root = ytRoot() ?: return
+        // full screen closes the playlist first
+        if (ytClosePanel(root, pkg)) { Thread.sleep(400); root = ytRoot() ?: return }
+        root = ytControlsUp(root, pkg)
+        val fs = ytNode(root, pkg, "fullscreen_button")
+        action = if (click(fs)) " · Vollbild umgeschaltet (${fs?.contentDescription})" else " · Vollbild: kein Knopf gefunden"
+    }
+
     // ---------- YouTube: its controls stay on screen ----------
 
     private var pressedAt = 0L
+    /** The last thing done up top in YouTube (for feedback reports). */
+    @Volatile private var action = ""
 
     /** Feedback exists only in test builds: found by name, so release builds simply have no button. */
     private val quickReport: (() -> Unit)? by lazy {
@@ -461,6 +559,13 @@ class DualMedia(private val svc: HugminnService) {
         val now = SystemClock.uptimeMillis()
         if (controlsSince == 0L) { controlsSince = now; return }
         if (now - controlsSince < 3500 || now - pressedAt < 3000) return
+        // YouTube's own "hide controls" button (the × up top) first
+        val hide = runCatching { root.findAccessibilityNodeInfosByViewId("$fg:id/hide_controls_button_top") }.getOrNull()?.firstOrNull { it.isVisibleToUser }
+        if (hide != null && hide.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            controlsSince = 0
+            action = " · YouTube-Tasten ausgeblendet (×)"
+            return
+        }
         // the player: the first parent clearly bigger than the play button
         val b = Rect().also { btn.getBoundsInScreen(it) }
         var area = Rect(b)
@@ -478,7 +583,7 @@ class DualMedia(private val svc: HugminnService) {
         val g = android.accessibilityservice.GestureDescription.Builder()
             .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 40)).build()
         controlsSince = 0
-        diag += " · YouTube-Tasten weggetippt bei ${x.toInt()},${y.toInt()}"
+        action = " · YouTube-Tasten weggetippt bei ${x.toInt()},${y.toInt()}"
         runCatching { svc.dispatchGesture(g, null, null) }
     }
 }
