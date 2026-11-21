@@ -240,8 +240,8 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
                 longFired = false
                 dragging = false
                 dragView = childAt(e.x, e.y)
-                // a slider (brightness, volume) needs the finger: holding it still must not pick the tile up
-                if (dragView != null && !editing() && !hasSlider(dragView!!)) postDelayed(longPress, HOLD_MS)
+                // tiles are moved by touch only in edit mode (Y / "Bearbeiten" → Anordnen): outside of
+                // it a touch only uses the tile – sliders, menus – and never picks it up
             }
             android.view.MotionEvent.ACTION_MOVE -> {
                 val far = Math.hypot((e.x - downX).toDouble(), (e.y - downY).toDouble()) > slop
