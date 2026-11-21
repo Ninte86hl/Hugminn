@@ -245,7 +245,7 @@ class DualMedia(private val svc: HugminnService) {
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         // YouTube: full screen ⇄ its normal pages with the video small in the corner
         if (pkg?.contains("youtube") == true) head.addView(FrameLayout(svc).apply {
-            background = rounded(pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+            background = Look.shape(svc, px, pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
             addView(IconView(svc, IconView.Kind.EXPAND, 18).styled(pal, px).apply { setColor(pal.onSurface) },
                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
             setOnClickListener { buzz(); pressedAt = SystemClock.uptimeMillis(); thread { runCatching { ytFullscreen(pkg) }.onFailure { Crash.note(svc, it) } } }
@@ -253,7 +253,7 @@ class DualMedia(private val svc: HugminnService) {
         // test builds: a feedback report with screenshots of both screens, without asking for a text
         quickReport?.let { report ->
             head.addView(FrameLayout(svc).apply {
-                background = rounded(pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+                background = Look.shape(svc, px, pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
                 addView(IconView(svc, IconView.Kind.CAMERA, 18).styled(pal, px).apply { setColor(pal.onSurface) },
                     FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
                 setOnClickListener { buzz(strong = true); runCatching { report() }.onFailure { Crash.note(svc, it) } }
@@ -261,8 +261,8 @@ class DualMedia(private val svc: HugminnService) {
         }
         // dark at once: the lower screen goes black, a touch brings it back
         head.addView(FrameLayout(svc).apply {
-            background = rounded(pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
-            addView(IconView(svc, IconView.Kind.MOON, 18).styled(pal, px).apply { setColor(pal.onSurface) },
+            background = Look.shape(svc, px, pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+            addView(IconView(svc, IconView.Kind.DIM, 18).styled(pal, px).apply { setColor(pal.onSurface) },
                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
             setOnClickListener { buzz(); svc.ui.postDelayed({ setDark(true) }, 120) }
         }, LinearLayout.LayoutParams(svc.dp(40), svc.dp(40)))
@@ -302,7 +302,7 @@ class DualMedia(private val svc: HugminnService) {
         val ctrl = LinearLayout(svc).apply { gravity = Gravity.CENTER }
         fun btn(size: Int, main: Boolean, act: () -> Unit): FrameLayout {
             val f = FrameLayout(svc).apply {
-                background = if (main) rounded(pal.primary, svc.dp(size / 2).toFloat()) else rounded(pal.tile, svc.dp(size / 2).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+                background = if (main) Look.shape(svc, px, pal.primary, svc.dp(size / 2).toFloat()) else Look.shape(svc, px, pal.tile, svc.dp(size / 2).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
                 setOnClickListener { act() }
             }
             ctrl.addView(f, LinearLayout.LayoutParams(svc.dp(size), svc.dp(size)).apply { marginStart = svc.dp(9); marginEnd = svc.dp(9) })
@@ -326,13 +326,13 @@ class DualMedia(private val svc: HugminnService) {
         val tm = text("", 13f, onGround).apply { gravity = Gravity.START }
         val all = text("", 13f, onGround).apply { gravity = Gravity.END }
         val seek = FrameLayout(svc)
-        val track = LinearLayout(svc).apply { background = rounded(pal.surfaceHighest, svc.dp(3).toFloat()) }
-        val done = View(svc).apply { background = rounded(pal.primary, svc.dp(3).toFloat()) }
+        val track = LinearLayout(svc).apply { background = Look.shape(svc, px, pal.surfaceHighest, svc.dp(3).toFloat()) }
+        val done = View(svc).apply { background = Look.shape(svc, px, pal.primary, svc.dp(3).toFloat()) }
         val left = View(svc)
         track.addView(done, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0f))
         track.addView(left, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
         seek.addView(track, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, svc.dp(6), Gravity.CENTER_VERTICAL))
-        val knob = View(svc).apply { background = rounded(pal.primary, svc.dp(9).toFloat(), svc.dp(2), pal.onPrimary) }
+        val knob = View(svc).apply { background = if (px) Look.shape(svc, true, pal.primary, svc.dp(4).toFloat()) else rounded(pal.primary, svc.dp(9).toFloat(), svc.dp(2), pal.onPrimary) }
         seek.addView(knob, FrameLayout.LayoutParams(svc.dp(18), svc.dp(18), Gravity.CENTER_VERTICAL or Gravity.START))
         bottom.addView(tm, LinearLayout.LayoutParams(svc.dp(52), LinearLayout.LayoutParams.WRAP_CONTENT))
         bottom.addView(seek, LinearLayout.LayoutParams(0, svc.dp(40), 1f).apply { marginStart = svc.dp(8); marginEnd = svc.dp(8) })
