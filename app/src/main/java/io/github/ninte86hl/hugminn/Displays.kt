@@ -88,11 +88,11 @@ object Displays {
         if (Root.available()) {
             // what really runs where: tasks per display and the visible windows (also presentations,
             // which the accessibility window list leaves out), plus the focus
-            Root.exec("dumpsys activity activities | grep -E 'Display #|\\* Task\\{|topResumedActivity|ResumedActivity:' | head -30", 4_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            Root.execLong("dumpsys activity activities | grep -E 'Display #|\\* Task\\{|topResumedActivity|ResumedActivity:' | head -30", 4_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
                 appendLine("  Tasks je Bildschirm:")
                 it.lines().forEach { l -> appendLine("    " + l.trim().take(200)) }
             }
-            Root.exec("dumpsys window windows | grep -E 'Window #|mDisplayId=|mCurrentFocus|mFocusedApp|isVisible=|mHasSurface' | grep -vE 'mHasSurface=false|isVisible=false' | head -90", 5_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            Root.execLong("dumpsys window windows | grep -E 'Window #|mDisplayId=|mCurrentFocus|mFocusedApp|isVisible=|mHasSurface' | grep -vE 'mHasSurface=false|isVisible=false' | head -90", 5_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
                 appendLine("  Fenster je Bildschirm (dumpsys):")
                 it.lines().forEach { l -> appendLine("    " + l.trim().take(200)) }
             }

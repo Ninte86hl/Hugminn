@@ -52,7 +52,7 @@ class HugminnService : AccessibilityService() {
             if (pm?.isInteractive != true) return
             // the app whose window came last (from the window events): asking Android for the active window
             // here would wait for that app, and keys wait meanwhile, since they pass this thread
-            if (windowPkg == pkg) Snapshots.capture(this@HugminnService, pkg)
+            if (windowPkg == pkg && onTopScreen(pkg)) Snapshots.capture(this@HugminnService, pkg)
         }
     }
     private lateinit var controlCenter: ControlCenter
@@ -60,6 +60,22 @@ class HugminnService : AccessibilityService() {
     private var landscape: Landscape? = null
     private val landscapeCheck = Runnable { landscape?.check() }
     private val lastTop = mutableMapOf<Int, String?>()
+
+    @Volatile private var dualScreen: Boolean? = null
+
+    /**
+     * Dual screen: is [pkg] really what the top screen shows? (After Home the launcher is in front up
+     * top, while the last app may still count as "in front" – its card would get the launcher's picture.)
+     * Only the windows' titles are compared: asking the app itself could make keys wait.
+     */
+    private fun onTopScreen(pkg: String): Boolean {
+        val dual = dualScreen ?: (Displays.second(this) != null).also { dualScreen = it }
+        if (!dual || android.os.Build.VERSION.SDK_INT < 30) return true
+        val w = runCatching { windowsOnAllDisplays.get(android.view.Display.DEFAULT_DISPLAY) }.getOrNull()
+            ?.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION } ?: return true
+        val title = w.title?.toString() ?: return true
+        return title == Apps.label(this, pkg)
+    }
 
     /** The app in front on the top screen (null: home screen) – only display 0 counts, not the Thor's lower screen. */
     fun topScreenApp(): String? = topAppOn(android.view.Display.DEFAULT_DISPLAY)
@@ -378,7 +394,7 @@ class HugminnService : AccessibilityService() {
                 if (e.repeatCount > 0) return true
                 // picture of the game right now, before anything covers it (own switcher)
                 if (!overlayOpen && p.ownSwitcher && !pendingSingle) foregroundPkg?.let { fg ->
-                    if (windowPkg == fg) Snapshots.capture(this, fg)
+                    if (windowPkg == fg && onTopScreen(fg)) Snapshots.capture(this, fg)
                 }
                 if (pendingSingle) {
                     ui.removeCallbacks(singlePress)
