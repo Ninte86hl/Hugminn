@@ -185,6 +185,34 @@ object Device {
     /** Odin 2: the two side lights have different colours (Hugminn's own, written to the LED driver). */
     fun aynSplit(ctx: Context) = isAyn && Prefs(ctx).let { it.aynLedLeft != 0 && it.aynLedRight != 0 }
 
+    /** The lights effects and the LED driver work on: the sides on the Odin 2, the sticks elsewhere. */
+    fun fxOn(ctx: Context) = if (hasSideLights(ctx)) sideLights(ctx) else stickLeds(ctx)
+    fun fxCmds(ctx: Context, on: Boolean): Array<String> = if (hasSideLights(ctx)) arrayOf(
+        Root.putSetting("system", "left_handle_light_enabled", if (on) "1" else "0"),
+        Root.putSetting("system", "right_handle_light_enabled", if (on) "1" else "0"),
+    ) else stickLedCmds(ctx, on)
+
+    /** Odin 2: the sticks' colour – AYN's one colour (it also lights the sides unless they have their own). */
+    fun aynStickColor(ctx: Context): Int = sys(ctx, "led_light_picker_color")?.trim()?.toLongOrNull()?.toInt() ?: android.graphics.Color.WHITE
+
+    fun setAynStickColor(ctx: Context, c: Int, then: () -> Unit) {
+        val v = c or 0xFF000000.toInt()
+        val cmds = mutableListOf(Root.putSetting("system", "led_light_picker_color", "$v"))
+        if (!stickLeds(ctx)) cmds += stickLedCmds(ctx, true)
+        // the firmware paints the sides too: their own colours go back on afterwards
+        Root.run(*cmds.toTypedArray()) { if (aynSplit(ctx) && sideLights(ctx)) LedFx.restoreStatic(ctx, delayMs = 400); then() }
+    }
+
+    /** Odin 2: the sides follow the sticks' colour again. */
+    fun clearSideColors(ctx: Context, then: () -> Unit) {
+        val p = Prefs(ctx)
+        p.aynLedLeft = 0
+        p.aynLedRight = 0
+        val v = aynStickColor(ctx) or 0xFF000000.toInt()
+        // written twice (a hair different first), so the firmware repaints everything
+        Root.run(Root.putSetting("system", "led_light_picker_color", "${v xor 0x010101}"), Root.putSetting("system", "led_light_picker_color", "$v"), then = then)
+    }
+
     /** Any light on: a stick or (Odin 2) the side lights – what the tile shows. */
     fun lightsOn(ctx: Context) = stickLeds(ctx) || (hasSideLights(ctx) && sideLights(ctx))
 
@@ -222,20 +250,19 @@ object Device {
         fun hex(c: Int) = "#%08x".format(c or 0xFF000000.toInt())
         // AYN keeps one colour (sticks and sides): it gets the left one; two different colours for the
         // sticks are Hugminn's own and are written to the LED driver right after the firmware
-        // Odin 2: AYN's one colour lights the sticks and both sides; the LED driver (sn3112 l/r) reaches
-        // only the two sides. Same colour → AYN's setting for everything; different → the sides get
-        // their own through the driver, the sticks keep AYN's colour.
+        // Odin 2: AYN's one colour lights the sticks (setAynStickColor); the LED driver (sn3112 l/r)
+        // reaches only the two sides – their colours are Hugminn's own and go to the driver
         val ayn = aynLeds(ctx)
-        val split = ayn && (left or 0xFF000000.toInt()) != (right or 0xFF000000.toInt())
+        val split = ayn
         if (ayn) {
             val p = Prefs(ctx)
-            p.aynLedLeft = if (split) left or 0xFF000000.toInt() else 0
-            p.aynLedRight = if (split) right or 0xFF000000.toInt() else 0
+            p.aynLedLeft = left or 0xFF000000.toInt()
+            p.aynLedRight = right or 0xFF000000.toInt()
         }
         val cmds = if (split) mutableListOf<String>()
             else if (ayn) mutableListOf(Root.putSetting("system", "led_light_picker_color", "${left or 0xFF000000.toInt()}"))
             else mutableListOf(Root.putSetting("system", "joystick_led_light_picker_color", "${hex(left)},${hex(right)}"))
-        if (turnOn) cmds += stickLedCmds(ctx, true)
+        if (turnOn) cmds += fxCmds(ctx, true)
         if (split) { Root.run(*cmds.toTypedArray()) { LedFx.restoreStatic(ctx, delayMs = 150); then() }; return }
         Root.run(*cmds.toTypedArray(), then = then)
     }

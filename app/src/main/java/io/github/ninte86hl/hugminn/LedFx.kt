@@ -52,9 +52,9 @@ object LedFx {
         if (on) {
             load(ctx)
             // LEDs switched off in the settings: the firmware shows nothing, so they go on just for the recording
-            if (!Device.stickLeds(ctx)) {
+            if (!Device.fxOn(ctx)) {
                 switchedOn = true
-                Device.stickLedCmds(ctx, true).forEach { Root.exec(it) }
+                Device.fxCmds(ctx, true).forEach { Root.exec(it) }
                 Thread.sleep(150)
             }
             start(ctx, LedEffect.PULSE, Color.RED to Color.RED)
@@ -65,12 +65,12 @@ object LedFx {
             // they were off before: dark and off again
             switchedOn = false
             Root.exec(command(intArrayOf(0, 0)))
-            Device.stickLedCmds(ctx, false).forEach { Root.exec(it) }
+            Device.fxCmds(ctx, false).forEach { Root.exec(it) }
             return
         }
         when {
             // the LEDs were off: off again
-            !Device.stickLeds(ctx) -> Thread { Root.exec(command(intArrayOf(0, 0))) }.start()
+            !Device.fxOn(ctx) -> Thread { Root.exec(command(intArrayOf(0, 0))) }.start()
             // an effect or low battery takes over again; otherwise the stored colours come back
             lowBattery || Prefs(ctx).ledEffect != LedEffect.NONE -> resume(ctx)
             else -> restoreStatic(ctx)
@@ -92,7 +92,7 @@ object LedFx {
         lowBattery = low
         if (recording) return
         if (low) {
-            if (Device.stickLeds(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED)
+            if (Device.fxOn(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED)
         } else resume(ctx)
     }
 
@@ -108,12 +108,12 @@ object LedFx {
     fun resume(ctx: Context) {
         load(ctx)
         if (recording) { start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
-        if (lowBattery) { if (Device.stickLeds(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
+        if (lowBattery) { if (Device.fxOn(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
         val e = Prefs(ctx).ledEffect
-        if (Device.stickLeds(ctx) && e != LedEffect.NONE) start(ctx, e) else {
+        if (Device.fxOn(ctx) && e != LedEffect.NONE) start(ctx, e) else {
             stop()
             // AYN with two stick colours: the firmware only knows one, Hugminn puts the second back
-            if (Device.stickLeds(ctx) && Device.aynSplit(ctx)) restoreStatic(ctx, delayMs = 600)
+            if (Device.fxOn(ctx) && Device.aynSplit(ctx)) restoreStatic(ctx, delayMs = 600)
         }
     }
 
