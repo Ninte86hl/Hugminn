@@ -9,7 +9,7 @@ import android.view.View
 
 /** Simple line icons drawn in code, so they look the same everywhere and follow the theme colour. */
 class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 22) : View(ctx) {
-    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC, POWER, BATTERY, PLAY, PAUSE, PREV, NEXT, PIN, LIST, EXPAND, VOL_DOWN, VOL_UP }
+    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC, POWER, BATTERY, PLAY, PAUSE, PREV, NEXT, PIN, LIST, EXPAND, VOL_DOWN, VOL_UP, DIM }
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -34,6 +34,19 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
     /** The style's own form for this icon (only the media buttons have a block/dot version). */
     fun styled(pal: Palette, pixel: Boolean) = apply { grid = if (pal.dots) 2 else if (pixel) 1 else 0 }
 
+    /** A crescent moon on the 9×9 grid (dim button). */
+    private val crescent = listOf(
+        "...###...",
+        ".###.....",
+        ".##......",
+        "##.......",
+        "##.......",
+        "##......#",
+        ".##....##",
+        ".#######.",
+        "...###...",
+    )
+
     /** Media buttons on a 9×9 grid: true = cell lit. */
     private fun cells(k: Kind): ((Int, Int) -> Boolean)? = when (k) {
         Kind.PLAY -> { r, col -> col >= 2 && col < 2 + (5 - Math.abs(r - 4)) }
@@ -42,6 +55,23 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
         Kind.PAUSE -> { r, col -> r in 1..7 && (col in 2..3 || col in 5..6) }
         Kind.PREV -> { r, col -> r in 1..7 && (col == 1 || col in (7 - (4 - Math.abs(r - 4)))..6) }
         Kind.NEXT -> { r, col -> r in 1..7 && (col == 7 || col in 2..(1 + (4 - Math.abs(r - 4)))) }
+        // the player's other buttons in the same blocks/dots, so the whole row matches
+        Kind.VOL_DOWN, Kind.VOL_UP -> { r, col ->
+            val speaker = (col in 0..1 && r in 3..5) || (col == 2 && r in 2..6) || (col == 3 && r in 1..7)
+            val minus = r == 4 && col in 5..7
+            val plus = k == Kind.VOL_UP && col == 6 && r in 3..5
+            speaker || minus || plus
+        }
+        Kind.EXPAND -> { r, col ->
+            val edgeR = r == 0 || r == 8
+            val edgeC = col == 0 || col == 8
+            (edgeR && (col <= 2 || col >= 6)) || (edgeC && (r <= 2 || r >= 6))
+        }
+        Kind.CAMERA -> { r, col ->
+            (r == 1 && col in 3..5) || ((r == 2 || r == 7) && col in 0..8) || ((col == 0 || col == 8) && r in 2..7) ||
+                (r in 3..6 && col in 3..5 && !(r in 4..5 && col == 4) && !((r == 3 || r == 6) && (col == 3 || col == 5)))
+        }
+        Kind.DIM -> { r, col -> crescent[r][col] == '#' }
         else -> null
     }
 
@@ -121,6 +151,13 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
                 moveTo(s * 0.12f, s * 0.55f); lineTo(m, s * 0.38f); lineTo(s * 0.88f, s * 0.55f)
                 moveTo(s * 0.34f, s * 0.9f); lineTo(m, s * 0.78f); lineTo(s * 0.66f, s * 0.9f)
             }, p)
+            Kind.DIM -> {
+                // dim the screen: a crescent moon
+                val moon = Path().apply { addCircle(m, m, s * 0.36f, Path.Direction.CW) }
+                val bite = Path().apply { addCircle(s * 0.68f, s * 0.32f, s * 0.3f, Path.Direction.CW) }
+                moon.op(bite, Path.Op.DIFFERENCE)
+                c.drawPath(moon, p)
+            }
             Kind.MOON -> {
                 // "do not disturb" like on Android: a circle with a bar
                 c.drawCircle(m, m, s * 0.36f, p)
