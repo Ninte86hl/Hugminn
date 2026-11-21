@@ -560,7 +560,7 @@ class DualMedia(private val svc: HugminnService) {
             val c = Class.forName("io.github.ninte86hl.hugminn.Feedback")
             val inst = c.getField("INSTANCE").get(null)
             val m = c.getMethod("capture", HugminnService::class.java, String::class.java, Boolean::class.javaPrimitiveType)
-            val go: () -> Unit = { m.invoke(inst, svc, "Player unten", true) }
+            val go: () -> Unit = { Displays.snapshot(svc, svc, "Player"); svc.ui.postDelayed({ runCatching { m.invoke(inst, svc, "Player unten", true) } }, 2500) }
             go
         }.getOrNull()
     }

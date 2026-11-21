@@ -85,7 +85,10 @@ object Displays {
         if (NavBar.diag.isNotEmpty()) appendLine("  Navigationsleiste: " + NavBar.diag)
         if (Landscape.diag.isNotEmpty()) appendLine("  Querformat: " + Landscape.diag)
         if (DualMedia.diag.isNotEmpty()) appendLine("  Player unten: " + DualMedia.diag)
-        if (Root.available()) {
+        // the root dumps take seconds: never on the main thread (keys pass it – Hugminn froze and
+        // Android stopped it); the picture taken in the background before opening has them
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) appendLine("  (Fensterliste: siehe „Vor dem Öffnen“)")
+        else if (Root.available()) {
             // what really runs where: tasks per display and the visible windows (also presentations,
             // which the accessibility window list leaves out), plus the focus
             Root.execLong("dumpsys activity activities | grep -E 'Display #|\\* Task\\{|topResumedActivity|ResumedActivity:' | head -30", 4_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
