@@ -57,8 +57,6 @@ class HugminnService : AccessibilityService() {
     }
     private lateinit var controlCenter: ControlCenter
     private var dualMedia: DualMedia? = null
-    private var wide: WideApps? = null
-    private val wideCheck = Runnable { wide?.check() }
     private val lastTop = mutableMapOf<Int, String?>()
 
     /** The app in front on the top screen (null: home screen) – only display 0 counts, not the Thor's lower screen. */
@@ -75,8 +73,6 @@ class HugminnService : AccessibilityService() {
         return (if (Apps.isHome(this, pkg) || pkg.contains("cocoon")) null else pkg).also { lastTop[id] = it }
     }
 
-    /** Tablet view: the density in use on the top screen, for the test buttons in the player. */
-    fun wideApps(): WideApps? = wide
     lateinit var overlay: PerfOverlay
         private set
 
@@ -94,25 +90,9 @@ class HugminnService : AccessibilityService() {
 
     private var lastNight = -1
 
-    /**
-     * Hugminn's own look keeps its size while the tablet view (lower density for YouTube & co.) is on:
-     * the Control Center, switcher and overlays are drawn with the density from before.
-     */
-    @Volatile private var fixedRes: android.content.res.Resources? = null
-    @Volatile private var fixedDpi = 0
-
-    override fun getResources(): android.content.res.Resources = fixedRes ?: super.getResources()
-
-    fun keepDensity(dpi: Int) {
-        fixedDpi = dpi
-        fixedRes = if (dpi <= 0) null else runCatching {
-            createConfigurationContext(android.content.res.Configuration(super.getResources().configuration).apply { densityDpi = dpi }).resources
-        }.getOrNull()
-    }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (fixedDpi > 0) keepDensity(fixedDpi)
         val night = newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
         if (lastNight != -1 && night != lastNight) runCatching { overlay.onNightModeChanged() }
         lastNight = night
@@ -134,7 +114,17 @@ class HugminnService : AccessibilityService() {
         ui.postDelayed(snapshotTick, 7000)
         controlCenter = ControlCenter(this)
         dualMedia = DualMedia(this).also { it.start() }
-        wide = WideApps(this).also { it.recover() }
+        // the tablet view of the test builds is gone: a density it left behind goes back to the old value
+        Thread {
+            val sp = getSharedPreferences("hugminn", MODE_PRIVATE)
+            sp.all.keys.filter { it.startsWith("wideRestore") }.forEach { k ->
+                val back = sp.getInt(k, -1)
+                val id = k.removePrefix("wideRestore").toIntOrNull() ?: 0
+                if (back >= 0 && Root.available()) Root.exec(if (back > 0) "wm density $back -d $id" else "wm density reset -d $id")
+                sp.edit().remove(k).apply()
+            }
+            listOf("wideOn", "wideApps", "wideDpi", "wideKeep").forEach { sp.edit().remove(it).apply() }
+        }.start()
         overlay = PerfOverlay(this)
         instance = this
         if (prefs.overlayOn) ui.post { runCatching { overlay.show() } }
@@ -222,7 +212,6 @@ class HugminnService : AccessibilityService() {
 
     override fun onDestroy() {
         dualMedia?.stop()
-        wide?.stop()
         if (::overlay.isInitialized) overlay.hide()
         LedFx.stop()
         FanCurve.stop(restoreSmart = true)
@@ -271,8 +260,6 @@ class HugminnService : AccessibilityService() {
         }
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             dualMedia?.kick()
-            ui.removeCallbacks(wideCheck)
-            ui.postDelayed(wideCheck, 300)
         }
         if (event.packageName?.toString() == foregroundPkg) appEventAt = SystemClock.uptimeMillis()
         if (::switcher.isInitialized) try {
