@@ -2371,19 +2371,21 @@ class ControlCenter(private val svc: HugminnService) {
             row.addView(View(svc).apply { background = shape(if (st[i] == 0) android.graphics.Color.BLACK else cols[i], 8f * d, 1 * d, pal.outline) },
                 lp(16 * d, 16 * d).apply { marginEnd = 10 * d })
             row.addView(text(name, 14f, if (st[i] == 0) pal.onSurfaceVariant else pal.onSurface), lp(0, WRAP, 1f))
-            listOf(tr("Aus"), tr("An"), "✎").forEachIndexed { k, lab ->
-                val c = chip(lab, st[i] == k).apply { setPadding(10 * d, 0, 10 * d, 0) }
-                val act = {
-                    val ns = st.copyOf().also { it[i] = k }
-                    Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again("e${i}s$k") }
-                }
-                c.setOnClickListener { act() }
-                row.addView(c, lp(WRAP, 30 * d).apply { marginStart = 4 * d })
-                cells += LedCell("e${i}s$k", c, act)
+            // one switch: three rings – outer off, middle on, inner custom (A cycles, a tap on a ring picks it)
+            val ring = TriRing(svc, pal.primary, pal.onSurfaceVariant).apply { state = st[i] }
+            val pick: (Int) -> Unit = { k ->
+                val ns = st.copyOf().also { it[i] = k }
+                Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again("e$i") }
             }
+            ring.onPick = { k -> ledFocus = "e$i"; pick(k) }
+            val cycle = { pick((st[i] + 1) % 3) }
+            row.setOnClickListener { cycle() }
+            row.addView(text(listOf(tr("Aus"), tr("An"), tr("Benutzerdefiniert"))[st[i]], 12f, if (st[i] == 2) pal.primary else pal.onSurfaceVariant).apply { setPadding(0, 0, 10 * d, 0) })
+            row.addView(ring, lp(38 * d, 38 * d))
+            cells += LedCell("e$i", row, cycle)
             elCol.addView(row, lp(MATCH, WRAP).apply { bottomMargin = 5 * d })
         }
-        elCol.addView(text(if (sel.isEmpty()) tr("Kein Element mit ✎ gewählt – Änderungen wirken nur auf ✎.") else tr("✎ = wird geändert · An = behält Farbe und Effekt"),
+        elCol.addView(text(if (sel.isEmpty()) tr("Kein Element auf Benutzerdefiniert – Änderungen wirken nur dort.") else tr("Außen Aus · Mitte An (behält Farbe und Effekt) · Innen Benutzerdefiniert (wird geändert)"),
             11f, if (sel.isEmpty()) pal.primary else pal.onSurfaceVariant).apply { setPadding(4 * d, 0, 0, 2 * d) })
         // brightness for all lights (the firmware's one value), saturation of the ✎ elements – 5 % steps
         val bright = (Device.ledBrightness(svc) * 100).roundToInt()
