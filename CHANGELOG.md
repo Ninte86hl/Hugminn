@@ -2,6 +2,16 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.13.2
+
+### 🇬🇧 English
+- Control Center: touching a tile only uses it (sliders, menus of Performance, Fan & co.) and never picks it up any more – 1.13.1 did not catch every slider. Tiles are moved by touch only in edit mode.
+- Every button hint at the bottom of the Control Center can be tapped and does what its button does – "Y Edit" opens editing for touch.
+
+### 🇩🇪 Deutsch
+- Control Center: Berühren einer Kachel bedient sie nur noch (Regler, Menüs von Leistung, Lüfter & Co.) und hebt sie nie mehr an – 1.13.1 hat nicht jeden Regler erwischt. Verschoben wird per Touch nur noch im Bearbeiten-Modus.
+- Jeder Tastenhinweis unten im Control Center lässt sich antippen und macht dasselbe wie die Taste – „Y Bearbeiten“ öffnet das Bearbeiten für Touch.
+
 ## 1.13.1
 
 ### 🇬🇧 English

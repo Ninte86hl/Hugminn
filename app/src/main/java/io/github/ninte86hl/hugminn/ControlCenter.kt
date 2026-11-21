@@ -538,9 +538,18 @@ class ControlCenter(private val svc: HugminnService) {
     private fun renderFooter() {
         val footer = footerView ?: return
         footer.removeAllViews()
+        // every hint can be tapped: it does what its button does (touch: "Y Bearbeiten" opens editing)
         fun hint(k: Int, s: String) {
-            footer.addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
-            footer.addView(text(s, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+            footer.addView(LinearLayout(svc).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
+                addView(text(s, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+                setOnClickListener {
+                    val now = android.os.SystemClock.uptimeMillis()
+                    onKey(KeyEvent(now, now, KeyEvent.ACTION_DOWN, k, 0))
+                    onKey(KeyEvent(now, now, KeyEvent.ACTION_UP, k, 0))
+                }
+            })
         }
         val pc = pages() + if (editing) 1 else 0
         if (pc > 1) footer.addView(text(t("Seite ${gridPage + 1}/$pc", "Page ${gridPage + 1}/$pc"), 13f, pal.onSurfaceVariant).apply { setPadding(0, 0, 16 * d, 0) })
