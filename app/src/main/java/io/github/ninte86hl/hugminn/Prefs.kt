@@ -214,6 +214,17 @@ class Prefs(ctx: Context) {
         get() = p.getInt("wideRestore", -1)
         set(v) = p.edit().putInt("wideRestore", v).commit().let { }
 
+    /** Tablet view: density for the apps (0 = automatic, the smallest that counts as a tablet). */
+    var wideDpi: Int
+        get() = p.getInt("wideDpi", 0)
+        set(v) = p.edit().putInt("wideDpi", v).apply()
+
+    /** Per screen: density to go back to (-1 nothing to do, 0 Android's own, else that value). */
+    fun wideRestoreOf(display: Int): Int = if (display == 0) wideRestore else p.getInt("wideRestore$display", -1)
+    fun setWideRestore(display: Int, v: Int) {
+        if (display == 0) wideRestore = v else p.edit().putInt("wideRestore$display", v).commit()
+    }
+
     /** Hugminn's own density while the tablet view is on (the value from before). */
     var wideKeep: Int
         get() = p.getInt("wideKeep", 0)

@@ -58,19 +58,25 @@ class HugminnService : AccessibilityService() {
     private lateinit var controlCenter: ControlCenter
     private var dualMedia: DualMedia? = null
     private var wide: WideApps? = null
-    private val wideCheck = Runnable { wide?.onTop(topScreenApp()) }
-    private var lastTop: String? = null
+    private val wideCheck = Runnable { wide?.check() }
+    private val lastTop = mutableMapOf<Int, String?>()
 
     /** The app in front on the top screen (null: home screen) – only display 0 counts, not the Thor's lower screen. */
-    fun topScreenApp(): String? {
-        if (android.os.Build.VERSION.SDK_INT < 30) return if (homeInFront) null else foregroundPkg
-        val wins = runCatching { windowsOnAllDisplays.get(android.view.Display.DEFAULT_DISPLAY) }.getOrNull() ?: return lastTop
-        val app = wins.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION } ?: return lastTop
-        val pkg = runCatching { app.root?.packageName?.toString() }.getOrNull() ?: return lastTop
+    fun topScreenApp(): String? = topAppOn(android.view.Display.DEFAULT_DISPLAY)
+
+    /** The app in front on screen [id] (null: its launcher, e.g. Cocoon on the Thor's lower screen). */
+    fun topAppOn(id: Int): String? {
+        if (android.os.Build.VERSION.SDK_INT < 30) return if (id != 0 || homeInFront) null else foregroundPkg
+        val wins = runCatching { windowsOnAllDisplays.get(id) }.getOrNull() ?: return lastTop[id]
+        val app = wins.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION } ?: return lastTop[id]
+        val pkg = runCatching { app.root?.packageName?.toString() }.getOrNull() ?: return lastTop[id]
         // Hugminn's own pause screen (switcher) lies over the app: keep the app
-        if (pkg == packageName) return lastTop
-        return (if (Apps.isHome(this, pkg)) null else pkg).also { lastTop = it }
+        if (pkg == packageName) return lastTop[id]
+        return (if (Apps.isHome(this, pkg) || pkg.contains("cocoon")) null else pkg).also { lastTop[id] = it }
     }
+
+    /** Tablet view: the density in use on the top screen, for the test buttons in the player. */
+    fun wideApps(): WideApps? = wide
     lateinit var overlay: PerfOverlay
         private set
 
