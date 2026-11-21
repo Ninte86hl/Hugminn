@@ -233,7 +233,7 @@ class DualMedia(private val svc: HugminnService) {
         val pal = Palette(svc)
         val px = Look.pixel(svc)
         v.background = Look.ground(svc, pal)
-        v.setPadding(svc.dp(28), svc.dp(20), svc.dp(28), svc.dp(24))
+        v.setPadding(svc.dp(28), svc.dp(16), svc.dp(28), svc.dp(16))
         v.gravity = Gravity.CENTER_HORIZONTAL
         val picture = Backdrop.active(svc)
         val onGround = if (picture) pal.onSurface else pal.onSurfaceVariant
@@ -264,9 +264,20 @@ class DualMedia(private val svc: HugminnService) {
         }, LinearLayout.LayoutParams(svc.dp(40), svc.dp(40)))
         v.addView(head, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
+        // the picture takes what room is left, so everything below always fits
         // middle: cover (music only), song and artist – or just the video's title
-        val c = ImageView(svc).apply {
+        val ratio = if (video) 16f / 9f else 1f
+        val maxW = svc.dp(if (video) 320 else 220)
+        val c = object : ImageView(svc) {
+            override fun onMeasure(ws: Int, hs: Int) {
+                val w = minOf(MeasureSpec.getSize(ws), maxW)
+                val h = MeasureSpec.getSize(hs)
+                var cw = w
+                var ch = (cw / ratio).toInt()
+                if (ch > h) { ch = h; cw = (ch * ratio).toInt() }
+                setMeasuredDimension(cw, ch)
+            }
+        }.apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
             clipToOutline = true
             outlineProvider = object : android.view.ViewOutlineProvider() {
@@ -274,13 +285,14 @@ class DualMedia(private val svc: HugminnService) {
             }
         }
         // music: square cover; video: the thumbnail in 16:9 (as in the Control Center)
-        if (!video) v.addView(c, LinearLayout.LayoutParams(svc.dp(170), svc.dp(170)).apply { bottomMargin = svc.dp(16) })
-        else if (Media.art != null) v.addView(c, LinearLayout.LayoutParams(svc.dp(304), svc.dp(171)).apply { bottomMargin = svc.dp(14) })
+        val box = FrameLayout(svc)
+        if (!video || Media.art != null) box.addView(c, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        v.addView(box, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = svc.dp(8); bottomMargin = svc.dp(10) })
         val s = text("", if (video) 20f else 21f, pal.onSurface, bold = true, lines = if (video && Media.art == null) 3 else 2)
         val w = text("", 15f, onGround)
         v.addView(s, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         if (!video) v.addView(w, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(4) })
-        v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
+        v.addView(View(svc), LinearLayout.LayoutParams(1, svc.dp(10)))
 
         // progress in the accent colour – touch or drag it to jump
         val seek = FrameLayout(svc)
@@ -342,18 +354,18 @@ class DualMedia(private val svc: HugminnService) {
                 extra.addView(LinearLayout(svc).apply {
                     gravity = Gravity.CENTER_VERTICAL
                     background = rounded(pal.tile, svc.dp(18).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
-                    setPadding(svc.dp(14), svc.dp(8), svc.dp(16), svc.dp(8))
+                    setPadding(svc.dp(12), svc.dp(6), svc.dp(14), svc.dp(6))
                     addView(IconView(svc, kind, 18).styled(pal, px).apply { setColor(pal.onSurface) }, LinearLayout.LayoutParams(svc.dp(20), svc.dp(20)))
-                    addView(text(label, 14f, pal.onSurface).apply { setPadding(svc.dp(8), 0, 0, 0) })
+                    addView(text(label, 13f, pal.onSurface).apply { setPadding(svc.dp(6), 0, 0, 0) })
                     setOnClickListener { buzz(); pressedAt = SystemClock.uptimeMillis(); thread { runCatching { act() }.onFailure { Crash.note(svc, it) } } }
-                }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = svc.dp(8); marginEnd = svc.dp(8) })
+                }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = svc.dp(5); marginEnd = svc.dp(5) })
             }
             small(IconView.Kind.LIST, t("Liste (Y)", "List (Y)")) { svc.ui.post { openList() } }
             if (pkg?.contains("youtube") == true) {
                 small(IconView.Kind.LIST, t("Liste oben", "List up top")) { ytPlaylist(pkg) }
                 small(IconView.Kind.EXPAND, t("Groß / klein", "Big / small")) { ytFullscreen(pkg) }
             }
-            v.addView(extra, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(14) })
+            v.addView(extra, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(10) })
         }
 
         play = pl; pause = pa; bar = done; rest = left; thumb = knob; song = s; who = w; cover = c; time = tm
