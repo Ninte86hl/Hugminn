@@ -82,6 +82,7 @@ object Displays {
                 }
             }
         }.onFailure { appendLine("  Fenster: ${it.javaClass.simpleName}") }
+        if (NavBar.diag.isNotEmpty()) appendLine("  Navigationsleiste: " + NavBar.diag)
         if (Landscape.diag.isNotEmpty()) appendLine("  Querformat: " + Landscape.diag)
         if (DualMedia.diag.isNotEmpty()) appendLine("  Player unten: " + DualMedia.diag)
         if (Root.available()) {

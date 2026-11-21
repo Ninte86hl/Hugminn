@@ -117,6 +117,7 @@ class HugminnService : AccessibilityService() {
         controlCenter = ControlCenter(this)
         dualMedia = DualMedia(this).also { it.start() }
         landscape = Landscape(this)
+        NavBar.resume(this)
         // the tablet view of the test builds is gone: a density it left behind goes back to the old value
         Thread {
             val sp = getSharedPreferences("hugminn", MODE_PRIVATE)

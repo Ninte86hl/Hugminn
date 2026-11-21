@@ -214,6 +214,11 @@ class Prefs(ctx: Context) {
         get() = p.getStringSet("landscapeApps", null) ?: setOf("com.google.android.youtube")
         set(v) = p.edit().putStringSet("landscapeApps", v).apply()
 
+    /** Android's navigation bar hidden everywhere (root, policy_control). */
+    var hideNav: Boolean
+        get() = p.getBoolean("hideNav", false)
+        set(v) = p.edit().putBoolean("hideNav", v).apply()
+
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()
