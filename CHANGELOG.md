@@ -22,7 +22,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - AYN Odin 2: battery (level, power, temperature) and GPU values are read where the firmware hides the usual files – from Android itself, the GPU through root.
 - AYN Odin 2: the Button layout tile uses AYN's Controller style – Xbox, Retro, or built-in controls off (Disconnect).
 - "Nintendo" is now called "Retro" everywhere (button layout with A on the right, button symbols).
-- Control Center: holding a slider tile (brightness, volume) never picks the tile up any more – move it in the edit menu instead.
+- Control Center: touching a tile only uses it (sliders, menus of Performance, Fan & co.); tiles are moved by touch only in edit mode. Every button hint at the bottom can be tapped – "Y Edit" opens editing for touch.
 - AYN Odin 2: the Stick LEDs tile works – on/off, colour (one colour for both sticks, as AYN keeps it), brightness and effects; the lights in the sides of the case can be switched on and off in the tile's menu.
 - AYN Thor: Hugminn's own screens (feedback, pause screen, recording) and apps started from the switcher or Control Center always open on the top screen – before, a touch on the lower screen sent them down there. While the player covers the lower screen, a touch there no longer takes the focus away from the app up top, so the buttons keep controlling it.
 - AYN Thor: the AYN button stays AYN's – Hugminn no longer takes it as a second Home button, so AYN's menu and its long press work as intended.
@@ -45,7 +45,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - AYN Odin 2: Akku (Stand, Leistung, Temperatur) und GPU-Werte werden gelesen, wo die Firmware die üblichen Dateien versteckt – aus Android selbst, die GPU über Root.
 - AYN Odin 2: Die Kachel Tastenlayout nutzt AYNs Controller-Stil – Xbox, Retro oder eingebaute Steuerung aus (Disconnect).
 - Aus „Nintendo“ wird überall „Retro“ (Tastenlayout mit A rechts, Tastensymbole).
-- Control Center: Gedrückthalten einer Schieberegler-Kachel (Helligkeit, Lautstärke) hebt die Kachel nicht mehr an – verschieben geht über das Bearbeiten-Menü.
+- Control Center: Berühren einer Kachel bedient sie nur noch (Regler, Menüs von Leistung, Lüfter & Co.); verschoben wird per Touch nur noch im Bearbeiten-Modus. Jeder Tastenhinweis unten lässt sich antippen – „Y Bearbeiten“ öffnet das Bearbeiten für Touch.
 - AYN Odin 2: Die Stick-LEDs-Kachel funktioniert – an/aus, Farbe (eine Farbe für beide Sticks, wie AYN sie speichert), Helligkeit und Effekte; die Seitenbeleuchtung im Gehäuse lässt sich im Menü der Kachel ein- und ausschalten.
 - AYN Thor: Hugminns eigene Fenster (Feedback, Pausenbild, Aufnahme) und Apps, die aus dem Switcher oder Control Center starten, öffnen immer auf dem oberen Bildschirm – vorher landeten sie nach einer Berührung des unteren Bildschirms dort. Solange der Player den unteren Bildschirm bedeckt, nimmt eine Berührung dort der App oben nicht mehr den Fokus weg, die Tasten steuern also weiter sie.
 - AYN Thor: Die AYN-Taste bleibt bei AYN – Hugminn behandelt sie nicht mehr als zweite Home-Taste, AYNs Menü und der lange Druck funktionieren wie vorgesehen.
