@@ -2120,13 +2120,8 @@ class ControlCenter(private val svc: HugminnService) {
         return true
     }
 
-    /** LED window: tab below the colours – 0 effects, 1 combinations, 2 device info. */
+    /** LED window tab: 0 colour, 1 effects, 2 combinations, 3 device info. */
     private var ledTab = 0
-    /** The colour wheel page (colour, saturation, brightness) instead of the main page. */
-    private var ledSub = false
-    private var subColor = android.graphics.Color.RED
-    private var subSat = 100
-
     /** Elements chosen for changes (state 2). */
     private fun ledSel(st: IntArray) = st.indices.filter { st[it] == 2 }
 
@@ -2141,22 +2136,6 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     private fun applyLed(c: Int) = applyEls { c }
-
-    /** Colour of the wheel page: hue from the wheel, saturation from the stepper. */
-    private fun subEffective(): Int {
-        val hsv = FloatArray(3).also { android.graphics.Color.colorToHSV(subColor, it) }
-        hsv[1] = subSat / 100f
-        hsv[2] = 1f
-        return android.graphics.Color.HSVToColor(hsv)
-    }
-
-    private fun previewSub() {
-        val st = Device.elStates(svc)
-        val cols = Device.elColors(svc)
-        val c = subEffective()
-        val z = IntArray(st.size) { if (st[it] == 0) 0 else if (st[it] == 2) c else cols[it] }
-        LedFx.previewEls(z, Device.ledBrightness(svc))
-    }
 
     /** Chips that wrap to the next line when the width runs out (16:9 and 4:3 alike). */
     private class Flow(ctx: android.content.Context, private val gapX: Int, private val gapY: Int) : android.view.ViewGroup(ctx) {
@@ -2196,14 +2175,14 @@ class ControlCenter(private val svc: HugminnService) {
     private var ledScroll: android.widget.ScrollView? = null
 
     /**
-     * LED window. Main page: every element (stick, side) Aus · An · ✎ – changes only reach the ✎ ones,
-     * "An" keeps its own look, so each element can get its own colour. Below: colours with the wheel
-     * page, then tabs (L1/R1) for effects, combinations and device info.
+     * LED window: tabs (L1/R1) colour · effects · combos · device info on top; below them, always
+     * the same, every element (stick, side) Aus · An · ✎ plus brightness and saturation. Changes only
+     * reach the ✎ elements, "An" keeps its own look, so each element can get its own colour.
      */
     private fun ledPicker() {
         val r = root ?: return
         val reuse = (menuView as? LinearLayout)?.takeIf { it.tag == "led" }
-        if (reuse == null) { closeMenu(); ledSub = false }
+        if (reuse == null) closeMenu()
         val names = Device.ledElNames(svc)
         val st = Device.elStates(svc)
         val cols = Device.elColors(svc)
@@ -2237,215 +2216,193 @@ class ControlCenter(private val svc: HugminnService) {
                 setOnClickListener { run() }
             }
             val grp = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-            grp.addView(text(label, 13f, pal.onSurfaceVariant).apply { setPadding(2 * d, 0, 8 * d, 0) })
+            grp.addView(text(label, 13f, pal.onSurfaceVariant).apply { setPadding(2 * d, 0, 8 * d, 0) }, lp(96 * d, WRAP))
             val m = btn("−", minus)
             grp.addView(m, lp(38 * d, 34 * d))
             grp.addView(text(value, 14f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER }, lp(64 * d, WRAP))
             val p = btn("+", plus)
             grp.addView(p, lp(38 * d, 34 * d))
-            into.addView(grp, if (into is Flow) android.view.ViewGroup.LayoutParams(WRAP, 34 * d) else lp(WRAP, 34 * d))
+            into.addView(grp, if (into is Flow) android.view.ViewGroup.LayoutParams(WRAP, 34 * d) else lp(WRAP, 34 * d).apply { topMargin = 6 * d })
             cells += LedCell("$key-", m, minus)
             cells += LedCell("$key+", p, plus)
         }
-        val bright = (Device.ledBrightness(svc) * 100).roundToInt()
-        val brightMinus: () -> Unit = { LedFx.setBrightness(svc, ((bright + 4) / 5 * 5 - 5).coerceAtLeast(5)) { if (ledSub) svc.ui.post { previewSub() }; again("b-") } }
-        val brightPlus: () -> Unit = { LedFx.setBrightness(svc, (bright / 5 * 5 + 5).coerceAtMost(100)) { if (ledSub) svc.ui.post { previewSub() }; again("b+") } }
 
-        // --- top: title and the overall brightness (5 % steps)
-        val top = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, 4 * d) }
-        top.addView(text(if (ledSub) tr("Farbrad") else tr("Beleuchtung"), 18f, pal.onSurface, bold = true))
+        // --- top: title and the tabs
+        val top = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, 6 * d) }
+        top.addView(text(tr("Beleuchtung"), 18f, pal.onSurface, bold = true), lp(WRAP, WRAP).apply { marginEnd = 16 * d })
         top.addView(View(svc), lp(0, 1, 1f))
-        stepper(top, "b", tr("Helligkeit"), "$bright %", brightMinus, brightPlus)
+        top.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_L1, 20))
+        listOf(tr("Farbe"), tr("Effekte"), tr("Kombis"), tr("Geräteinfo")).forEachIndexed { i, name ->
+            val c = chip(name, i == ledTab).apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) }
+            val act = { if (ledTab != i) { ledTab = i; ledFocus = "tab$i"; ledPicker() } }
+            c.setOnClickListener { act() }
+            top.addView(c, lp(WRAP, 34 * d).apply { marginStart = 5 * d; marginEnd = 5 * d })
+            cells += LedCell("tab$i", c, act)
+        }
+        top.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_R1, 20))
         box.addView(top, lp(MATCH, WRAP))
 
         val scroll = MaxScroll(svc, maxH).apply { isVerticalScrollBarEnabled = false }
         ledScroll = scroll
         box.addView(scroll, lp(MATCH, WRAP))
+        val cols2 = LinearLayout(svc).apply { orientation = if (twoCols) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL }
+        scroll.addView(cols2)
 
-        if (ledSub) {
-            // --- wheel page: wheel left; colour sample, saturation, apply/back right
-            val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-            scroll.addView(row)
-            val wheelSize = minOf(240 * d, maxH - 20 * d, (boxW * 0.45f).toInt())
-            val wheel = ColorWheel(svc, pal.onSurface).apply { select(subColor) }
-            val wheelBox = FrameLayout(svc).apply { setPadding(6 * d, 6 * d, 6 * d, 6 * d) }
-            wheelBox.addView(wheel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-            row.addView(wheelBox, lp(wheelSize, wheelSize))
-            fun fromWheel(c: Int) {
-                subColor = c
-                val hsv = FloatArray(3).also { android.graphics.Color.colorToHSV(c, it) }
-                subSat = ((hsv[1] * 20).roundToInt() * 5).coerceIn(0, 100)
-            }
-            wheel.onChange = { c -> fromWheel(c); previewSub() }
-            wheel.onPick = { c -> fromWheel(c); previewSub(); again("wheel") }
-            cells += LedCell("wheel", wheelBox) {
-                activeWheel = wheel
-                wheel.active = true
-                previewSub()
-                wheelDone = { c -> fromWheel(c); previewSub(); again("apply") }
-                wheelCancel = { showLedSel() }
-                showLedSel()
-                renderFooter()
-            }
-            val right = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(20 * d, 0, 0, 0) }
-            row.addView(right, lp(0, WRAP, 1f))
-            right.addView(View(svc).apply { background = shape(subEffective(), 12f * d, 1 * d, pal.outline) }, lp(MATCH, 40 * d))
-            right.addView(text(tr("Wähle mit A das Farbrad, steuere mit dem Steuerkreuz, A übernimmt die Farbe hier."), 12f, pal.onSurfaceVariant).apply { setPadding(2 * d, 8 * d, 0, 4 * d) })
-            right.addView(header(tr("Sättigung")))
-            stepper(right, "s", tr("Sättigung"), "$subSat %",
-                { subSat = (subSat - 5).coerceAtLeast(0); previewSub(); again("s-") },
-                { subSat = (subSat + 5).coerceAtMost(100); previewSub(); again("s+") })
-            val btns = LinearLayout(svc).apply { setPadding(0, 14 * d, 0, 0) }
-            val apply = chip(tr("Übernehmen"), true)
-            val applyAct: () -> Unit = { ledSub = false; ledFocus = "cwheel"; applyLed(subEffective()); Unit }
-            apply.setOnClickListener { applyAct() }
-            btns.addView(apply, lp(WRAP, 38 * d))
-            cells += LedCell("apply", apply, applyAct)
-            val back = chip(tr("Zurück"), false)
-            val backAct: () -> Unit = { ledSub = false; LedFx.resume(svc); again("cwheel") }
-            back.setOnClickListener { backAct() }
-            btns.addView(back, lp(WRAP, 38 * d).apply { marginStart = 10 * d })
-            cells += LedCell("back", back, backAct)
-            right.addView(btns)
-        } else {
-            val cols2 = LinearLayout(svc).apply { orientation = if (twoCols) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL }
-            scroll.addView(cols2)
-            // --- elements: Aus · An · ✎
-            val left = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-            cols2.addView(left, if (twoCols) lp(0, WRAP, 1f) else lp(MATCH, WRAP))
-            left.addView(header(tr("Elemente")))
-            names.forEachIndexed { i, name ->
-                val row = LinearLayout(svc).apply {
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(10 * d, 5 * d, 6 * d, 5 * d)
-                    background = shape(pal.surfaceHighest, 14f * d)
-                }
-                row.addView(View(svc).apply { background = shape(if (st[i] == 0) android.graphics.Color.BLACK else cols[i], 8f * d, 1 * d, pal.outline) },
-                    lp(16 * d, 16 * d).apply { marginEnd = 10 * d })
-                row.addView(text(name, 14f, if (st[i] == 0) pal.onSurfaceVariant else pal.onSurface), lp(0, WRAP, 1f))
-                listOf(tr("Aus"), tr("An"), "✎").forEachIndexed { k, lab ->
-                    val c = chip(lab, st[i] == k).apply { setPadding(10 * d, 0, 10 * d, 0) }
-                    val act = {
-                        val ns = st.copyOf().also { it[i] = k }
-                        Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again("e${i}s$k") }
+        // --- left: the tab's content
+        val panelCol = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+        cols2.addView(panelCol, if (twoCols) lp(0, WRAP, 1f) else lp(MATCH, WRAP))
+        val panel = Flow(svc, 6 * d, 8 * d)
+        fun fxChips(list: List<LedEffect>, labels: List<String>) = list.forEachIndexed { i, ef ->
+            val c = chip(labels[i], commonFx == ef)
+            val act: () -> Unit = { LedFx.setEls(svc, sel, ef); again("f${ef.ordinal}") }
+            c.setOnClickListener { act() }
+            panel.addView(c, android.view.ViewGroup.LayoutParams(WRAP, 34 * d))
+            cells += LedCell("f${ef.ordinal}", c, act)
+        }
+        when (ledTab) {
+            0 -> {
+                panelCol.addView(header(tr("Farbe")))
+                val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+                // 3×3 colours
+                val cell = 46 * d
+                val gap = 8 * d
+                val grid = android.widget.GridLayout(svc).apply { columnCount = 3 }
+                val selCols = sel.map { cols[it] or 0xFF000000.toInt() }.distinct()
+                Device.ledGrid.forEachIndexed { j, (name, c) ->
+                    val chosen = selCols.singleOrNull() == c
+                    val v = FrameLayout(svc).apply {
+                        background = shape(c, 12f * d)
+                        contentDescription = name
+                        if (chosen) addView(text("✓", 18f, onColor(c), bold = true).apply { gravity = Gravity.CENTER },
+                            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                     }
+                    v.setOnClickListener { applyLed(c) }
+                    grid.addView(v, android.widget.GridLayout.LayoutParams().apply {
+                        width = cell; height = cell
+                        setMargins(0, 0, if (j % 3 < 2) gap else 0, if (j < 6) gap else 0)
+                    })
+                    cells += LedCell("p$j", v) { applyLed(c) }
+                }
+                row.addView(grid)
+                // the wheel right next to it: A to steer it with the D-pad (live on the LEDs), A again applies
+                val wheelSize = 3 * cell + 2 * gap + 12 * d
+                val wheel = ColorWheel(svc, pal.onSurface).apply { select(sel.firstOrNull()?.let { cols[it] } ?: android.graphics.Color.RED) }
+                val wheelBox = FrameLayout(svc).apply { setPadding(6 * d, 6 * d, 6 * d, 6 * d) }
+                wheelBox.addView(wheel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                row.addView(wheelBox, lp(wheelSize, wheelSize).apply { marginStart = 18 * d })
+                fun previewWheel(c: Int) {
+                    val z = IntArray(st.size) { if (st[it] == 0) 0 else if (st[it] == 2) c else cols[it] }
+                    LedFx.previewEls(z, Device.ledBrightness(svc))
+                }
+                wheel.onChange = { c -> previewWheel(c) }
+                wheel.onPick = { c -> applyLed(c) }
+                cells += LedCell("wheel", wheelBox) {
+                    if (sel.isEmpty()) return@LedCell
+                    activeWheel = wheel
+                    wheel.active = true
+                    previewWheel(wheel.color)
+                    wheelDone = { c -> applyLed(c) }
+                    wheelCancel = { LedFx.resume(svc); showLedSel() }
+                    showLedSel()
+                    renderFooter()
+                }
+                panelCol.addView(row)
+                panelCol.addView(text(tr("Farbrad: A, dann Steuerkreuz · A übernimmt · B bricht ab"), 11f, pal.onSurfaceVariant).apply { setPadding(2 * d, 8 * d, 0, 0) })
+            }
+            1 -> {
+                panelCol.addView(header(tr("Effekte")))
+                fxChips(listOf(LedEffect.NONE, LedEffect.BREATHE, LedEffect.PULSE, LedEffect.RING, LedEffect.RAINBOW),
+                    listOf(tr("Statisch"), tr("Atmen"), tr("Pulsieren"), tr("Regenbogen"), tr("Farbwechsel")))
+                val sp = svc.prefs.ledSpeed
+                val si = LedFx.speeds.indexOfFirst { it >= sp }.coerceAtLeast(0)
+                stepper(panel, "t", tr("Tempo"), "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
+                    { LedFx.setSpeed(svc, LedFx.speeds[(si - 1).coerceAtLeast(0)]); again("t-") },
+                    { LedFx.setSpeed(svc, LedFx.speeds[(si + 1).coerceAtMost(LedFx.speeds.lastIndex)]); again("t+") })
+                panelCol.addView(panel)
+            }
+            2 -> {
+                panelCol.addView(header(tr("Kombis")))
+                val combos = listOf(
+                    "Duo Rot/Blau" to (0xFFFF0000.toInt() to 0xFF0000FF.toInt()),
+                    tr("Feuer") to (0xFFFF0000.toInt() to 0xFFFF6600.toInt()),
+                    tr("Eisblau") to (0xFF00FFFF.toInt() to 0xFFFFFFFF.toInt()),
+                    tr("Ozean") to (0xFF0000FF.toInt() to 0xFF00FF99.toInt()),
+                    tr("Wald") to (0xFF00FF00.toInt() to 0xFF99FF00.toInt()),
+                    "Retro " + tr("Lila") to (0xFF8800FF.toInt() to 0xFFFF00FF.toInt()),
+                    tr("Sonnenuntergang") to (0xFFFF6600.toInt() to 0xFFFF00FF.toInt()),
+                    "Neon" to (0xFF99FF00.toInt() to 0xFFFF00FF.toInt()),
+                )
+                combos.forEachIndexed { j, (name, pair) ->
+                    val c = LinearLayout(svc).apply {
+                        gravity = Gravity.CENTER
+                        setPadding(10 * d, 0, 12 * d, 0)
+                        background = shape(pal.surfaceHighest, 16f * d)
+                        addView(View(svc).apply { background = shape(pair.first, 6f * d, 1 * d, pal.outline) }, lp(12 * d, 12 * d).apply { marginEnd = 3 * d })
+                        addView(View(svc).apply { background = shape(pair.second, 6f * d, 1 * d, pal.outline) }, lp(12 * d, 12 * d).apply { marginEnd = 7 * d })
+                        addView(text(name, 13f, pal.onSurfaceVariant))
+                    }
+                    // left elements (left stick, left side) the first colour, right ones the second
+                    val act = { applyEls { i -> if (i % 2 == 0) pair.first else pair.second } }
                     c.setOnClickListener { act() }
-                    row.addView(c, lp(WRAP, 32 * d).apply { marginStart = 4 * d })
-                    cells += LedCell("e${i}s$k", c, act)
+                    panel.addView(c, android.view.ViewGroup.LayoutParams(WRAP, 34 * d))
+                    cells += LedCell("k$j", c, act)
                 }
-                left.addView(row, lp(MATCH, WRAP).apply { bottomMargin = 6 * d })
+                panelCol.addView(panel)
+                panelCol.addView(text(tr("Links die erste Farbe, rechts die zweite"), 11f, pal.onSurfaceVariant).apply { setPadding(2 * d, 6 * d, 0, 0) })
             }
-            left.addView(text(tr("✎ = wird geändert · An = behält Farbe und Effekt"), 11f, pal.onSurfaceVariant).apply { setPadding(4 * d, 2 * d, 0, 0) })
-
-            // --- right: colours, then the tabs
-            val side = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; if (twoCols) setPadding(20 * d, 0, 0, 0) }
-            cols2.addView(side, if (twoCols) lp(0, WRAP, 1.25f) else lp(MATCH, WRAP))
-            side.addView(header(tr("Farbe")))
-            val presets = Flow(svc, 7 * d, 7 * d)
-            val selCols = sel.map { cols[it] or 0xFF000000.toInt() }.distinct()
-            Device.ledPresets.forEachIndexed { j, (name, c) ->
-                val chosen = selCols.singleOrNull() == c
-                val cell = FrameLayout(svc).apply {
-                    background = shape(c, 10f * d)
-                    contentDescription = name
-                    if (chosen) addView(text("✓", 16f, onColor(c), bold = true).apply { gravity = Gravity.CENTER },
-                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-                }
-                cell.setOnClickListener { applyLed(c) }
-                presets.addView(cell, android.view.ViewGroup.LayoutParams(34 * d, 34 * d))
-                cells += LedCell("p$j", cell) { applyLed(c) }
+            else -> {
+                panelCol.addView(header(tr("Geräteinfo")))
+                fxChips(listOf(LedEffect.NONE, LedEffect.BATTERY, LedEffect.TEMP), listOf(tr("Aus"), tr("Akku"), tr("Temperatur")))
+                panelCol.addView(panel)
+                panelCol.addView(text(tr("Akku: grün, gelb ab 50 %, rot ab 20 % · Temperatur: gelb ab 60 °C, rot ab 75 °C"), 11f, pal.onSurfaceVariant).apply { setPadding(2 * d, 6 * d, 0, 0) })
             }
-            // the wheel as a tile: opens the wheel page
-            val wheelTile = FrameLayout(svc).apply {
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    gradientType = android.graphics.drawable.GradientDrawable.SWEEP_GRADIENT
-                    colors = intArrayOf(0xFFFF0000.toInt(), 0xFFFFFF00.toInt(), 0xFF00FF00.toInt(), 0xFF00FFFF.toInt(), 0xFF0000FF.toInt(), 0xFFFF00FF.toInt(), 0xFFFF0000.toInt())
-                    cornerRadius = 10f * d
-                }
-                contentDescription = tr("Farbrad")
-                addView(text("+", 18f, android.graphics.Color.WHITE, bold = true).apply { gravity = Gravity.CENTER },
-                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-            }
-            val wheelAct: () -> Unit = {
-                subColor = sel.firstOrNull()?.let { cols[it] } ?: android.graphics.Color.RED
-                val hsv = FloatArray(3).also { android.graphics.Color.colorToHSV(subColor, it) }
-                subSat = ((hsv[1] * 20).roundToInt() * 5).coerceIn(0, 100)
-                ledSub = true
-                again("wheel")
-            }
-            wheelTile.setOnClickListener { wheelAct() }
-            presets.addView(wheelTile, android.view.ViewGroup.LayoutParams(34 * d, 34 * d))
-            cells += LedCell("cwheel", wheelTile, wheelAct)
-            side.addView(presets)
-            if (sel.isEmpty()) side.addView(text(tr("Kein Element mit ✎ gewählt – Änderungen wirken erst dann."), 12f, pal.primary).apply { setPadding(2 * d, 6 * d, 0, 0) })
-
-            // tabs (L1/R1)
-            val tabs = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, 14 * d, 0, 6 * d) }
-            tabs.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_L1, 20))
-            listOf(tr("Effekte"), tr("Kombis"), tr("Geräteinfo")).forEachIndexed { i, name ->
-                val c = chip(name, i == ledTab).apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) }
-                val act = { if (ledTab != i) { ledTab = i; ledFocus = "tab$i"; ledPicker() } }
-                c.setOnClickListener { act() }
-                tabs.addView(c, lp(WRAP, 34 * d).apply { marginStart = 5 * d; marginEnd = 5 * d })
-                cells += LedCell("tab$i", c, act)
-            }
-            tabs.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_R1, 20))
-            side.addView(tabs)
-            val panel = Flow(svc, 6 * d, 8 * d)
-            fun fxChips(list: List<LedEffect>, labels: List<String>) = list.forEachIndexed { i, ef ->
-                val c = chip(labels[i], commonFx == ef)
-                val act: () -> Unit = { LedFx.setEls(svc, sel, ef); again("f${ef.ordinal}") }
-                c.setOnClickListener { act() }
-                panel.addView(c, android.view.ViewGroup.LayoutParams(WRAP, 34 * d))
-                cells += LedCell("f${ef.ordinal}", c, act)
-            }
-            when (ledTab) {
-                0 -> {
-                    fxChips(listOf(LedEffect.NONE, LedEffect.BREATHE, LedEffect.PULSE, LedEffect.RING, LedEffect.RAINBOW),
-                        listOf(tr("Statisch"), tr("Atmen"), tr("Pulsieren"), tr("Regenbogen"), tr("Farbwechsel")))
-                    val sp = svc.prefs.ledSpeed
-                    val si = LedFx.speeds.indexOfFirst { it >= sp }.coerceAtLeast(0)
-                    stepper(panel, "t", tr("Tempo"), "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
-                        { LedFx.setSpeed(svc, LedFx.speeds[(si - 1).coerceAtLeast(0)]); again("t-") },
-                        { LedFx.setSpeed(svc, LedFx.speeds[(si + 1).coerceAtMost(LedFx.speeds.lastIndex)]); again("t+") })
-                }
-                1 -> {
-                    val combos = listOf(
-                        "Duo Rot/Blau" to (0xFFFF0000.toInt() to 0xFF0000FF.toInt()),
-                        tr("Feuer") to (0xFFFF0000.toInt() to 0xFFFF6600.toInt()),
-                        tr("Eisblau") to (0xFF00FFFF.toInt() to 0xFFFFFFFF.toInt()),
-                        tr("Ozean") to (0xFF0000FF.toInt() to 0xFF00FF99.toInt()),
-                        tr("Wald") to (0xFF00FF00.toInt() to 0xFF99FF00.toInt()),
-                        "Retro " + tr("Lila") to (0xFF8800FF.toInt() to 0xFFFF00FF.toInt()),
-                        tr("Sonnenuntergang") to (0xFFFF6600.toInt() to 0xFFFF0077.toInt()),
-                        "Neon" to (0xFF99FF00.toInt() to 0xFFFF00FF.toInt()),
-                    )
-                    combos.forEachIndexed { j, (name, pair) ->
-                        val c = LinearLayout(svc).apply {
-                            gravity = Gravity.CENTER
-                            setPadding(10 * d, 0, 12 * d, 0)
-                            background = shape(pal.surfaceHighest, 16f * d)
-                            addView(View(svc).apply { background = shape(pair.first, 6f * d, 1 * d, pal.outline) }, lp(12 * d, 12 * d).apply { marginEnd = 3 * d })
-                            addView(View(svc).apply { background = shape(pair.second, 6f * d, 1 * d, pal.outline) }, lp(12 * d, 12 * d).apply { marginEnd = 7 * d })
-                            addView(text(name, 13f, pal.onSurfaceVariant))
-                        }
-                        // left elements (left stick, left side) the first colour, right ones the second
-                        val act = { applyEls { i -> if (i % 2 == 0) pair.first else pair.second } }
-                        c.setOnClickListener { act() }
-                        panel.addView(c, android.view.ViewGroup.LayoutParams(WRAP, 34 * d))
-                        cells += LedCell("k$j", c, act)
-                    }
-                }
-                else -> {
-                    fxChips(listOf(LedEffect.NONE, LedEffect.BATTERY, LedEffect.TEMP), listOf(tr("Aus"), tr("Akku"), tr("Temperatur")))
-                }
-            }
-            side.addView(panel)
-            if (ledTab == 2) side.addView(text(tr("Akku: grün, gelb ab 50 %, rot ab 20 % · Temperatur: gelb ab 60 °C, rot ab 75 °C"), 11f, pal.onSurfaceVariant).apply { setPadding(2 * d, 6 * d, 0, 0) })
         }
 
+        // --- right (below on 4:3): elements Aus · An · ✎, brightness, saturation
+        val elCol = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; if (twoCols) setPadding(22 * d, 0, 0, 0) }
+        cols2.addView(elCol, if (twoCols) lp(0, WRAP, 1.1f) else lp(MATCH, WRAP))
+        elCol.addView(header(tr("Elemente")))
+        names.forEachIndexed { i, name ->
+            val row = LinearLayout(svc).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(10 * d, 4 * d, 6 * d, 4 * d)
+                background = shape(pal.surfaceHighest, 14f * d)
+            }
+            row.addView(View(svc).apply { background = shape(if (st[i] == 0) android.graphics.Color.BLACK else cols[i], 8f * d, 1 * d, pal.outline) },
+                lp(16 * d, 16 * d).apply { marginEnd = 10 * d })
+            row.addView(text(name, 14f, if (st[i] == 0) pal.onSurfaceVariant else pal.onSurface), lp(0, WRAP, 1f))
+            listOf(tr("Aus"), tr("An"), "✎").forEachIndexed { k, lab ->
+                val c = chip(lab, st[i] == k).apply { setPadding(10 * d, 0, 10 * d, 0) }
+                val act = {
+                    val ns = st.copyOf().also { it[i] = k }
+                    Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again("e${i}s$k") }
+                }
+                c.setOnClickListener { act() }
+                row.addView(c, lp(WRAP, 30 * d).apply { marginStart = 4 * d })
+                cells += LedCell("e${i}s$k", c, act)
+            }
+            elCol.addView(row, lp(MATCH, WRAP).apply { bottomMargin = 5 * d })
+        }
+        elCol.addView(text(if (sel.isEmpty()) tr("Kein Element mit ✎ gewählt – Änderungen wirken nur auf ✎.") else tr("✎ = wird geändert · An = behält Farbe und Effekt"),
+            11f, if (sel.isEmpty()) pal.primary else pal.onSurfaceVariant).apply { setPadding(4 * d, 0, 0, 2 * d) })
+        // brightness for all lights (the firmware's one value), saturation of the ✎ elements – 5 % steps
+        val bright = (Device.ledBrightness(svc) * 100).roundToInt()
+        stepper(elCol, "b", tr("Helligkeit"), "$bright %",
+            { LedFx.setBrightness(svc, ((bright + 4) / 5 * 5 - 5).coerceAtLeast(5)) { again("b-") } },
+            { LedFx.setBrightness(svc, (bright / 5 * 5 + 5).coerceAtMost(100)) { again("b+") } })
+        val sat = sel.firstOrNull()?.let { i -> FloatArray(3).also { android.graphics.Color.colorToHSV(cols[i], it) }[1] }?.let { (it * 20).roundToInt() * 5 }
+        fun setSat(v: Int) = applyEls { i ->
+            val hsv = FloatArray(3).also { android.graphics.Color.colorToHSV(cols[i], it) }
+            hsv[1] = v.coerceIn(0, 100) / 100f
+            if (hsv[2] < 0.05f) hsv[2] = 1f
+            android.graphics.Color.HSVToColor(hsv)
+        }
+        stepper(elCol, "s", tr("Sättigung"), sat?.let { "$it %" } ?: "–",
+            { if (sat != null) { ledFocus = "s-"; setSat(sat - 5) } },
+            { if (sat != null) { ledFocus = "s+"; setSat(sat + 5) } })
+
         ledCells = cells
-        if (cells.none { it.key == ledFocus }) ledFocus = if (ledSub) "wheel" else cells.firstOrNull { it.key.startsWith("e") && it.key.endsWith("s2") }?.key ?: cells.first().key
+        if (cells.none { it.key == ledFocus }) ledFocus = "tab$ledTab"
         if (reuse == null) r.addView(box, FrameLayout.LayoutParams(boxW, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
         showLedSel()
@@ -2480,13 +2437,12 @@ class ControlCenter(private val svc: HugminnService) {
             KeyEvent.KEYCODE_DPAD_RIGHT -> 1 to 0
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { cur.act(); return }
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> {
-                // the wheel page goes back to the main page, the main page closes
-                if (ledSub) { ledSub = false; LedFx.resume(svc); ledFocus = "cwheel"; ledPicker() } else closeMenu()
+                closeMenu()
                 return
             }
-            // L1/R1: effects · combinations · device info
+            // L1/R1: colour · effects · combinations · device info
             KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> {
-                if (!ledSub) { ledTab = (ledTab + (if (code == KeyEvent.KEYCODE_BUTTON_R1) 1 else -1) + 3) % 3; ledFocus = "tab$ledTab"; ledPicker() }
+                ledTab = (ledTab + (if (code == KeyEvent.KEYCODE_BUTTON_R1) 1 else -1) + 4) % 4; ledFocus = "tab$ledTab"; ledPicker()
                 return
             }
             else -> return
