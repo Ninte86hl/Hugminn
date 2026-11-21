@@ -65,7 +65,7 @@ class PauseActivity : Activity() {
             runCatching {
                 svc.startActivity(Intent(svc, PauseActivity::class.java).addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS,
-                ))
+                ), Displays.onTop(svc))
             }
         }
 

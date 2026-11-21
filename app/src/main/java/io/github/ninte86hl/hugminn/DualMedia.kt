@@ -129,6 +129,7 @@ class DualMedia(private val svc: HugminnService) {
         // the switcher's own second-screen view must stay on top while it is open
         if (view == null && (svc.anySwitcherOpen || !show())) return
         if (keyOf() != shownKey) { render(); setDark(false) } else if (!dark) refreshParts()
+        focusBack(fg)
         youtubeControls(fg)
     }
 
@@ -148,6 +149,7 @@ class DualMedia(private val svc: HugminnService) {
                         if (wasDark) { swallow = true; return true }
                         swallow = false
                     }
+                    if (e.actionMasked == MotionEvent.ACTION_UP) top?.let { p -> svc.ui.postDelayed({ focusBack(p) }, 200) }
                     if (swallow) return true
                     super.dispatchTouchEvent(e)
                     return true
@@ -369,6 +371,35 @@ class DualMedia(private val svc: HugminnService) {
         val pos = Media.positionNow()
         val f = if (dur > 0 && pos >= 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
         showProgress(f, pos, dur)
+    }
+
+    // ---------- focus: buttons belong to the top screen ----------
+
+    private var focusAt = 0L
+
+    /**
+     * A touch on the lower screen gives Android's focus to that screen (to Cocoon underneath): the
+     * controller would then drive Cocoon, and the app up top loses its focus (YouTube then keeps its
+     * controls up). While the player covers the lower screen, the top app gets the focus back.
+     */
+    private fun focusBack(pkg: String) {
+        if (android.os.Build.VERSION.SDK_INT < 30 || view == null) return
+        val all = runCatching { svc.windowsOnAllDisplays }.getOrNull() ?: return
+        var lowerHasFocus = false
+        for (k in 0 until all.size()) if (all.keyAt(k) != Display.DEFAULT_DISPLAY && all.valueAt(k).any { it.isFocused }) lowerHasFocus = true
+        if (!lowerHasFocus) return
+        val now = SystemClock.uptimeMillis()
+        if (now - focusAt < 1500) return
+        focusAt = now
+        val task = svc.taskOf(pkg)
+        val moved = task > 0 && runCatching {
+            svc.getSystemService(android.app.ActivityManager::class.java).moveTaskToFront(task, 0)
+            true
+        }.getOrDefault(false)
+        if (!moved) svc.packageManager.getLaunchIntentForPackage(pkg)?.let {
+            svc.startApp(it.addFlags(android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))
+        }
+        diag += " · Fokus zurück nach oben (${if (moved) "Task $task" else "Start"})"
     }
 
     // ---------- YouTube: its controls stay on screen ----------
