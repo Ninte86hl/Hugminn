@@ -168,6 +168,30 @@ object Media {
         return runCatching { (MediaListener.notificationSessions(ctx) + msm.getActiveSessions(component(ctx))).firstOrNull { it.packageName == pkg } }.getOrNull()
     }
 
+    /** Playback state of [pkg]'s session (PlaybackState.STATE_…), null if it has none. */
+    fun stateOf(ctx: Context, pkg: String): Int? = runCatching { controller(ctx, pkg)?.playbackState?.state }.getOrNull()
+
+    fun pause(ctx: Context, pkg: String) { runCatching { controller(ctx, pkg)?.transportControls?.pause() } }
+
+    /**
+     * Switching to a player that was paused: some (Prime Video) start playing again on their own as
+     * soon as they are in front. Hugminn pauses them again, so it stays where you left it.
+     */
+    fun keepPaused(svc: HugminnService, pkg: String) {
+        val before = stateOf(svc, pkg) ?: return
+        if (before == android.media.session.PlaybackState.STATE_PLAYING) return
+        val until = SystemClock.uptimeMillis() + 4000
+        val check = object : Runnable {
+            override fun run() {
+                Thread {
+                    if (stateOf(svc, pkg) == android.media.session.PlaybackState.STATE_PLAYING) pause(svc, pkg)
+                    else if (SystemClock.uptimeMillis() < until) svc.ui.postDelayed(this, 400)
+                }.start()
+            }
+        }
+        svc.ui.postDelayed(check, 400)
+    }
+
     /** One entry of the player's queue (playlist). */
     class QItem(val id: Long, val title: String, val sub: String?, val icon: android.graphics.Bitmap?)
 

@@ -277,6 +277,8 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     /** Brings an app (its existing task) to the front. */
     private fun bring(a: RecentApp) {
+        // a paused player stays paused (Prime Video would start again by itself)
+        thread { runCatching { Media.keepPaused(svc, a.pkg) } }
         var moved = false
         if (a.taskId > 0) moved = runCatching {
             svc.getSystemService(ActivityManager::class.java).moveTaskToFront(a.taskId, 0)
