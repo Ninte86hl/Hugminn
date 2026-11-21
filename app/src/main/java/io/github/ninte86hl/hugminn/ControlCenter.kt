@@ -2314,18 +2314,18 @@ class ControlCenter(private val svc: HugminnService) {
                         gravity = Gravity.END
                         setPadding(0, 0, 10 * d, 0)
                     }, lp(124 * d, WRAP))
-                    // three rings: outer off, middle on, inner custom (A cycles, a tap on a ring picks it)
-                    val ring = TriRing(svc, pal.primary, pal.onSurfaceVariant).apply { state = st[i] }
+                    // three-position switch: left off, middle on, right custom (A cycles, a tap on a position picks it)
+                    val ring = TriRing(svc, pal.primary, pal.onSurfaceVariant, pal.surface).apply { color = cols[i]; state = st[i] }
                     val pick: (Int) -> Unit = { k ->
                         val ns = st.copyOf().also { it[i] = k }
                         Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again("e$i") }
                     }
                     ring.onPick = { k -> ledFocus = "e$i"; pick(k) }
-                    row.addView(ring, lp(46 * d, 46 * d))
+                    row.addView(ring, lp(100 * d, 38 * d))
                     cells += LedCell("e$i", ring) { pick((st[i] + 1) % 3) }
                     body.addView(row, lp(MATCH, WRAP).apply { bottomMargin = 6 * d })
                 }
-                body.addView(text(tr("Außen Aus · Mitte An (behält Farbe und Effekt) · Innen Benutzerdefiniert (wird geändert)"), 11f, pal.onSurfaceVariant).apply { setPadding(4 * d, 0, 0, 0) })
+                body.addView(text(tr("Schalter: links Aus · Mitte An (behält Farbe und Effekt) · rechts Benutzerdefiniert (wird geändert)"), 11f, pal.onSurfaceVariant).apply { setPadding(4 * d, 0, 0, 0) })
             }
             1 -> {
                 target()

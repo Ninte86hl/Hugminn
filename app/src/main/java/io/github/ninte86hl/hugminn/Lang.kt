@@ -175,6 +175,7 @@ object Lang {
         "Gerät" to "Device",
         "Gilt für" to "Applies to",
         "Kein Element auf Benutzerdefiniert – im Tab Gerät eines umstellen." to "No element set to custom – switch one in the Device tab.",
+        "Schalter: links Aus · Mitte An (behält Farbe und Effekt) · rechts Benutzerdefiniert (wird geändert)" to "Switch: left off · middle on (keeps colour and effect) · right custom (gets the changes)",
         "Linker Stick" to "Left stick",
         "Rechter Stick" to "Right stick",
         "Linke Seite" to "Left side",
