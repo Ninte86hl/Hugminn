@@ -2451,7 +2451,8 @@ class ControlCenter(private val svc: HugminnService) {
                             if (selCols.singleOrNull() == c) addView(text("✓", 16f, onColor(c), bold = true).apply { gravity = Gravity.CENTER },
                                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                         }
-                        val act = { if (!needSel()) { ledFocus = "c$j"; applyLed(c) } }
+                        // colour chosen: back to the Gerät tab, ready for the next light
+                        val act = { if (!needSel()) { ledTab = 0; ledFocus = "el"; applyLed(c) } }
                         v.setOnClickListener { act() }
                         place(j, v)
                         cells += LedCell("c$j", v, act)
@@ -2484,7 +2485,7 @@ class ControlCenter(private val svc: HugminnService) {
                         val z = IntArray(n) { if (st[it] == 0) 0 else scaled(if (st[it] == 2) c else cols[it], kb[it]) }
                         LedFx.previewEls(z, 1f)
                     }
-                    val done: (Int) -> Unit = { c -> ledWheelView = false; ledFocus = "c15"; applyLed(c) }
+                    val done: (Int) -> Unit = { c -> ledWheelView = false; ledTab = 0; ledFocus = "el"; applyLed(c) }
                     wheel.onChange = { c -> previewWheel(c) }
                     wheel.onPick = done
                     val steer = {
@@ -2492,7 +2493,8 @@ class ControlCenter(private val svc: HugminnService) {
                         wheel.active = true
                         previewWheel(wheel.color)
                         wheelDone = done
-                        wheelCancel = { LedFx.resume(svc); showLedSel() }
+                        // B: nothing changes, back to the Gerät tab
+                        wheelCancel = { LedFx.resume(svc); ledWheelView = false; ledTab = 0; again("el") }
                         showLedSel()
                         renderFooter()
                     }
@@ -2597,7 +2599,8 @@ class ControlCenter(private val svc: HugminnService) {
             KeyEvent.KEYCODE_DPAD_RIGHT -> ledSide[cur.key]?.let { it(1); return } ?: (1 to 0)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { cur.act(); return }
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> {
-                if (ledWheelView) { ledWheelView = false; LedFx.resume(svc); ledFocus = "c15"; ledPicker(); return }
+                // Farbe and Modus: B goes back to the Gerät tab; there it closes the window
+                if (ledTab != 0) { if (ledWheelView) LedFx.resume(svc); ledWheelView = false; ledTab = 0; ledFocus = "el"; ledPicker(); return }
                 closeMenu()
                 return
             }
