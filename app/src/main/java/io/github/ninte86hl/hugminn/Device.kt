@@ -185,6 +185,19 @@ object Device {
     /** AYN: the two sticks have different colours (Hugminn's own, written to the LED driver). */
     fun aynSplit(ctx: Context) = isAyn && Prefs(ctx).let { it.aynLedLeft != 0 && it.aynLedRight != 0 }
 
+    /** Any light on: a stick or (Odin 2) the side lights – what the tile shows. */
+    fun lightsOn(ctx: Context) = stickLeds(ctx) || (hasSideLights(ctx) && sideLights(ctx))
+
+    /** All lights on or off together: both sticks and, on the Odin 2, the sides. */
+    fun setAllLights(ctx: Context, on: Boolean, then: () -> Unit) {
+        val cmds = stickLedCmds(ctx, on).toMutableList()
+        if (hasSideLights(ctx)) {
+            cmds += Root.putSetting("system", "left_handle_light_enabled", if (on) "1" else "0")
+            cmds += Root.putSetting("system", "right_handle_light_enabled", if (on) "1" else "0")
+        }
+        Root.run(*cmds.toTypedArray(), then = then)
+    }
+
     /** AYN Odin 2: lights in the sides of the case (left_/right_handle_light_enabled), same colour as the sticks. */
     fun hasSideLights(ctx: Context) = isAyn && sys(ctx, "left_handle_light_enabled") != null
     fun sideLights(ctx: Context) = sysOn(ctx, "left_handle_light_enabled") || sysOn(ctx, "right_handle_light_enabled")

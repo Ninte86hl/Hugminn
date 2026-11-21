@@ -877,6 +877,8 @@ class ControlCenter(private val svc: HugminnService) {
             fan()
             whileShown(c, 3000) { fan() }
         }
+        // touch opens the profiles, like A
+        sp.onA?.let { a -> c.setOnClickListener { if (!editing) a() } }
         return c to Item(c, sp.onA)
     }
 
@@ -1574,7 +1576,7 @@ class ControlCenter(private val svc: HugminnService) {
                     Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
                 } else null
         }
-        "leds" -> if (rootOk && Device.hasStickLeds(svc)) Tile(tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.stickLeds(svc)) tr("An") else tr("Aus") }, { Device.stickLeds(svc) }, { ledMenu() }) { toggleLeds() } else null
+        "leds" -> if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
         "dnd" -> if (rootOk) Tile(tr("Nicht stören"), IconView.Kind.MOON, { if (Device.dnd(svc)) tr("An") else tr("Aus") }, { Device.dnd(svc) }) {
             Device.setDnd(!Device.dnd(svc)) { refreshAll() }
         } else null
@@ -2040,20 +2042,21 @@ class ControlCenter(private val svc: HugminnService) {
      * otherwise Hugminn sets the colours itself, the same way Retroid's own LED window does.
      */
     private fun toggleLeds() {
-        val on = !Device.stickLeds(svc)
+        // everything at once: sticks and – on the Odin 2 – the side lights
+        val on = !Device.lightsOn(svc)
         if (!on) LedFx.stop()
-        Device.setStickLeds(svc, on) {
+        Device.setAllLights(svc, on) {
             if (on) LedFx.resume(svc)
             refreshAll()
         }
     }
 
     private fun ledMenu(select: Int = -1) {
-        val on = Device.stickLeds(svc)
+        val on = Device.lightsOn(svc)
         val pkg = svc.prefs.ledApp.takeIf { it.isNotEmpty() }
         val intent = pkg?.let { svc.packageManager.getLaunchIntentForPackage(it) }
         val entries = mutableListOf<MenuEntry>()
-        entries += MenuEntry(if (on) tr("LEDs ausschalten") else tr("LEDs einschalten")) { Device.setStickLeds(svc, !on) { refreshAll() } }
+        entries += MenuEntry(if (on) tr("LEDs ausschalten") else tr("LEDs einschalten")) { Device.setAllLights(svc, !on) { refreshAll() } }
         // each stick on its own
         for (left in listOf(true, false)) {
             val st = Device.stickOn(svc, left)
