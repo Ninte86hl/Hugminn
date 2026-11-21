@@ -556,6 +556,14 @@ class ControlCenter(private val svc: HugminnService) {
                 }
             })
         }
+        // LED window: its own hints (the north button sets what the light shows)
+        if (ledCells != null && (menuView as? View)?.tag == "led") {
+            if (ledFocus == "st" && ledTab == 0 && Device.elState(svc, ledEl) > 0) hint(northKey(), tr("Einstellen"))
+            hint(KeyEvent.KEYCODE_BUTTON_R1, "Tab")
+            hint(KeyEvent.KEYCODE_BUTTON_A, if (ledEditing != null) tr("Fertig") else tr("Auswählen"))
+            hint(KeyEvent.KEYCODE_BUTTON_B, if (ledTab != 0) tr("Zurück") else tr("Schließen"))
+            return
+        }
         val pc = pages() + if (editing) 1 else 0
         if (pc > 1) footer.addView(text(t("Seite ${gridPage + 1}/$pc", "Page ${gridPage + 1}/$pc"), 13f, pal.onSurfaceVariant).apply { setPadding(0, 0, 16 * d, 0) })
         if (editing) {
@@ -2205,6 +2213,12 @@ class ControlCenter(private val svc: HugminnService) {
     private var ledParam = 0
     /** The field that takes left/right right now (entered with A, like the sliders of the Control Center). */
     private var ledEditing: String? = null
+    /** The north face button: Y in the modern layout, X in the retro layout. */
+    private fun northKey() = if (Glyphs.nintendoLayout()) KeyEvent.KEYCODE_BUTTON_X else KeyEvent.KEYCODE_BUTTON_Y
+
+    /** Came to a setting with the north button: choosing or cancelling goes back to "Zeigt". */
+    private var ledViaNorth = false
+
     /** Fixed D-pad ways between the fields of the Gerät tab: field → (direction → field). */
     private var ledNav: Map<String, Map<Int, String>> = emptyMap()
     /** Left/right on a cell of the LED window (element, status, bars, combination, effect, tempo). */
@@ -2238,7 +2252,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun ledPicker() {
         val r = root ?: return
         val reuse = (menuView as? LinearLayout)?.takeIf { it.tag == "led" }
-        if (reuse == null) { closeMenu(); ledWheelView = false; ledFxIdx = -1; ledEditing = null; ledCombo = svc.prefs.ledComboSel }
+        if (reuse == null) { closeMenu(); ledWheelView = false; ledFxIdx = -1; ledEditing = null; ledViaNorth = false; ledCombo = svc.prefs.ledComboSel }
         if (ledTab > 2) ledTab = 0
         val names = Device.ledElNames(svc)
         val n = names.size
@@ -2461,7 +2475,9 @@ class ControlCenter(private val svc: HugminnService) {
                     // the combination for every light that is on
                     svc.prefs.ledComboSel = ledCombo
                     val ns = st.copyOf().also { a -> for (k in a.indices) if (a[k] > 0) a[k] = 2 }
-                    Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again("combo") }
+                    val back = ledViaNorth
+                    ledViaNorth = false
+                    Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again(if (back) "st" else "combo") }
                 }
                 val (cp, _) = panel(tr("Kombi"), cname)
                 val sw2 = LinearLayout(svc)
@@ -2496,7 +2512,7 @@ class ControlCenter(private val svc: HugminnService) {
                                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                         }
                         // colour chosen: back to the Gerät tab, ready for the next light
-                        val act = { if (!needSel()) { ledTab = 0; ledFocus = "el"; applyLed(c) } }
+                        val act = { if (!needSel()) { ledTab = 0; ledFocus = if (ledViaNorth) "st" else "el"; ledViaNorth = false; applyLed(c) } }
                         v.setOnClickListener { act() }
                         place(j, v)
                         cells += LedCell("c$j", v, act)
@@ -2529,7 +2545,7 @@ class ControlCenter(private val svc: HugminnService) {
                         val z = IntArray(n) { if (it == ledEl) scaled(c, kb[it]) else if (st[it] == 0) 0 else scaled(Device.elOutColor(svc, it, st[it]), kb[it]) }
                         LedFx.previewEls(z, 1f)
                     }
-                    val done: (Int) -> Unit = { c -> ledWheelView = false; ledTab = 0; ledFocus = "el"; applyLed(c) }
+                    val done: (Int) -> Unit = { c -> ledWheelView = false; ledTab = 0; ledFocus = if (ledViaNorth) "st" else "el"; ledViaNorth = false; applyLed(c) }
                     wheel.onChange = { c -> previewWheel(c) }
                     wheel.onPick = done
                     val steer = {
@@ -2570,7 +2586,10 @@ class ControlCenter(private val svc: HugminnService) {
                 body.addView(carousel("fx", fc, { dir -> ledFxIdx = (ledFxIdx + dir + items.size) % items.size; again("fx") }) {
                     // the effect for this light, and it shows it
                     LedFx.setEls(svc, tgt, it0.e)
-                    Device.setElStates(svc, st.copyOf().also { it[ledEl] = 3 }) { svc.ui.post { refreshAll() }; again("fx") }
+                    val back = ledViaNorth
+                    ledViaNorth = false
+                    if (back) ledTab = 0
+                    Device.setElStates(svc, st.copyOf().also { it[ledEl] = 3 }) { svc.ui.post { refreshAll() }; again(if (back) "st" else "fx") }
                 }, lp(MATCH, WRAP))
                 body.addView(desc(it0.desc), lp(MATCH, WRAP))
                 when (it0.e) {
@@ -2652,6 +2671,7 @@ class ControlCenter(private val svc: HugminnService) {
             val editing = sel && c.key == ledEditing
             c.view.foreground = if (sel) shape(0, if (c.key == "wheel") 24f * d else 12f * d, 3 * d, if (editing) pal.primary else pal.onSurface) else null
         }
+        renderFooter()
         // keep the chosen field in view when the window scrolls (4:3)
         val sc = ledScroll
         val v = ledCells?.firstOrNull { it.key == ledFocus }?.view
@@ -2676,11 +2696,27 @@ class ControlCenter(private val svc: HugminnService) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> ledSide[ed]?.invoke(-1)
                 KeyEvent.KEYCODE_DPAD_RIGHT -> ledSide[ed]?.invoke(1)
                 KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { ledEditing = null; cur.act(); showLedSel() }
-                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> { ledEditing = null; showLedSel() }
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    ledEditing = null
+                    // came here with the north button: back to "Zeigt"
+                    if (ledViaNorth && (code == KeyEvent.KEYCODE_BUTTON_B || code == KeyEvent.KEYCODE_BACK)) {
+                        ledViaNorth = false
+                        if (ledTab != 0) { ledTab = 0; ledFocus = "st"; ledPicker() } else { ledFocus = "st"; showLedSel() }
+                    } else showLedSel()
+                }
             }
             return
         }
         ledEditing = null
+        // north button on "Zeigt": straight to the setting of what the light shows
+        if (code == northKey()) {
+            if (cur.key == "st" && ledTab == 0) when (Device.elState(svc, ledEl)) {
+                1 -> { ledViaNorth = true; ledTab = 2; ledWheelView = false; ledFocus = "c0"; ledPicker() }
+                2 -> { ledViaNorth = true; ledEditing = "combo"; ledFocus = "combo"; showLedSel() }
+                3 -> { ledViaNorth = true; ledTab = 1; ledFocus = "fx"; ledEditing = "fx"; ledPicker() }
+            }
+            return
+        }
         val (dx, dy) = when (code) {
             KeyEvent.KEYCODE_DPAD_UP -> 0 to -1
             KeyEvent.KEYCODE_DPAD_DOWN -> 0 to 1
@@ -2693,8 +2729,9 @@ class ControlCenter(private val svc: HugminnService) {
             }
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> {
                 // Farbe and Modus: B goes back to the Gerät tab; there it closes the window
-                if (ledTab != 0) { if (ledWheelView) LedFx.resume(svc); ledWheelView = false; ledTab = 0; ledFocus = "el"; ledPicker(); return }
+                if (ledTab != 0) { if (ledWheelView) LedFx.resume(svc); ledWheelView = false; ledTab = 0; ledFocus = if (ledViaNorth) "st" else "el"; ledViaNorth = false; ledPicker(); return }
                 closeMenu()
+                renderFooter()
                 return
             }
             // L1/R1: Gerät · Modus · Farbe

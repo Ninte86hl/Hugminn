@@ -270,7 +270,7 @@ object LedFx {
         val t = Thread {
             var phase = 0f
             var last = System.currentTimeMillis()
-            var lastCmd = ""
+            var lastParts = emptyList<String>()
             var lastWrite = 0L
             var state = 0L
             var st = IntArray(4) { 2 }
@@ -297,15 +297,23 @@ object LedFx {
                         if (st[i] == 0) 0
                         else scale(frame(fx[i], phase + (if (i >= 2) 0.37f else 0f), col[i], col[i])[i % 2], kb[i])
                     }
-                    val cmd = if (z.size >= 4) command(intArrayOf(z[0], z[1]), 2) + "; " + command(intArrayOf(z[2], z[3]), 1)
-                        else command(intArrayOf(z[0], z.getOrElse(1) { 0 }), 1)
-                    // write when something changed – and every 2 s anyway, the firmware may paint over it
-                    if (cmd != lastCmd || now - lastWrite > 2000) {
-                        Root.exec(cmd, 1_000)
-                        lastCmd = cmd
-                        lastWrite = now
+                    // one write per light; only the lights that changed are written (each write makes the
+                    // driver blink a hair – writing all of them every frame made colour cycles flicker),
+                    // all of them every 2 s anyway, the firmware may paint over them
+                    val parts = Array(z.size) { i ->
+                        val zone = if (z.size >= 4) (if (i < 2) 2 else 1) else 1
+                        val c = z[i]
+                        "echo $zone-${Color.red(c)}:${Color.green(c)}:${Color.blue(c)}:255 > /sys/class/sn3112${if (i % 2 == 0) 'l' else 'r'}/led/brightness"
                     }
-                    Thread.sleep(if (fx.any { animated(it) }) FRAME_MS else 250)
+                    val full = now - lastWrite > 2000
+                    val changed = parts.filterIndexed { i, p -> full || lastParts.getOrNull(i) != p }
+                    if (changed.isNotEmpty()) {
+                        Root.exec(changed.joinToString("; "), 1_000)
+                        lastParts = parts.toList()
+                        if (full) lastWrite = now
+                    }
+                    // colour cycles: a calmer rate with fewer, bigger steps; breathing stays smooth
+                    Thread.sleep(if (fx.any { it == LedEffect.RAINBOW || it == LedEffect.RING }) 70L else if (fx.any { animated(it) }) FRAME_MS else 250)
                 }
             } catch (_: InterruptedException) {
             } catch (t: Throwable) {
@@ -352,9 +360,9 @@ object LedFx {
      * whole: zone 1 colours the entire ring, other zones do nothing.
      */
     private fun frame(e: LedEffect, s: Float, left: Int, right: Int): IntArray = when (e) {
-        LedEffect.RAINBOW -> hsv(s * 40f).let { intArrayOf(it, it) }
+        LedEffect.RAINBOW -> hsv(step(s * 40f)).let { intArrayOf(it, it) }
         // the two sticks run through the rainbow half a turn apart
-        LedEffect.RING -> (s * 90f).let { intArrayOf(hsv(it), hsv(it + 180f)) }
+        LedEffect.RING -> step(s * 60f).let { intArrayOf(hsv(it), hsv(it + 180f)) }
         LedEffect.BREATHE -> {
             val k = 0.08f + 0.92f * (0.5f - 0.5f * kotlin.math.cos(2 * PI * s / 4.0).toFloat())
             intArrayOf(scale(left, k), scale(right, k))
@@ -427,6 +435,9 @@ object LedFx {
         }
         show(tr("Test fertig – Farben werden wiederhergestellt"))
     }
+
+    /** Hue in 5° steps: the colour only changes when it visibly does. */
+    private fun step(h: Float) = kotlin.math.floor(h / 5f) * 5f
 
     private fun beat(p: Float, at: Float): Float {
         val x = (p - at) / 0.18f
