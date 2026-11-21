@@ -425,6 +425,10 @@ class MainActivity : Activity() {
             Backdrop.prepareGlass(this) { build() }
             content.post { build() }
         }
+        if (Root.available()) row(look, t("Navigationsleiste ausblenden", "Hide the navigation bar"),
+            t("Die Leiste bzw. der Gestenstrich unten verschwindet überall. Vom unteren Rand wischen holt sie kurz zurück",
+                "The bar or gesture line at the bottom disappears everywhere. Swipe up from the bottom edge to bring it back for a moment"),
+            { if (prefs.hideNav) tr("An") else tr("Aus") }) { NavBar.set(this, !prefs.hideNav) }
         row(look, tr("Kachelfarbe"), tr("Farbe aktiver Kacheln im Control Center"), { TILE_COLORS[prefs.tileColor] ?: "" }) {
             prefs.tileColor = cycle(TILE_COLORS.keys.toList(), prefs.tileColor)
         }
