@@ -117,18 +117,44 @@ class DualMedia(private val svc: HugminnService) {
     /** The player's cover, or – for apps that give none (Disney+, Crunchyroll, Prime Video …) – the picture the switcher took of the app. */
     private fun artOf(): android.graphics.Bitmap? {
         Media.art?.let { return it }
-        // the switcher's picture is taken once per title and kept – it would change every few seconds
-        val key = "${Media.app}|${Media.title}"
-        if (frozenFor == key) return frozen
-        val p = Media.app ?: return null
-        val pic = runCatching { Snapshots.get(svc, p) }.getOrNull() ?: return null
-        frozenFor = key
-        frozen = pic
-        return pic
+        return frozen?.takeIf { frozenFor == "${Media.app}|${Media.title}" }
     }
 
+    /**
+     * Apps without a cover (Disney+, Crunchyroll, Prime Video …): one picture of the playing video,
+     * taken a few seconds after the title started (not an old one from the app's menu), black bars
+     * cut off, and kept for the whole title.
+     */
     private var frozenFor: String? = null
     private var frozen: android.graphics.Bitmap? = null
+    private var titleSince = 0L
+    private var grabbing = false
+
+    private fun grabArt(fg: String) {
+        if (Media.art != null) return
+        val key = "${Media.app}|${Media.title}"
+        if (frozenFor != key) { frozenFor = key; frozen = null; titleSince = SystemClock.uptimeMillis() }
+        if (frozen != null || grabbing || !Media.playing || Media.app != fg) return
+        if (SystemClock.uptimeMillis() - titleSince < 4000) return
+        grabbing = true
+        Snapshots.capture(svc, fg)
+        svc.ui.postDelayed({
+            grabbing = false
+            if (frozenFor == key) frozen = Snapshots.get(svc, fg)?.let { trimBars(it) }
+        }, 900)
+    }
+
+    /** Cuts black bars above/below (and beside) the picture. */
+    private fun trimBars(b: android.graphics.Bitmap): android.graphics.Bitmap = runCatching {
+        fun darkRow(y: Int) = (0 until b.width step (b.width / 24).coerceAtLeast(1)).all { x -> val c = b.getPixel(x, y); (c shr 16 and 0xFF) + (c shr 8 and 0xFF) + (c and 0xFF) < 60 }
+        fun darkCol(x: Int, t: Int, bt: Int) = (t until bt step ((bt - t) / 16).coerceAtLeast(1)).all { y -> val c = b.getPixel(x, y); (c shr 16 and 0xFF) + (c shr 8 and 0xFF) + (c and 0xFF) < 60 }
+        var top = 0; while (top < b.height / 2 && darkRow(top)) top++
+        var bottom = b.height - 1; while (bottom > b.height / 2 && darkRow(bottom)) bottom--
+        var left = 0; while (left < b.width / 2 && darkCol(left, top, bottom)) left++
+        var right = b.width - 1; while (right > b.width / 2 && darkCol(right, top, bottom)) right--
+        if (bottom - top < 20 || right - left < 20) b
+        else android.graphics.Bitmap.createBitmap(b, left, top, right - left + 1, bottom - top + 1)
+    }.getOrDefault(b)
 
     private fun update(fg: String) {
         val wanted = Media.title != null && Media.app == fg && top == fg
@@ -138,6 +164,7 @@ class DualMedia(private val svc: HugminnService) {
         if (view == null && (svc.anySwitcherOpen || !show())) return
         if (keyOf() != shownKey) { render(); setDark(false) } else if (!dark) refreshParts()
         focusBack(fg)
+        grabArt(fg)
         youtubeControls(fg)
     }
 
