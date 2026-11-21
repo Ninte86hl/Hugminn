@@ -2196,6 +2196,8 @@ class ControlCenter(private val svc: HugminnService) {
     private var ledParam = 0
     /** The field that takes left/right right now (entered with A, like the sliders of the Control Center). */
     private var ledEditing: String? = null
+    /** Fixed D-pad ways between the fields of the Gerät tab: field → (direction → field). */
+    private var ledNav: Map<String, Map<Int, String>> = emptyMap()
     /** Left/right on a cell of the LED window (element, status, bars, combination, effect, tempo). */
     private var ledSide: Map<String, (Int) -> Unit> = emptyMap()
 
@@ -2339,7 +2341,7 @@ class ControlCenter(private val svc: HugminnService) {
             val act = { if (ledTab != i) { ledTab = i; ledWheelView = false; ledFocus = "tab$i"; ledPicker() } }
             c.setOnClickListener { act() }
             tabs.addView(c, lp(WRAP, 34 * d).apply { marginStart = 6 * d; marginEnd = 6 * d })
-            cells += LedCell("tab$i", c, act)
+            // the tabs take no focus: L1/R1 switch them
         }
         tabs.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_R1, 20))
         box.addView(tabs, lp(MATCH, WRAP))
@@ -2570,6 +2572,21 @@ class ControlCenter(private val svc: HugminnService) {
 
         ledCells = cells
         ledSide = side
+        // Gerät: the five fields are reached the way the eye goes – no detours
+        val U = KeyEvent.KEYCODE_DPAD_UP; val D = KeyEvent.KEYCODE_DPAD_DOWN; val L = KeyEvent.KEYCODE_DPAD_LEFT; val Rt = KeyEvent.KEYCODE_DPAD_RIGHT
+        ledNav = if (ledTab != 0) emptyMap() else if (twoCol) mapOf(
+            "el" to mapOf(Rt to "param", D to "st"),
+            "param" to mapOf(L to "el", D to "bar"),
+            "st" to mapOf(U to "el", Rt to "bar", D to "combo"),
+            "bar" to mapOf(U to "param", L to "st", D to "combo"),
+            "combo" to mapOf(U to "st"),
+        ) else mapOf(
+            "el" to mapOf(D to "st"),
+            "st" to mapOf(U to "el", D to "param"),
+            "param" to mapOf(U to "st", D to "bar"),
+            "bar" to mapOf(U to "param", D to "combo"),
+            "combo" to mapOf(U to "bar"),
+        )
         if (cells.none { it.key == ledFocus }) ledFocus = cells.firstOrNull { !it.key.startsWith("tab") }?.key ?: "tab$ledTab"
         if (reuse == null) r.addView(box, FrameLayout.LayoutParams(boxW, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
@@ -2633,6 +2650,10 @@ class ControlCenter(private val svc: HugminnService) {
                 return
             }
             else -> return
+        }
+        ledNav[cur.key]?.let { m ->
+            m[code]?.let { ledFocus = it; showLedSel() }
+            return
         }
         fun center(v: View): Pair<Float, Float> {
             val p = IntArray(2).also(v::getLocationOnScreen)
