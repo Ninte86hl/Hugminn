@@ -88,8 +88,25 @@ class HugminnService : AccessibilityService() {
 
     private var lastNight = -1
 
+    /**
+     * Hugminn's own look keeps its size while the tablet view (lower density for YouTube & co.) is on:
+     * the Control Center, switcher and overlays are drawn with the density from before.
+     */
+    @Volatile private var fixedRes: android.content.res.Resources? = null
+    @Volatile private var fixedDpi = 0
+
+    override fun getResources(): android.content.res.Resources = fixedRes ?: super.getResources()
+
+    fun keepDensity(dpi: Int) {
+        fixedDpi = dpi
+        fixedRes = if (dpi <= 0) null else runCatching {
+            createConfigurationContext(android.content.res.Configuration(super.getResources().configuration).apply { densityDpi = dpi }).resources
+        }.getOrNull()
+    }
+
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
+        if (fixedDpi > 0) keepDensity(fixedDpi)
         val night = newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
         if (lastNight != -1 && night != lastNight) runCatching { overlay.onNightModeChanged() }
         lastNight = night

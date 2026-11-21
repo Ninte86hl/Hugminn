@@ -219,6 +219,11 @@ class Prefs(ctx: Context) {
         get() = p.getInt("wideRestore", -1)
         set(v) = p.edit().putInt("wideRestore", v).commit().let { }
 
+    /** Hugminn's own density while the tablet view is on (the value from before). */
+    var wideKeep: Int
+        get() = p.getInt("wideKeep", 0)
+        set(v) = p.edit().putInt("wideKeep", v).apply()
+
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()
