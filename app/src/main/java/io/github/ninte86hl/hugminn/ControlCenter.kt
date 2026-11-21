@@ -2135,7 +2135,16 @@ class ControlCenter(private val svc: HugminnService) {
         Device.setElColors(svc, cols) { svc.ui.post { refreshAll(); if (root != null && ledCells != null) ledPicker() } }
     }
 
-    private fun applyLed(c: Int) = applyEls { c }
+    /** The light chosen in the Gerät tab gets [c]; Aus or Kombi switch to Farbe, an effect keeps running in it. */
+    private fun applyLed(c: Int) {
+        val i = ledEl.coerceIn(0, Device.ledElNames(svc).lastIndex)
+        val cols = Device.elColors(svc).also { it[i] = c }
+        val st = Device.elStates(svc)
+        val redraw = { svc.ui.post { refreshAll(); if (root != null && ledCells != null) ledPicker() }; Unit }
+        Device.setElColors(svc, cols) {
+            if (st[i] == 0 || st[i] == 2) Device.setElStates(svc, st.copyOf().also { it[i] = 1 }, redraw) else redraw()
+        }
+    }
 
     /** Chips that wrap to the next line when the width runs out (16:9 and 4:3 alike). */
     private class Flow(ctx: android.content.Context, private val gapX: Int, private val gapY: Int) : android.view.ViewGroup(ctx) {
@@ -2229,7 +2238,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun ledPicker() {
         val r = root ?: return
         val reuse = (menuView as? LinearLayout)?.takeIf { it.tag == "led" }
-        if (reuse == null) { closeMenu(); ledWheelView = false; ledFxIdx = -1; ledEditing = null }
+        if (reuse == null) { closeMenu(); ledWheelView = false; ledFxIdx = -1; ledEditing = null; ledCombo = svc.prefs.ledComboSel }
         if (ledTab > 2) ledTab = 0
         val names = Device.ledElNames(svc)
         val n = names.size
@@ -2238,7 +2247,8 @@ class ControlCenter(private val svc: HugminnService) {
         val cols = Device.elColors(svc)
         val kb = IntArray(n) { Device.elBright(svc, it) }
         val sat = IntArray(n) { i -> (FloatArray(3).also { android.graphics.Color.colorToHSV(cols[i], it) }[1] * 20).roundToInt() * 5 }
-        val sel = ledSel(st)
+        // Modus and Farbe set the light chosen in the Gerät tab
+        val sel = listOf(ledEl)
         val fx = IntArray(n) { Device.elFx(svc, it).ordinal }
         val commonFx = sel.map { fx[it] }.distinct().singleOrNull()?.let { LedEffect.values()[it] }
         val cells = mutableListOf<LedCell>()
@@ -2356,15 +2366,14 @@ class ControlCenter(private val svc: HugminnService) {
         fun gap(h: Int = 6) = body.addView(View(svc), lp(1, h * d))
         var autoSteer: (() -> Unit)? = null
 
-        /** Which elements the tab changes (the ones on Benutzerdefiniert). */
+        /** Which light the tab sets: the one chosen in the Gerät tab. */
         fun target(extra: String?) {
-            if (sel.isEmpty()) {
-                body.addView(text(tr("Noch kein Licht auf Benutzerdefiniert."), 12f, pal.primary).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
-                body.addView(desc(tr("Wähle im Tab Gerät, welches Licht du färben willst.")), lp(MATCH, WRAP))
-            } else {
-                body.addView(text(tr("Gilt für") + ": " + sel.joinToString(" · ") { names[it] }, 12f, pal.onSurface).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
-                body.addView(desc(extra ?: ""), lp(MATCH, WRAP))
-            }
+            body.addView(LinearLayout(svc).apply {
+                gravity = Gravity.CENTER
+                addView(dot(cols[ledEl]), lp(12 * d, 12 * d).apply { marginEnd = 8 * d })
+                addView(text(tr("Für") + ": " + names[ledEl], 12f, pal.onSurface, bold = true))
+            }, lp(MATCH, WRAP))
+            body.addView(desc(extra ?: tr("Ein anderes Licht wählst du im Tab Gerät.")), lp(MATCH, WRAP))
         }
 
         when (ledTab) {
@@ -2391,35 +2400,42 @@ class ControlCenter(private val svc: HugminnService) {
                 }
 
                 // row 1: which light | its status
-                val elCard = card(dot(if (st[i] == 0) android.graphics.Color.BLACK else cols[i]).also { it.layoutParams = lp(14 * d, 14 * d).apply { marginEnd = 10 * d } },
+                val elCard = card(dot(if (st[i] == 0) android.graphics.Color.BLACK else Device.elOutColor(svc, i, st[i])).also { it.layoutParams = lp(14 * d, 14 * d).apply { marginEnd = 10 * d } },
                     text(names[i], 14f, pal.onSurface, bold = true))
                 val elSel = chooser("el", elCard, tr("Welches Licht du gerade einstellst"), { dir -> ledEl += dir; again("el") }) {}
-                val toColour = { svc.ui.post { if (root != null) { ledEditing = null; ledTab = 2; ledWheelView = false; ledFocus = "c0"; ledPicker() } } }
-                // [jump]: Benutzerdefiniert goes straight on to choose its colour (touch, or A to confirm)
-                fun pick(k: Int, jump: Boolean) {
-                    val ns = st.copyOf().also { it[i] = k.coerceIn(0, 2) }
-                    Device.setElStates(svc, ns) {
-                        svc.ui.post { refreshAll() }
-                        if (jump && k == 2) toColour() else again("st")
-                    }
+                fun pick(k: Int) {
+                    val ns = st.copyOf().also { it[i] = k.coerceIn(0, 3) }
+                    Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again("st") }
                 }
-                val stNames = listOf(tr("Aus"), tr("An"), tr("Benutzerdefiniert"))
-                val (sp, _) = panel(tr("Status"), stNames[st[i]])
-                val sw = TriRing(svc, pal.primary, pal.onSurfaceVariant, pal.surfaceHighest).apply { color = cols[i]; state = st[i] }
-                sw.onPick = { k -> ledFocus = "st"; pick(k, true) }
+                val modeNames = listOf(tr("Aus"), tr("Farbe"), tr("Kombi"), tr("Effekt"))
+                val combos = Device.ledCombos
+                val comboSel = combos[svc.prefs.ledComboSel.coerceIn(0, combos.lastIndex)]
+                val comboC = if (i % 2 == 0) comboSel.second.first else comboSel.second.second
+                val fxName = ledFxItems.firstOrNull { it.e == LedEffect.values()[fx[i]] }?.name ?: ""
+                val (sp, _) = panel(tr("Zeigt"), modeNames[st[i]])
+                val sw = TriRing(svc, pal.onSurfaceVariant, pal.surfaceHighest, 4).apply {
+                    centers = intArrayOf(0xFF2A2A2A.toInt(), cols[i], comboC, pal.primary)
+                    state = st[i]
+                }
+                sw.onPick = { k -> ledFocus = "st"; pick(k) }
                 sp.addView(sw, lp(MATCH, 28 * d))
                 val labels = LinearLayout(svc).apply { setPadding(0, 4 * d, 0, 0) }
-                listOf(tr("Aus"), tr("An"), tr("Benutzerdef.")).forEachIndexed { k, l ->
+                modeNames.forEachIndexed { k, l ->
                     labels.addView(text(l, 11f, if (k == st[i]) pal.onSurface else pal.onSurfaceVariant, bold = k == st[i]).apply {
-                        gravity = when (k) { 0 -> Gravity.START; 1 -> Gravity.CENTER; else -> Gravity.END }
-                        setOnClickListener { ledFocus = "st"; pick(k, true) }
+                        gravity = when (k) { 0 -> Gravity.START; 3 -> Gravity.END; else -> Gravity.CENTER }
+                        setOnClickListener { ledFocus = "st"; pick(k) }
                     }, lp(0, WRAP, 1f))
                 }
                 sp.addView(labels)
-                sp.addView(text(listOf(tr("Bleibt dunkel"), tr("Leuchtet und behält Farbe und Effekt"), tr("Bekommt Farbe, Effekt und Kombis"))[st[i]], 11f, pal.onSurfaceVariant)
-                    .apply { gravity = Gravity.CENTER; setPadding(0, 2 * d, 0, 0) }, lp(MATCH, WRAP))
-                cells += LedCell("st", sp) { if (st[i] == 2) toColour() }
-                side["st"] = { dir -> if (st[i] + dir in 0..2) pick(st[i] + dir, false) }
+                val what = when (st[i]) {
+                    0 -> tr("Bleibt dunkel")
+                    1 -> tr("Leuchtet in seiner Farbe (Tab Farbe)")
+                    2 -> tr("Kombi") + " " + comboSel.first
+                    else -> tr("Effekt") + ": " + fxName + " " + tr("(Tab Modus)")
+                }
+                sp.addView(text(what, 11f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER; setPadding(0, 2 * d, 0, 0) }, lp(MATCH, WRAP))
+                cells += LedCell("st", sp) {}
+                side["st"] = { dir -> if (st[i] + dir in 0..3) pick(st[i] + dir) }
                 pairRow(elSel, sp)
 
                 // row 2: brightness or saturation | the bar (5 % steps)
@@ -2436,13 +2452,16 @@ class ControlCenter(private val svc: HugminnService) {
                 pairRow(pSel, bar)
 
                 // row 3: the combination | its two colours
-                val list = ledCombos
+                val list = Device.ledCombos
                 ledCombo = ((ledCombo % list.size) + list.size) % list.size
                 val (cname, pair) = list[ledCombo]
                 val cc = card(text(cname, 14f, pal.onSurface, bold = true))
                 // left elements (left stick, left side) the first colour, right ones the second
                 val cSel = chooser("combo", cc, tr("Kombi wählen, A übernimmt"), { dir -> ledCombo += dir; again("combo") }) {
-                    if (!needSel()) applyEls { k -> if (k % 2 == 0) pair.first else pair.second }
+                    // the combination for every light that is on
+                    svc.prefs.ledComboSel = ledCombo
+                    val ns = st.copyOf().also { a -> for (k in a.indices) if (a[k] > 0) a[k] = 2 }
+                    Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again("combo") }
                 }
                 val (cp, _) = panel(tr("Kombi"), cname)
                 val sw2 = LinearLayout(svc)
@@ -2455,7 +2474,7 @@ class ControlCenter(private val svc: HugminnService) {
                     }, lp(0, WRAP, 1f))
                 }
                 cp.addView(sw2, lp(MATCH, WRAP))
-                cp.addView(text(tr("Färbt alle benutzerdefinierten Lichter: links die erste, rechts die zweite Farbe"), 11f, pal.onSurfaceVariant).apply { setPadding(0, 3 * d, 0, 0) })
+                cp.addView(text(tr("A schaltet alle eingeschalteten Lichter auf diese Kombi: links die erste, rechts die zweite Farbe"), 11f, pal.onSurfaceVariant).apply { setPadding(0, 3 * d, 0, 0) })
                 pairRow(cSel, cp)
             }
             2 -> {
@@ -2507,7 +2526,7 @@ class ControlCenter(private val svc: HugminnService) {
                     wheelBox.addView(wheel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                     body.addView(LinearLayout(svc).apply { gravity = Gravity.CENTER; addView(wheelBox, lp(wheelSize, wheelSize)) }, lp(MATCH, WRAP))
                     fun previewWheel(c: Int) {
-                        val z = IntArray(n) { if (st[it] == 0) 0 else scaled(if (st[it] == 2) c else cols[it], kb[it]) }
+                        val z = IntArray(n) { if (it == ledEl) scaled(c, kb[it]) else if (st[it] == 0) 0 else scaled(Device.elOutColor(svc, it, st[it]), kb[it]) }
                         LedFx.previewEls(z, 1f)
                     }
                     val done: (Int) -> Unit = { c -> ledWheelView = false; ledTab = 0; ledFocus = "el"; applyLed(c) }
@@ -2535,16 +2554,13 @@ class ControlCenter(private val svc: HugminnService) {
                 }
             }
             else -> {
-                // effects are global: every light that is on – unless lights are on Benutzerdefiniert, then only those
-                val tgt = if (sel.isNotEmpty()) sel else (0 until n).filter { st[it] > 0 }
-                body.addView(text(if (sel.isNotEmpty()) tr("Gilt für") + ": " + sel.joinToString(" · ") { names[it] } else tr("Gilt für alle eingeschalteten Lichter"),
-                    12f, pal.onSurface).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
-                body.addView(desc(if (sel.isNotEmpty()) tr("Nur die benutzerdefinierten Lichter – die anderen behalten ihren Effekt.") else tr("Ein Licht auf Benutzerdefiniert bekommt seinen eigenen Effekt.")), lp(MATCH, WRAP))
-                val tFx = tgt.map { fx[it] }.distinct().singleOrNull()?.let { LedEffect.values()[it] }
+                target(null)
+                val tgt = listOf(ledEl)
+                val tFx = LedEffect.values()[fx[ledEl]]
                 val items = ledFxItems
                 if (ledFxIdx !in items.indices) ledFxIdx = items.indexOfFirst { it.e == tFx }.coerceAtLeast(0)
                 val it0 = items[ledFxIdx]
-                val active = tFx == it0.e && tgt.isNotEmpty()
+                val active = tFx == it0.e && st[ledEl] == 3
                 val tag = text(if (it0.info) tr("Info") else tr("Effekt"), 10f, pal.primary).apply {
                     setPadding(6 * d, 0, 6 * d, 0)
                     background = shape(0, 8f * d, 1 * d, pal.primary)
@@ -2552,7 +2568,9 @@ class ControlCenter(private val svc: HugminnService) {
                 val nameV = text(it0.name, 14f, pal.onSurface, bold = true).apply { setPadding(0, 0, 8 * d, 0) }
                 val fc = card(nameV, tag)
                 body.addView(carousel("fx", fc, { dir -> ledFxIdx = (ledFxIdx + dir + items.size) % items.size; again("fx") }) {
-                    if (tgt.isNotEmpty()) { LedFx.setEls(svc, tgt, it0.e); again("fx") }
+                    // the effect for this light, and it shows it
+                    LedFx.setEls(svc, tgt, it0.e)
+                    Device.setElStates(svc, st.copyOf().also { it[ledEl] = 3 }) { svc.ui.post { refreshAll() }; again("fx") }
                 }, lp(MATCH, WRAP))
                 body.addView(desc(it0.desc), lp(MATCH, WRAP))
                 when (it0.e) {
@@ -2590,6 +2608,16 @@ class ControlCenter(private val svc: HugminnService) {
                 items.indices.forEach { k -> dots.addView(View(svc).apply { background = shape(if (k == ledFxIdx) pal.primary else pal.surfaceHighest, 4f * d) }, lp(8 * d, 8 * d).apply { marginStart = 4 * d; marginEnd = 4 * d }) }
                 body.addView(dots, lp(MATCH, WRAP))
                 body.addView(desc("${ledFxIdx + 1} / ${items.size} · " + if (active) tr("✓ läuft gerade") else tr("A übernimmt den Effekt")), lp(MATCH, WRAP))
+                // the same effect on every light that is on
+                val all = chip(tr("Für alle eingeschalteten Lichter"), false)
+                val allAct: () -> Unit = {
+                    val on = (0 until n).filter { st[it] > 0 }.ifEmpty { listOf(ledEl) }
+                    LedFx.setEls(svc, on, it0.e)
+                    Device.setElStates(svc, st.copyOf().also { a -> on.forEach { a[it] = 3 } }) { svc.ui.post { refreshAll() }; again("fxall") }
+                }
+                all.setOnClickListener { allAct() }
+                body.addView(LinearLayout(svc).apply { gravity = Gravity.CENTER; setPadding(0, 4 * d, 0, 0); addView(all, lp(WRAP, 34 * d)) }, lp(MATCH, WRAP))
+                cells += LedCell("fxall", all, allAct)
             }
         }
 

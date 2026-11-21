@@ -400,6 +400,14 @@ class Prefs(ctx: Context) {
     var ledElState: String
         get() = p.getString("ledElState", "") ?: ""
         set(v) = p.edit().putString("ledElState", v).apply()
+    /** Mode per element as one digit: 0 off, 1 colour, 2 combination, 3 effect. */
+    var ledElMode: String
+        get() = p.getString("ledElMode", "") ?: ""
+        set(v) = p.edit().putString("ledElMode", v).apply()
+    /** The chosen colour combination (index into Device.ledCombos). */
+    var ledComboSel: Int
+        get() = p.getInt("ledComboSel", 0)
+        set(v) = p.edit().putInt("ledComboSel", v).apply()
     fun ledElColor(i: Int) = p.getInt("ledElC$i", 0)
     fun setLedElColor(i: Int, c: Int) = p.edit().putInt("ledElC$i", c).apply()
     fun ledElB(i: Int) = p.getInt("ledElB$i", -1)
