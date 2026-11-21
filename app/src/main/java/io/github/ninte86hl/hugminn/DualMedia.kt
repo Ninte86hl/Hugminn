@@ -149,7 +149,7 @@ class DualMedia(private val svc: HugminnService) {
                         if (wasDark) { swallow = true; return true }
                         swallow = false
                     }
-                    if (e.actionMasked == MotionEvent.ACTION_UP) top?.let { p -> svc.ui.postDelayed({ focusBack(p) }, 200) }
+                    if (e.actionMasked == MotionEvent.ACTION_UP) this@DualMedia.top?.let { p -> svc.ui.postDelayed({ focusBack(p) }, 200) }
                     if (swallow) return true
                     super.dispatchTouchEvent(e)
                     return true
