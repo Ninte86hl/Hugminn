@@ -57,6 +57,8 @@ class HugminnService : AccessibilityService() {
     }
     private lateinit var controlCenter: ControlCenter
     private var dualMedia: DualMedia? = null
+    private var landscape: Landscape? = null
+    private val landscapeCheck = Runnable { landscape?.check() }
     private val lastTop = mutableMapOf<Int, String?>()
 
     /** The app in front on the top screen (null: home screen) – only display 0 counts, not the Thor's lower screen. */
@@ -114,6 +116,7 @@ class HugminnService : AccessibilityService() {
         ui.postDelayed(snapshotTick, 7000)
         controlCenter = ControlCenter(this)
         dualMedia = DualMedia(this).also { it.start() }
+        landscape = Landscape(this)
         // the tablet view of the test builds is gone: a density it left behind goes back to the old value
         Thread {
             val sp = getSharedPreferences("hugminn", MODE_PRIVATE)
@@ -209,12 +212,14 @@ class HugminnService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         closeOverlays()
         dualMedia?.stop()
+        landscape?.hide()
         instance = null
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         dualMedia?.stop()
+        landscape?.hide()
         if (::overlay.isInitialized) overlay.hide()
         LedFx.stop()
         FanCurve.stop(restoreSmart = true)
@@ -263,6 +268,8 @@ class HugminnService : AccessibilityService() {
         }
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             dualMedia?.kick()
+            ui.removeCallbacks(landscapeCheck)
+            ui.postDelayed(landscapeCheck, 150)
         }
         if (event.packageName?.toString() == foregroundPkg) appEventAt = SystemClock.uptimeMillis()
         if (::switcher.isInitialized) try {

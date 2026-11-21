@@ -205,6 +205,15 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("dualMedia", true)
         set(v) = p.edit().putBoolean("dualMedia", v).apply()
 
+    /** Apps turned to landscape while in front (YouTube's portrait pages). */
+    var landscapeOn: Boolean
+        get() = p.getBoolean("landscapeOn", true)
+        set(v) = p.edit().putBoolean("landscapeOn", v).apply()
+
+    var landscapeApps: Set<String>
+        get() = p.getStringSet("landscapeApps", null) ?: setOf("com.google.android.youtube")
+        set(v) = p.edit().putStringSet("landscapeApps", v).apply()
+
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()
