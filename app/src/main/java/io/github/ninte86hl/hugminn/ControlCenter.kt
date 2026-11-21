@@ -2057,8 +2057,12 @@ class ControlCenter(private val svc: HugminnService) {
         val intent = pkg?.let { svc.packageManager.getLaunchIntentForPackage(it) }
         val entries = mutableListOf<MenuEntry>()
         entries += MenuEntry(if (on) tr("LEDs ausschalten") else tr("LEDs einschalten")) { Device.setAllLights(svc, !on) { refreshAll() } }
-        // each stick on its own
-        for (left in listOf(true, false)) {
+        // each stick on its own (Retroid; the Odin 2 switches both sticks together)
+        if (Device.hasSideLights(svc)) {
+            val st = Device.stickLeds(svc)
+            val stAt = entries.size
+            entries += MenuEntry("Sticks: " + if (st) tr("An") else tr("Aus"), checked = st) { Device.setStickLeds(svc, !st) { refreshAll(); ledMenu(stAt) } }
+        } else for (left in listOf(true, false)) {
             val st = Device.stickOn(svc, left)
             val name = if (left) t("Linker Stick", "Left stick") else t("Rechter Stick", "Right stick")
             val at = entries.size
@@ -2222,18 +2226,15 @@ class ControlCenter(private val svc: HugminnService) {
 
         val targetRow = LinearLayout(svc)
         if (sticksTab) {
-            // Odin 2 sticks: each on or off; the colour is AYN's one for both
+            // Odin 2 sticks: on or off together (the LED tester showed AYN switches both at once);
+            // the colour is AYN's one for both
             side.addView(header("Sticks"))
-            listOf(true, false).forEach { lft ->
-                val st = Device.stickOn(svc, lft)
-                val label = (if (lft) t("Links", "Left") else t("Rechts", "Right")) + ": " + (if (st) tr("An") else tr("Aus"))
-                val c = chip(label, st)
-                val key = if (lft) "sl" else "sr"
-                val act = { Device.setStick(svc, lft, !st) { svc.ui.post { refreshAll(); ledFocus = key; ledPicker() } } }
-                c.setOnClickListener { act() }
-                targetRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
-                cells += LedCell(key, c, act)
-            }
+            val st = Device.stickLeds(svc)
+            val c = chip(if (st) tr("An") else tr("Aus"), st)
+            val act = { Device.setStickLeds(svc, !st) { svc.ui.post { refreshAll(); ledFocus = "st"; ledPicker() } } }
+            c.setOnClickListener { act() }
+            targetRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
+            cells += LedCell("st", c, act)
         } else {
             side.addView(header(if (ayn) t("Seiten", "Sides") else "Stick"))
             if (ayn) {
