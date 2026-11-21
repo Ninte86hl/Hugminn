@@ -402,6 +402,8 @@ class Prefs(ctx: Context) {
         set(v) = p.edit().putString("ledElState", v).apply()
     fun ledElColor(i: Int) = p.getInt("ledElC$i", 0)
     fun setLedElColor(i: Int, c: Int) = p.edit().putInt("ledElC$i", c).apply()
+    fun ledElB(i: Int) = p.getInt("ledElB$i", -1)
+    fun setLedElB(i: Int, v: Int) = p.edit().putInt("ledElB$i", v).apply()
     fun ledElFx(i: Int): LedEffect? = p.getString("ledElFx$i", null)?.let { enumOr(it, LedEffect.NONE) }
     fun setLedElFx(i: Int, e: LedEffect) = p.edit().putString("ledElFx$i", e.name).apply()
 

@@ -271,6 +271,7 @@ object LedFx {
             var st = IntArray(4) { 2 }
             var fx = Array(4) { stickE }
             var col = IntArray(4) { Color.WHITE }
+            var kb = FloatArray(4) { 1f }
             try {
                 while (!Thread.currentThread().isInterrupted && running) {
                     val now = System.currentTimeMillis()
@@ -282,13 +283,13 @@ object LedFx {
                         st = Device.elStates(app)
                         if (forced != null) { fx = Array(4) { LedEffect.PULSE }; col = IntArray(4) { forced.first } }
                         else { fx = Array(4) { Device.elFx(app, it) }; col = Device.elColors(app) }
+                        kb = FloatArray(4) { Device.elBright(app, it) / 100f }
                         effect = fx[0]
                         sideEffect = fx[2]
                     }
-                    val k = brightness / 100f
                     val z = IntArray(4) { i ->
                         if (st[i] == 0) 0
-                        else scale(frame(fx[i], phase + (if (i >= 2) 0.37f else 0f), col[i], col[i])[i % 2], k)
+                        else scale(frame(fx[i], phase + (if (i >= 2) 0.37f else 0f), col[i], col[i])[i % 2], kb[i])
                     }
                     val cmd = command(intArrayOf(z[0], z[1]), 2) + "; " + command(intArrayOf(z[2], z[3]), 1)
                     // write when something changed – and every 2 s anyway, the firmware may paint over it

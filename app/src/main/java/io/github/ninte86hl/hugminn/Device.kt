@@ -289,6 +289,19 @@ object Device {
         setLedColors(ctx, c[0], c[1], turnOn = false) { LedFx.resume(ctx); then() }
     }
 
+    /** Brightness of an element in percent (Odin 2: each its own; Retroid: the one value of both sticks). */
+    fun elBright(ctx: Context, i: Int): Int {
+        val global = (ledBrightness(ctx) * 100).toInt().coerceIn(5, 100)
+        if (!hasSideLights(ctx)) return global
+        return Prefs(ctx).ledElB(i).takeIf { it in 1..100 } ?: global
+    }
+
+    fun setElBright(ctx: Context, i: Int, v: Int, then: () -> Unit) {
+        val x = v.coerceIn(5, 100)
+        if (hasSideLights(ctx)) { Prefs(ctx).setLedElB(i, x); LedFx.resume(ctx); then(); return }
+        LedFx.setBrightness(ctx, x, then)
+    }
+
     /** Effect of an element (Retroid: one effect for both sticks). */
     fun elFx(ctx: Context, i: Int): LedEffect {
         val p = Prefs(ctx)
