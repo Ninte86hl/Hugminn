@@ -509,6 +509,12 @@ class MainActivity : Activity() {
                     "While music or a video plays up top (Spotify, YouTube …), the lower screen shows cover, title and buttons – for videos only the title. Tap or drag the bar to jump"),
                 { if (prefs.dualMedia) tr("An") else tr("Aus") }) { prefs.dualMedia = !prefs.dualMedia }
         }
+        if (Root.available()) {
+            row(sw, t("YouTube als Tablet", "YouTube as a tablet"),
+                t("Solange YouTube vorne ist, hält es das Gerät für ein Tablet und zeigt die ganze App quer, nicht nur Videos im Vollbild. Alles wird dabei etwas kleiner. Braucht Root",
+                    "While YouTube is in front it takes the handheld for a tablet and shows the whole app in landscape, not only full-screen videos. Everything gets a little smaller. Needs root"),
+                { if (prefs.wideOn) tr("An") else tr("Aus") }) { prefs.wideOn = !prefs.wideOn }
+        }
         row(sw, tr("Statusleiste"), tr("Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
         }

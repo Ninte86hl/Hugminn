@@ -12,6 +12,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Device test: lists further screens (dual-screen handhelds like the AYN Thor) – the groundwork for dual-screen support.
 - AYN handhelds: the built-in "Odin Controller" is recognised as the handheld's own controls, not as an external controller.
 - AYN handhelds: the trigger mode tile (digital, analog or both) also shows before the mode was ever changed in AYN's settings, with AYN's own numbering of analog and digital.
+- YouTube as a tablet (root): while YouTube is in front, Hugminn lowers the screen's density for the time being, so YouTube takes the handheld for a tablet and shows the whole app in landscape – not only full-screen videos. Everything gets a little smaller meanwhile; back to normal as soon as another app is in front. Settings → Game Switcher → YouTube as a tablet.
 - AYN Thor: Hugminn's own screens (feedback, pause screen, recording) and apps started from the switcher or Control Center always open on the top screen – before, a touch on the lower screen sent them down there. While the player covers the lower screen, a touch there no longer takes the focus away from the app up top, so the buttons keep controlling it.
 - AYN Thor: the AYN button stays AYN's – Hugminn no longer takes it as a second Home button, so AYN's menu and its long press work as intended.
 
@@ -23,6 +24,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Gerätetest: zeigt weitere Bildschirme an (Dual-Screen-Handhelds wie der AYN Thor) – die Grundlage für die Dual-Screen-Unterstützung.
 - AYN-Handhelds: Der eingebaute „Odin Controller“ wird als eigene Steuerung des Geräts erkannt, nicht als externer Controller.
 - AYN-Handhelds: Die Kachel Trigger-Modus (digital, analog oder beides) erscheint auch, wenn der Modus in AYNs Einstellungen noch nie umgestellt wurde, mit AYNs eigener Zuordnung von analog und digital.
+- YouTube als Tablet (Root): Solange YouTube vorne ist, senkt Hugminn vorübergehend die Anzeigedichte, YouTube hält das Gerät dann für ein Tablet und zeigt die ganze App quer – nicht nur Videos im Vollbild. Alles wird dabei etwas kleiner; sobald eine andere App vorne ist, ist alles wieder wie vorher. Einstellungen → Game Switcher → YouTube als Tablet.
 - AYN Thor: Hugminns eigene Fenster (Feedback, Pausenbild, Aufnahme) und Apps, die aus dem Switcher oder Control Center starten, öffnen immer auf dem oberen Bildschirm – vorher landeten sie nach einer Berührung des unteren Bildschirms dort. Solange der Player den unteren Bildschirm bedeckt, nimmt eine Berührung dort der App oben nicht mehr den Fokus weg, die Tasten steuern also weiter sie.
 - AYN Thor: Die AYN-Taste bleibt bei AYN – Hugminn behandelt sie nicht mehr als zweite Home-Taste, AYNs Menü und der lange Druck funktionieren wie vorgesehen.
 

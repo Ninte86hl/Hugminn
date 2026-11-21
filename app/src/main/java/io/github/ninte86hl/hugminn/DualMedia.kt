@@ -95,15 +95,7 @@ class DualMedia(private val svc: HugminnService) {
     }
 
     /** The app in front on the top screen, or null on the home screen. */
-    private fun topApp(): String? {
-        if (android.os.Build.VERSION.SDK_INT < 30) return svc.foregroundPkg
-        val wins = runCatching { svc.windowsOnAllDisplays.get(Display.DEFAULT_DISPLAY) }.getOrNull() ?: return top
-        val app = wins.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION } ?: return top
-        val pkg = runCatching { app.root?.packageName?.toString() }.getOrNull() ?: return top
-        // Hugminn's own pause screen (switcher) lies over the app: keep the app
-        if (pkg == svc.packageName) return top
-        return if (Apps.isHome(svc, pkg)) null else pkg
-    }
+    private fun topApp(): String? = svc.topScreenApp()
 
     private fun check() {
         val awake = svc.getSystemService(android.os.PowerManager::class.java)?.isInteractive != false

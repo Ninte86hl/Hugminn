@@ -205,6 +205,20 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("dualMedia", true)
         set(v) = p.edit().putBoolean("dualMedia", v).apply()
 
+    /** Tablet view: apps that get the top screen as a tablet while in front (lower density, root). */
+    var wideOn: Boolean
+        get() = p.getBoolean("wideOn", true)
+        set(v) = p.edit().putBoolean("wideOn", v).apply()
+
+    var wideApps: Set<String>
+        get() = p.getStringSet("wideApps", null) ?: setOf("com.google.android.youtube")
+        set(v) = p.edit().putStringSet("wideApps", v).apply()
+
+    /** Density to go back to after the tablet view: -1 nothing to do, 0 Android's own, else that value. */
+    var wideRestore: Int
+        get() = p.getInt("wideRestore", -1)
+        set(v) = p.edit().putInt("wideRestore", v).commit().let { }
+
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()
