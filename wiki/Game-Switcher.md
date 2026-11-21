@@ -30,6 +30,6 @@ Touch works too: swipe sideways to browse, swipe a card up to close it, tap to o
 - **Classic mode:** instead of its own switcher, Hugminn can lay a frame over Android's own recent-apps view (Settings → Game Switcher → *Own overview* off).
 
 ## Tip: turn off picture-in-picture
-Recommended for everyone who uses Hugminn: switch off **picture-in-picture** for your video apps (YouTube, Netflix, Disney+, Prime Video …). Otherwise a video shrinks into a small floating window when you switch to another app, and that window then lies over your game and the switcher.
+Recommended for everyone who uses Hugminn: switch off **picture-in-picture** for your video apps (YouTube, Netflix, Disney+, Prime Video …). Otherwise a video shrinks into a small floating window when you switch to another app, that lies over your game and the switcher – and you have to close or move that little player by hand every time. YouTube does it too.
 
 Android settings → **Apps** → **Special app access** → **Picture-in-picture** → switch it off for each video app (the exact names can differ slightly between devices).
