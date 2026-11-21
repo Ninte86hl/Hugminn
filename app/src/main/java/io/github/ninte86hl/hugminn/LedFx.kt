@@ -164,9 +164,10 @@ object LedFx {
     fun restoreStatic(ctx: Context, delayMs: Long = 0) {
         val (l, r) = Device.ledColors(ctx) ?: return
         val k = Device.ledBrightness(ctx)
-        // AYN: only the sticks that are on (the firmware switched the others off)
-        val left = if (Device.isAyn && !Device.stickOn(ctx, true)) 0 else scale(l, k)
-        val right = if (Device.isAyn && !Device.stickOn(ctx, false)) 0 else scale(r, k)
+        // Odin 2: the driver lights the sides – dark if they are switched off
+        val sidesOff = Device.hasSideLights(ctx) && !Device.sideLights(ctx)
+        val left = if (sidesOff) 0 else scale(l, k)
+        val right = if (sidesOff) 0 else scale(r, k)
         Thread { if (delayMs > 0) Thread.sleep(delayMs); Root.exec(command(intArrayOf(left, right))) }.start()
     }
 
