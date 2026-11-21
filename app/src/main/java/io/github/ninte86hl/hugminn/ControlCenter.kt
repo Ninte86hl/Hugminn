@@ -164,7 +164,10 @@ class ControlCenter(private val svc: HugminnService) {
         val lp = WindowManager.LayoutParams(
             bounds.width(), bounds.height() - sysTop,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                // music/video plays behind: the app keeps the focus, players like Crunchyroll stop without it
+                // (the buttons still reach the Control Center through Hugminn)
+                (if (!svc.homeInFront && Media.playsIn(svc, svc.foregroundPkg)) WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE else 0),
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START

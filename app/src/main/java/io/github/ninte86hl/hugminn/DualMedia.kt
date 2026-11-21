@@ -115,7 +115,20 @@ class DualMedia(private val svc: HugminnService) {
     private fun keyOf() = "${Media.app}|${Media.title}|${artOf() != null}"
 
     /** The player's cover, or – for apps that give none (Disney+, Crunchyroll, Prime Video …) – the picture the switcher took of the app. */
-    private fun artOf(): android.graphics.Bitmap? = Media.art ?: Media.app?.let { p -> runCatching { Snapshots.get(svc, p) }.getOrNull() }
+    private fun artOf(): android.graphics.Bitmap? {
+        Media.art?.let { return it }
+        // the switcher's picture is taken once per title and kept – it would change every few seconds
+        val key = "${Media.app}|${Media.title}"
+        if (frozenFor == key) return frozen
+        val p = Media.app ?: return null
+        val pic = runCatching { Snapshots.get(svc, p) }.getOrNull() ?: return null
+        frozenFor = key
+        frozen = pic
+        return pic
+    }
+
+    private var frozenFor: String? = null
+    private var frozen: android.graphics.Bitmap? = null
 
     private fun update(fg: String) {
         val wanted = Media.title != null && Media.app == fg && top == fg

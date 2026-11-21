@@ -128,6 +128,8 @@ object Media {
             "${m.packageName} state=${m.playbackState?.state} title=${m.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)} art=${m.metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) != null}"
         }.ifEmpty { "keine" }
         val mc = list.firstOrNull { prefer != null && it.packageName == prefer && it.metadata != null }
+            // the app in front shares a session without details (Prime Video): it still counts
+            ?: list.firstOrNull { prefer != null && it.packageName == prefer && it.playbackState != null }
             ?: list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING && it.metadata != null }
             ?: list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING }
             ?: list.firstOrNull { it.metadata != null } ?: list.firstOrNull()
@@ -152,6 +154,10 @@ object Media {
             artist = x; if (art == null) art = pic
             diag += " · Benachrichtigung: $t / $x / Bild=${pic != null}"
         } ?: run { if (mc != null && song == null) diag += " · keine Benachrichtigung gefunden" }
+        // no cover in the session: the player's notification may have one (its large picture)
+        if (mc != null && art == null) MediaListener.playerNotice(mc.packageName)?.third?.let { art = it }
+        // the app in front without any title (Prime Video): its name, so the player still shows up
+        if (mc != null && song == null && mc.packageName == prefer) song = runCatching { Apps.label(ctx, mc.packageName) }.getOrNull()
         tidy(mc?.packageName)
         title = listOfNotNull(song, artist).joinToString(" – ").ifBlank { null }
         return true
