@@ -54,7 +54,7 @@ object LedFx {
             // LEDs switched off in the settings: the firmware shows nothing, so they go on just for the recording
             if (!Device.stickLeds(ctx)) {
                 switchedOn = true
-                Root.exec(Root.putSetting("system", "joystick_light_enabled", "1,1"))
+                Device.stickLedCmds(ctx, true).forEach { Root.exec(it) }
                 Thread.sleep(150)
             }
             start(ctx, LedEffect.PULSE, Color.RED to Color.RED)
@@ -65,7 +65,7 @@ object LedFx {
             // they were off before: dark and off again
             switchedOn = false
             Root.exec(command(intArrayOf(0, 0)))
-            Root.exec(Root.putSetting("system", "joystick_light_enabled", "0,0"))
+            Device.stickLedCmds(ctx, false).forEach { Root.exec(it) }
             return
         }
         when {
