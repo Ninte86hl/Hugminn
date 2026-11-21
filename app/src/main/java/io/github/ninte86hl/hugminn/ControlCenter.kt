@@ -2190,7 +2190,10 @@ class ControlCenter(private val svc: HugminnService) {
 
         side.addView(header("Stick"))
         val targetRow = LinearLayout(svc)
-        listOf(1 to tr("Links"), 2 to tr("Rechts"), 0 to tr("Beide")).forEach { (i, label) ->
+        // Odin 2: the sticks share AYN's one colour, the side lights can each have their own
+        val targets = if (Device.hasSideLights(svc)) listOf(1 to t("Linke Seite", "Left side"), 2 to t("Rechte Seite", "Right side"), 0 to t("Alle", "All"))
+            else listOf(1 to tr("Links"), 2 to tr("Rechts"), 0 to tr("Beide"))
+        targets.forEach { (i, label) ->
             val c = chip(label, i == ledTarget)
             val act = { ledTarget = i; ledFocus = "t$i"; ledPicker() }
             c.setOnClickListener { act() }

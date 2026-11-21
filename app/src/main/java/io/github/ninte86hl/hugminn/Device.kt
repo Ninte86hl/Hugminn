@@ -182,7 +182,7 @@ object Device {
         Root.run(Root.putSetting("system", "joystick_light_enabled", "${if (l) 1 else 0},${if (r) 1 else 0}"), then = then)
     }
 
-    /** AYN: the two sticks have different colours (Hugminn's own, written to the LED driver). */
+    /** Odin 2: the two side lights have different colours (Hugminn's own, written to the LED driver). */
     fun aynSplit(ctx: Context) = isAyn && Prefs(ctx).let { it.aynLedLeft != 0 && it.aynLedRight != 0 }
 
     /** Any light on: a stick or (Odin 2) the side lights – what the tile shows. */
@@ -222,17 +222,21 @@ object Device {
         fun hex(c: Int) = "#%08x".format(c or 0xFF000000.toInt())
         // AYN keeps one colour (sticks and sides): it gets the left one; two different colours for the
         // sticks are Hugminn's own and are written to the LED driver right after the firmware
+        // Odin 2: AYN's one colour lights the sticks and both sides; the LED driver (sn3112 l/r) reaches
+        // only the two sides. Same colour → AYN's setting for everything; different → the sides get
+        // their own through the driver, the sticks keep AYN's colour.
         val ayn = aynLeds(ctx)
+        val split = ayn && (left or 0xFF000000.toInt()) != (right or 0xFF000000.toInt())
         if (ayn) {
             val p = Prefs(ctx)
-            val split = (left or 0xFF000000.toInt()) != (right or 0xFF000000.toInt())
             p.aynLedLeft = if (split) left or 0xFF000000.toInt() else 0
             p.aynLedRight = if (split) right or 0xFF000000.toInt() else 0
         }
-        val cmds = if (ayn) mutableListOf(Root.putSetting("system", "led_light_picker_color", "${left or 0xFF000000.toInt()}"))
+        val cmds = if (split) mutableListOf<String>()
+            else if (ayn) mutableListOf(Root.putSetting("system", "led_light_picker_color", "${left or 0xFF000000.toInt()}"))
             else mutableListOf(Root.putSetting("system", "joystick_led_light_picker_color", "${hex(left)},${hex(right)}"))
         if (turnOn) cmds += stickLedCmds(ctx, true)
-        if (ayn && aynSplit(ctx)) { Root.run(*cmds.toTypedArray()) { LedFx.restoreStatic(ctx, delayMs = 400); then() }; return }
+        if (split) { Root.run(*cmds.toTypedArray()) { LedFx.restoreStatic(ctx, delayMs = 150); then() }; return }
         Root.run(*cmds.toTypedArray(), then = then)
     }
 
