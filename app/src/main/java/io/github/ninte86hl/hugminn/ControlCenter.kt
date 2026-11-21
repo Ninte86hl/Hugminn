@@ -94,6 +94,7 @@ class ControlCenter(private val svc: HugminnService) {
     fun open() {
         if (isOpen) return
         Displays.snapshot(svc, svc, "Control Center")
+        Device.refreshLayout(svc)
         isOpen = true
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("cc") } }
         pal = Palette(svc)
@@ -1594,14 +1595,14 @@ class ControlCenter(private val svc: HugminnService) {
         }, { false }) {
             profileMenu(tr("Trigger-Modus"), "trigger_input_mode", Device.triggerModes) { v -> Device.setSys("trigger_input_mode", v) { refreshAll() } }
         } else null
-        "controller" -> if (rootOk && Device.sys(svc, "temp_abxy_layout_mode") != null) Tile(tr("Tastenlayout"), IconView.Kind.GAMEPAD, {
-            if (Device.builtinOff(svc)) t("Aus · externer Controller", "Off · external controller") else if (Glyphs.nintendoLayout()) "Retroid" else "Xbox"
+        "controller" -> if (rootOk && Device.hasControllerSetting(svc)) Tile(tr("Tastenlayout"), IconView.Kind.GAMEPAD, {
+            if (Device.builtinOff(svc)) t("Aus · externer Controller", "Off · external controller") else if (Glyphs.nintendoLayout()) (if (Device.isAyn) "Nintendo" else "Retroid") else "Xbox"
         }, { false }) {
             val off = Device.builtinOff(svc)
             val pad = Device.externalPad()
             showMenu(tr("Tastenlayout"), listOf(
                 MenuEntry(tr("Xbox (A unten)"), checked = !off && !Glyphs.nintendoLayout()) { Device.setControllerLayout(false) { refreshAll() } },
-                MenuEntry(tr("Retroid / Nintendo (A rechts)"), checked = !off && Glyphs.nintendoLayout()) { Device.setControllerLayout(true) { refreshAll() } },
+                MenuEntry(if (Device.isAyn) t("Nintendo (A rechts)", "Nintendo (A right)") else tr("Retroid / Nintendo (A rechts)"), checked = !off && Glyphs.nintendoLayout()) { Device.setControllerLayout(true) { refreshAll() } },
                 // like Retroid's quick setting: the built-in controls off while an external controller is used;
                 // without one connected yet, they come back on by themselves if none arrives within 60 s
                 MenuEntry(t("Eingebaute Steuerung aus", "Built-in controls off"), checked = off,

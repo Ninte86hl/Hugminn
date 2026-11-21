@@ -124,7 +124,7 @@ object Glyphs {
     data class Glyph(val text: String?, val shape: Shape?, val color: Int)
 
     /** True when the handheld runs in Retroid/Nintendo layout (A on the right). */
-    fun nintendoLayout(): Boolean = InputDevice.getDeviceIds().any { id ->
+    fun nintendoLayout(): Boolean = Device.aynNintendo ?: InputDevice.getDeviceIds().any { id ->
         InputDevice.getDevice(id)?.name?.contains("Retroid Pocket Controller", ignoreCase = true) == true
     }
 

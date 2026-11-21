@@ -219,6 +219,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("hideNav", false)
         set(v) = p.edit().putBoolean("hideNav", v).apply()
 
+    /** Test builds: where the feedback button floats (offset from the middle of the right edge). */
+    var bubbleY: Int
+        get() = p.getInt("bubbleY", 0)
+        set(v) = p.edit().putInt("bubbleY", v).apply()
+
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()

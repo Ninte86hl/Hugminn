@@ -20,6 +20,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Music and videos keep playing: when a player app (Spotify, YouTube & co.) is playing, opening the game switcher or the Control Center no longer pauses it, and switcher and Control Center leave it the focus (players like Crunchyroll stop without it) – games still pause as before.
 - AYN Thor: a card in the switcher no longer gets the launcher's picture (after Home, the last app's card showed Cocoon instead of the app).
 - AYN Odin 2: battery (level, power, temperature) and GPU values are read where the firmware hides the usual files – from Android itself, the GPU through root.
+- AYN Odin 2: the Button layout tile uses AYN's Controller style – Xbox, Nintendo, or built-in controls off (Disconnect).
+- Control Center: holding a slider tile (brightness, volume) never picks the tile up any more – move it in the edit menu instead.
 - AYN Odin 2: the Stick LEDs tile works – on/off, colour (one colour for both sticks, as AYN keeps it), brightness and effects; the lights in the sides of the case can be switched on and off in the tile's menu.
 - AYN Thor: Hugminn's own screens (feedback, pause screen, recording) and apps started from the switcher or Control Center always open on the top screen – before, a touch on the lower screen sent them down there. While the player covers the lower screen, a touch there no longer takes the focus away from the app up top, so the buttons keep controlling it.
 - AYN Thor: the AYN button stays AYN's – Hugminn no longer takes it as a second Home button, so AYN's menu and its long press work as intended.
@@ -40,6 +42,8 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Musik und Videos laufen weiter: Spielt gerade eine Player-App (Spotify, YouTube & Co.), pausieren Game Switcher und Control Center sie beim Öffnen nicht mehr, und Switcher und Control Center lassen ihr den Fokus (Player wie Crunchyroll halten sonst an) – Spiele halten weiterhin an.
 - AYN Thor: Eine Karte im Switcher bekommt nicht mehr das Bild des Launchers (nach Home zeigte die Karte der letzten App Cocoon statt der App).
 - AYN Odin 2: Akku (Stand, Leistung, Temperatur) und GPU-Werte werden gelesen, wo die Firmware die üblichen Dateien versteckt – aus Android selbst, die GPU über Root.
+- AYN Odin 2: Die Kachel Tastenlayout nutzt AYNs Controller-Stil – Xbox, Nintendo oder eingebaute Steuerung aus (Disconnect).
+- Control Center: Gedrückthalten einer Schieberegler-Kachel (Helligkeit, Lautstärke) hebt die Kachel nicht mehr an – verschieben geht über das Bearbeiten-Menü.
 - AYN Odin 2: Die Stick-LEDs-Kachel funktioniert – an/aus, Farbe (eine Farbe für beide Sticks, wie AYN sie speichert), Helligkeit und Effekte; die Seitenbeleuchtung im Gehäuse lässt sich im Menü der Kachel ein- und ausschalten.
 - AYN Thor: Hugminns eigene Fenster (Feedback, Pausenbild, Aufnahme) und Apps, die aus dem Switcher oder Control Center starten, öffnen immer auf dem oberen Bildschirm – vorher landeten sie nach einer Berührung des unteren Bildschirms dort. Solange der Player den unteren Bildschirm bedeckt, nimmt eine Berührung dort der App oben nicht mehr den Fokus weg, die Tasten steuern also weiter sie.
 - AYN Thor: Die AYN-Taste bleibt bei AYN – Hugminn behandelt sie nicht mehr als zweite Home-Taste, AYNs Menü und der lange Druck funktionieren wie vorgesehen.

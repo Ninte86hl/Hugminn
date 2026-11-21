@@ -23,20 +23,40 @@ object Device {
     fun sysOn(ctx: Context, key: String) = sys(ctx, key)?.trim() == "1"
     fun setSys(key: String, value: String, then: () -> Unit) = Root.run(Root.putSetting("system", key, value), then = then)
 
+    /**
+     * AYN (Odin 2) has no temp_abxy_layout_mode: its "Controller style" is flip_button_layout
+     * (1 = Xbox, 0 = Nintendo) and "Disconnect" is no_create_gamepad_button_layout = 1.
+     */
+    private fun aynPad(ctx: Context) = isAyn && sys(ctx, "temp_abxy_layout_mode") == null && sys(ctx, "flip_button_layout") != null
+    fun hasControllerSetting(ctx: Context) = sys(ctx, "temp_abxy_layout_mode") != null || aynPad(ctx)
+    /** The setting the device test shows for the button layout. */
+    fun controllerKey(ctx: Context) = if (aynPad(ctx)) "flip_button_layout" else "temp_abxy_layout_mode"
+
+    /** AYN: A on the right (Nintendo) – the controller's name does not tell, the setting does. */
+    @Volatile var aynNintendo: Boolean? = null
+    fun refreshLayout(ctx: Context) { if (isAyn) aynNintendo = sys(ctx, "flip_button_layout")?.trim() == "0" }
+
     /** Button layout: Xbox (A bottom) or Retroid/Nintendo (A right). */
-    fun setControllerLayout(nintendo: Boolean, then: () -> Unit) = Root.run(
-        Root.putSetting("system", "temp_abxy_layout_mode", if (nintendo) "1" else "0"),
-        Root.putSetting("system", "flip_button_layout", if (nintendo) "0" else "1"),
-        "setprop persist.sys.gamepad.type ${if (nintendo) 0 else 1}",
-        then = then,
-    )
+    fun setControllerLayout(nintendo: Boolean, then: () -> Unit) {
+        if (isAyn) aynNintendo = nintendo
+        val cmds = mutableListOf(
+            Root.putSetting("system", "flip_button_layout", if (nintendo) "0" else "1"),
+            "setprop persist.sys.gamepad.type ${if (nintendo) 0 else 1}",
+        )
+        // AYN: back on if it was disconnected; Retroid: its own layout setting
+        if (isAyn) cmds += Root.putSetting("system", "no_create_gamepad_button_layout", "0")
+        else cmds += Root.putSetting("system", "temp_abxy_layout_mode", if (nintendo) "1" else "0")
+        Root.run(*cmds.toTypedArray(), then = then)
+    }
 
     /** The firmware's third controller mode: the built-in controls are off (for an external controller). */
-    fun builtinOff(ctx: Context) = sys(ctx, "temp_abxy_layout_mode")?.trim() == "2"
+    fun builtinOff(ctx: Context) =
+        if (aynPad(ctx)) sysOn(ctx, "no_create_gamepad_button_layout") else sys(ctx, "temp_abxy_layout_mode")?.trim() == "2"
 
     /** Built-in controls on (back to the layout set before) or off. Like Retroid's own quick setting, this
      *  also needs no_create_gamepad_button_layout = 1, or the built-in controller stays active. */
     fun setBuiltin(ctx: Context, on: Boolean, then: () -> Unit) {
+        if (aynPad(ctx)) { Root.run(Root.putSetting("system", "no_create_gamepad_button_layout", if (on) "0" else "1"), then = then); return }
         val store = ctx.getSharedPreferences("controller", Context.MODE_PRIVATE)
         if (!on) {
             val now = sys(ctx, "temp_abxy_layout_mode")?.trim()

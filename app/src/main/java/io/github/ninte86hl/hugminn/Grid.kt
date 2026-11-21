@@ -196,6 +196,9 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
         lift(v)
     }
 
+    private fun hasSlider(v: View): Boolean =
+        v is BigSlider || (v is android.view.ViewGroup && (0 until v.childCount).any { hasSlider(v.getChildAt(it)) })
+
     /** A short, clear buzz when moving starts (also with touch vibration off in Android). */
     private fun buzz() {
         runCatching {
@@ -237,7 +240,8 @@ class GridBoard(ctx: Context, private val cols: Int, private val gap: Int) : Vie
                 longFired = false
                 dragging = false
                 dragView = childAt(e.x, e.y)
-                if (dragView != null && !editing()) postDelayed(longPress, HOLD_MS)
+                // a slider (brightness, volume) needs the finger: holding it still must not pick the tile up
+                if (dragView != null && !editing() && !hasSlider(dragView!!)) postDelayed(longPress, HOLD_MS)
             }
             android.view.MotionEvent.ACTION_MOVE -> {
                 val far = Math.hypot((e.x - downX).toDouble(), (e.y - downY).toDouble()) > slop
