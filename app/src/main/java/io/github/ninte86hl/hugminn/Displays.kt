@@ -85,6 +85,7 @@ object Displays {
         if (NavBar.diag.isNotEmpty()) appendLine("  Navigationsleiste: " + NavBar.diag)
         if (Landscape.diag.isNotEmpty()) appendLine("  Querformat: " + Landscape.diag)
         if (DualMedia.diag.isNotEmpty()) appendLine("  Player unten: " + DualMedia.diag)
+        if (ledInfo.isNotEmpty()) { appendLine("  LED-Treiber:"); ledInfo.lines().forEach { appendLine("    $it") } }
         // the root dumps take seconds: never on the main thread (keys pass it – Hugminn froze and
         // Android stopped it); the picture taken in the background before opening has them
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) appendLine("  (Fensterliste: siehe „Vor dem Öffnen“)")
@@ -100,6 +101,28 @@ object Displays {
                 it.lines().forEach { l -> appendLine("    " + l.trim().take(200)) }
             }
         }
+    }
+
+    /**
+     * AYN: which light drivers exist (the Odin 2's sticks are not on the sn3112 driver – that one
+     * lights the sides). Read once in the background at the start, for feedback reports.
+     */
+    @Volatile var ledInfo = ""
+        private set
+
+    fun collectLeds() {
+        if (!Device.isAyn) return
+        Thread {
+            runCatching {
+                ledInfo = Root.execLong(
+                    "ls /sys/class/leds/ 2>&1 | tr '\\n' ' '; echo; " +
+                        "ls -d /sys/class/*led* /sys/class/sn31* /sys/class/aw* 2>/dev/null | tr '\\n' ' '; echo; " +
+                        "for d in /sys/class/sn3112*/led /sys/class/leds/*; do echo \"\$d: \$(ls \$d 2>/dev/null | tr '\\n' ' ')\"; done 2>/dev/null | head -40; " +
+                        "getprop | grep -iE 'led|light|joystick' | head -20",
+                    6_000,
+                )?.trim().orEmpty()
+            }
+        }.start()
     }
 
     /** What was on the screens right before Hugminn opened (only on handhelds with a second screen). */
