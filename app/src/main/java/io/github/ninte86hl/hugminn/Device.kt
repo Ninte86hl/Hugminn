@@ -213,6 +213,27 @@ object Device {
         Root.run(Root.putSetting("system", "led_light_picker_color", "${v xor 0x010101}"), Root.putSetting("system", "led_light_picker_color", "$v"), then = then)
     }
 
+    /**
+     * Odin 2 (the LED tester showed it): on both drivers zone 2 is the stick, zone 1 the side.
+     * Colours per area are Hugminn's own (0 = AYN's colour) and go to the driver.
+     */
+    fun areaColors(ctx: Context, side: Boolean): Pair<Int, Int> {
+        val p = Prefs(ctx)
+        val base = aynStickColor(ctx) or 0xFF000000.toInt()
+        val (l, r) = if (side) p.aynLedLeft to p.aynLedRight else p.aynStickLeft to p.aynStickRight
+        return (if (l != 0) l else base) to (if (r != 0) r else base)
+    }
+
+    fun setAreaColors(ctx: Context, side: Boolean, left: Int, right: Int, then: () -> Unit) {
+        val p = Prefs(ctx)
+        val l = left or 0xFF000000.toInt()
+        val r = right or 0xFF000000.toInt()
+        if (side) { p.aynLedLeft = l; p.aynLedRight = r } else { p.aynStickLeft = l; p.aynStickRight = r }
+        // the area must be switched on for the driver to show anything
+        val on = if (side) sideLights(ctx) else stickLeds(ctx)
+        if (!on) { if (side) setSideLights(true, then) else setStickLeds(ctx, true, then) } else then()
+    }
+
     /** Any light on: a stick or (Odin 2) the side lights – what the tile shows. */
     fun lightsOn(ctx: Context) = stickLeds(ctx) || (hasSideLights(ctx) && sideLights(ctx))
 

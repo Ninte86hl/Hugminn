@@ -380,6 +380,19 @@ class Prefs(ctx: Context) {
         get() = enumOr(p.getString("ledEffect", null), LedEffect.NONE)
         set(v) = p.edit().putString("ledEffect", v.name).apply()
 
+    /** Odin 2: effect of the side lights (the sticks use [ledEffect]). */
+    var ledEffectSide: LedEffect
+        get() = enumOr(p.getString("ledEffectSide", null), LedEffect.NONE)
+        set(v) = p.edit().putString("ledEffectSide", v.name).apply()
+
+    /** Odin 2: own colours of the sticks (0 = AYN's colour). */
+    var aynStickLeft: Int
+        get() = p.getInt("aynStickLeft", 0)
+        set(v) = p.edit().putInt("aynStickLeft", v).apply()
+    var aynStickRight: Int
+        get() = p.getInt("aynStickRight", 0)
+        set(v) = p.edit().putInt("aynStickRight", v).apply()
+
     var gaugePalette: GaugePalette
         get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)
         set(v) = p.edit().putString("gaugePalette", v.name).apply()
