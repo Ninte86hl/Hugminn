@@ -163,9 +163,93 @@ class DeviceTestActivity : Activity() {
             add(if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) CheckState.OK else CheckState.FAIL,
                 if (seen) "" else t("Farben werden nicht übernommen", "Colours are not applied"))
             runCatching { if (Device.stickLeds(this)) { if (Prefs(this).ledEffect != LedEffect.NONE) LedFx.resume(this) else LedFx.restoreStatic(this) } else LedFx.preview(0, 0, 1f) }
-            showSummary()
+            if (Device.hasSideLights(this)) startLedProbe() else showSummary()
         }
         setButtons(button(t("Nein", "No")) { answer(false) }, button(t("Ja", "Yes"), primary = true) { answer(true) })
+    }
+
+    // ---- LED tester (AYN Odin 2: sticks and side lights) ----
+
+    /** One step: switch something on, ask what lights up, put it back. */
+    private class Probe(val name: String, val on: List<String>, val off: List<String>)
+
+    private val lightNames get() = listOf(
+        t("Linker Stick", "Left stick"), t("Rechter Stick", "Right stick"),
+        t("Linke Seite", "Left side"), t("Rechte Seite", "Right side"),
+    )
+
+    /**
+     * Lights one setting or driver zone after the other in red and asks what lit up – so it is clear
+     * which switch drives which light. The answers go into the result (and the feedback report).
+     */
+    private fun startLedProbe() {
+        status(t("LED-Tester wird vorbereitet …", "Preparing the LED tester …"))
+        Thread {
+            val keys = listOf("left_joystick_light_enabled", "right_joystick_light_enabled", "left_handle_light_enabled", "right_handle_light_enabled")
+            val before = keys.associateWith { Device.sys(this, it) ?: "1" }
+            val colorBefore = Device.sys(this, "led_light_picker_color") ?: "-1"
+            fun only(k: String?) = keys.map { Root.putSetting("system", it, if (it == k) "1" else "0") } +
+                Root.putSetting("system", "led_light_picker_color", "${0xFFFF0000.toInt()}")
+            val allOff = keys.map { Root.putSetting("system", it, "0") }
+            val probes = mutableListOf<Probe>()
+            keys.forEach { k -> probes += Probe("AYN: $k", only(k), emptyList()) }
+            // the LED driver: each side, each zone on its own (everything else dark)
+            val dark = (1..4).flatMap { z -> listOf('l', 'r').map { side -> "echo $z-0:0:0:255 > /sys/class/sn3112$side/led/brightness" } }
+            for (side in listOf('l', 'r')) for (z in 1..4)
+                probes += Probe("sn3112$side Zone $z", allOff + dark + "echo $z-255:0:0:255 > /sys/class/sn3112$side/led/brightness", dark)
+            // other light drivers of the device (not the screen, flash or vibration)
+            val leds = Root.execLong("ls /sys/class/leds/ 2>/dev/null", 3_000)?.lines()?.map { it.trim() }?.filter {
+                it.isNotEmpty() && !Regex("lcd|backlight|wled|flash|torch|vibrator|haptic|mmc|charging|battery", RegexOption.IGNORE_CASE).containsMatchIn(it)
+            }.orEmpty().take(8)
+            leds.forEach { l ->
+                val max = Root.exec("cat /sys/class/leds/$l/max_brightness")?.trim()?.toIntOrNull() ?: 255
+                val was = Root.exec("cat /sys/class/leds/$l/brightness")?.trim()?.toIntOrNull() ?: 0
+                probes += Probe("leds/$l", allOff + "echo $max > /sys/class/leds/$l/brightness", listOf("echo $was > /sys/class/leds/$l/brightness"))
+            }
+            val restore = keys.map { Root.putSetting("system", it, before[it] ?: "1") } + Root.putSetting("system", "led_light_picker_color", colorBefore)
+            runOnUiThread { probeStep(probes, 0, restore) }
+        }.start()
+    }
+
+    private fun probeStep(probes: List<Probe>, i: Int, restore: List<String>) {
+        if (i >= probes.size) {
+            status(t("Beleuchtung wird zurückgestellt …", "Putting the lights back …"))
+            Thread {
+                Root.run(*restore.toTypedArray()) {
+                    runCatching { if (Prefs(this).ledEffect != LedEffect.NONE) LedFx.resume(this) else LedFx.restoreStatic(this, delayMs = 400) }
+                    runOnUiThread { showSummary() }
+                }
+            }.start()
+            return
+        }
+        val p = probes[i]
+        list.removeAllViews()
+        list.addView(text(t("LED-Tester · ${i + 1}/${probes.size}", "LED tester · ${i + 1}/${probes.size}"), 18f, fg, true))
+        list.addView(text(p.name, 13f, dim).apply { setPadding(0, d(4), 0, 0) })
+        list.addView(text(t("Was leuchtet jetzt rot? Alles antippen, was leuchtet, dann Weiter.", "What lights up red now? Tap everything that lights, then Next."), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
+        val chosen = mutableSetOf<String>()
+        val row = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        lightNames.forEach { n ->
+            lateinit var b: Button
+            b = button(n) {
+                if (!chosen.add(n)) chosen.remove(n)
+                (b.background as GradientDrawable).setColor(if (n in chosen) 0xFF2E9E5B.toInt() else card)
+            }
+            row.addView(b, LinearLayout.LayoutParams(-1, d(44)).apply { bottomMargin = d(6) })
+        }
+        list.addView(row)
+        Thread { Root.run(*p.on.toTypedArray()) }.start()
+        fun next(skip: Boolean) {
+            val seen = if (chosen.isEmpty()) t("nichts", "nothing") else lightNames.filter { it in chosen }.joinToString(", ")
+            if (!skip) add(t("LED-Tester", "LED tester"), p.name, if (chosen.isEmpty()) CheckState.WARN else CheckState.OK, "→ $seen")
+            Displays.ledProbe += "${p.name} → $seen\n"
+            Thread { if (p.off.isNotEmpty()) Root.run(*p.off.toTypedArray()) }.start()
+            probeStep(probes, i + 1, restore)
+        }
+        setButtons(
+            button(t("Abbrechen", "Cancel")) { probeStep(probes, probes.size, restore) },
+            button(t("Weiter", "Next"), primary = true) { next(false) },
+        )
     }
 
     // ---- summary ----

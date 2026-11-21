@@ -21,6 +21,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - AYN Thor: a card in the switcher no longer gets the launcher's picture (after Home, the last app's card showed Cocoon instead of the app).
 - AYN Odin 2: battery (level, power, temperature) and GPU values are read where the firmware hides the usual files – from Android itself, the GPU through root.
 - Control Center: the big Performance and Fan cards open their profiles on touch; touching a value card (temperature, battery, watts) no longer redraws the Control Center. On the Odin 2 the LED tile is called Lights and covers sticks and side lights together.
+- AYN Odin 2: LED tester in the device test – lights each setting and LED driver zone in turn and asks what lights up (sticks, sides), to find out what drives which light.
 - AYN Odin 2: the Button layout tile uses AYN's Controller style – Xbox, Retro, or built-in controls off (Disconnect).
 - "Nintendo" is now called "Retro" everywhere (button layout with A on the right, button symbols).
 - Control Center: touching a tile only uses it (sliders, menus of Performance, Fan & co.); tiles are moved by touch only in edit mode. Every button hint at the bottom can be tapped – "Y Edit" opens editing for touch.
@@ -45,6 +46,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - AYN Thor: Eine Karte im Switcher bekommt nicht mehr das Bild des Launchers (nach Home zeigte die Karte der letzten App Cocoon statt der App).
 - AYN Odin 2: Akku (Stand, Leistung, Temperatur) und GPU-Werte werden gelesen, wo die Firmware die üblichen Dateien versteckt – aus Android selbst, die GPU über Root.
 - Control Center: Die großen Karten Leistung und Lüfter öffnen ihre Profile per Touch; Antippen einer Wertekarte (Temperatur, Akku, Watt) baut das Control Center nicht mehr neu auf. Auf dem Odin 2 heißt die LED-Kachel Beleuchtung und umfasst Sticks und Seitenbeleuchtung zusammen.
+- AYN Odin 2: LED-Tester im Gerätetest – schaltet jede Einstellung und jede Zone des LED-Treibers nacheinander rot und fragt, was leuchtet (Sticks, Seiten), um herauszufinden, was welches Licht steuert.
 - AYN Odin 2: Die Kachel Tastenlayout nutzt AYNs Controller-Stil – Xbox, Retro oder eingebaute Steuerung aus (Disconnect).
 - Aus „Nintendo“ wird überall „Retro“ (Tastenlayout mit A rechts, Tastensymbole).
 - Control Center: Berühren einer Kachel bedient sie nur noch (Regler, Menüs von Leistung, Lüfter & Co.); verschoben wird per Touch nur noch im Bearbeiten-Modus. Jeder Tastenhinweis unten lässt sich antippen – „Y Bearbeiten“ öffnet das Bearbeiten für Touch.
