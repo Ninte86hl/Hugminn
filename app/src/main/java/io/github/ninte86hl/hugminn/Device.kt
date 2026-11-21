@@ -146,9 +146,17 @@ object Device {
 
     fun setStickLeds(ctx: Context, on: Boolean, then: () -> Unit) = Root.run(*stickLedCmds(ctx, on), then = then)
 
+    /** AYN Odin 2: lights in the sides of the case (left_/right_handle_light_enabled), same colour as the sticks. */
+    fun hasSideLights(ctx: Context) = isAyn && sys(ctx, "left_handle_light_enabled") != null
+    fun sideLights(ctx: Context) = sysOn(ctx, "left_handle_light_enabled") || sysOn(ctx, "right_handle_light_enabled")
+    fun setSideLights(on: Boolean, then: () -> Unit) = Root.run(
+        Root.putSetting("system", "left_handle_light_enabled", if (on) "1" else "0"),
+        Root.putSetting("system", "right_handle_light_enabled", if (on) "1" else "0"),
+        then = then,
+    )
+
     /** Colours of the stick LEDs as Retroid's LED window stores them: "#AARRGGBB,#AARRGGBB" (left, right). */
-    fun ledColors(ctx: Context): Pair<Int, Int>? = try {
-        if (aynLeds(ctx)) return sys(ctx, "led_light_picker_color")?.trim()?.toLongOrNull()?.toInt()?.let { it to it }
+    fun ledColors(ctx: Context): Pair<Int, Int>? = if (aynLeds(ctx)) sys(ctx, "led_light_picker_color")?.trim()?.toLongOrNull()?.toInt()?.let { it to it } else try {
         val parts = sys(ctx, "joystick_led_light_picker_color")?.split(',')?.map { android.graphics.Color.parseColor(it.trim()) }
         if (parts == null || parts.isEmpty()) null else parts[0] to parts.getOrElse(1) { parts[0] }
     } catch (t: Throwable) {
