@@ -12,7 +12,7 @@ Shows whether Hugminn is switched on as an accessibility service, whether the ha
 | Style | Modern, Pixel, Dot matrix or Cocoon; applies everywhere: Control Center, switcher, overlay and the settings |
 | Tile colour | Colour of active tiles, also the accent colour |
 | Colour scheme | System, light, dark, OLED black (true black, saves power on OLED screens) |
-| Button symbols | Automatic, Xbox, Nintendo or PlayStation; coloured or plain |
+| Button symbols | Automatic, Xbox, Retro or PlayStation; coloured or plain |
 
 ## Home button
 Action for a single, double and long press, and the times for double and long presses. See [Home button](Home-Button).

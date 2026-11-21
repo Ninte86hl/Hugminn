@@ -58,7 +58,7 @@ Switch each on or off, pause the game while it is open, the swipe gesture for th
 | --- | --- |
 | ![Look](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/setup/look.jpg) | ![Button symbols](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/setup/symbols.jpg) |
 
-The [style](Styles-and-Themes) and colour scheme, then Xbox, Nintendo or PlayStation symbols (or *Automatic*, following the Retroid button layout), coloured or plain.
+The [style](Styles-and-Themes) and colour scheme, then Xbox, Retro or PlayStation symbols (or *Automatic*, following the Retroid button layout), coloured or plain.
 
 ## 10. Done – and an optional report
 | | |

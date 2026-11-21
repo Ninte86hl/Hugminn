@@ -83,7 +83,7 @@ enum class TileShape(private val labelDe: String) {
 enum class GlyphStyle(private val labelDe: String) {
     AUTO("Automatisch"),
     XBOX("Xbox"),
-    NINTENDO("Nintendo"),
+    NINTENDO("Retro"),
     PLAYSTATION("PlayStation");
 
     val label get() = tr(labelDe)

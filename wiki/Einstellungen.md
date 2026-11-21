@@ -12,7 +12,7 @@ Zeigt, ob Hugminn als Bedienungshilfe eingeschaltet ist, ob der Root-Dienst des 
 | Stil | Modern, Pixel, Punktmatrix oder Cocoon; gilt überall: Control Center, Switcher, Overlay und Einstellungen |
 | Kachelfarbe | Farbe aktiver Kacheln, zugleich die Akzentfarbe |
 | Farbschema | System, hell, dunkel, OLED-Schwarz (echtes Schwarz, spart auf OLED-Bildschirmen Strom) |
-| Tastensymbole | Automatisch, Xbox, Nintendo oder PlayStation; farbig oder schlicht |
+| Tastensymbole | Automatisch, Xbox, Retro oder PlayStation; farbig oder schlicht |
 
 ## Home-Taste
 Aktion für einfachen, doppelten und langen Druck sowie die Zeiten für Doppeldruck und langen Druck. Siehe [Home-Taste](Home-Taste).
