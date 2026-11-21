@@ -227,6 +227,7 @@ object Lang {
         "(Tab Modus)" to "(Mode tab)",
         "A schaltet alle eingeschalteten Lichter auf diese Kombi: links die erste, rechts die zweite Farbe" to "A switches every light that is on to this combo: left the first, right the second colour",
         "Für alle eingeschalteten Lichter" to "For all lights that are on",
+        "Einstellen" to "Set up",
         "Linker Stick" to "Left stick",
         "Rechter Stick" to "Right stick",
         "Linke Seite" to "Left side",
