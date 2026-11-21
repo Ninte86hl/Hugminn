@@ -572,7 +572,7 @@ class MainActivity : Activity() {
             listOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y).forEach { k ->
                 preview.addView(Glyphs.chip(this, prefs, pal, k), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = d(8) })
             }
-            preview.addView(text(if (Glyphs.nintendoLayout()) tr("  (Gerät im Retroid-/Nintendo-Layout)") else tr("  (Gerät im Xbox-Layout)"), 12f, pal.onSurfaceVariant))
+            preview.addView(text(if (Glyphs.nintendoLayout()) tr("  (Gerät im Retro-Layout)") else tr("  (Gerät im Xbox-Layout)"), 12f, pal.onSurfaceVariant))
         }
         fillPreview()
         afterChange += fillPreview

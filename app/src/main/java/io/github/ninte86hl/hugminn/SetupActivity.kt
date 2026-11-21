@@ -424,9 +424,9 @@ class SetupActivity : Activity() {
         c.addView(text(tr("Tastensymbole"), 26f, pal.onSurface, bold = true))
         c.addView(text(
             t("So zeigt Hugminn die Tasten in allen Hinweisen an. „Automatisch“ folgt dem Tastenlayout aus den Retroid-Einstellungen" +
-                (if (nin) " – dein Gerät nutzt gerade das Retroid-/Nintendo-Layout (A rechts)." else " – dein Gerät nutzt gerade das Xbox-Layout (A unten)."),
+                (if (nin) " – dein Gerät nutzt gerade das Retro-Layout (A rechts)." else " – dein Gerät nutzt gerade das Xbox-Layout (A unten)."),
                 "This is how Hugminn shows the buttons in all hints. “Automatic” follows the button layout in the Retroid settings" +
-                    (if (nin) " – your device currently uses the Retroid/Nintendo layout (A on the right)." else " – your device currently uses the Xbox layout (A at the bottom).")),
+                    (if (nin) " – your device currently uses the Retro layout (A on the right)." else " – your device currently uses the Xbox layout (A at the bottom).")),
             14f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(8), 0, 0) })
         row.addView(c, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -435,7 +435,7 @@ class SetupActivity : Activity() {
             option(o, tr("Stil"), {
                 when (prefs.glyphStyle) {
                     GlyphStyle.XBOX -> t("A, B, X, Y wie beim Xbox-Controller", "A, B, X, Y like the Xbox controller")
-                    GlyphStyle.NINTENDO -> t("A, B, X, Y wie beim Nintendo-Controller", "A, B, X, Y like the Nintendo controller")
+                    GlyphStyle.NINTENDO -> t("A, B, X, Y im Retro-Layout (A rechts)", "A, B, X, Y in the Retro layout (A on the right)")
                     GlyphStyle.PLAYSTATION -> t("Kreuz, Kreis, Quadrat, Dreieck", "Cross, circle, square, triangle")
                     else -> t("Folgt dem Tastenlayout des Geräts", "Follows the device's button layout")
                 }
