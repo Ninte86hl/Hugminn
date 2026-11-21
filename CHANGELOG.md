@@ -35,6 +35,13 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - AYN Thor: Eine Karte im Switcher bekommt nicht mehr das Bild des Launchers (nach Home zeigte die Karte der letzten App Cocoon statt der App).
 - AYN Thor: Hugminns eigene Fenster (Feedback, Pausenbild, Aufnahme) und Apps, die aus dem Switcher oder Control Center starten, öffnen immer auf dem oberen Bildschirm – vorher landeten sie nach einer Berührung des unteren Bildschirms dort. Solange der Player den unteren Bildschirm bedeckt, nimmt eine Berührung dort der App oben nicht mehr den Fokus weg, die Tasten steuern also weiter sie.
 - AYN Thor: Die AYN-Taste bleibt bei AYN – Hugminn behandelt sie nicht mehr als zweite Home-Taste, AYNs Menü und der lange Druck funktionieren wie vorgesehen.
+## 1.13.1
+
+### 🇬🇧 English
+- Control Center: moving a slider (brightness, volume) no longer picks up the whole tile by mistake. Moving a tile by touch now needs a longer hold (0.8 s), and a short vibration tells you when moving starts.
+
+### 🇩🇪 Deutsch
+- Control Center: Wer einen Schieberegler bedient (Helligkeit, Lautstärke), verschiebt nicht mehr versehentlich die ganze Kachel. Kacheln per Touch verschieben braucht jetzt etwas länger Gedrückthalten (0,8 s), und eine kurze Vibration zeigt an, wann das Verschieben beginnt.
 
 ## 1.13.0
 
