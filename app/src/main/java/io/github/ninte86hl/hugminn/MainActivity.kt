@@ -513,9 +513,9 @@ class MainActivity : Activity() {
                     "While music or a video plays up top (Spotify, YouTube …), the lower screen shows cover, title and buttons – for videos only the title. Tap or drag the bar to jump"),
                 { if (prefs.dualMedia) tr("An") else tr("Aus") }) { prefs.dualMedia = !prefs.dualMedia }
         }
-        row(sw, t("YouTube immer quer", "YouTube always landscape"),
-            t("YouTube wird komplett quer angezeigt, nicht nur Videos im Vollbild – auch Startseite, Suche und Kommentare",
-                "YouTube is shown fully in landscape, not only full-screen videos – also home page, search and comments"),
+        row(sw, t("Video-Apps immer quer", "Video apps always landscape"),
+            t("YouTube, Disney+, Prime Video und Crunchyroll werden komplett quer angezeigt, nicht nur Videos im Vollbild – auch Startseite, Suche und Menüs",
+                "YouTube, Disney+, Prime Video and Crunchyroll are shown fully in landscape, not only full-screen videos – also home page, search and menus"),
             { if (prefs.landscapeOn) tr("An") else tr("Aus") }) { prefs.landscapeOn = !prefs.landscapeOn }
         row(sw, tr("Statusleiste"), tr("Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
