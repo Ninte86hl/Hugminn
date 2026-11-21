@@ -82,6 +82,7 @@ object Displays {
                 }
             }
         }.onFailure { appendLine("  Fenster: ${it.javaClass.simpleName}") }
+        if (Landscape.diag.isNotEmpty()) appendLine("  Querformat: " + Landscape.diag)
         if (DualMedia.diag.isNotEmpty()) appendLine("  Player unten: " + DualMedia.diag)
         if (Root.available()) {
             // what really runs where: tasks per display and the visible windows (also presentations,
