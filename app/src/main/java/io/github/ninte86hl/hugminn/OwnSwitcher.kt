@@ -133,6 +133,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
     }
 
+    fun taskOf(pkg: String): Int = synchronized(this) { known.firstOrNull { it.pkg == pkg }?.taskId ?: -1 }
+
     /** Reads Android's task list (root) in the background. */
     fun refresh(then: (() -> Unit)? = null) {
         thread {

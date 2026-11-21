@@ -178,7 +178,7 @@ object Capture {
             }
             svc.ui.post {
                 runCatching {
-                    svc.startActivity(Intent(svc, ProjectionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION))
+                    svc.startActivity(Intent(svc, ProjectionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION), Displays.onTop(svc))
                 }.onFailure { Notice.show(svc, t("Aufnahme konnte nicht starten", "Couldn't start recording")) }
             }
         }.start()

@@ -422,7 +422,7 @@ class HugminnService : AccessibilityService() {
 
     fun startApp(i: Intent) {
         try {
-            startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), Displays.onTop(this))
         } catch (t: Throwable) {
         }
     }
@@ -466,6 +466,9 @@ class HugminnService : AccessibilityService() {
         guardRun = tick
         tick.run()
     }
+
+    /** Android's task of [pkg] (-1 if unknown), for bringing it back to the front. */
+    fun taskOf(pkg: String): Int = if (::own.isInitialized) own.taskOf(pkg) else -1
 
     fun controlCenterOpen() = ::controlCenter.isInitialized && controlCenter.isOpen
 }

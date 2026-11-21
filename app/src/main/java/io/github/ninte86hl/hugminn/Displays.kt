@@ -49,6 +49,19 @@ object Displays {
     /** A built-in second screen, if there is one (not the main one, not a private/virtual one). */
     fun second(ctx: Context): Info? = list(ctx).firstOrNull { !it.isDefault && !it.isPrivate }
 
+    @Volatile private var dual: Boolean? = null
+
+    /**
+     * Start options for Hugminn's own screens and apps opened from it: always on the top screen.
+     * Android starts new screens on the screen that has the focus – after a touch on the Thor's lower
+     * screen that would be the lower one. Null on single-screen handhelds (nothing changes there).
+     */
+    fun onTop(ctx: Context): android.os.Bundle? {
+        val d = dual ?: (second(ctx) != null).also { dual = it }
+        if (!d) return null
+        return runCatching { android.app.ActivityOptions.makeBasic().setLaunchDisplayId(android.view.Display.DEFAULT_DISPLAY).toBundle() }.getOrNull()
+    }
+
     /** For feedback logs: every display, and with the service also the windows on each of them. */
     fun describe(ctx: Context, svc: AccessibilityService? = null): String = buildString {
         val all = list(ctx)
