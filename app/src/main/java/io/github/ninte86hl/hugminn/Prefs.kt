@@ -214,25 +214,6 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("hideNav", false)
         set(v) = p.edit().putBoolean("hideNav", v).apply()
 
-    /** Tablet view: video apps get the tablet layout while in front (lower density on their screen, root). */
-    var wideOn: Boolean
-        get() = p.getBoolean("wideOn2", true)
-        set(v) = p.edit().putBoolean("wideOn2", v).apply()
-
-    var wideApps: Set<String>
-        get() = p.getStringSet("wideApps2", null) ?: setOf("com.netflix.mediaclient", "com.disney.disneyplus", "com.amazon.avod.thirdpartyclient", "com.crunchyroll.crunchyroid")
-        set(v) = p.edit().putStringSet("wideApps2", v).apply()
-
-    /** Per screen: density to go back to (-1 nothing to do, 0 Android's own, else that value). */
-    fun wideRestoreOf(display: Int): Int = p.getInt("wideRestore$display", -1)
-    fun setWideRestore(display: Int, v: Int) { p.edit().putInt("wideRestore$display", v).commit() }
-    val wideRestore: Int get() = wideRestoreOf(0)
-
-    /** Hugminn's own density while the tablet view is on (the value from before). */
-    var wideKeep: Int
-        get() = p.getInt("wideKeep", 0)
-        set(v) = p.edit().putInt("wideKeep", v).apply()
-
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
         set(v) = p.edit().putString("focusStyle", v.name).apply()
