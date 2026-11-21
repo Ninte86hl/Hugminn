@@ -2044,6 +2044,13 @@ class ControlCenter(private val svc: HugminnService) {
         val intent = pkg?.let { svc.packageManager.getLaunchIntentForPackage(it) }
         val entries = mutableListOf<MenuEntry>()
         entries += MenuEntry(if (on) tr("LEDs ausschalten") else tr("LEDs einschalten")) { Device.setStickLeds(svc, !on) { refreshAll() } }
+        // AYN Odin 2: the lights in the sides of the case, on their own
+        if (Device.hasSideLights(svc)) {
+            val side = Device.sideLights(svc)
+            entries += MenuEntry(if (side) t("Seitenbeleuchtung ausschalten", "Side lights off") else t("Seitenbeleuchtung einschalten", "Side lights on")) {
+                Device.setSideLights(!side) { refreshAll() }
+            }
+        }
         if (intent != null) {
             val label = runCatching { svc.packageManager.getApplicationLabel(svc.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
             entries += MenuEntry(t("Farben & Effekte in $label", "Colours & effects in $label")) {
