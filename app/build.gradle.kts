@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.ninte86hl.hugminn"
         minSdk = 30
         targetSdk = 34
-        versionCode = 377
-        versionName = "1.14.0-test.54"
+        versionCode = 378
+        versionName = "1.14.0-test.55"
     }
 
     // Release key: only on GitHub (secrets SIGNING_KEYSTORE_B64 / SIGNING_PASSWORD), never in the repository.
