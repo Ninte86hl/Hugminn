@@ -136,6 +136,7 @@ class HugminnService : AccessibilityService() {
         landscape = Landscape(this)
         NavBar.resume(this)
         Device.refreshLayout(this)
+        if (Root.available()) Displays.collectLeds()
         FeedbackBubble.start(this)
         // the tablet view (test builds) is gone for good: a density it left behind goes back to the old value
         Thread {
