@@ -2152,6 +2152,43 @@ class ControlCenter(private val svc: HugminnService) {
     /** Odin 2: tab of the LED window – 0 sticks (AYN's colour, on/off each), 1 sides (own colours, effects). */
     private var ledTab = 1
 
+    /** Chips that wrap to the next line when the width runs out (16:9 and 4:3 alike). */
+    private class Flow(ctx: android.content.Context, private val gapX: Int, private val gapY: Int) : android.view.ViewGroup(ctx) {
+        override fun onMeasure(ws: Int, hs: Int) {
+            val maxW = MeasureSpec.getSize(ws).let { if (MeasureSpec.getMode(ws) == MeasureSpec.UNSPECIFIED) Int.MAX_VALUE else it }
+            var x = 0; var y = 0; var lineH = 0; var widest = 0
+            for (i in 0 until childCount) {
+                val c = getChildAt(i)
+                val lp = c.layoutParams
+                c.measure(if (lp.width > 0) MeasureSpec.makeMeasureSpec(lp.width, MeasureSpec.EXACTLY) else MeasureSpec.makeMeasureSpec(maxW, MeasureSpec.AT_MOST),
+                    if (lp.height > 0) MeasureSpec.makeMeasureSpec(lp.height, MeasureSpec.EXACTLY) else MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+                if (x > 0 && x + c.measuredWidth > maxW) { x = 0; y += lineH + gapY; lineH = 0 }
+                x += c.measuredWidth + gapX
+                widest = maxOf(widest, x - gapX)
+                lineH = maxOf(lineH, c.measuredHeight)
+            }
+            setMeasuredDimension(if (MeasureSpec.getMode(ws) == MeasureSpec.EXACTLY) maxW else widest, y + lineH)
+        }
+        override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+            val maxW = r - l
+            var x = 0; var y = 0; var lineH = 0
+            for (i in 0 until childCount) {
+                val c = getChildAt(i)
+                if (x > 0 && x + c.measuredWidth > maxW) { x = 0; y += lineH + gapY; lineH = 0 }
+                c.layout(x, y + (lineH.coerceAtLeast(c.measuredHeight) - c.measuredHeight) / 2, x + c.measuredWidth, y + (lineH.coerceAtLeast(c.measuredHeight) - c.measuredHeight) / 2 + c.measuredHeight)
+                x += c.measuredWidth + gapX
+                lineH = maxOf(lineH, c.measuredHeight)
+            }
+        }
+    }
+
+    /** Scrolls when the window is taller than the screen (4:3); never taller than [maxH]. */
+    private class MaxScroll(ctx: android.content.Context, private val maxH: Int) : android.widget.ScrollView(ctx) {
+        override fun onMeasure(ws: Int, hs: Int) = super.onMeasure(ws, MeasureSpec.makeMeasureSpec(maxH, MeasureSpec.AT_MOST))
+    }
+
+    private var ledScroll: android.widget.ScrollView? = null
+
     private fun ledPicker() {
         val r = root ?: return
         val ayn = Device.hasSideLights(svc)
@@ -2175,6 +2212,11 @@ class ControlCenter(private val svc: HugminnService) {
         val usesColor = areaFx == LedEffect.NONE || areaFx == LedEffect.BREATHE || areaFx == LedEffect.PULSE
         val moving = areaFx == LedEffect.RAINBOW || areaFx == LedEffect.RING || areaFx == LedEffect.BREATHE || areaFx == LedEffect.PULSE
         val cells = mutableListOf<LedCell>()
+        // size from the screen: wide on 16:9, the same rules on 4:3 (chips wrap, the window scrolls)
+        val dm = svc.resources.displayMetrics
+        val boxW = (dm.widthPixels * 0.9f).toInt().coerceAtMost(1180 * d)
+        val maxH = dm.heightPixels - 190 * d
+        val wheelSize = minOf(230 * d, (boxW * 0.28f).toInt(), maxH - 20 * d)
         val box = reuse?.apply { removeAllViews() } ?: LinearLayout(svc).apply {
             tag = "led"
             orientation = LinearLayout.VERTICAL
@@ -2225,15 +2267,17 @@ class ControlCenter(private val svc: HugminnService) {
         cells += LedCell("on", sw, swAct)
         box.addView(top, lp(MATCH, WRAP))
 
-        val cols = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
-        box.addView(cols)
+        val cols = LinearLayout(svc).apply { gravity = Gravity.TOP }
+        val scroll = MaxScroll(svc, maxH).apply { isVerticalScrollBarEnabled = false; addView(cols) }
+        ledScroll = scroll
+        box.addView(scroll, lp(MATCH, WRAP))
 
         // --- left: colour wheel (A to steer it with the D-pad, A again to apply, B to cancel);
         // pale when the mode needs no colour
         val wheel = ColorWheel(svc, pal.onSurface).apply { select(current) }
         val wheelBox = FrameLayout(svc).apply { setPadding(6 * d, 6 * d, 6 * d, 6 * d); alpha = if (usesColor) 1f else 0.25f }
         wheelBox.addView(wheel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-        cols.addView(wheelBox, lp(230 * d, 230 * d))
+        cols.addView(wheelBox, lp(wheelSize, wheelSize))
         fun preview(c: Int) {
             val k = Device.ledBrightness(svc)
             val l = if (ledTarget == 2) left else c
@@ -2257,22 +2301,21 @@ class ControlCenter(private val svc: HugminnService) {
 
         // --- right: mode, colour, fine tuning
         val side = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(18 * d, 0, 0, 0) }
-        cols.addView(side)
+        cols.addView(side, lp(0, WRAP, 1f))
 
         // mode: one row for everything (what used to be "display" and "effect")
         side.addView(header(t("Modus", "Mode")))
         val modes = listOf(LedEffect.NONE, LedEffect.BREATHE, LedEffect.PULSE, LedEffect.RAINBOW, LedEffect.RING, LedEffect.BATTERY, LedEffect.TEMP)
-        val perRow = if (svc.resources.displayMetrics.widthPixels < 1600) 4 else 7
-        modes.chunked(perRow).forEachIndexed { ri, part ->
-            val row = LinearLayout(svc).apply { if (ri > 0) setPadding(0, 6 * d, 0, 0) }
-            part.forEach { ef ->
+        run {
+            val row = Flow(svc, 6 * d, 6 * d)
+            modes.forEach { ef ->
                 val c = chip(ef.label, areaFx == ef)
                 val act: () -> Unit = {
                     if (!on) powerOn { setFx(ef); svc.ui.post { refreshAll() }; again("m${ef.ordinal}") }
                     else { setFx(ef); again("m${ef.ordinal}") }
                 }
                 c.setOnClickListener { act() }
-                row.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
+                row.addView(c, android.view.ViewGroup.LayoutParams(WRAP, 34 * d))
                 cells += LedCell("m${ef.ordinal}", c, act)
             }
             side.addView(row)
@@ -2281,7 +2324,7 @@ class ControlCenter(private val svc: HugminnService) {
         // colour: only where the mode uses one – left · both · right (in that order), with their colours
         if (usesColor) {
             side.addView(header(t("Farbe", "Colour")))
-            val targetRow = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+            val targetRow = Flow(svc, 6 * d, 6 * d)
             listOf(1 to tr("Links"), 0 to tr("Beide"), 2 to tr("Rechts")).forEach { (i, label) ->
                 val c = LinearLayout(svc).apply {
                     gravity = Gravity.CENTER
@@ -2293,13 +2336,13 @@ class ControlCenter(private val svc: HugminnService) {
                 }
                 val act = { ledTarget = i; ledFocus = "t$i"; ledPicker() }
                 c.setOnClickListener { act() }
-                targetRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
+                targetRow.addView(c, android.view.ViewGroup.LayoutParams(WRAP, 34 * d))
                 cells += LedCell("t$i", c, act)
             }
             side.addView(targetRow)
-            val presets = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 8 * d, 0, 0) }
+            val presets = Flow(svc, 8 * d, 8 * d).apply { setPadding(0, 8 * d, 0, 0) }
             Device.ledPresets.chunked(6).forEachIndexed { line, list ->
-                val row = LinearLayout(svc)
+                val row = presets
                 list.forEachIndexed { j, (name, c) ->
                     val chosen = (current or 0xFF000000.toInt()) == c && (ledTarget != 0 || left == right)
                     val cell = FrameLayout(svc).apply {
@@ -2309,29 +2352,31 @@ class ControlCenter(private val svc: HugminnService) {
                             FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                     }
                     cell.setOnClickListener { applyLed(c) }
-                    row.addView(cell, lp(36 * d, 36 * d).apply { setMargins(0, 0, 8 * d, 8 * d) })
+                    row.addView(cell, android.view.ViewGroup.LayoutParams(36 * d, 36 * d))
                     cells += LedCell("p${line * 6 + j}", cell) { applyLed(c) }
                 }
-                presets.addView(row)
             }
             side.addView(presets)
         }
 
         // fine tuning: brightness always, speed only for moving modes
         side.addView(header(t("Feineinstellung", "Fine tuning")))
-        val tune = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+        val tune = Flow(svc, 6 * d, 8 * d)
         fun stepper(key: String, label: String, value: String, minus: () -> Unit, plus: () -> Unit) {
             fun btn(sym: String, run: () -> Unit) = text(sym, 18f, pal.onSurface, bold = true).apply {
                 gravity = Gravity.CENTER
                 background = shape(pal.surfaceHighest, 14f * d)
                 setOnClickListener { run() }
             }
-            tune.addView(text(label, 13f, pal.onSurfaceVariant).apply { setPadding(2 * d, 0, 8 * d, 0) })
+            // label, −, value, + stay together on one line
+            val grp = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+            grp.addView(text(label, 13f, pal.onSurfaceVariant).apply { setPadding(2 * d, 0, 8 * d, 0) })
             val m = btn("−", minus)
-            tune.addView(m, lp(38 * d, 34 * d))
-            tune.addView(text(value, 14f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER }, lp(56 * d, WRAP))
+            grp.addView(m, lp(38 * d, 34 * d))
+            grp.addView(text(value, 14f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER }, lp(64 * d, WRAP))
             val p = btn("+", plus)
-            tune.addView(p, lp(38 * d, 34 * d))
+            grp.addView(p, lp(38 * d, 34 * d))
+            tune.addView(grp, android.view.ViewGroup.LayoutParams(WRAP, 34 * d))
             cells += LedCell("${key}-", m, minus)
             cells += LedCell("${key}+", p, plus)
         }
@@ -2342,7 +2387,6 @@ class ControlCenter(private val svc: HugminnService) {
         if (moving) {
             val sp = svc.prefs.ledSpeed
             val si = LedFx.speeds.indexOfFirst { it >= sp }.coerceAtLeast(0)
-            tune.addView(View(svc), lp(14 * d, 1))
             stepper("s", tr("Tempo"), "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
                 { LedFx.setSpeed(svc, LedFx.speeds[(si - 1).coerceAtLeast(0)]); again("s-") },
                 { LedFx.setSpeed(svc, LedFx.speeds[(si + 1).coerceAtMost(LedFx.speeds.lastIndex)]); again("s+") })
@@ -2368,7 +2412,7 @@ class ControlCenter(private val svc: HugminnService) {
         ledCells = cells
         // the focus stays where it was; a section that went away hands it to the current mode
         if (cells.none { it.key == ledFocus }) ledFocus = "m${areaFx.ordinal}"
-        if (reuse == null) r.addView(box, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        if (reuse == null) r.addView(box, FrameLayout.LayoutParams(boxW, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
         showLedSel()
     }
@@ -2377,6 +2421,17 @@ class ControlCenter(private val svc: HugminnService) {
         ledCells?.forEach { c ->
             val sel = c.key == ledFocus && activeWheel == null
             c.view.foreground = if (sel) shape(0, if (c.key == "wheel") 24f * d else 12f * d, 3 * d, pal.onSurface) else null
+        }
+        // keep the chosen field in view when the window scrolls (4:3)
+        val sc = ledScroll
+        val v = ledCells?.firstOrNull { it.key == ledFocus }?.view
+        if (sc != null && v != null && v.isAttachedToWindow) sc.post {
+            runCatching {
+                val rr = android.graphics.Rect()
+                v.getDrawingRect(rr)
+                sc.offsetDescendantRectToMyCoords(v, rr)
+                if (rr.top < sc.scrollY || rr.bottom > sc.scrollY + sc.height) sc.smoothScrollTo(0, (rr.top - sc.height / 3).coerceAtLeast(0))
+            }
         }
     }
 
