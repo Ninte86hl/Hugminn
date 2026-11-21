@@ -710,6 +710,24 @@ class DualMedia(private val svc: HugminnService) {
         return ytRoot() ?: root
     }
 
+    private fun AccessibilityNodeInfo.label(): String = (contentDescription ?: text)?.toString().orEmpty()
+
+    /**
+     * Every node below [root] that [match]es, by walking the tree: YouTube draws much of its screen as
+     * virtual views, which Android's text search does not look into.
+     */
+    private fun findAll(root: AccessibilityNodeInfo, match: (AccessibilityNodeInfo) -> Boolean): List<AccessibilityNodeInfo> {
+        val out = mutableListOf<AccessibilityNodeInfo>()
+        var count = 0
+        fun walk(n: AccessibilityNodeInfo, depth: Int) {
+            if (count++ > 4000 || depth > 60) return
+            if (match(n)) out += n
+            for (i in 0 until n.childCount) n.getChild(i)?.let { walk(it, depth + 1) }
+        }
+        runCatching { walk(root, 0) }
+        return out
+    }
+
     /** The playlist panel (right side) when it is open: it holds the playlist's entries. */
     private fun ytPanel(root: AccessibilityNodeInfo, pkg: String): AccessibilityNodeInfo? {
         val holder = ytNode(root, pkg, "fullscreen_engagement_panel_holder") ?: return null
@@ -723,7 +741,7 @@ class DualMedia(private val svc: HugminnService) {
     private fun ytClosePanel(root: AccessibilityNodeInfo, pkg: String): Boolean {
         val panel = ytPanel(root, pkg) ?: return false
         val pr = bounds(panel)
-        val close = listOf("Schließen", "Close").flatMap { runCatching { root.findAccessibilityNodeInfosByText(it) }.getOrNull().orEmpty() }
+        val close = findAll(root) { n -> n.label().let { it.equals("Schließen", true) || it.equals("Close", true) } }
             .filter { it.isVisibleToUser && pr.contains(bounds(it)) }
             .minByOrNull { bounds(it).top }
         return click(close)
@@ -731,9 +749,17 @@ class DualMedia(private val svc: HugminnService) {
 
     /** Opens the playlist panel with YouTube's "show playlist videos" button. */
     private fun ytOpenPanel(rootIn: AccessibilityNodeInfo, pkg: String): Boolean {
-        val root = ytControlsUp(rootIn, pkg)
+        var start = rootIn
+        // YouTube made small: big again first, the playlist lives in the big player
+        val pb = ytNode(start, pkg, "watch_player")?.let { bounds(it) }
+        if (pb != null && pb.width() in 1..999) {
+            tap(pb.exactCenterX(), pb.exactCenterY())
+            Thread.sleep(1000)
+            start = ytRoot() ?: return false
+        }
+        val root = ytControlsUp(start, pkg)
         val words = listOf("Playlist-Videos anzeigen", "Show playlist videos", "Playlist-Videos", "playlist videos")
-        val hit = words.flatMap { runCatching { root.findAccessibilityNodeInfosByText(it) }.getOrNull().orEmpty() }
+        val hit = findAll(root) { n -> words.any { w -> n.label().contains(w, true) } }
             .firstOrNull { n ->
                 val d = (n.contentDescription ?: n.text)?.toString().orEmpty()
                 // not "add to playlist"
