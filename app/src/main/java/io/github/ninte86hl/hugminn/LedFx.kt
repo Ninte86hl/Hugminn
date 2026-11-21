@@ -10,7 +10,7 @@ import kotlin.math.sin
 enum class LedEffect(private val labelDe: String) {
     NONE("Statisch"),
     RAINBOW("Farbwechsel"),
-    RING("Regenbogen versetzt"),
+    RING("Regenbogen"),
     BREATHE("Atmen"),
     PULSE("Pulsieren"),
     /** Not effects but displays: the sticks show the battery charge or the temperature as a colour. */
