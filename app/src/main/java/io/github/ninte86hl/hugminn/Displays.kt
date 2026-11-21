@@ -92,7 +92,7 @@ object Displays {
                 appendLine("  Tasks je Bildschirm:")
                 it.lines().forEach { l -> appendLine("    " + l.trim().take(200)) }
             }
-            Root.exec("dumpsys window displays | grep -E 'Display: mDisplayId|mCurrentFocus|mFocusedApp|Window #' | head -40", 4_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            Root.exec("dumpsys window windows | grep -E 'Window #|mDisplayId=|mCurrentFocus|mFocusedApp|isVisible=|mHasSurface' | grep -vE 'mHasSurface=false|isVisible=false' | head -90", 5_000)?.trim()?.takeIf { it.isNotEmpty() }?.let {
                 appendLine("  Fenster je Bildschirm (dumpsys):")
                 it.lines().forEach { l -> appendLine("    " + l.trim().take(200)) }
             }
