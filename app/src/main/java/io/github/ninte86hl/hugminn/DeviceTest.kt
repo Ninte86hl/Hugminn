@@ -154,13 +154,13 @@ class DeviceTestActivity : Activity() {
     }
 
     private fun startLedTest() {
-        if (!Root.available() || Device.sys(this, "joystick_light_enabled") == null) { showSummary(); return }
+        if (!Root.available() || !Device.hasStickLeds(this)) { showSummary(); return }
         list.removeAllViews()
         list.addView(text(t("Stick-LEDs", "Stick LEDs"), 18f, fg, true))
         list.addView(text(t("Die Sticks leuchten jetzt rot. Siehst du es?", "The sticks light up red now. Can you see it?"), 15f, fg).apply { setPadding(0, d(6), 0, 0) })
         LedFx.preview(Color.RED, Color.RED, 1f)
         fun answer(seen: Boolean) {
-            add(t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) CheckState.OK else CheckState.FAIL,
+            add(if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) CheckState.OK else CheckState.FAIL,
                 if (seen) "" else t("Farben werden nicht übernommen", "Colours are not applied"))
             runCatching { if (Device.stickLeds(this)) { if (Prefs(this).ledEffect != LedEffect.NONE) LedFx.resume(this) else LedFx.restoreStatic(this) } else LedFx.preview(0, 0, 1f) }
             showSummary()
@@ -255,7 +255,7 @@ object DeviceReport {
             "fan_mode" to t("Lüfterprofile", "Fan profiles"),
             "temp_abxy_layout_mode" to t("Tastenlayout / eingebaute Steuerung aus", "Button layout / built-in controls off"),
             "trigger_input_mode" to t("Trigger-Modus", "Trigger mode"),
-            "joystick_light_enabled" to t("Stick-LEDs", "Stick LEDs"),
+            Device.stickLedKey(this) to t("Stick-LEDs", "Stick LEDs"),
             "is_charging_separation" to t("Direkte Stromversorgung", "Charging separation"),
         ).forEach { (key, name) ->
             val v = Device.sys(this, key)

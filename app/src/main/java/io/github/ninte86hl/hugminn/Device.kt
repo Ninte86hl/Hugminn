@@ -124,22 +124,43 @@ object Device {
         then = then,
     )
 
-    fun stickLeds(ctx: Context) = sys(ctx, "joystick_light_enabled")?.contains("1") == true
-    fun setStickLeds(on: Boolean, then: () -> Unit) =
-        Root.run(Root.putSetting("system", "joystick_light_enabled", if (on) "1,1" else "0,0"), then = then)
+    /**
+     * Stick LEDs: Retroid keeps one setting for both sticks ("1,1"), AYN (Odin 2) one per stick
+     * (left_/right_joystick_light_enabled) and a single colour as a number.
+     */
+    private fun aynLeds(ctx: Context) = isAyn && sys(ctx, "left_joystick_light_enabled") != null
+    fun hasStickLeds(ctx: Context) = sys(ctx, "joystick_light_enabled") != null || aynLeds(ctx)
+    /** The setting the device test shows for the stick LEDs. */
+    fun stickLedKey(ctx: Context) = if (aynLeds(ctx)) "left_joystick_light_enabled" else "joystick_light_enabled"
+
+    fun stickLeds(ctx: Context) =
+        if (aynLeds(ctx)) sysOn(ctx, "left_joystick_light_enabled") || sysOn(ctx, "right_joystick_light_enabled")
+        else sys(ctx, "joystick_light_enabled")?.contains("1") == true
+
+    /** The root commands that switch the stick LEDs on or off. */
+    fun stickLedCmds(ctx: Context, on: Boolean): Array<String> =
+        if (aynLeds(ctx)) arrayOf(
+            Root.putSetting("system", "left_joystick_light_enabled", if (on) "1" else "0"),
+            Root.putSetting("system", "right_joystick_light_enabled", if (on) "1" else "0"),
+        ) else arrayOf(Root.putSetting("system", "joystick_light_enabled", if (on) "1,1" else "0,0"))
+
+    fun setStickLeds(ctx: Context, on: Boolean, then: () -> Unit) = Root.run(*stickLedCmds(ctx, on), then = then)
 
     /** Colours of the stick LEDs as Retroid's LED window stores them: "#AARRGGBB,#AARRGGBB" (left, right). */
     fun ledColors(ctx: Context): Pair<Int, Int>? = try {
+        if (aynLeds(ctx)) return sys(ctx, "led_light_picker_color")?.trim()?.toLongOrNull()?.toInt()?.let { it to it }
         val parts = sys(ctx, "joystick_led_light_picker_color")?.split(',')?.map { android.graphics.Color.parseColor(it.trim()) }
         if (parts == null || parts.isEmpty()) null else parts[0] to parts.getOrElse(1) { parts[0] }
     } catch (t: Throwable) {
         null
     }
 
-    fun setLedColors(left: Int, right: Int, turnOn: Boolean, then: () -> Unit) {
+    fun setLedColors(ctx: Context, left: Int, right: Int, turnOn: Boolean, then: () -> Unit) {
         fun hex(c: Int) = "#%08x".format(c or 0xFF000000.toInt())
-        val cmds = mutableListOf(Root.putSetting("system", "joystick_led_light_picker_color", "${hex(left)},${hex(right)}"))
-        if (turnOn) cmds += Root.putSetting("system", "joystick_light_enabled", "1,1")
+        // AYN: one colour for both sticks, stored as a number
+        val cmds = if (aynLeds(ctx)) mutableListOf(Root.putSetting("system", "led_light_picker_color", "${left or 0xFF000000.toInt()}"))
+            else mutableListOf(Root.putSetting("system", "joystick_led_light_picker_color", "${hex(left)},${hex(right)}"))
+        if (turnOn) cmds += stickLedCmds(ctx, true)
         Root.run(*cmds.toTypedArray(), then = then)
     }
 

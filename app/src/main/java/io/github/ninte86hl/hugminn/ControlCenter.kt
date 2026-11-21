@@ -1564,7 +1564,7 @@ class ControlCenter(private val svc: HugminnService) {
                     Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
                 } else null
         }
-        "leds" -> if (rootOk && Device.sys(svc, "joystick_light_enabled") != null) Tile(tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.stickLeds(svc)) tr("An") else tr("Aus") }, { Device.stickLeds(svc) }, { ledMenu() }) { toggleLeds() } else null
+        "leds" -> if (rootOk && Device.hasStickLeds(svc)) Tile(tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.stickLeds(svc)) tr("An") else tr("Aus") }, { Device.stickLeds(svc) }, { ledMenu() }) { toggleLeds() } else null
         "dnd" -> if (rootOk) Tile(tr("Nicht stören"), IconView.Kind.MOON, { if (Device.dnd(svc)) tr("An") else tr("Aus") }, { Device.dnd(svc) }) {
             Device.setDnd(!Device.dnd(svc)) { refreshAll() }
         } else null
@@ -2032,7 +2032,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun toggleLeds() {
         val on = !Device.stickLeds(svc)
         if (!on) LedFx.stop()
-        Device.setStickLeds(on) {
+        Device.setStickLeds(svc, on) {
             if (on) LedFx.resume(svc)
             refreshAll()
         }
@@ -2043,7 +2043,7 @@ class ControlCenter(private val svc: HugminnService) {
         val pkg = svc.prefs.ledApp.takeIf { it.isNotEmpty() }
         val intent = pkg?.let { svc.packageManager.getLaunchIntentForPackage(it) }
         val entries = mutableListOf<MenuEntry>()
-        entries += MenuEntry(if (on) tr("LEDs ausschalten") else tr("LEDs einschalten")) { Device.setStickLeds(!on) { refreshAll() } }
+        entries += MenuEntry(if (on) tr("LEDs ausschalten") else tr("LEDs einschalten")) { Device.setStickLeds(svc, !on) { refreshAll() } }
         if (intent != null) {
             val label = runCatching { svc.packageManager.getApplicationLabel(svc.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
             entries += MenuEntry(t("Farben & Effekte in $label", "Colours & effects in $label")) {
@@ -2095,7 +2095,7 @@ class ControlCenter(private val svc: HugminnService) {
         val l = if (ledTarget == 2) left else c
         val r = if (ledTarget == 1) right else c
         val keep = svc.prefs.ledEffect == LedEffect.BREATHE || svc.prefs.ledEffect == LedEffect.PULSE
-        Device.setLedColors(l, r, turnOn = !on) {
+        Device.setLedColors(svc, l, r, turnOn = !on) {
             if (keep) LedFx.resume(svc) else LedFx.set(svc, LedEffect.NONE)
             // the window stays open (with the new colour ticked) for further changes
             svc.ui.post {
@@ -2199,7 +2199,7 @@ class ControlCenter(private val svc: HugminnService) {
             val act: () -> Unit = {
                 val again = { svc.ui.post { if (root != null) { ledFocus = "show${ef.ordinal}"; ledPicker() } } }
                 val target = if (ef == LedEffect.NONE) (if (curFx.indicator) LedEffect.NONE else curFx) else ef
-                if (!on) Device.setStickLeds(true) { LedFx.set(svc, target); refreshAll(); again() }
+                if (!on) Device.setStickLeds(svc, true) { LedFx.set(svc, target); refreshAll(); again() }
                 else { LedFx.set(svc, target); again() }
             }
             c.setOnClickListener { act() }
@@ -2219,7 +2219,7 @@ class ControlCenter(private val svc: HugminnService) {
             val act: () -> Unit = {
                 // the window stays open for further adjustments
                 val again = { svc.ui.post { if (root != null) { ledFocus = "fx${ef.ordinal}"; ledPicker() } } }
-                if (!on && ef != LedEffect.NONE) Device.setStickLeds(true) { LedFx.set(svc, ef); refreshAll(); again() }
+                if (!on && ef != LedEffect.NONE) Device.setStickLeds(svc, true) { LedFx.set(svc, ef); refreshAll(); again() }
                 else { LedFx.set(svc, ef); again() }
             }
             c.setOnClickListener { act() }
