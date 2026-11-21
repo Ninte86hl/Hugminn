@@ -165,7 +165,11 @@ object Media {
 
     private fun controller(ctx: Context, pkg: String): android.media.session.MediaController? {
         val msm = ctx.getSystemService(android.media.session.MediaSessionManager::class.java) ?: return null
-        return runCatching { (MediaListener.notificationSessions(ctx) + msm.getActiveSessions(component(ctx))).firstOrNull { it.packageName == pkg } }.getOrNull()
+        // an app may keep several sessions (Prime Video): the one that is really in use
+        return runCatching {
+            val mine = (MediaListener.notificationSessions(ctx) + msm.getActiveSessions(component(ctx))).filter { it.packageName == pkg }
+            mine.firstOrNull { (it.playbackState?.state ?: 0) != 0 } ?: mine.firstOrNull()
+        }.getOrNull()
     }
 
     /** Playback state of [pkg]'s session (PlaybackState.STATE_…), null if it has none. */
