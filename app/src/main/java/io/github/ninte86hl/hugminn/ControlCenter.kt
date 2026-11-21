@@ -559,6 +559,7 @@ class ControlCenter(private val svc: HugminnService) {
         // LED window: its own hints (the north button sets what the light shows)
         if (ledCells != null && (menuView as? View)?.tag == "led") {
             if (ledFocus == "st" && ledTab == 0 && Device.elState(svc, ledEl) > 0) hint(northKey(), tr("Einstellen"))
+            if (ledTab == 0) hint(KeyEvent.KEYCODE_BUTTON_X, tr("Auf alle"))
             hint(KeyEvent.KEYCODE_BUTTON_R1, "Tab")
             hint(KeyEvent.KEYCODE_BUTTON_A, if (ledEditing != null) tr("Fertig") else tr("Auswählen"))
             hint(KeyEvent.KEYCODE_BUTTON_B, if (ledTab != 0) tr("Zurück") else tr("Schließen"))
@@ -571,7 +572,7 @@ class ControlCenter(private val svc: HugminnService) {
                 if (footer.layoutParams?.width == WRAP) lp(WRAP, WRAP) else lp(0, WRAP, 1f))
             if (holding) hint(KeyEvent.KEYCODE_BUTTON_A, tr("Ablegen")) else {
                 hint(KeyEvent.KEYCODE_BUTTON_A, if (elementAt(cursorX, cursorY) >= 0) tr("Optionen") else tr("Hinzufügen"))
-                hint(KeyEvent.KEYCODE_BUTTON_X, tr("Entfernen"))
+                hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Entfernen"))
                 hint(KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             }
             hint(KeyEvent.KEYCODE_BUTTON_B, tr("Fertig"))
@@ -579,12 +580,12 @@ class ControlCenter(private val svc: HugminnService) {
             hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Screenshot")
             if (pages() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
-            if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_X, tr("Optionen"))
+            if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Optionen"))
             if (inside != null) {
                 hint(KeyEvent.KEYCODE_BUTTON_A, t("Verbinden/Trennen", "Connect/disconnect"))
                 hint(KeyEvent.KEYCODE_BUTTON_B, t("Liste verlassen", "Leave list"))
             } else {
-                hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Bearbeiten"))
+                hint(KeyEvent.KEYCODE_BUTTON_X, tr("Bearbeiten"))
                 hint(KeyEvent.KEYCODE_BUTTON_A, if (adjusting) tr("Fertig") else tr("Auswählen"))
                 hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück"))
             }
@@ -1615,12 +1616,12 @@ class ControlCenter(private val svc: HugminnService) {
             profileMenu(tr("Trigger-Modus"), "trigger_input_mode", Device.triggerModes) { v -> Device.setSys("trigger_input_mode", v) { refreshAll() } }
         } else null
         "controller" -> if (rootOk && Device.hasControllerSetting(svc)) Tile(tr("Tastenlayout"), IconView.Kind.GAMEPAD, {
-            if (Device.builtinOff(svc)) t("Aus · externer Controller", "Off · external controller") else if (Glyphs.nintendoLayout()) "Retro" else "Xbox"
+            if (Device.builtinOff(svc)) t("Aus · externer Controller", "Off · external controller") else if (Glyphs.nintendoLayout()) "Retro" else "Modern"
         }, { false }) {
             val off = Device.builtinOff(svc)
             val pad = Device.externalPad()
             showMenu(tr("Tastenlayout"), listOf(
-                MenuEntry(tr("Xbox (A unten)"), checked = !off && !Glyphs.nintendoLayout()) { Device.setControllerLayout(false) { refreshAll() } },
+                MenuEntry(tr("Modern (A unten)"), checked = !off && !Glyphs.nintendoLayout()) { Device.setControllerLayout(false) { refreshAll() } },
                 MenuEntry(t("Retro (A rechts)", "Retro (A on the right)"), checked = !off && Glyphs.nintendoLayout()) { Device.setControllerLayout(true) { refreshAll() } },
                 // like Retroid's quick setting: the built-in controls off while an external controller is used;
                 // without one connected yet, they come back on by themselves if none arrives within 60 s
@@ -2213,8 +2214,26 @@ class ControlCenter(private val svc: HugminnService) {
     private var ledParam = 0
     /** The field that takes left/right right now (entered with A, like the sliders of the Control Center). */
     private var ledEditing: String? = null
-    /** The north face button: Y in the modern layout, X in the retro layout. */
-    private fun northKey() = if (Glyphs.nintendoLayout()) KeyEvent.KEYCODE_BUTTON_X else KeyEvent.KEYCODE_BUTTON_Y
+    /** Mode, colour, effect and brightness of the chosen light for every light. */
+    private fun copyLedToAll() {
+        val n = Device.ledElNames(svc).size
+        val i = ledEl.coerceIn(0, n - 1)
+        val st = Device.elStates(svc)
+        val p = svc.prefs
+        val c = Device.elColor(svc, i)
+        val fx = Device.elFx(svc, i)
+        val b = Device.elBright(svc, i)
+        for (k in 0 until n) { p.setLedElColor(k, c); p.setLedElFx(k, fx); p.setLedElB(k, b) }
+        Device.setElStates(svc, IntArray(n) { st[i] }) {
+            svc.ui.post {
+                refreshAll()
+                if (root != null && ledCells != null) { ledPicker(); Toast.makeText(svc, tr("Auf alle Lichter übertragen"), Toast.LENGTH_SHORT).show() }
+            }
+        }
+    }
+
+    /** The north face button (key codes go by position inside Hugminn, see Glyphs.logical). */
+    private fun northKey() = KeyEvent.KEYCODE_BUTTON_Y
 
     /** Came to a setting with the north button: choosing or cancelling goes back to "Zeigt". */
     private var ledViaNorth = false
@@ -2708,6 +2727,11 @@ class ControlCenter(private val svc: HugminnService) {
             return
         }
         ledEditing = null
+        // west button (Gerät tab): what the chosen light shows goes to all lights
+        if (code == KeyEvent.KEYCODE_BUTTON_X) {
+            if (ledTab == 0) copyLedToAll()
+            return
+        }
         // north button on "Zeigt": straight to the setting of what the light shows
         if (code == northKey()) {
             if (cur.key == "st" && ledTab == 0) when (Device.elState(svc, ledEl)) {
@@ -3185,12 +3209,13 @@ class ControlCenter(private val svc: HugminnService) {
                 el >= 0 -> elementMenu(el)
                 else -> addMenu()
             }
-            KeyEvent.KEYCODE_BUTTON_X -> if (el >= 0) {
+            // north removes, west ends editing (it also started it)
+            KeyEvent.KEYCODE_BUTTON_Y -> if (el >= 0) {
                 entries.removeAt(el)
                 holding = false
                 renderGrid()
             }
-            KeyEvent.KEYCODE_BUTTON_Y -> if (el < 0) addMenu() else elementMenu(el)
+            KeyEvent.KEYCODE_BUTTON_X -> if (holding) { holding = false; renderGrid() } else finishEdit()
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> if (holding) { holding = false; renderGrid() } else finishEdit()
@@ -3814,7 +3839,7 @@ class ControlCenter(private val svc: HugminnService) {
             head.addView(text(t, 12f, pal.onSurfaceVariant).apply { setPadding(5 * d, 0, 12 * d, 0) })
         }
         h(KeyEvent.KEYCODE_BUTTON_A, tr("Hinzufügen / Verschieben"))
-        h(KeyEvent.KEYCODE_BUTTON_X, tr("Entfernen"))
+        h(KeyEvent.KEYCODE_BUTTON_Y, tr("Entfernen"))
         h(KeyEvent.KEYCODE_BUTTON_B, tr("Fertig"))
         box.addView(head)
         val content = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
@@ -4036,8 +4061,8 @@ class ControlCenter(private val svc: HugminnService) {
                 KeyEvent.KEYCODE_DPAD_UP -> gridMove(0, -1)
                 KeyEvent.KEYCODE_DPAD_DOWN -> gridMove(0, 1)
                 KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> gridA()
-                KeyEvent.KEYCODE_BUTTON_X -> gridRemove()
-                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_Y -> gridDone()
+                KeyEvent.KEYCODE_BUTTON_Y -> gridRemove()
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_X -> gridDone()
             }
             return true
         }
@@ -4050,7 +4075,7 @@ class ControlCenter(private val svc: HugminnService) {
                 KeyEvent.KEYCODE_BUTTON_R1 -> moveEdit(1)
                 KeyEvent.KEYCODE_DPAD_LEFT -> if (editAdjust != null) adjustEdit(-1) else moveEdit(-1)
                 KeyEvent.KEYCODE_DPAD_RIGHT -> if (editAdjust != null) adjustEdit(1) else moveEdit(1)
-                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_Y -> closeEditor()
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_X -> closeEditor()
             }
             return true
         }
@@ -4112,8 +4137,9 @@ class ControlCenter(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()
-            KeyEvent.KEYCODE_BUTTON_X -> if (focusVisible) item?.onY?.invoke()
-            KeyEvent.KEYCODE_BUTTON_Y -> editMenu()
+            // north: options of the tile, west: edit the layout
+            KeyEvent.KEYCODE_BUTTON_Y -> if (focusVisible) item?.onY?.invoke()
+            KeyEvent.KEYCODE_BUTTON_X -> editMenu()
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close()
         }
         return true

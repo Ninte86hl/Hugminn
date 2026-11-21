@@ -253,7 +253,8 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
 
     /** Key events from the activity (down and up); true when handled. */
     fun onKeyEvent(e: KeyEvent): Boolean {
-        val code = e.keyCode
+        // by position: north (Y) shift, west (X) delete – on every layout
+        val code = Glyphs.logical(e.keyCode)
         val isA = code == KeyEvent.KEYCODE_BUTTON_A || code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
         if (isA) {
             if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {

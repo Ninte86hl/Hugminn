@@ -370,8 +370,8 @@ class SetupActivity : Activity() {
                 t("Home lang", "Home long") to t("Control Center öffnen", "Open the Control Center"),
                 KeyEvent.KEYCODE_DPAD_LEFT to t("Feld auswählen", "Choose a tile"),
                 KeyEvent.KEYCODE_BUTTON_A to t("Schalten / Regler bestätigen", "Toggle / confirm a slider"),
-                KeyEvent.KEYCODE_BUTTON_X to t("Untermenü (WLAN, LEDs …)", "Submenu (Wi-Fi, LEDs …)"),
-                KeyEvent.KEYCODE_BUTTON_Y to t("Bearbeiten und anordnen", "Edit and arrange"),
+                KeyEvent.KEYCODE_BUTTON_Y to t("Untermenü (WLAN, LEDs …)", "Submenu (Wi-Fi, LEDs …)"),
+                KeyEvent.KEYCODE_BUTTON_X to t("Bearbeiten und anordnen", "Edit and arrange"),
                 "Select" to "Screenshot",
             ))
         }
@@ -402,7 +402,7 @@ class SetupActivity : Activity() {
             14f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, 0) })
     }
 
-    /** Button symbols: Xbox, Nintendo or PlayStation, coloured or plain, shown large. */
+    /** Button symbols: Modern, Retro or Modern (alternative, shapes), coloured or plain, shown large. */
     private fun buttonsPage(b: LinearLayout) {
         val row = LinearLayout(this).apply { gravity = Gravity.TOP }
         // the four face buttons in their places (diamond), large, instead of a picture
@@ -416,17 +416,18 @@ class SetupActivity : Activity() {
         val nin = Glyphs.nintendoLayout()
         val bottom = if (nin) KeyEvent.KEYCODE_BUTTON_B else KeyEvent.KEYCODE_BUTTON_A
         val right = if (nin) KeyEvent.KEYCODE_BUTTON_A else KeyEvent.KEYCODE_BUTTON_B
-        val left = if (nin) KeyEvent.KEYCODE_BUTTON_Y else KeyEvent.KEYCODE_BUTTON_X
-        val top = if (nin) KeyEvent.KEYCODE_BUTTON_X else KeyEvent.KEYCODE_BUTTON_Y
+        // inside Hugminn X is always west and Y north (Glyphs.logical): the symbols show the real letter
+        val left = KeyEvent.KEYCODE_BUTTON_X
+        val top = KeyEvent.KEYCODE_BUTTON_Y
         put(top, 92, 16); put(left, 30, 76); put(right, 154, 76); put(bottom, 92, 136)
         row.addView(diamond, LinearLayout.LayoutParams(d(240), d(210)).apply { marginEnd = d(28) })
         val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         c.addView(text(tr("Tastensymbole"), 26f, pal.onSurface, bold = true))
         c.addView(text(
             t("So zeigt Hugminn die Tasten in allen Hinweisen an. „Automatisch“ folgt dem Tastenlayout aus den Retroid-Einstellungen" +
-                (if (nin) " – dein Gerät nutzt gerade das Retro-Layout (A rechts)." else " – dein Gerät nutzt gerade das Xbox-Layout (A unten)."),
+                (if (nin) " – dein Gerät nutzt gerade das Retro-Layout (A rechts)." else " – dein Gerät nutzt gerade das Modern-Layout (A unten)."),
                 "This is how Hugminn shows the buttons in all hints. “Automatic” follows the button layout in the Retroid settings" +
-                    (if (nin) " – your device currently uses the Retro layout (A on the right)." else " – your device currently uses the Xbox layout (A at the bottom).")),
+                    (if (nin) " – your device currently uses the Retro layout (A on the right)." else " – your device currently uses the Modern layout (A at the bottom).")),
             14f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(8), 0, 0) })
         row.addView(c, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -434,9 +435,9 @@ class SetupActivity : Activity() {
         options?.let { o ->
             option(o, tr("Stil"), {
                 when (prefs.glyphStyle) {
-                    GlyphStyle.XBOX -> t("A, B, X, Y wie beim Xbox-Controller", "A, B, X, Y like the Xbox controller")
+                    GlyphStyle.XBOX -> t("A, B, X, Y im Modern-Layout (A unten)", "A, B, X, Y in the Modern layout (A at the bottom)")
                     GlyphStyle.NINTENDO -> t("A, B, X, Y im Retro-Layout (A rechts)", "A, B, X, Y in the Retro layout (A on the right)")
-                    GlyphStyle.PLAYSTATION -> t("Kreuz, Kreis, Quadrat, Dreieck", "Cross, circle, square, triangle")
+                    GlyphStyle.PLAYSTATION -> t("Modern mit Formen: Kreuz, Kreis, Quadrat, Dreieck", "Modern with shapes: cross, circle, square, triangle")
                     else -> t("Folgt dem Tastenlayout des Geräts", "Follows the device's button layout")
                 }
             }, { prefs.glyphStyle.label }) { prefs.glyphStyle = cycle(GlyphStyle.values().toList(), prefs.glyphStyle) }

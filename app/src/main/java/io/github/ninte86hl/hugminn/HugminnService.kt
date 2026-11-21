@@ -358,11 +358,13 @@ class HugminnService : AccessibilityService() {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) Shot.take(this)
             return true
         }
+        // the overlays go by button position (north, west …), the same on every layout
+        val ev = Glyphs.logical(event)
         return try {
             when {
-                controlCenter.isOpen -> controlCenter.onKey(event)
-                own.isOpen -> own.onKey(event)
-                switcher.isOpen -> switcher.onKey(event)
+                controlCenter.isOpen -> controlCenter.onKey(ev)
+                own.isOpen -> own.onKey(ev)
+                switcher.isOpen -> switcher.onKey(ev)
                 else -> false
             }
         } catch (t: Throwable) {

@@ -128,12 +128,29 @@ object Glyphs {
         InputDevice.getDevice(id)?.name?.contains("Retroid Pocket Controller", ignoreCase = true) == true
     }
 
+    /**
+     * Inside Hugminn the two upper face buttons go by position, the same on every device and layout:
+     * Y stands for the north button, X for the west one (the retro layout's X/Y are swapped on the
+     * way in, see [logical]). A and B follow the layout: confirm and back as on that console.
+     */
     fun posOf(keyCode: Int, nintendo: Boolean = nintendoLayout()): Pos? = when (keyCode) {
         KeyEvent.KEYCODE_BUTTON_A -> if (nintendo) Pos.RIGHT else Pos.BOTTOM
         KeyEvent.KEYCODE_BUTTON_B -> if (nintendo) Pos.BOTTOM else Pos.RIGHT
-        KeyEvent.KEYCODE_BUTTON_X -> if (nintendo) Pos.TOP else Pos.LEFT
-        KeyEvent.KEYCODE_BUTTON_Y -> if (nintendo) Pos.LEFT else Pos.TOP
+        KeyEvent.KEYCODE_BUTTON_X -> Pos.LEFT
+        KeyEvent.KEYCODE_BUTTON_Y -> Pos.TOP
         else -> null
+    }
+
+    /** The key code Hugminn works with: in the retro layout the north button (X) becomes Y, the west one (Y) X. */
+    fun logical(code: Int): Int = if (!nintendoLayout()) code else when (code) {
+        KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
+        KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
+        else -> code
+    }
+
+    fun logical(e: KeyEvent): KeyEvent {
+        val c = logical(e.keyCode)
+        return if (c == e.keyCode) e else KeyEvent(e.downTime, e.eventTime, e.action, c, e.repeatCount, e.metaState, e.deviceId, e.scanCode, e.flags, e.source)
     }
 
     private fun styleFor(prefs: Prefs, nintendo: Boolean) = when (prefs.glyphStyle) {
