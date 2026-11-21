@@ -191,12 +191,14 @@ class DeviceTestActivity : Activity() {
             fun only(k: String?) = keys.map { Root.putSetting("system", it, if (it == k) "1" else "0") } +
                 Root.putSetting("system", "led_light_picker_color", "${0xFFFF0000.toInt()}")
             val allOff = keys.map { Root.putSetting("system", it, "0") }
+            // the driver only lights what the firmware has switched on: everything on, then dark via the driver
+            val allOn = keys.map { Root.putSetting("system", it, "1") }
             val probes = mutableListOf<Probe>()
             keys.forEach { k -> probes += Probe("AYN: $k", only(k), emptyList()) }
             // the LED driver: each side, each zone on its own (everything else dark)
             val dark = (1..4).flatMap { z -> listOf('l', 'r').map { side -> "echo $z-0:0:0:255 > /sys/class/sn3112$side/led/brightness" } }
             for (side in listOf('l', 'r')) for (z in 1..4)
-                probes += Probe("sn3112$side Zone $z", allOff + dark + "echo $z-255:0:0:255 > /sys/class/sn3112$side/led/brightness", dark)
+                probes += Probe("sn3112$side Zone $z", allOn + listOf("sleep 0.4") + dark + "echo $z-255:0:0:255 > /sys/class/sn3112$side/led/brightness", dark)
             // other light drivers of the device (not the screen, flash or vibration)
             val leds = Root.execLong("ls /sys/class/leds/ 2>/dev/null", 3_000)?.lines()?.map { it.trim() }?.filter {
                 it.isNotEmpty() && !Regex("lcd|backlight|wled|flash|torch|vibrator|haptic|mmc|charging|battery", RegexOption.IGNORE_CASE).containsMatchIn(it)
