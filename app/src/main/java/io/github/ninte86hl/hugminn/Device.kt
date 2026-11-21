@@ -359,6 +359,19 @@ object Device {
     fun setLedBrightness(percent: Int, then: () -> Unit) =
         Root.run(Root.putSetting("system", "led_light_brightness_percent", "%.2f".format(java.util.Locale.US, percent / 100f)), then = then)
 
+    /** The LED window's 3×3 colours. */
+    val ledGrid get() = listOf(
+        tr("Weiß") to 0xFFFFFFFF.toInt(),
+        tr("Rot") to 0xFFFF0000.toInt(),
+        "Orange" to 0xFFFF6600.toInt(),
+        tr("Gelb") to 0xFFFFDD00.toInt(),
+        tr("Grün") to 0xFF00FF00.toInt(),
+        "Cyan" to 0xFF00FFFF.toInt(),
+        tr("Blau") to 0xFF0000FF.toInt(),
+        tr("Lila") to 0xFF8800FF.toInt(),
+        "Magenta" to 0xFFFF00FF.toInt(),
+    )
+
     val ledPresets get() = listOf(
         tr("Weiß") to 0xFFFFFFFF.toInt(),
         tr("Rot") to 0xFFFF0000.toInt(),
