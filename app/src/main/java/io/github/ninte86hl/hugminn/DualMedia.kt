@@ -121,26 +121,33 @@ class DualMedia(private val svc: HugminnService) {
     }
 
     /**
-     * Apps without a cover (Disney+, Crunchyroll, Prime Video …): one picture of the playing video,
-     * taken a few seconds after the title started (not an old one from the app's menu), black bars
-     * cut off, and kept for the whole title.
+     * Apps without a cover (Disney+, Crunchyroll, Prime Video …): a picture of the video up top, taken
+     * once it plays and again after every play/pause (a moment later, when the picture has settled),
+     * black bars cut off. A new title starts without one until it plays.
      */
     private var frozenFor: String? = null
     private var frozen: android.graphics.Bitmap? = null
-    private var titleSince = 0L
+    private var lastPlaying: Boolean? = null
+    private var grabAt = 0L
     private var grabbing = false
 
     private fun grabArt(fg: String) {
         if (Media.art != null) return
         val key = "${Media.app}|${Media.title}"
-        if (frozenFor != key) { frozenFor = key; frozen = null; titleSince = SystemClock.uptimeMillis() }
-        if (frozen != null || grabbing || !Media.playing || Media.app != fg) return
-        if (SystemClock.uptimeMillis() - titleSince < 4000) return
+        val now = SystemClock.uptimeMillis()
+        if (frozenFor != key) { frozenFor = key; frozen = null; lastPlaying = null; grabAt = 0 }
+        // play or pause: a new picture shortly after (the first one only once the video plays)
+        if (lastPlaying != Media.playing) {
+            if (Media.playing || frozen != null) grabAt = now + 2500
+            lastPlaying = Media.playing
+        }
+        if (grabAt == 0L || now < grabAt || grabbing || Media.app != fg) return
+        grabAt = 0
         grabbing = true
         Snapshots.capture(svc, fg)
         svc.ui.postDelayed({
             grabbing = false
-            if (frozenFor == key) frozen = Snapshots.get(svc, fg)?.let { trimBars(it) }
+            if (frozenFor == key) Snapshots.get(svc, fg)?.let { frozen = trimBars(it); refreshParts() }
         }, 900)
     }
 
