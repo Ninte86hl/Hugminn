@@ -86,6 +86,7 @@ object Displays {
         if (Landscape.diag.isNotEmpty()) appendLine("  Querformat: " + Landscape.diag)
         if (DualMedia.diag.isNotEmpty()) appendLine("  Player unten: " + DualMedia.diag)
         if (ledInfo.isNotEmpty()) { appendLine("  LED-Treiber:"); ledInfo.lines().forEach { appendLine("    $it") } }
+        if (ledProbe.isNotEmpty()) { appendLine("  LED-Tester:"); ledProbe.trim().lines().forEach { appendLine("    $it") } }
         // the root dumps take seconds: never on the main thread (keys pass it – Hugminn froze and
         // Android stopped it); the picture taken in the background before opening has them
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) appendLine("  (Fensterliste: siehe „Vor dem Öffnen“)")
@@ -109,6 +110,9 @@ object Displays {
      */
     @Volatile var ledInfo = ""
         private set
+
+    /** Answers of the LED tester in the device test (Odin 2). */
+    @Volatile var ledProbe = ""
 
     fun collectLeds() {
         if (!Device.isAyn) return
