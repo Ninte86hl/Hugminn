@@ -212,6 +212,7 @@ object Lang {
         "Wie schnell der Effekt abläuft" to "How fast the effect runs",
         "✓ läuft gerade" to "✓ running",
         "A übernimmt den Effekt" to "A applies the effect",
+        "Was der Balken darunter einstellt" to "What the bar below sets",
         "Linker Stick" to "Left stick",
         "Rechter Stick" to "Right stick",
         "Linke Seite" to "Left side",
