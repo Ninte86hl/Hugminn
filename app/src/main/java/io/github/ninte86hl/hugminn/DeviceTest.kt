@@ -158,6 +158,7 @@ class DeviceTestActivity : Activity() {
         list.removeAllViews()
         list.addView(text(t("Stick-LEDs", "Stick LEDs"), 18f, fg, true))
         list.addView(text(t("Die Sticks leuchten jetzt rot. Siehst du es?", "The sticks light up red now. Can you see it?"), 15f, fg).apply { setPadding(0, d(6), 0, 0) })
+        LedFx.previewZone = 2  // Odin 2: zone 2 = sticks
         LedFx.preview(Color.RED, Color.RED, 1f)
         fun answer(seen: Boolean) {
             add(if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) CheckState.OK else CheckState.FAIL,

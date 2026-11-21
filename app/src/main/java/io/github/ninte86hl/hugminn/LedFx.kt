@@ -102,11 +102,35 @@ object LedFx {
     private fun load(ctx: Context) {
         speed = Prefs(ctx).ledSpeed
         brightness = (Device.ledBrightness(ctx) * 100).toInt()
+        odin = Device.hasSideLights(ctx)
+    }
+
+    /**
+     * Odin 2: sticks and sides are separate zones on the drivers (zone 2 stick, zone 1 side), each
+     * with its own colours and effect. Hugminn then always drives them itself.
+     */
+    @Volatile private var odin = false
+
+    /** The effect of the side lights (Odin 2). */
+    fun currentSide() = if (running && !lowBattery && !recording) sideEffect else LedEffect.NONE
+    @Volatile private var sideEffect = LedEffect.NONE
+
+    fun setSide(ctx: Context, e: LedEffect) {
+        Prefs(ctx).ledEffectSide = e
+        load(ctx)
+        if (lowBattery || recording) return
+        resume(ctx)
     }
 
     /** Starts the remembered effect (service start, LEDs switched on). */
     fun resume(ctx: Context) {
         load(ctx)
+        if (odin) {
+            // Odin 2: one loop for sticks and sides (static colours too – the firmware would paint over them)
+            if (recording || (lowBattery && Device.lightsOn(ctx))) { start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
+            if (Device.lightsOn(ctx)) start(ctx, Prefs(ctx).ledEffect) else stop()
+            return
+        }
         if (recording) { start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
         if (lowBattery) { if (Device.fxOn(ctx)) start(ctx, LedEffect.PULSE, Color.RED to Color.RED); return }
         val e = Prefs(ctx).ledEffect
@@ -121,6 +145,7 @@ object LedFx {
         Prefs(ctx).ledEffect = e
         load(ctx)
         if (lowBattery || recording) return
+        if (odin) { resume(ctx); return }
         if (e == LedEffect.NONE) {
             stop()
             // back to the stored static colours
@@ -143,8 +168,12 @@ object LedFx {
     @Volatile private var previewNext: IntArray? = null
     @Volatile private var previewBusy = false
 
+    /** Odin 2: which zone the colour wheel previews – 2 the sticks, 1 the sides. */
+    @Volatile var previewZone = 1
+
     /** Shows a colour on the sticks right away (colour wheel), without storing it; only the newest is sent. */
     fun preview(left: Int, right: Int, k: Float) {
+        if (odin) stop()
         previewNext = intArrayOf(scale(left, k), scale(right, k))
         synchronized(previewLock) {
             if (previewBusy) return
@@ -154,7 +183,7 @@ object LedFx {
             while (true) {
                 val z = previewNext ?: break
                 previewNext = null
-                Root.exec(command(z), 1_000)
+                Root.exec(if (odin) command(z, previewZone) else command(z), 1_000)
             }
             synchronized(previewLock) { previewBusy = false }
         }.start()
@@ -162,6 +191,11 @@ object LedFx {
 
     /** Writes the stored static colours (at the stored brightness) to the sticks. */
     fun restoreStatic(ctx: Context, delayMs: Long = 0) {
+        if (Device.hasSideLights(ctx)) {
+            // Odin 2: the loop paints sticks and sides
+            Thread { if (delayMs > 0) Thread.sleep(delayMs); resume(ctx) }.start()
+            return
+        }
         val (l, r) = Device.ledColors(ctx) ?: return
         val k = Device.ledBrightness(ctx)
         // Odin 2: the driver lights the sides – dark if they are switched off
@@ -183,6 +217,7 @@ object LedFx {
         running = true
         val app = ctx.applicationContext
         val (left, right) = colors ?: Device.ledColors(app) ?: (Color.WHITE to Color.WHITE)
+        if (odin) { startOdin(app, e, colors); return }
         val t = Thread {
             if (diag.isEmpty()) diag = "Zonen: " + (Root.exec("ls /sys/class/sn3112l/led/ | tr '\\n' ' '") ?: "keine Antwort")
             var phase = 0f
@@ -214,6 +249,67 @@ object LedFx {
         }
         t.isDaemon = true
         t.name = "hugminn-ledfx"
+        thread = t
+        t.start()
+    }
+
+    private fun animated(e: LedEffect) = e == LedEffect.RAINBOW || e == LedEffect.RING || e == LedEffect.BREATHE || e == LedEffect.PULSE
+
+    /**
+     * Odin 2: sticks (zone 2) and sides (zone 1) in one loop, each with its own effect and colours.
+     * [forced]: recording / low battery – both areas pulse in those colours.
+     */
+    private fun startOdin(app: Context, stickE: LedEffect, forced: Pair<Int, Int>?) {
+        val t = Thread {
+            var phase = 0f
+            var last = System.currentTimeMillis()
+            var lastCmd = ""
+            var lastWrite = 0L
+            var state = 0L
+            var sticksOn = true
+            var sidesOn = true
+            var eStick = stickE
+            var eSide = LedEffect.NONE
+            var cStick = Color.WHITE to Color.WHITE
+            var cSide = Color.WHITE to Color.WHITE
+            try {
+                while (!Thread.currentThread().isInterrupted && running) {
+                    val now = System.currentTimeMillis()
+                    phase += (now - last) / 1000f * speed
+                    last = now
+                    // settings and colours: read again once a second
+                    if (now - state > 1000) {
+                        state = now
+                        val p = Prefs(app)
+                        sticksOn = Device.stickLeds(app)
+                        sidesOn = Device.sideLights(app)
+                        if (forced != null) { eStick = LedEffect.PULSE; eSide = LedEffect.PULSE; cStick = forced; cSide = forced }
+                        else {
+                            eStick = p.ledEffect; eSide = p.ledEffectSide
+                            cStick = Device.areaColors(app, false); cSide = Device.areaColors(app, true)
+                        }
+                        effect = eStick
+                        sideEffect = eSide
+                    }
+                    val k = brightness / 100f
+                    val st = if (sticksOn) frame(eStick, phase, cStick.first, cStick.second).map { scale(it, k) } else listOf(0, 0)
+                    val sd = if (sidesOn) frame(eSide, phase + 0.37f, cSide.first, cSide.second).map { scale(it, k) } else listOf(0, 0)
+                    val cmd = command(st.toIntArray(), 2) + "; " + command(sd.toIntArray(), 1)
+                    // write when something changed – and every 2 s anyway, the firmware may paint over it
+                    if (cmd != lastCmd || now - lastWrite > 2000) {
+                        Root.exec(cmd, 1_000)
+                        lastCmd = cmd
+                        lastWrite = now
+                    }
+                    Thread.sleep(if (animated(eStick) || animated(eSide)) FRAME_MS else 250)
+                }
+            } catch (_: InterruptedException) {
+            } catch (t: Throwable) {
+                Crash.note(app, t)
+            }
+        }
+        t.isDaemon = true
+        t.name = "hugminn-ledfx-odin"
         thread = t
         t.start()
     }
@@ -307,6 +403,13 @@ object LedFx {
     private fun hsv(h: Float) = Color.HSVToColor(floatArrayOf(((h % 360f) + 360f) % 360f, 1f, 1f))
 
     private fun scale(c: Int, k: Float) = Color.rgb((Color.red(c) * k).toInt(), (Color.green(c) * k).toInt(), (Color.blue(c) * k).toInt())
+
+    /** One zone on both drivers (left, right). */
+    private fun command(z: IntArray, zone: Int): String {
+        fun part(c: Int, side: Char) =
+            "echo $zone-${Color.red(c)}:${Color.green(c)}:${Color.blue(c)}:255 > /sys/class/sn3112$side/led/brightness"
+        return part(z[0], 'l') + "; " + part(z[1], 'r')
+    }
 
     private fun command(z: IntArray): String {
         fun part(zone: Int, c: Int, side: Char) =

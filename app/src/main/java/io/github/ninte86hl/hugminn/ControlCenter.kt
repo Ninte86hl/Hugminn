@@ -2122,10 +2122,16 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** Sets the colour of the chosen stick(s); breathing/pulsing keep running in the new colour. */
     private fun applyLed(c: Int) {
-        // Odin 2, tab Sticks: AYN's one colour for the sticks
-        if (Device.hasSideLights(svc) && ledTab == 0) {
-            LedFx.stop()
-            Device.setAynStickColor(svc, c) { svc.ui.post { refreshAll(); if (root != null && ledCells != null) ledPicker() } }
+        // Odin 2: sticks or sides (the tab), each with its own colours through the driver
+        if (Device.hasSideLights(svc)) {
+            val side = ledTab == 1
+            val (l0, r0) = Device.areaColors(svc, side)
+            val l = if (ledTarget == 2) l0 else c
+            val rr = if (ledTarget == 1) r0 else c
+            Device.setAreaColors(svc, side, l, rr) {
+                LedFx.resume(svc)
+                svc.ui.post { refreshAll(); if (root != null && ledCells != null) ledPicker() }
+            }
             return
         }
         val on = Device.fxOn(svc)
@@ -2153,10 +2159,15 @@ class ControlCenter(private val svc: HugminnService) {
         // the window is filled again in place (no flicker); a new one only when it was not open
         val reuse = (menuView as? LinearLayout)?.takeIf { it.tag == "led" }
         if (reuse == null) closeMenu()
-        val on = Device.fxOn(svc)
-        val (left, right) = if (sticksTab) Device.aynStickColor(svc).let { it to it }
+        // Odin 2: the tab is the area – sticks (zone 2) or sides (zone 1), each fully on its own
+        val on = if (ayn) (if (sticksTab) Device.stickLeds(svc) else Device.sideLights(svc)) else Device.fxOn(svc)
+        val (left, right) = if (ayn) Device.areaColors(svc, !sticksTab)
             else Device.ledColors(svc) ?: (android.graphics.Color.WHITE to android.graphics.Color.WHITE)
-        val current = if (ledTarget == 2 && !sticksTab) right else left
+        val current = if (ledTarget == 2) right else left
+        LedFx.previewZone = if (sticksTab) 2 else 1
+        val areaFx = if (ayn && !sticksTab) svc.prefs.ledEffectSide else svc.prefs.ledEffect
+        fun setFx(e: LedEffect) = if (ayn && !sticksTab) LedFx.setSide(svc, e) else LedFx.set(svc, e)
+        val powerOn: (() -> Unit) -> Unit = { then -> if (ayn) { if (sticksTab) Device.setStickLeds(svc, true, then) else Device.setSideLights(true, then) } else Root.run(*Device.fxCmds(svc, true)) { then() } }
         val cells = mutableListOf<LedCell>()
         val box = reuse?.apply { removeAllViews() } ?: LinearLayout(svc).apply {
             tag = "led"
@@ -2191,8 +2202,6 @@ class ControlCenter(private val svc: HugminnService) {
         wheelBox.addView(wheel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         cols.addView(wheelBox, lp(230 * d, 230 * d))
         fun preview(c: Int) {
-            // Odin 2 sticks: no live preview (the LED driver only reaches the sides)
-            if (sticksTab) return
             val k = Device.ledBrightness(svc)
             val l = if (ledTarget == 2) left else c
             val rr = if (ledTarget == 1) right else c
@@ -2225,26 +2234,18 @@ class ControlCenter(private val svc: HugminnService) {
         }
 
         val targetRow = LinearLayout(svc)
-        if (sticksTab) {
-            // Odin 2 sticks: on or off together (the LED tester showed AYN switches both at once);
-            // the colour is AYN's one for both
-            side.addView(header("Sticks"))
-            val st = Device.stickLeds(svc)
-            val c = chip(if (st) tr("An") else tr("Aus"), st)
-            val act = { Device.setStickLeds(svc, !st) { svc.ui.post { refreshAll(); ledFocus = "st"; ledPicker() } } }
-            c.setOnClickListener { act() }
-            targetRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
-            cells += LedCell("st", c, act)
-        } else {
-            side.addView(header(if (ayn) t("Seiten", "Sides") else "Stick"))
+        run {
+            side.addView(header(if (!ayn) "Stick" else if (sticksTab) "Sticks" else t("Seiten", "Sides")))
             if (ayn) {
-                // the sides on/off, and back to the sticks' colour
-                val so = Device.sideLights(svc)
-                val c = chip(if (so) tr("An") else tr("Aus"), so)
-                val act = { Device.setSideLights(!so) { svc.ui.post { refreshAll(); ledFocus = "so"; ledPicker() } } }
+                // this area on/off (the sticks switch together, the sides too)
+                val c = chip(if (on) tr("An") else tr("Aus"), on)
+                val act = {
+                    val done = { svc.ui.post { LedFx.resume(svc); refreshAll(); ledFocus = "on"; ledPicker() }; Unit }
+                    if (sticksTab) Device.setStickLeds(svc, !on, done) else Device.setSideLights(!on, done)
+                }
                 c.setOnClickListener { act() }
                 targetRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
-                cells += LedCell("so", c, act)
+                cells += LedCell("on", c, act)
             }
             val targets = if (ayn) listOf(1 to t("Links", "Left"), 2 to t("Rechts", "Right"), 0 to t("Beide", "Both"))
                 else listOf(1 to tr("Links"), 2 to tr("Rechts"), 0 to tr("Beide"))
@@ -2255,13 +2256,6 @@ class ControlCenter(private val svc: HugminnService) {
                 targetRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
                 cells += LedCell("t$i", c, act)
             }
-            if (ayn && Device.aynSplit(svc)) {
-                val c = chip(t("Wie Sticks", "Like sticks"), false)
-                val act = { LedFx.stop(); Device.clearSideColors(svc) { svc.ui.post { refreshAll(); ledFocus = "wheel"; ledPicker() } } }
-                c.setOnClickListener { act() }
-                targetRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
-                cells += LedCell("like", c, act)
-            }
         }
         side.addView(targetRow)
 
@@ -2269,7 +2263,7 @@ class ControlCenter(private val svc: HugminnService) {
         Device.ledPresets.chunked(6).forEachIndexed { line, list ->
             val row = LinearLayout(svc)
             list.forEachIndexed { j, (name, c) ->
-                val chosen = (sticksTab || LedFx.current() == LedEffect.NONE) && (current or 0xFF000000.toInt()) == c && (sticksTab || ledTarget != 0 || left == right)
+                val chosen = !areaFx.let { it != LedEffect.NONE && !it.indicator } && (current or 0xFF000000.toInt()) == c && (ledTarget != 0 || left == right)
                 val cell = FrameLayout(svc).apply {
                     background = shape(c, 10f * d)
                     contentDescription = name
@@ -2285,18 +2279,18 @@ class ControlCenter(private val svc: HugminnService) {
 
         // what the sticks show: the chosen colour (with its effect), the battery or the temperature
         // (Odin 2: only the sides can – the LED driver reaches them, not the sticks)
-        if (!sticksTab) {
+        run {
         side.addView(header(t("Anzeige", "Shows")))
         val showRow = LinearLayout(svc)
-        val curFx = svc.prefs.ledEffect
+        val curFx = areaFx
         listOf(LedEffect.NONE to t("Farbe", "Colour"), LedEffect.BATTERY to t("Akku", "Battery"), LedEffect.TEMP to t("Temperatur", "Temperature")).forEach { (ef, label) ->
             val sel = if (ef == LedEffect.NONE) !curFx.indicator else curFx == ef
             val c = chip(label, sel)
             val act: () -> Unit = {
                 val again = { svc.ui.post { if (root != null) { ledFocus = "show${ef.ordinal}"; ledPicker() } } }
                 val target = if (ef == LedEffect.NONE) (if (curFx.indicator) LedEffect.NONE else curFx) else ef
-                if (!on) Root.run(*Device.fxCmds(svc, true)) { LedFx.set(svc, target); refreshAll(); again() }
-                else { LedFx.set(svc, target); again() }
+                if (!on) powerOn { setFx(target); refreshAll(); again() }
+                else { setFx(target); again() }
             }
             c.setOnClickListener { act() }
             showRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
@@ -2311,12 +2305,12 @@ class ControlCenter(private val svc: HugminnService) {
         val fxRows = mutableListOf(fxRow)
         LedEffect.values().filter { !it.indicator }.forEachIndexed { fi, ef ->
             if (fi > 0 && fi % fxPerRow == 0) { fxRow = LinearLayout(svc).apply { setPadding(0, 6 * d, 0, 0) }; fxRows += fxRow }
-            val c = chip(ef.label, svc.prefs.ledEffect == ef)
+            val c = chip(ef.label, areaFx == ef)
             val act: () -> Unit = {
                 // the window stays open for further adjustments
                 val again = { svc.ui.post { if (root != null) { ledFocus = "fx${ef.ordinal}"; ledPicker() } } }
-                if (!on && ef != LedEffect.NONE) Root.run(*Device.fxCmds(svc, true)) { LedFx.set(svc, ef); refreshAll(); again() }
-                else { LedFx.set(svc, ef); again() }
+                if (!on && ef != LedEffect.NONE) powerOn { setFx(ef); refreshAll(); again() }
+                else { setFx(ef); again() }
             }
             c.setOnClickListener { act() }
             fxRow.addView(c, lp(WRAP, 34 * d).apply { marginEnd = 6 * d })
@@ -2348,8 +2342,8 @@ class ControlCenter(private val svc: HugminnService) {
         stepper("b", tr("Helligkeit"), "$bright %",
             { LedFx.setBrightness(svc, ((bright + 9) / 10 * 10 - 10).coerceAtLeast(10)) { svc.ui.post { again("b-") } } },
             { LedFx.setBrightness(svc, (bright / 10 * 10 + 10).coerceAtMost(100)) { svc.ui.post { again("b+") } } })
-        if (!sticksTab) tune.addView(View(svc), lp(14 * d, 1))
-        if (!sticksTab) stepper("s", tr("Tempo"), "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
+        tune.addView(View(svc), lp(14 * d, 1))
+        stepper("s", tr("Tempo"), "${LedFx.speeds[si].let { if (it % 1f == 0f) it.toInt().toString() else it.toString().replace('.', ',') }}×",
             { LedFx.setSpeed(svc, LedFx.speeds[(si - 1).coerceAtLeast(0)]); again("s-") },
             { LedFx.setSpeed(svc, LedFx.speeds[(si + 1).coerceAtMost(LedFx.speeds.lastIndex)]); again("s+") })
         side.addView(tune)
