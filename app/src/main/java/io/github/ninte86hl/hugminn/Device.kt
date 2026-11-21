@@ -166,6 +166,22 @@ object Device {
 
     fun setStickLeds(ctx: Context, on: Boolean, then: () -> Unit) = Root.run(*stickLedCmds(ctx, on), then = then)
 
+    /** One stick on its own: [left] true = left stick, false = right stick. */
+    fun stickOn(ctx: Context, left: Boolean): Boolean =
+        if (aynLeds(ctx)) sysOn(ctx, if (left) "left_joystick_light_enabled" else "right_joystick_light_enabled")
+        else sys(ctx, "joystick_light_enabled")?.split(',')?.getOrNull(if (left) 0 else 1)?.trim() == "1"
+
+    fun setStick(ctx: Context, left: Boolean, on: Boolean, then: () -> Unit) {
+        if (aynLeds(ctx)) {
+            Root.run(Root.putSetting("system", if (left) "left_joystick_light_enabled" else "right_joystick_light_enabled", if (on) "1" else "0"), then = then)
+            return
+        }
+        // Retroid keeps both in one setting: "left,right"
+        val l = if (left) on else stickOn(ctx, true)
+        val r = if (left) stickOn(ctx, false) else on
+        Root.run(Root.putSetting("system", "joystick_light_enabled", "${if (l) 1 else 0},${if (r) 1 else 0}"), then = then)
+    }
+
     /** AYN Odin 2: lights in the sides of the case (left_/right_handle_light_enabled), same colour as the sticks. */
     fun hasSideLights(ctx: Context) = isAyn && sys(ctx, "left_handle_light_enabled") != null
     fun sideLights(ctx: Context) = sysOn(ctx, "left_handle_light_enabled") || sysOn(ctx, "right_handle_light_enabled")
