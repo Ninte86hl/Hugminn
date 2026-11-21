@@ -245,7 +245,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
         val f = fromPkg
         // cover the app with a black screen so it pauses (and goes quiet) while the switcher is open
-        val pauseIt = { if (isOpen && fromPkg != null && svc.prefs.pauseInSwitcher) PauseActivity.hold(svc, "switcher") }
+        // music and videos keep playing: pausing them would only break the flow
+        val pauseIt = { if (isOpen && fromPkg != null && svc.prefs.pauseInSwitcher && !Media.playsIn(svc, fromPkg)) PauseActivity.hold(svc, "switcher") }
         if (f != null && !swipe) Snapshots.capture(svc, f) { pauseIt(); afterList() } else { pauseIt(); afterList() }
     }
 

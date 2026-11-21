@@ -175,7 +175,7 @@ class ControlCenter(private val svc: HugminnService) {
         r.alpha = 0f
         wm.addView(r, lp)
         // a game under the Control Center pauses (covered like by Android's own overview) and goes on afterwards
-        if (svc.prefs.pauseInCc && !svc.homeInFront && svc.foregroundPkg != null) PauseActivity.hold(svc, "cc")
+        if (svc.prefs.pauseInCc && !svc.homeInFront && svc.foregroundPkg != null && !Media.playsIn(svc, svc.foregroundPkg)) PauseActivity.hold(svc, "cc")
         r.animate().alpha(1f).setDuration(120).start()
         root = r
         r.requestFocus()
