@@ -335,7 +335,7 @@ object Feedback {
     }
 
     private fun dump(n: AccessibilityNodeInfo, depth: Int, sb: StringBuilder, count: IntArray) {
-        if (count[0]++ > 800 || depth > 25) return
+        if (count[0]++ > 2000 || depth > 45) return
         val r = Rect().also(n::getBoundsInScreen)
         sb.append("  ".repeat(depth)).append(n.className?.toString()?.substringAfterLast('.')).append(" id=").append(n.viewIdResourceName)
         n.text?.let { sb.append(" text=\"").append(it.toString().take(40)).append('"') }
