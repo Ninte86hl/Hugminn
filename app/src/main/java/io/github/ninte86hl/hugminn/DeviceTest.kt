@@ -164,7 +164,7 @@ class DeviceTestActivity : Activity() {
             add(if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) CheckState.OK else CheckState.FAIL,
                 if (seen) "" else t("Farben werden nicht übernommen", "Colours are not applied"))
             runCatching { if (Device.stickLeds(this)) { if (Prefs(this).ledEffect != LedEffect.NONE) LedFx.resume(this) else LedFx.restoreStatic(this) } else LedFx.preview(0, 0, 1f) }
-            if (Device.hasSideLights(this)) startLedProbe() else showSummary()
+            startLedProbe()
         }
         setButtons(button(t("Nein", "No")) { answer(false) }, button(t("Ja", "Yes"), primary = true) { answer(true) })
     }
@@ -174,32 +174,45 @@ class DeviceTestActivity : Activity() {
     /** One step: switch something on, ask what lights up, put it back. */
     private class Probe(val name: String, val on: List<String>, val off: List<String>)
 
-    private val lightNames get() = listOf(
-        t("Linker Stick", "Left stick"), t("Rechter Stick", "Right stick"),
-        t("Linke Seite", "Left side"), t("Rechte Seite", "Right side"),
-    )
+    /** What can light up: the device's elements, and anything else. */
+    private val lightNames get() = Device.ledElNames(this) + t("Etwas anderes", "Something else")
 
     /**
      * Lights one setting or driver zone after the other in red and asks what lit up – so it is clear
-     * which switch drives which light. The answers go into the result (and the feedback report).
+     * which switch drives which light (Odin 2, Thor, Retroid). The answers go into the result (and the
+     * feedback report).
      */
     private fun startLedProbe() {
         status(t("LED-Tester wird vorbereitet …", "Preparing the LED tester …"))
         Thread {
-            val keys = listOf("left_joystick_light_enabled", "right_joystick_light_enabled", "left_handle_light_enabled", "right_handle_light_enabled")
-            val before = keys.associateWith { Device.sys(this, it) ?: "1" }
-            val colorBefore = Device.sys(this, "led_light_picker_color") ?: "-1"
-            fun only(k: String?) = keys.map { Root.putSetting("system", it, if (it == k) "1" else "0") } +
-                Root.putSetting("system", "led_light_picker_color", "${0xFFFF0000.toInt()}")
-            val allOff = keys.map { Root.putSetting("system", it, "0") }
-            // the driver only lights what the firmware has switched on: everything on, then dark via the driver
-            val allOn = keys.map { Root.putSetting("system", it, "1") }
             val probes = mutableListOf<Probe>()
-            keys.forEach { k -> probes += Probe("AYN: $k", only(k), emptyList()) }
-            // the LED driver: each side, each zone on its own (everything else dark)
-            val dark = (1..4).flatMap { z -> listOf('l', 'r').map { side -> "echo $z-0:0:0:255 > /sys/class/sn3112$side/led/brightness" } }
-            for (side in listOf('l', 'r')) for (z in 1..4)
-                probes += Probe("sn3112$side Zone $z", allOn + listOf("sleep 0.4") + dark + "echo $z-255:0:0:255 > /sys/class/sn3112$side/led/brightness", dark)
+            val restore = mutableListOf<String>()
+            val allOn: List<String>
+            if (Device.isAyn) {
+                val keys = listOf("left_joystick_light_enabled", "right_joystick_light_enabled", "left_handle_light_enabled", "right_handle_light_enabled")
+                    .filter { Device.sys(this, it) != null }
+                val before = keys.associateWith { Device.sys(this, it) ?: "1" }
+                val colorBefore = Device.sys(this, "led_light_picker_color") ?: "-1"
+                fun only(k: String?) = keys.map { Root.putSetting("system", it, if (it == k) "1" else "0") } +
+                    Root.putSetting("system", "led_light_picker_color", "${0xFFFF0000.toInt()}")
+                keys.forEach { k -> probes += Probe("AYN: $k", only(k), emptyList()) }
+                allOn = keys.map { Root.putSetting("system", it, "1") }
+                restore += keys.map { Root.putSetting("system", it, before[it] ?: "1") } + Root.putSetting("system", "led_light_picker_color", colorBefore)
+            } else {
+                // Retroid: one setting "left,right" and the colours "#left,#right"
+                val en = Device.sys(this, "joystick_light_enabled") ?: "1,1"
+                val col = Device.sys(this, "joystick_led_light_picker_color")
+                val red = Root.putSetting("system", "joystick_led_light_picker_color", "#ffff0000,#ffff0000")
+                for (v in listOf("1,0", "0,1")) probes += Probe("Retroid: joystick_light_enabled=$v", listOf(Root.putSetting("system", "joystick_light_enabled", v), red), emptyList())
+                allOn = listOf(Root.putSetting("system", "joystick_light_enabled", "1,1"))
+                restore += Root.putSetting("system", "joystick_light_enabled", en)
+                if (col != null) restore += Root.putSetting("system", "joystick_led_light_picker_color", col)
+            }
+            // the LED drivers: each one, each zone on its own (everything else dark)
+            val drivers = Root.execLong("ls -d /sys/class/sn3112* 2>/dev/null", 3_000)?.lines()?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+            val dark = drivers.flatMap { dv -> (1..4).map { z -> "echo $z-0:0:0:255 > $dv/led/brightness" } }
+            for (dv in drivers) for (z in 1..4)
+                probes += Probe("${dv.substringAfterLast('/')} Zone $z", allOn + listOf("sleep 0.4") + dark + "echo $z-255:0:0:255 > $dv/led/brightness", dark)
             // other light drivers of the device (not the screen, flash or vibration)
             val leds = Root.execLong("ls /sys/class/leds/ 2>/dev/null", 3_000)?.lines()?.map { it.trim() }?.filter {
                 it.isNotEmpty() && !Regex("lcd|backlight|wled|flash|torch|vibrator|haptic|mmc|charging|battery", RegexOption.IGNORE_CASE).containsMatchIn(it)
@@ -207,9 +220,9 @@ class DeviceTestActivity : Activity() {
             leds.forEach { l ->
                 val max = Root.exec("cat /sys/class/leds/$l/max_brightness")?.trim()?.toIntOrNull() ?: 255
                 val was = Root.exec("cat /sys/class/leds/$l/brightness")?.trim()?.toIntOrNull() ?: 0
-                probes += Probe("leds/$l", allOff + "echo $max > /sys/class/leds/$l/brightness", listOf("echo $was > /sys/class/leds/$l/brightness"))
+                probes += Probe("leds/$l", listOf("echo $max > /sys/class/leds/$l/brightness"), listOf("echo $was > /sys/class/leds/$l/brightness"))
             }
-            val restore = keys.map { Root.putSetting("system", it, before[it] ?: "1") } + Root.putSetting("system", "led_light_picker_color", colorBefore)
+            Displays.ledProbe += "Treiber: ${drivers.joinToString().ifEmpty { "keine" }} · leds: ${leds.joinToString().ifEmpty { "keine" }}\n"
             runOnUiThread { probeStep(probes, 0, restore) }
         }.start()
     }
