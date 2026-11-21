@@ -12,6 +12,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Device test: lists further screens (dual-screen handhelds like the AYN Thor) – the groundwork for dual-screen support.
 - AYN handhelds: the built-in "Odin Controller" is recognised as the handheld's own controls, not as an external controller.
 - AYN handhelds: the trigger mode tile (digital, analog or both) also shows before the mode was ever changed in AYN's settings, with AYN's own numbering of analog and digital.
+- Video apps as a tablet (root): Netflix, Disney+, Prime Video and Crunchyroll get their tablet layout while in front (smallest width 600 dp on their screen) – much more room in 16:9. Back to normal as soon as another app is in front; Hugminn itself keeps its size, the status bar and quick settings are smaller meanwhile. Settings → Game Switcher.
 - Video apps always landscape: while YouTube, Netflix, Disney+, Prime Video or Crunchyroll is in front, Hugminn asks Android for landscape (like rotation apps do), so the whole app is shown sideways – home page, search and comments too, not only full-screen videos. No root needed. Settings → Game Switcher → Video apps always landscape.
 - Player on the second screen in every style: buttons, bars and icons follow the chosen look (pixel blocks, dots, Cocoon …); the dim button is now a moon.
 - Hide the navigation bar (root): the bar or gesture line at the bottom disappears everywhere, a swipe from the bottom edge brings it back for a moment. Settings → Look.
@@ -30,6 +31,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Gerätetest: zeigt weitere Bildschirme an (Dual-Screen-Handhelds wie der AYN Thor) – die Grundlage für die Dual-Screen-Unterstützung.
 - AYN-Handhelds: Der eingebaute „Odin Controller“ wird als eigene Steuerung des Geräts erkannt, nicht als externer Controller.
 - AYN-Handhelds: Die Kachel Trigger-Modus (digital, analog oder beides) erscheint auch, wenn der Modus in AYNs Einstellungen noch nie umgestellt wurde, mit AYNs eigener Zuordnung von analog und digital.
+- Video-Apps als Tablet (Root): Netflix, Disney+, Prime Video und Crunchyroll bekommen ihre Tablet-Ansicht, solange sie vorne sind (kleinste Breite 600 dp auf ihrem Bildschirm) – deutlich mehr Platz in 16:9. Sobald eine andere App vorne ist, ist alles wie vorher; Hugminn bleibt normal groß, Statusleiste und Schnelleinstellungen sind solange kleiner. Einstellungen → Game Switcher.
 - Video-Apps immer quer: Solange YouTube, Netflix, Disney+, Prime Video oder Crunchyroll vorne ist, verlangt Hugminn bei Android das Querformat (wie Rotations-Apps), die App erscheint dann komplett quer – auch Startseite, Suche und Kommentare, nicht nur Videos im Vollbild. Ohne Root. Einstellungen → Game Switcher → Video-Apps immer quer.
 - Player auf dem zweiten Bildschirm in jedem Stil: Tasten, Balken und Symbole folgen dem gewählten Look (Pixel-Blöcke, Punkte, Cocoon …); die Abdunkeln-Taste ist jetzt ein Mond.
 - Navigationsleiste ausblenden (Root): Die Leiste bzw. der Gestenstrich unten verschwindet überall, ein Wisch vom unteren Rand holt sie kurz zurück. Einstellungen → Darstellung.
