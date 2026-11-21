@@ -206,7 +206,7 @@ class Prefs(ctx: Context) {
         set(v) = p.edit().putBoolean("landscapeOn", v).apply()
 
     var landscapeApps: Set<String>
-        get() = p.getStringSet("landscapeApps", null) ?: setOf("com.google.android.youtube")
+        get() = p.getStringSet("landscapeApps", null) ?: setOf("com.google.android.youtube", "com.disney.disneyplus", "com.amazon.avod.thirdpartyclient", "com.crunchyroll.crunchyroid")
         set(v) = p.edit().putStringSet("landscapeApps", v).apply()
 
     /** Android's navigation bar hidden everywhere (root, policy_control). */
