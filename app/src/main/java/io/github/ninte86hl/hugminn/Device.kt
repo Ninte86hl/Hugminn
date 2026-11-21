@@ -234,12 +234,76 @@ object Device {
         if (!on) { if (side) setSideLights(true, then) else setStickLeds(ctx, true, then) } else then()
     }
 
+    // ---- LED elements: each stick (and on the Odin 2 each side) on its own ----
+
+    fun ledElNames(ctx: Context): List<String> = if (hasSideLights(ctx))
+        listOf(tr("Linker Stick"), tr("Rechter Stick"), tr("Linke Seite"), tr("Rechte Seite"))
+        else listOf(tr("Linker Stick"), tr("Rechter Stick"))
+
+    /** 0 off, 1 on (keeps its look), 2 on and chosen for changes. */
+    fun elState(ctx: Context, i: Int): Int {
+        val odin = hasSideLights(ctx)
+        // switched off by AYN's/Retroid's own setting: off
+        val powered = if (odin) (if (i < 2) stickLeds(ctx) else sideLights(ctx)) else stickOn(ctx, i == 0)
+        if (!powered) return 0
+        return Prefs(ctx).ledElState.getOrNull(i)?.digitToIntOrNull()?.takeIf { it in 0..2 } ?: 2
+    }
+
+    fun elStates(ctx: Context) = IntArray(ledElNames(ctx).size) { elState(ctx, it) }
+
+    /** Sets all states; AYN's power switches (both sticks / both sides) follow the elements. */
+    fun setElStates(ctx: Context, s: IntArray, then: () -> Unit) {
+        Prefs(ctx).ledElState = s.joinToString("")
+        if (hasSideLights(ctx)) {
+            val sticks = s[0] > 0 || s[1] > 0
+            val sides = s[2] > 0 || s[3] > 0
+            val cmds = stickLedCmds(ctx, sticks).toMutableList()
+            cmds += Root.putSetting("system", "left_handle_light_enabled", if (sides) "1" else "0")
+            cmds += Root.putSetting("system", "right_handle_light_enabled", if (sides) "1" else "0")
+            Root.run(*cmds.toTypedArray()) { LedFx.resume(ctx); then() }
+        } else {
+            Root.run(Root.putSetting("system", "joystick_light_enabled", "${if (s[0] > 0) 1 else 0},${if (s[1] > 0) 1 else 0}")) { LedFx.resume(ctx); then() }
+        }
+    }
+
+    fun elColor(ctx: Context, i: Int): Int {
+        if (hasSideLights(ctx)) {
+            Prefs(ctx).ledElColor(i).takeIf { it != 0 }?.let { return it }
+            val (l, r) = areaColors(ctx, side = i >= 2)
+            return if (i % 2 == 0) l else r
+        }
+        val (l, r) = ledColors(ctx) ?: (android.graphics.Color.WHITE to android.graphics.Color.WHITE)
+        return (if (i == 0) l else r) or 0xFF000000.toInt()
+    }
+
+    fun elColors(ctx: Context) = IntArray(ledElNames(ctx).size) { elColor(ctx, it) }
+
+    fun setElColors(ctx: Context, c: IntArray, then: () -> Unit) {
+        if (hasSideLights(ctx)) {
+            val p = Prefs(ctx)
+            c.forEachIndexed { i, v -> p.setLedElColor(i, v or 0xFF000000.toInt()) }
+            LedFx.resume(ctx)
+            then()
+            return
+        }
+        setLedColors(ctx, c[0], c[1], turnOn = false) { LedFx.resume(ctx); then() }
+    }
+
+    /** Effect of an element (Retroid: one effect for both sticks). */
+    fun elFx(ctx: Context, i: Int): LedEffect {
+        val p = Prefs(ctx)
+        if (!hasSideLights(ctx)) return p.ledEffect
+        return p.ledElFx(i) ?: if (i < 2) p.ledEffect else p.ledEffectSide
+    }
+
     /** Any light on: a stick or (Odin 2) the side lights – what the tile shows. */
     fun lightsOn(ctx: Context) = stickLeds(ctx) || (hasSideLights(ctx) && sideLights(ctx))
 
     /** All lights on or off together: both sticks and, on the Odin 2, the sides. */
     fun setAllLights(ctx: Context, on: Boolean, then: () -> Unit) {
         val cmds = stickLedCmds(ctx, on).toMutableList()
+        // everything on: elements that were switched off one by one light again too
+        if (on) Prefs(ctx).let { p -> p.ledElState = p.ledElState.replace('0', '2') }
         if (hasSideLights(ctx)) {
             cmds += Root.putSetting("system", "left_handle_light_enabled", if (on) "1" else "0")
             cmds += Root.putSetting("system", "right_handle_light_enabled", if (on) "1" else "0")
