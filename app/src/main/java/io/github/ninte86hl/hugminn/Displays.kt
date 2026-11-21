@@ -83,6 +83,7 @@ object Displays {
             }
         }.onFailure { appendLine("  Fenster: ${it.javaClass.simpleName}") }
         if (NavBar.diag.isNotEmpty()) appendLine("  Navigationsleiste: " + NavBar.diag)
+        if (WideApps.diag.isNotEmpty()) appendLine("  Tablet-Ansicht: " + WideApps.diag)
         if (Landscape.diag.isNotEmpty()) appendLine("  Querformat: " + Landscape.diag)
         if (DualMedia.diag.isNotEmpty()) appendLine("  Player unten: " + DualMedia.diag)
         // the root dumps take seconds: never on the main thread (keys pass it – Hugminn froze and

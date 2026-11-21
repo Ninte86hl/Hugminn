@@ -513,6 +513,10 @@ class MainActivity : Activity() {
                     "While music or a video plays up top (Spotify, YouTube …), the lower screen shows cover, title and buttons – for videos only the title. Tap or drag the bar to jump"),
                 { if (prefs.dualMedia) tr("An") else tr("Aus") }) { prefs.dualMedia = !prefs.dualMedia }
         }
+        if (Root.available()) row(sw, t("Video-Apps als Tablet", "Video apps as a tablet"),
+            t("Netflix, Disney+, Prime Video und Crunchyroll bekommen ihre Tablet-Ansicht, solange sie vorne sind – mehr Platz im Querformat. Statusleiste und Schnelleinstellungen sind solange kleiner, Hugminn bleibt normal groß. Braucht Root",
+                "Netflix, Disney+, Prime Video and Crunchyroll get their tablet layout while in front – more room in landscape. The status bar and quick settings are smaller meanwhile, Hugminn keeps its size. Needs root"),
+            { if (prefs.wideOn) tr("An") else tr("Aus") }) { prefs.wideOn = !prefs.wideOn }
         row(sw, t("Video-Apps immer quer", "Video apps always landscape"),
             t("YouTube, Netflix, Disney+, Prime Video und Crunchyroll werden komplett quer angezeigt, nicht nur Videos im Vollbild – auch Startseite, Suche und Menüs",
                 "YouTube, Netflix, Disney+, Prime Video and Crunchyroll are shown fully in landscape, not only full-screen videos – also home page, search and menus"),
