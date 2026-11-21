@@ -351,7 +351,7 @@ class DualMedia(private val svc: HugminnService) {
             small(IconView.Kind.LIST, t("Liste (Y)", "List (Y)")) { svc.ui.post { openList() } }
             if (pkg?.contains("youtube") == true) {
                 small(IconView.Kind.LIST, t("Liste oben", "List up top")) { ytPlaylist(pkg) }
-                small(IconView.Kind.EXPAND, t("Vollbild", "Full screen")) { ytFullscreen(pkg) }
+                small(IconView.Kind.EXPAND, t("Groß / klein", "Big / small")) { ytFullscreen(pkg) }
             }
             v.addView(extra, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(14) })
         }
@@ -520,55 +520,94 @@ class DualMedia(private val svc: HugminnService) {
 
     private val duration = Regex("^\\d{1,2}(:\\d{2}){1,2}$")
 
+    /** The last playlist read from YouTube: shown again if it can't be read this time. */
+    private var ytCache: List<Pair<String, String?>> = emptyList()
+
     /** YouTube shares no queue: its playlist panel up top is read (opened for a moment if need be). */
     private fun ytRows(pkg: String): List<Row> {
-        var root = ytRoot() ?: return emptyList()
+        var root = ytRoot() ?: return cachedRows(pkg)
         var opened = false
         if (ytPanel(root, pkg) == null) {
-            ytPlaylist(pkg)
+            if (!ytOpenPanel(root, pkg)) return cachedRows(pkg)
             Thread.sleep(900)
-            root = ytRoot() ?: return emptyList()
-            opened = ytPanel(root, pkg) != null
+            root = ytRoot() ?: return cachedRows(pkg)
+            opened = true
         }
-        val panel = ytPanel(root, pkg) ?: return emptyList()
-        val found = mutableListOf<Pair<String, String?>>()
-        fun texts(n: AccessibilityNodeInfo, out: MutableList<String>, depth: Int) {
-            if (depth > 12) return
-            n.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out += it }
-            for (i in 0 until n.childCount) n.getChild(i)?.let { texts(it, out, depth + 1) }
+        val panel = ytPanel(root, pkg) ?: return cachedRows(pkg)
+        val found = linkedMapOf<String, String?>()
+        // the panel shows only a few entries at a time: read, scroll on, read again
+        val list = scrollerIn(panel)
+        var steps = 0
+        while (true) {
+            val before = found.size
+            ytItems(ytRoot() ?: root, pkg).forEach { (t, s) -> if (t !in found) found[t] = s }
+            if (list == null || steps++ >= 12 || (steps > 1 && found.size == before)) break
+            if (!list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) break
+            Thread.sleep(250)
         }
-        fun walk(n: AccessibilityNodeInfo, depth: Int) {
-            if (depth > 40 || found.size > 60) return
-            val b = bounds(n)
-            if (n.isClickable && b.height() in 90..420 && b.width() > 200) {
-                val t = mutableListOf<String>()
-                texts(n, t, 0)
-                // a video: its title and the channel (the length "4:07" is left out)
-                val words = t.filterNot { duration.matches(it) }
-                if (words.isNotEmpty()) { found += words[0] to words.getOrNull(1); return }
-            }
-            for (i in 0 until n.childCount) n.getChild(i)?.let { walk(it, depth + 1) }
-        }
-        walk(panel, 0)
+        // back to the top of the list
+        if (list != null) repeat(steps) { if (!list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) return@repeat }
         // the list stays below: close YouTube's panel up top again if Hugminn opened it
-        if (opened) ytClosePanel(root, pkg)
+        if (opened) { Thread.sleep(200); ytRoot()?.let { ytClosePanel(it, pkg) } }
+        if (found.isNotEmpty()) ytCache = found.toList()
+        return cachedRows(pkg)
+    }
+
+    private fun cachedRows(pkg: String): List<Row> {
         val playing = Media.song ?: Media.title
-        return found.distinctBy { it.first }.map { (title, sub) ->
+        return ytCache.map { (title, sub) ->
             Row(title, sub, null, playing != null && (title.contains(playing, true) || playing.contains(title, true))) { ytPlayTitle(pkg, title) }
         }
     }
 
-    /** Plays [title] from YouTube's playlist (opens the panel for it, taps the entry, closes it again). */
+    /** The entries of YouTube's playlist panel on screen right now: title and channel. */
+    private fun ytItems(root: AccessibilityNodeInfo, pkg: String): List<Pair<String, String?>> {
+        val items = runCatching { root.findAccessibilityNodeInfosByViewId("$pkg:id/playlist_panel_video_item") }.getOrNull().orEmpty()
+        return items.mapNotNull { n ->
+            val t = mutableListOf<String>()
+            texts(n, t, 0)
+            val words = t.filterNot { duration.matches(it) }
+            words.firstOrNull()?.let { it to words.getOrNull(1) }
+        }
+    }
+
+    private fun texts(n: AccessibilityNodeInfo, out: MutableList<String>, depth: Int) {
+        if (depth > 12) return
+        n.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out += it }
+        for (i in 0 until n.childCount) n.getChild(i)?.let { texts(it, out, depth + 1) }
+    }
+
+    /** The scrolling list inside [n] (YouTube's playlist). */
+    private fun scrollerIn(n: AccessibilityNodeInfo, depth: Int = 0): AccessibilityNodeInfo? {
+        if (n.isScrollable) return n
+        if (depth > 25) return null
+        for (i in 0 until n.childCount) n.getChild(i)?.let { c -> scrollerIn(c, depth + 1)?.let { return it } }
+        return null
+    }
+
+    /** Plays [title] from YouTube's playlist (opens the panel for it, finds and taps the entry, closes it again). */
     private fun ytPlayTitle(pkg: String, title: String) {
         var root = ytRoot() ?: return
         var opened = false
-        if (ytPanel(root, pkg) == null) { ytPlaylist(pkg); Thread.sleep(900); root = ytRoot() ?: return; opened = true }
+        if (ytPanel(root, pkg) == null) {
+            if (!ytOpenPanel(root, pkg)) { action = " · Liste oben ließ sich nicht öffnen"; return }
+            Thread.sleep(900); root = ytRoot() ?: return; opened = true
+        }
         val panel = ytPanel(root, pkg) ?: return
-        val pr = bounds(panel)
-        val hit = runCatching { root.findAccessibilityNodeInfosByText(title) }.getOrNull().orEmpty().firstOrNull { pr.contains(bounds(it)) }
+        val list = scrollerIn(panel)
+        var hit: AccessibilityNodeInfo? = null
+        var steps = 0
+        while (hit == null && steps <= 12) {
+            val r = ytRoot() ?: root
+            hit = runCatching { r.findAccessibilityNodeInfosByViewId("$pkg:id/playlist_panel_video_item") }.getOrNull().orEmpty()
+                .firstOrNull { n -> mutableListOf<String>().also { texts(n, it, 0) }.firstOrNull() == title }
+            if (hit != null || list == null || !list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) break
+            steps++
+            Thread.sleep(250)
+        }
         val ok = click(hit)
         action = if (ok) " · gespielt aus der Liste" else " · Listeneintrag nicht gefunden"
-        if (opened) { Thread.sleep(700); ytRoot()?.let { if (ytPanel(it, pkg) != null) ytClosePanel(it, pkg) } }
+        if (opened) { Thread.sleep(700); ytRoot()?.let { ytClosePanel(it, pkg) } }
     }
 
     private fun renderList(loading: Boolean) {
@@ -671,40 +710,64 @@ class DualMedia(private val svc: HugminnService) {
         return ytRoot() ?: root
     }
 
-    /** The playlist panel (right side) when it is open. */
-    private fun ytPanel(root: AccessibilityNodeInfo, pkg: String): AccessibilityNodeInfo? =
-        ytNode(root, pkg, "fullscreen_engagement_panel_holder")?.takeIf { it.isVisibleToUser && it.childCount > 0 && bounds(it).width() > 0 }
+    /** The playlist panel (right side) when it is open: it holds the playlist's entries. */
+    private fun ytPanel(root: AccessibilityNodeInfo, pkg: String): AccessibilityNodeInfo? {
+        val holder = ytNode(root, pkg, "fullscreen_engagement_panel_holder") ?: return null
+        val b = bounds(holder)
+        if (!holder.isVisibleToUser || b.width() < 300 || b.height() < 300) return null
+        val items = runCatching { root.findAccessibilityNodeInfosByViewId("$pkg:id/playlist_panel_video_item") }.getOrNull().orEmpty()
+        return holder.takeIf { items.any { it.isVisibleToUser && b.contains(bounds(it)) } }
+    }
 
+    /** Closes the playlist panel with its own × (never with Back: that could leave the video). */
     private fun ytClosePanel(root: AccessibilityNodeInfo, pkg: String): Boolean {
         val panel = ytPanel(root, pkg) ?: return false
         val pr = bounds(panel)
         val close = listOf("Schließen", "Close").flatMap { runCatching { root.findAccessibilityNodeInfosByText(it) }.getOrNull().orEmpty() }
             .filter { it.isVisibleToUser && pr.contains(bounds(it)) }
             .minByOrNull { bounds(it).top }
-        if (click(close)) return true
-        // no button found: Back closes the panel in YouTube
-        return svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+        return click(close)
+    }
+
+    /** Opens the playlist panel with YouTube's "show playlist videos" button. */
+    private fun ytOpenPanel(rootIn: AccessibilityNodeInfo, pkg: String): Boolean {
+        val root = ytControlsUp(rootIn, pkg)
+        val words = listOf("Playlist-Videos anzeigen", "Show playlist videos", "Playlist-Videos", "playlist videos")
+        val hit = words.flatMap { runCatching { root.findAccessibilityNodeInfosByText(it) }.getOrNull().orEmpty() }
+            .firstOrNull { n ->
+                val d = (n.contentDescription ?: n.text)?.toString().orEmpty()
+                // not "add to playlist"
+                n.isVisibleToUser && !d.contains("hinzufügen", true) && !d.contains("add to", true) && !d.contains("save", true)
+            }
+        return click(hit)
     }
 
     private fun ytPlaylist(pkg: String) {
-        var root = ytRoot() ?: return
-        if (ytClosePanel(root, pkg)) { action = " · Wiedergabeliste zu"; return }
-        root = ytControlsUp(root, pkg)
-        // the playlist's own button: its name says "playlist" / "Wiedergabeliste" / "Mix"
-        val words = listOf("Wiedergabeliste", "Playlist", "Mix")
-        val player = ytNode(root, pkg, "watch_player")?.let { bounds(it) }
-        val hit = words.flatMap { runCatching { root.findAccessibilityNodeInfosByText(it) }.getOrNull().orEmpty() }
-            .firstOrNull { it.isVisibleToUser && (player == null || player.contains(bounds(it))) }
-        action = if (click(hit)) " · Wiedergabeliste auf" else " · Wiedergabeliste: kein Knopf gefunden"
+        val root = ytRoot() ?: return
+        if (ytClosePanel(root, pkg)) { action = " · Liste oben zu"; return }
+        action = if (ytOpenPanel(root, pkg)) " · Liste oben auf" else " · Liste oben: kein Knopf gefunden"
     }
 
+    /**
+     * Full view ⇄ normal YouTube: from the big player down to YouTube's pages with the video small
+     * in the corner (YouTube's own "minimise" button), and back up by tapping that small player.
+     */
     private fun ytFullscreen(pkg: String) {
         var root = ytRoot() ?: return
-        // full screen closes the playlist first
+        // the playlist closes first
         if (ytClosePanel(root, pkg)) { Thread.sleep(400); root = ytRoot() ?: return }
-        root = ytControlsUp(root, pkg)
-        val fs = ytNode(root, pkg, "fullscreen_button")
-        action = if (click(fs)) " · Vollbild umgeschaltet (${fs?.contentDescription})" else " · Vollbild: kein Knopf gefunden"
+        val player = ytNode(root, pkg, "watch_player")
+        val pb = player?.let { bounds(it) }
+        val big = pb != null && pb.width() > 1000
+        if (big) {
+            root = ytControlsUp(root, pkg)
+            val collapse = ytNode(root, pkg, "player_collapse_button")
+            action = if (click(collapse)) " · YouTube verkleinert" else " · Verkleinern: kein Knopf gefunden"
+        } else {
+            // the small player: tap it to make it big again
+            val ok = click(player) || (pb != null && pb.width() > 0).also { if (it) tap(pb!!.exactCenterX(), pb.exactCenterY()) }
+            action = if (ok) " · YouTube groß" else " · kleiner Player nicht gefunden"
+        }
     }
 
     // ---------- YouTube: its controls stay on screen ----------
