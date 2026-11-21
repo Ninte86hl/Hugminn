@@ -9,7 +9,7 @@ import android.view.View
 
 /** Simple line icons drawn in code, so they look the same everywhere and follow the theme colour. */
 class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 22) : View(ctx) {
-    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC, POWER, BATTERY, PLAY, PAUSE, PREV, NEXT, PIN, LIST, EXPAND }
+    enum class Kind { WIFI, BLUETOOTH, BOLT, FAN, REFRESH, LED, CAMERA, GEAR, AIRPLANE, MOON, ROTATE, SCREEN, BROOM, GAMEPAD, SUN, SPEAKER, THERMO, PLUG, VIBRATE, LOCK, PALETTE, MOUSE, MUSIC, POWER, BATTERY, PLAY, PAUSE, PREV, NEXT, PIN, LIST, EXPAND, VOL_DOWN, VOL_UP }
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -165,6 +165,15 @@ class IconView(ctx: Context, private val kind: Kind, private val sizeDp: Int = 2
                 }, p)
                 c.drawArc(RectF(s * 0.5f, s * 0.32f, s * 0.74f, s * 0.68f), -60f, 120f, false, p)
                 c.drawArc(RectF(s * 0.5f, s * 0.18f, s * 0.9f, s * 0.82f), -60f, 120f, false, p)
+            }
+            Kind.VOL_DOWN, Kind.VOL_UP -> {
+                // a speaker with − or +, both on the same middle line
+                c.drawPath(Path().apply {
+                    moveTo(s * 0.08f, s * 0.38f); lineTo(s * 0.24f, s * 0.38f); lineTo(s * 0.46f, s * 0.18f)
+                    lineTo(s * 0.46f, s * 0.82f); lineTo(s * 0.24f, s * 0.62f); lineTo(s * 0.08f, s * 0.62f); close()
+                }, p)
+                c.drawLine(s * 0.62f, m, s * 0.92f, m, p)
+                if (kind == Kind.VOL_UP) c.drawLine(s * 0.77f, s * 0.35f, s * 0.77f, s * 0.65f, p)
             }
             Kind.THERMO -> {
                 c.drawRoundRect(RectF(s * 0.4f, s * 0.08f, s * 0.6f, s * 0.66f), s * 0.1f, s * 0.1f, p)

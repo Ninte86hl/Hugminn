@@ -309,19 +309,16 @@ class DualMedia(private val svc: HugminnService) {
             return f
         }
         val center = { FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER) }
-        fun vol(sign: String, dir: Int) = btn(52, false) { volume(dir) }.addView(LinearLayout(svc).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            addView(IconView(svc, IconView.Kind.SPEAKER, 16).styled(pal, px).apply { setColor(pal.onSurface) }, LinearLayout.LayoutParams(svc.dp(18), svc.dp(18)))
-            addView(text(sign, 16f, pal.onSurface, bold = true).apply { setPadding(svc.dp(1), 0, 0, 0) })
-        }, center())
-        vol("−", android.media.AudioManager.ADJUST_LOWER)
+        fun vol(kind: IconView.Kind, dir: Int) = btn(52, false) { volume(dir) }
+            .addView(IconView(svc, kind, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
+        vol(IconView.Kind.VOL_DOWN, android.media.AudioManager.ADJUST_LOWER)
         btn(58, false) { press(KeyEvent.KEYCODE_MEDIA_PREVIOUS) }.addView(IconView(svc, IconView.Kind.PREV, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
         val pb = btn(72, true) { press(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) }
         val pl = IconView(svc, IconView.Kind.PLAY, 28).styled(pal, px).apply { setColor(pal.onPrimary) }
         val pa = IconView(svc, IconView.Kind.PAUSE, 28).styled(pal, px).apply { setColor(pal.onPrimary) }
         pb.addView(pl, center()); pb.addView(pa, center())
         btn(58, false) { press(KeyEvent.KEYCODE_MEDIA_NEXT) }.addView(IconView(svc, IconView.Kind.NEXT, 24).styled(pal, px).apply { setColor(pal.onSurface) }, center())
-        vol("+", android.media.AudioManager.ADJUST_RAISE)
+        vol(IconView.Kind.VOL_UP, android.media.AudioManager.ADJUST_RAISE)
         v.addView(ctrl, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // at the very bottom: progress in the accent colour with the times – touch or drag it to jump
