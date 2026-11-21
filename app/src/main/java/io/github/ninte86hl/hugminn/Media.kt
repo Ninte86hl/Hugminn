@@ -157,10 +157,31 @@ object Media {
         return true
     }
 
+    private fun controller(ctx: Context, pkg: String): android.media.session.MediaController? {
+        val msm = ctx.getSystemService(android.media.session.MediaSessionManager::class.java) ?: return null
+        return runCatching { (MediaListener.notificationSessions(ctx) + msm.getActiveSessions(component(ctx))).firstOrNull { it.packageName == pkg } }.getOrNull()
+    }
+
+    /** One entry of the player's queue (playlist). */
+    class QItem(val id: Long, val title: String, val sub: String?, val icon: android.graphics.Bitmap?)
+
+    /** The queue the player of [pkg] shares with Android, and the id of the entry playing (-1 unknown). */
+    fun queue(ctx: Context, pkg: String): Pair<List<QItem>, Long> {
+        val mc = controller(ctx, pkg) ?: return emptyList<QItem>() to -1L
+        val q = runCatching { mc.queue }.getOrNull().orEmpty()
+        val items = q.map { qi ->
+            val d = qi.description
+            QItem(qi.queueId, d.title?.toString() ?: "", d.subtitle?.toString()?.takeIf { it.isNotBlank() }, d.iconBitmap)
+        }
+        return items to (mc.playbackState?.activeQueueItemId ?: -1L)
+    }
+
+    fun skipTo(ctx: Context, pkg: String, id: Long): Boolean =
+        runCatching { controller(ctx, pkg)?.transportControls?.skipToQueueItem(id) != null }.getOrDefault(false)
+
     /** Jumps to [ms] in the player of [pkg] (the progress bar on the second screen). */
     fun seek(ctx: Context, pkg: String, ms: Long): Boolean {
-        val msm = ctx.getSystemService(android.media.session.MediaSessionManager::class.java) ?: return false
-        val mc = runCatching { (MediaListener.notificationSessions(ctx) + msm.getActiveSessions(component(ctx))).firstOrNull { it.packageName == pkg } }.getOrNull() ?: return false
+        val mc = controller(ctx, pkg) ?: return false
         return runCatching {
             mc.transportControls.seekTo(ms)
             position = ms
