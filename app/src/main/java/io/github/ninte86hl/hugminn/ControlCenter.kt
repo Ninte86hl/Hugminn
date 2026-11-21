@@ -2120,7 +2120,7 @@ class ControlCenter(private val svc: HugminnService) {
         return true
     }
 
-    /** LED window tab: 0 Gerät (elements), 1 Farbe, 2 Modus (effects and device info). */
+    /** LED window tab: 0 Gerät (elements), 1 Modus (effects and device info), 2 Farbe. */
     private var ledTab = 0
     /** Elements chosen for changes (state 2). */
     private fun ledSel(st: IntArray) = st.indices.filter { st[it] == 2 }
@@ -2336,7 +2336,7 @@ class ControlCenter(private val svc: HugminnService) {
         box.addView(text(tr("Beleuchtung"), 18f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
         val tabs = LinearLayout(svc).apply { gravity = Gravity.CENTER; setPadding(0, 8 * d, 0, 6 * d) }
         tabs.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_L1, 20))
-        listOf(tr("Gerät"), tr("Farbe"), tr("Modus")).forEachIndexed { i, name ->
+        listOf(tr("Gerät"), tr("Modus"), tr("Farbe")).forEachIndexed { i, name ->
             val c = chip(name, i == ledTab).apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) }
             val act = { if (ledTab != i) { ledTab = i; ledWheelView = false; ledFocus = "tab$i"; ledPicker() } }
             c.setOnClickListener { act() }
@@ -2354,6 +2354,7 @@ class ControlCenter(private val svc: HugminnService) {
         val body = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
         outer.addView(body, lp(colW, WRAP))
         fun gap(h: Int = 6) = body.addView(View(svc), lp(1, h * d))
+        var autoSteer: (() -> Unit)? = null
 
         /** Which elements the tab changes (the ones on Benutzerdefiniert). */
         fun target(extra: String?) {
@@ -2373,7 +2374,7 @@ class ControlCenter(private val svc: HugminnService) {
                 /** One row: the choice on the left, what it shows on the right (stacked on 4:3). */
                 fun pairRow(left: View, right: View) {
                     if (twoCol) {
-                        val row = LinearLayout(svc).apply { gravity = Gravity.TOP }
+                        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
                         row.addView(left, lp(halfW, WRAP))
                         row.addView(View(svc), lp(16 * d, 1))
                         row.addView(right, lp(halfW, WRAP))
@@ -2393,7 +2394,7 @@ class ControlCenter(private val svc: HugminnService) {
                 val elCard = card(dot(if (st[i] == 0) android.graphics.Color.BLACK else cols[i]).also { it.layoutParams = lp(14 * d, 14 * d).apply { marginEnd = 10 * d } },
                     text(names[i], 14f, pal.onSurface, bold = true))
                 val elSel = chooser("el", elCard, tr("Welches Licht du gerade einstellst"), { dir -> ledEl += dir; again("el") }) {}
-                val toColour = { svc.ui.post { if (root != null) { ledEditing = null; ledTab = 1; ledWheelView = false; ledFocus = "c0"; ledPicker() } } }
+                val toColour = { svc.ui.post { if (root != null) { ledEditing = null; ledTab = 2; ledWheelView = false; ledFocus = "c0"; ledPicker() } } }
                 // [jump]: Benutzerdefiniert goes straight on to choose its colour (touch, or A to confirm)
                 fun pick(k: Int, jump: Boolean) {
                     val ns = st.copyOf().also { it[i] = k.coerceIn(0, 2) }
@@ -2438,9 +2439,7 @@ class ControlCenter(private val svc: HugminnService) {
                 val list = ledCombos
                 ledCombo = ((ledCombo % list.size) + list.size) % list.size
                 val (cname, pair) = list[ledCombo]
-                val cc = card(dot(pair.first).also { it.layoutParams = lp(14 * d, 14 * d).apply { marginEnd = 4 * d } },
-                    dot(pair.second).also { it.layoutParams = lp(14 * d, 14 * d).apply { marginEnd = 10 * d } },
-                    text(cname, 14f, pal.onSurface))
+                val cc = card(text(cname, 14f, pal.onSurface, bold = true))
                 // left elements (left stick, left side) the first colour, right ones the second
                 val cSel = chooser("combo", cc, tr("Kombi wählen, A übernimmt"), { dir -> ledCombo += dir; again("combo") }) {
                     if (!needSel()) applyEls { k -> if (k % 2 == 0) pair.first else pair.second }
@@ -2459,7 +2458,7 @@ class ControlCenter(private val svc: HugminnService) {
                 cp.addView(text(tr("Färbt alle benutzerdefinierten Lichter: links die erste, rechts die zweite Farbe"), 11f, pal.onSurfaceVariant).apply { setPadding(0, 3 * d, 0, 0) })
                 pairRow(cSel, cp)
             }
-            1 -> {
+            2 -> {
                 if (!ledWheelView) {
                     target(tr("Andere Lichter behalten ihre Farbe."))
                     // 15 colours, the wheel as the 16th tile
@@ -2525,7 +2524,9 @@ class ControlCenter(private val svc: HugminnService) {
                         renderFooter()
                     }
                     cells += LedCell("wheel", wheelBox, steer)
-                    body.addView(desc(tr("Eigene Farbe: A drücken und mit dem Steuerkreuz suchen. Die LED zeigt jede Farbe sofort an, A übernimmt, B verwirft.")), lp(MATCH, WRAP))
+                    // the wheel takes the D-pad at once: no extra A to start
+                    autoSteer = steer
+                    body.addView(desc(tr("Mit dem Steuerkreuz eine Farbe suchen – die LED zeigt sie sofort. A übernimmt, B bricht ab.")), lp(MATCH, WRAP))
                     val back = chip(tr("Zurück zu den Farben"), false)
                     val backAct: () -> Unit = { ledWheelView = false; LedFx.resume(svc); again("c15") }
                     back.setOnClickListener { backAct() }
@@ -2534,11 +2535,16 @@ class ControlCenter(private val svc: HugminnService) {
                 }
             }
             else -> {
-                target(null)
+                // effects are global: every light that is on – unless lights are on Benutzerdefiniert, then only those
+                val tgt = if (sel.isNotEmpty()) sel else (0 until n).filter { st[it] > 0 }
+                body.addView(text(if (sel.isNotEmpty()) tr("Gilt für") + ": " + sel.joinToString(" · ") { names[it] } else tr("Gilt für alle eingeschalteten Lichter"),
+                    12f, pal.onSurface).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
+                body.addView(desc(if (sel.isNotEmpty()) tr("Nur die benutzerdefinierten Lichter – die anderen behalten ihren Effekt.") else tr("Ein Licht auf Benutzerdefiniert bekommt seinen eigenen Effekt.")), lp(MATCH, WRAP))
+                val tFx = tgt.map { fx[it] }.distinct().singleOrNull()?.let { LedEffect.values()[it] }
                 val items = ledFxItems
-                if (ledFxIdx !in items.indices) ledFxIdx = items.indexOfFirst { it.e == commonFx }.coerceAtLeast(0)
+                if (ledFxIdx !in items.indices) ledFxIdx = items.indexOfFirst { it.e == tFx }.coerceAtLeast(0)
                 val it0 = items[ledFxIdx]
-                val active = commonFx == it0.e && sel.isNotEmpty()
+                val active = tFx == it0.e && tgt.isNotEmpty()
                 val tag = text(if (it0.info) tr("Info") else tr("Effekt"), 10f, pal.primary).apply {
                     setPadding(6 * d, 0, 6 * d, 0)
                     background = shape(0, 8f * d, 1 * d, pal.primary)
@@ -2546,7 +2552,7 @@ class ControlCenter(private val svc: HugminnService) {
                 val nameV = text(it0.name, 14f, pal.onSurface, bold = true).apply { setPadding(0, 0, 8 * d, 0) }
                 val fc = card(nameV, tag)
                 body.addView(carousel("fx", fc, { dir -> ledFxIdx = (ledFxIdx + dir + items.size) % items.size; again("fx") }) {
-                    if (!needSel()) { LedFx.setEls(svc, sel, it0.e); again("fx") }
+                    if (tgt.isNotEmpty()) { LedFx.setEls(svc, tgt, it0.e); again("fx") }
                 }, lp(MATCH, WRAP))
                 body.addView(desc(it0.desc), lp(MATCH, WRAP))
                 when (it0.e) {
@@ -2589,6 +2595,7 @@ class ControlCenter(private val svc: HugminnService) {
 
         ledCells = cells
         ledSide = side
+        autoSteer?.let { svc.ui.post { if (root != null && activeWheel == null && ledWheelView) it() } }
         // Gerät: the five fields are reached the way the eye goes – no detours
         val U = KeyEvent.KEYCODE_DPAD_UP; val D = KeyEvent.KEYCODE_DPAD_DOWN; val L = KeyEvent.KEYCODE_DPAD_LEFT; val Rt = KeyEvent.KEYCODE_DPAD_RIGHT
         ledNav = if (ledTab != 0) emptyMap() else if (twoCol) mapOf(
@@ -2662,7 +2669,7 @@ class ControlCenter(private val svc: HugminnService) {
                 closeMenu()
                 return
             }
-            // L1/R1: Gerät · Farbe · Modus
+            // L1/R1: Gerät · Modus · Farbe
             KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> {
                 ledTab = (ledTab + (if (code == KeyEvent.KEYCODE_BUTTON_R1) 1 else -1) + 3) % 3; ledWheelView = false; ledFocus = "tab$ledTab"; ledPicker()
                 return
