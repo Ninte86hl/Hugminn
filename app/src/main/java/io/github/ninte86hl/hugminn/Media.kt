@@ -190,7 +190,7 @@ object Media {
         }.getOrDefault(false)
     }
 
-    private val playerApps = Regex("youtube|newpipe|spotify|music|deezer|tidal|soundcloud|podcast|audible|vlc|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll|player|radio", RegexOption.IGNORE_CASE)
+    private val playerApps = Regex("youtube|newpipe|avod|amazon.*video|spotify|music|deezer|tidal|soundcloud|podcast|audible|vlc|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll|player|radio", RegexOption.IGNORE_CASE)
 
     /**
      * Music or a video plays in [pkg] right now (Spotify, YouTube & co.): Hugminn's switcher and

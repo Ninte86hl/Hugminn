@@ -591,7 +591,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         val lp = WindowManager.LayoutParams(
             m.bounds.width(), m.bounds.height() - sysTop,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                // music/video plays behind: the switcher does not take the focus, some players (Crunchyroll)
+                // stop as soon as they lose it. The buttons still reach the switcher through Hugminn.
+                (if (Media.playsIn(svc, fromPkg)) WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE else 0),
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START

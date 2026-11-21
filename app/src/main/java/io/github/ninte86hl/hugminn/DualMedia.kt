@@ -112,7 +112,10 @@ class DualMedia(private val svc: HugminnService) {
         }
     }
 
-    private fun keyOf() = "${Media.app}|${Media.title}|${Media.art != null}"
+    private fun keyOf() = "${Media.app}|${Media.title}|${artOf() != null}"
+
+    /** The player's cover, or – for apps that give none (Disney+, Crunchyroll, Prime Video …) – the picture the switcher took of the app. */
+    private fun artOf(): android.graphics.Bitmap? = Media.art ?: Media.app?.let { p -> runCatching { Snapshots.get(svc, p) }.getOrNull() }
 
     private fun update(fg: String) {
         val wanted = Media.title != null && Media.app == fg && top == fg
@@ -182,7 +185,7 @@ class DualMedia(private val svc: HugminnService) {
     }
 
     private fun isVideo(pkg: String?) = pkg != null &&
-        Regex("youtube|newpipe|vlc|video|player|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll", RegexOption.IGNORE_CASE).containsMatchIn(pkg)
+        Regex("youtube|newpipe|avod|amazon|vlc|video|player|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll", RegexOption.IGNORE_CASE).containsMatchIn(pkg)
 
     private var swallow = false
 
@@ -290,9 +293,9 @@ class DualMedia(private val svc: HugminnService) {
         }
         // music: square cover; video: the thumbnail in 16:9 (as in the Control Center)
         val box = FrameLayout(svc)
-        if (!video || Media.art != null) box.addView(c, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        if (!video || artOf() != null) box.addView(c, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         v.addView(box, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = svc.dp(8); bottomMargin = svc.dp(10) })
-        val s = text("", if (video) 20f else 21f, pal.onSurface, bold = true, lines = if (video && Media.art == null) 3 else 2)
+        val s = text("", if (video) 20f else 21f, pal.onSurface, bold = true, lines = if (video && artOf() == null) 3 else 2)
         val w = text("", 15f, onGround)
         v.addView(s, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         v.addView(w, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = svc.dp(2) })
@@ -408,7 +411,7 @@ class DualMedia(private val svc: HugminnService) {
         pause?.visibility = if (Media.playing) View.VISIBLE else View.GONE
         song?.text = Media.song ?: Media.title ?: ""
         who?.text = Media.artist?.takeIf { Media.song != null } ?: ""
-        val art = Media.art
+        val art = artOf()
         if (art != null) cover?.setImageBitmap(art) else cover?.setImageDrawable(Apps.icon(svc, Media.app))
         if (dragging) return
         val dur = Media.duration
