@@ -243,6 +243,15 @@ class DualMedia(private val svc: HugminnService) {
         head.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, pkg)) }, LinearLayout.LayoutParams(svc.dp(28), svc.dp(28)))
         head.addView(text(pkg?.let { Apps.label(svc, it) } ?: "", 15f, onGround).apply { gravity = Gravity.START; setPadding(svc.dp(10), 0, 0, 0) },
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        // test builds: a feedback report with screenshots of both screens, without asking for a text
+        quickReport?.let { report ->
+            head.addView(FrameLayout(svc).apply {
+                background = rounded(pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+                addView(IconView(svc, IconView.Kind.CAMERA, 18).styled(pal, px).apply { setColor(pal.onSurface) },
+                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+                setOnClickListener { buzz(strong = true); runCatching { report() }.onFailure { Crash.note(svc, it) } }
+            }, LinearLayout.LayoutParams(svc.dp(40), svc.dp(40)).apply { marginEnd = svc.dp(10) })
+        }
         // dark at once: the lower screen goes black, a touch brings it back
         head.addView(FrameLayout(svc).apply {
             background = rounded(pal.tile, svc.dp(20).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
@@ -404,6 +413,17 @@ class DualMedia(private val svc: HugminnService) {
     // ---------- YouTube: its controls stay on screen ----------
 
     private var pressedAt = 0L
+
+    /** Feedback exists only in test builds: found by name, so release builds simply have no button. */
+    private val quickReport: (() -> Unit)? by lazy {
+        runCatching {
+            val c = Class.forName("io.github.ninte86hl.hugminn.Feedback")
+            val inst = c.getField("INSTANCE").get(null)
+            val m = c.getMethod("capture", HugminnService::class.java, String::class.java, Boolean::class.javaPrimitiveType)
+            val go: () -> Unit = { m.invoke(inst, svc, "Player unten", true) }
+            go
+        }.getOrNull()
+    }
     private var ytIdsFor: String? = null
     private var ytIds = ""
 
