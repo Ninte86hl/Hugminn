@@ -45,7 +45,8 @@ object Feedback {
                 result.hardwareBuffer.close()
                 val go: (Bitmap?) -> Unit = { full ->
                     val p = Pending(token, where, full, info)
-                    if (quick) { pending = p; sendPending(svc, "[Schnellbericht aus dem Overlay]") } else ask(svc, p)
+                    // no comment box any more: every report goes straight out
+                    pending = p; sendPending(svc, if (quick) "[Schnellbericht aus dem Overlay]" else "–")
                 }
                 // dual screen: the second screen too, drawn below the first like on the device
                 // (Android allows one screenshot per second, hence the short wait)
