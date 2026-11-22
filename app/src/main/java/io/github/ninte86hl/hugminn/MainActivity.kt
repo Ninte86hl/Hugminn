@@ -385,10 +385,10 @@ class MainActivity : Activity() {
         // extra buttons: back paddles (Odin 2, Pocket 6) or M1/M2 (Nova) – both arrive as C and Z
         val nova = android.os.Build.MODEL.contains("Nova", true)
         val ex = section(t("Zusatztasten", "Extra buttons"))
-        ex.addView(text(t("Rückseitentasten bzw. M1/M2. Eine belegte Taste erreicht das Spiel nicht mehr – frei gelassen funktioniert sie im Spiel wie bisher.",
-            "Back paddles or M1/M2. A button with an action no longer reaches the game – left free it works in games as before."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
-        for ((code, name) in listOf(KeyEvent.KEYCODE_BUTTON_C to (if (nova) "M1" else t("Paddel links", "Left paddle")),
-                KeyEvent.KEYCODE_BUTTON_Z to (if (nova) "M2" else t("Paddel rechts", "Right paddle"))))
+        ex.addView(text(t("Rückseitentasten, M1/M2 bzw. C/Z (Pocket Classic mit sechs Tasten). Eine belegte Taste erreicht das Spiel nicht mehr – frei gelassen funktioniert sie im Spiel wie bisher.",
+            "Back paddles, M1/M2 or C/Z (six-button Pocket Classic). A button with an action no longer reaches the game – left free it works in games as before."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
+        for ((code, name) in listOf(KeyEvent.KEYCODE_BUTTON_C to (if (nova) "M1" else if (Device.noSticks) "C" else t("Paddel links", "Left paddle")),
+                KeyEvent.KEYCODE_BUTTON_Z to (if (nova) "M2" else if (Device.noSticks) "Z" else t("Paddel rechts", "Right paddle"))))
             for (long in listOf(false, true))
                 row(ex, "$name · " + (if (long) tr("Lange drücken") else tr("Einmal drücken")), null,
                     { prefs.extraKey(code, long).label }) { prefs.setExtraKey(code, long, cycle(actions, prefs.extraKey(code, long))) }
