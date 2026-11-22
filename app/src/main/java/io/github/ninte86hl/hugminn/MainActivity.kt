@@ -597,6 +597,10 @@ class MainActivity : Activity() {
                         "it then always starts with that profile, afterwards the previous setting comes back. A game's profile beats the emulator's."),
                 12f, pal.onSurfaceVariant,
             ).apply { setPadding(0, d(6), 0, d(6)) })
+            row(ap, t("Im Launcher: Normal · Leise", "In the launcher: Normal · Quiet"),
+                t("Auf dem Startbildschirm laufen Leistung Normal und Lüfter Leise – spart Akku zwischen den Spielen. Beim Start einer App ohne Profil kommt die vorige Einstellung zurück.",
+                    "On the home screen performance runs Normal and the fan Quiet – saves battery between games. An app without a profile gets the previous setting back."),
+                { if (svc.prefs.launcherProfile) tr("An") else tr("Aus") }) { svc.prefs.launcherProfile = !svc.prefs.launcherProfile }
             if (profiles.isEmpty()) ap.addView(text(t("Noch keine gespeichert", "None saved yet"), 14f, pal.onSurface))
             fun parts(p: AppProfiles.Profile) = listOfNotNull(
                 p.perf?.let { Device.perfProfiles[it] ?: it },
