@@ -639,7 +639,7 @@ class ControlCenter(private val svc: HugminnService) {
             hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, "Tab")
             fixed(if (ledEditing != null) tr("Ändern") else tr("Navigieren"),
                 if (ledFocus == "st" && ledTab == 0 && Device.elState(svc, ledEl) > 0) tr("Einstellen") else null,
-                if (ledTab == 0) tr("Auf alle") else null,
+                if (ledTab == 0 || ledTab == 1 || (ledTab == 2 && !ledWheelView && ledFocus.startsWith("c") && ledFocus != "c15")) tr("Auf alle") else null,
                 if (ledEditing != null) tr("Fertig") else tr("Auswählen"),
                 if (ledTab != 0) tr("Zurück") else tr("Schließen"))
             return
@@ -2319,6 +2319,24 @@ class ControlCenter(private val svc: HugminnService) {
     private var ledParam = 0
     /** The field that takes left/right right now (entered with A, like the sliders of the Control Center). */
     private var ledEditing: String? = null
+    /** One colour for every light that is on (Kombi switches to Farbe, an effect keeps running in it), then back to Gerät. */
+    private fun colourToAll(c: Int) {
+        val n = Device.ledElNames(svc).size
+        val st = Device.elStates(svc)
+        val cols = IntArray(n) { c }
+        Device.setElColors(svc, cols) {
+            Device.setElStates(svc, IntArray(n) { if (st[it] == 2) 1 else st[it] }) {
+                svc.ui.post {
+                    refreshAll()
+                    if (root != null && ledCells != null) {
+                        ledTab = 0; ledViaNorth = false; ledFocus = "el"; ledPicker()
+                        Toast.makeText(svc, tr("Auf alle Lichter übertragen"), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
     /** Mode, colour, effect and brightness of the chosen light for every light. */
     private fun copyLedToAll() {
         val n = Device.ledElNames(svc).size
@@ -2841,7 +2859,13 @@ class ControlCenter(private val svc: HugminnService) {
         ledEditing = null
         // west button (Gerät tab): what the chosen light shows goes to all lights
         if (code == KeyEvent.KEYCODE_BUTTON_X) {
-            if (ledTab == 0) copyLedToAll()
+            when {
+                ledTab == 0 -> copyLedToAll()
+                // Modus: the effect shown for every light that is on
+                ledTab == 1 -> cells.firstOrNull { it.key == "fxall" }?.act?.invoke()
+                // Farbe: the colour under the cursor for every light that is on
+                ledTab == 2 && !ledWheelView -> ledFocus.removePrefix("c").toIntOrNull()?.let { ledColours15.getOrNull(it) }?.let { colourToAll(it) }
+            }
             return
         }
         // north button on "Zeigt": straight to the setting of what the light shows
