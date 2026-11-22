@@ -109,6 +109,10 @@ class WifiPasswordActivity : Activity() {
         buttons.addView(View(this), LinearLayout.LayoutParams(dp(10), 1))
         buttons.addView(button(tr("Verbinden"), true) { connect() })
         box.addView(buttons, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        box.addView(label(tr("Select wechselt zwischen Hugminns und Androids Tastatur"), 12f, pal.onSurfaceVariant).apply {
+            gravity = Gravity.END
+            setPadding(0, dp(8), 0, 0)
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // Hugminn's own keyboard in the chosen style (the system keyboard stays hidden)
         input.showSoftInputOnFocus = false

@@ -15,10 +15,10 @@ Lines that don't apply stay hidden: darken and blur only appear with a picture, 
 
 ![Edit mode](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/modern/dark-edit.png)
 
-- Select an element and press **A**: a menu offers *Move* (with the D-pad, A drops it), *Size* (e.g. 2×1 wide) and *Remove*. **North** removes it directly.
-- **West** ends edit mode and keeps the changes; **B** cancels and leaves everything as it was before.
+- Select an element and press **north**: a menu offers *Move* (with the D-pad, A drops it), *Size* (e.g. 2×1 wide) and *Remove*. **West** removes it directly; north on a free cell adds a new element.
+- **A** ends edit mode and keeps the changes; **B** cancels and leaves everything as it was before.
 - Touch works too: long-press an element and drag it.
-- Free cells show a dashed outline; pressing A on one opens the picker for a new element.
+- Free cells show a dashed outline; north on one (or a tap) opens the picker for a new element.
 - The grid has several pages (R1/L1). The number of rows and columns can be set in the [settings](Settings).
 
 ## Tile colour

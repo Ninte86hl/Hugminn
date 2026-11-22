@@ -15,10 +15,10 @@ Zeilen, die gerade nicht passen, bleiben ausgeblendet: Abdunkeln und Weichzeichn
 
 ![Bearbeitungsmodus](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/modern/dark-edit.png)
 
-- Element auswählen und **A** drücken: ein Menü bietet *Verschieben* (mit dem Steuerkreuz, A legt ab), *Größe* (z. B. 2×1 breit) und *Entfernen*. **Nord** entfernt es direkt.
-- **West** beendet den Bearbeitungsmodus und behält die Änderungen; **B** bricht ab und lässt alles wie vorher.
+- Element auswählen und **Nord** drücken: ein Menü bietet *Verschieben* (mit dem Steuerkreuz, A legt ab), *Größe* (z. B. 2×1 breit) und *Entfernen*. **West** entfernt es direkt; Nord auf einem freien Feld fügt ein neues Element hinzu.
+- **A** beendet den Bearbeitungsmodus und behält die Änderungen; **B** bricht ab und lässt alles wie vorher.
 - Touch geht auch: Element lange drücken und ziehen.
-- Freie Felder haben einen gestrichelten Rand; A auf einem freien Feld öffnet die Auswahl für ein neues Element.
+- Freie Felder haben einen gestrichelten Rand; Nord auf einem freien Feld (oder antippen) öffnet die Auswahl für ein neues Element.
 - Das Raster hat mehrere Seiten (R1/L1). Wie viele Zeilen und Spalten es hat, stellst du in den [Einstellungen](Einstellungen) ein.
 
 ## Kachelfarbe

@@ -22,9 +22,9 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - In the Control Center, *Options* and *Edit* swapped places to match the game switcher.
 - Button symbols are called **Modern**, **Retro** and **Modern (alternative)** (shapes); shoulder, trigger, Start and Select are labelled the way each style names them (LB/RB · L/R · L1/R1 …).
 - The hints at the bottom always show the D-pad, north, west, confirm and back in the same order; L/R only when there are pages or tabs.
-- **Edit mode: B now cancels** and leaves the layout as it was – **west** ends editing and keeps the changes. North removes an element.
+- **Edit mode: A finishes and keeps the changes, B now cancels** and leaves the layout as it was. North opens an element's options (or adds one on a free cell), west removes it.
 - Select no longer takes a screenshot in the switcher and the Control Center (Power + Volume down or the screenshot tile still do).
-- Keyboard (Wi-Fi password): the ⌨ key, a button or Select switch to Android's own keyboard and back.
+- Keyboard (Wi-Fi password): Select (or the ⌨ button) switches to Android's own keyboard and back; the A that chose the network no longer types a letter.
 
 **Video apps**
 - Always landscape: YouTube, Netflix, Disney+, Prime Video and Crunchyroll are shown fully sideways, not only full-screen videos. No root needed. Settings → Game Switcher.
@@ -46,6 +46,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 
 **Other**
 - Missing English translations added.
+- Built-in controls off: closing the Control Center from that menu no longer crashes Hugminn.
 
 ### 🇩🇪 Deutsch
 **Beleuchtung (Stick-LEDs)**
@@ -65,9 +66,9 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Im Control Center haben *Optionen* und *Bearbeiten* die Plätze getauscht, passend zum Game Switcher.
 - Die Tastensymbole heißen **Modern**, **Retro** und **Modern (alternativ)** (Formen); Schulter, Trigger, Start und Select sind so beschriftet, wie der jeweilige Stil sie nennt (LB/RB · L/R · L1/R1 …).
 - Die Hinweise unten zeigen immer Steuerkreuz, Nord, West, Bestätigen und Zurück in derselben Reihenfolge; L/R nur, wenn es Seiten oder Tabs gibt.
-- **Bearbeitungsmodus: B bricht jetzt ab** und lässt das Layout, wie es war – **West** beendet das Bearbeiten und behält die Änderungen. Nord entfernt ein Element.
+- **Bearbeitungsmodus: A beendet und behält die Änderungen, B bricht jetzt ab** und lässt das Layout, wie es war. Nord öffnet die Optionen eines Elements (oder fügt auf einem freien Feld eins hinzu), West entfernt es.
 - Select macht im Switcher und Control Center keinen Screenshot mehr (Power + Leiser oder die Screenshot-Kachel weiterhin).
-- Tastatur (WLAN-Passwort): Die ⌨-Taste, ein Knopf oder Select wechseln zur Android-Tastatur und zurück.
+- Tastatur (WLAN-Passwort): Select (oder der ⌨-Knopf) wechselt zur Android-Tastatur und zurück; das A, mit dem das Netz gewählt wurde, tippt keinen Buchstaben mehr.
 
 **Video-Apps**
 - Immer quer: YouTube, Netflix, Disney+, Prime Video und Crunchyroll erscheinen komplett quer, nicht nur Videos im Vollbild. Ohne Root. Einstellungen → Game Switcher.
@@ -89,6 +90,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 
 **Sonstiges**
 - Fehlende englische Übersetzungen ergänzt.
+- Eingebaute Steuerung aus: Das Schließen des Control Centers aus diesem Menü bringt Hugminn nicht mehr zum Absturz.
 
 ## 1.13.2
 
