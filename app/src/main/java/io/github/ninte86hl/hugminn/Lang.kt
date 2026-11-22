@@ -238,6 +238,7 @@ object Lang {
         "Ecken" to "Corners",
         "Rahmen" to "Frame",
         "Glas" to "Glass",
+        "Android-Tastatur – Select holt Hugminns Tastatur zurück" to "Android keyboard – Select brings Hugminn's keyboard back",
         "Linker Stick" to "Left stick",
         "Rechter Stick" to "Right stick",
         "Linke Seite" to "Left side",
