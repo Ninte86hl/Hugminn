@@ -610,13 +610,38 @@ class ControlCenter(private val svc: HugminnService) {
                 }
             })
         }
+        /**
+         * The fixed part, always the same and in the same order: D-pad, north, west, confirm, back.
+         * A button with nothing to do here stays, dimmed and without a word.
+         */
+        fun fixed(dpad: String, north: String?, west: String?, a: String, b: String) {
+            footer.addView(LinearLayout(svc).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_DPAD_LEFT, 22))
+                addView(text(dpad, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+            })
+            fun opt(k: Int, label: String?) {
+                if (label != null) { hint(k, label); return }
+                footer.addView(LinearLayout(svc).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                    alpha = 0.3f
+                    addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
+                    addView(View(svc), lp(16 * d, 1))
+                })
+            }
+            opt(KeyEvent.KEYCODE_BUTTON_Y, north)
+            opt(KeyEvent.KEYCODE_BUTTON_X, west)
+            hint(KeyEvent.KEYCODE_BUTTON_A, a)
+            hint(KeyEvent.KEYCODE_BUTTON_B, b)
+        }
         // LED window: its own hints (the north button sets what the light shows)
         if (ledCells != null && (menuView as? View)?.tag == "led") {
-            if (ledFocus == "st" && ledTab == 0 && Device.elState(svc, ledEl) > 0) hint(northKey(), tr("Einstellen"))
-            if (ledTab == 0) hint(KeyEvent.KEYCODE_BUTTON_X, tr("Auf alle"))
             hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, "Tab")
-            hint(KeyEvent.KEYCODE_BUTTON_A, if (ledEditing != null) tr("Fertig") else tr("Auswählen"))
-            hint(KeyEvent.KEYCODE_BUTTON_B, if (ledTab != 0) tr("Zurück") else tr("Schließen"))
+            fixed(if (ledEditing != null) tr("Ändern") else tr("Navigieren"),
+                if (ledFocus == "st" && ledTab == 0 && Device.elState(svc, ledEl) > 0) tr("Einstellen") else null,
+                if (ledTab == 0) tr("Auf alle") else null,
+                if (ledEditing != null) tr("Fertig") else tr("Auswählen"),
+                if (ledTab != 0) tr("Zurück") else tr("Schließen"))
             return
         }
         val pc = pages() + if (editing) 1 else 0
@@ -624,24 +649,19 @@ class ControlCenter(private val svc: HugminnService) {
         if (editing) {
             footer.addView(text(if (holding) tr("Verschieben: Steuerkreuz") else tr("Bearbeiten"), 13f, pal.primary, bold = true).apply { setPadding(0, 0, 16 * d, 0) },
                 if (footer.layoutParams?.width == WRAP) lp(WRAP, WRAP) else lp(0, WRAP, 1f))
-            if (holding) hint(KeyEvent.KEYCODE_BUTTON_A, tr("Ablegen")) else {
-                hint(KeyEvent.KEYCODE_BUTTON_A, if (elementAt(cursorX, cursorY) >= 0) tr("Optionen") else tr("Hinzufügen"))
-                hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Entfernen"))
-                hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
-            }
-            hint(KeyEvent.KEYCODE_BUTTON_B, tr("Fertig"))
+            if (!holding) hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
+            fixed(if (holding) tr("Verschieben") else tr("Navigieren"),
+                if (!holding && elementAt(cursorX, cursorY) >= 0) tr("Entfernen") else null,
+                tr("Fertig"),
+                if (holding) tr("Ablegen") else if (elementAt(cursorX, cursorY) >= 0) tr("Optionen") else tr("Hinzufügen"),
+                tr("Fertig"))
         } else {
             if (pages() > 1) hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
-            if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Optionen"))
-            if (inside != null) {
-                hint(KeyEvent.KEYCODE_BUTTON_A, t("Verbinden/Trennen", "Connect/disconnect"))
-                hint(KeyEvent.KEYCODE_BUTTON_B, t("Liste verlassen", "Leave list"))
-            } else {
-                hint(KeyEvent.KEYCODE_BUTTON_X, tr("Bearbeiten"))
-                hint(KeyEvent.KEYCODE_BUTTON_A, if (adjusting) tr("Fertig") else tr("Auswählen"))
-                hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück"))
-            }
+            if (inside != null) fixed(tr("Navigieren"), if (menuHere) tr("Optionen") else null, null,
+                t("Verbinden/Trennen", "Connect/disconnect"), t("Liste verlassen", "Leave list"))
+            else fixed(if (adjusting) tr("Ändern") else tr("Navigieren"), if (menuHere) tr("Optionen") else null, tr("Bearbeiten"),
+                if (adjusting) tr("Fertig") else tr("Auswählen"), tr("Zurück"))
         }
     }
 
