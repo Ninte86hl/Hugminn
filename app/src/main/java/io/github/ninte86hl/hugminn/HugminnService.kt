@@ -352,6 +352,8 @@ class HugminnService : AccessibilityService() {
             }
         }
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
+        // extra buttons (paddles, M1/M2) – only once the person gave them something to do
+        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_C || event.keyCode == KeyEvent.KEYCODE_BUTTON_Z) onExtraKey(event)?.let { return it }
         // an external controller (e.g. 8BitDo over Bluetooth): its Home/Guide button counts as Home
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE && prefs.padHome && event.device?.isExternal == true) return onHome(event, forced = true)
         // the power key closes everything of Hugminn first, so Android's power menu is never hidden behind it
@@ -416,6 +418,35 @@ class HugminnService : AccessibilityService() {
             }
         }
         return true
+    }
+
+    private val extraLong = HashMap<Int, Boolean>()
+
+    /** Short and long press of an extra button; null: nothing set, the key goes on to the game. */
+    private fun onExtraKey(e: KeyEvent): Boolean? {
+        val code = e.keyCode
+        val short = prefs.extraKey(code, false)
+        val long = prefs.extraKey(code, true)
+        if (short == Action.NONE && long == Action.NONE) return null
+        when (e.action) {
+            KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
+                extraLong[code] = false
+                if (long != Action.NONE) extraLongPress(code)
+            }
+            KeyEvent.ACTION_UP -> {
+                ui.removeCallbacksAndMessages(extraToken(code))
+                if (extraLong[code] != true) perform(short)
+                extraLong.remove(code)
+            }
+        }
+        return true
+    }
+
+    private fun extraToken(code: Int) = "extra$code"
+
+    private fun extraLongPress(code: Int): Runnable = Runnable { extraLong[code] = true; perform(prefs.extraKey(code, true)) }.also { r ->
+        // tagged, so the release can take it back
+        ui.postAtTime(r, extraToken(code), android.os.SystemClock.uptimeMillis() + prefs.longMs)
     }
 
     fun perform(a: Action) {
