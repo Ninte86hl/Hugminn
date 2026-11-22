@@ -104,6 +104,13 @@ class Prefs(private val ctx: Context) {
     /** 4:3 screens (Pocket Nova) are taller for their width: five rows by default instead of four. */
     private val fourThree = ctx.resources.displayMetrics.let { maxOf(it.widthPixels, it.heightPixels).toFloat() / minOf(it.widthPixels, it.heightPixels) < 1.5f }
 
+    /**
+     * Extra buttons (back paddles, M1/M2): every device sends them as C (left / M1) and Z (right / M2).
+     * Not set unless the person sets them: a set one no longer reaches the game.
+     */
+    fun extraKey(code: Int, long: Boolean): Action = enumOr(p.getString("extra${code}_${if (long) "L" else "S"}", null), Action.NONE)
+    fun setExtraKey(code: Int, long: Boolean, a: Action) = p.edit().putString("extra${code}_${if (long) "L" else "S"}", a.name).apply()
+
     var single: Action
         get() = enumOr(p.getString("single", null), Action.HOME)
         set(v) = p.edit().putString("single", v.name).apply()

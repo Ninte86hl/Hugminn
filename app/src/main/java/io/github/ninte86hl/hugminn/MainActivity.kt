@@ -137,7 +137,7 @@ class MainActivity : Activity() {
         Page("look", IconView.Kind.PALETTE, "Darstellung", "Appearance", "Stil, Farben, Sprache, Tastensymbole", "Style, colours, language, button symbols"),
         Page("cc", IconView.Kind.SCREEN, "Control Center", "Control Center", "Statusleiste, Kacheln, LED-App", "Status bar, tiles, LED app"),
         Page("switcher", IconView.Kind.REFRESH, "Game Switcher", "Game Switcher", "Eigene Übersicht, Pausieren, Wischgeste", "Own overview, pausing, swipe gesture"),
-        Page("home", IconView.Kind.GAMEPAD, "Home-Taste", "Home button", "Einmal, zweimal und lange drücken", "Single, double and long press"),
+        Page("home", IconView.Kind.GAMEPAD, "Tasten", "Buttons", "Home-Taste und Zusatztasten", "Home button and extra buttons"),
         Page("hotkeys", IconView.Kind.GAMEPAD, "Tastenkürzel", "Emulator shortcuts", "Welche Tasten in welchem Emulator was tun", "Which buttons do what in each emulator"),
         Page("shortcuts", IconView.Kind.PLAY, "Verknüpfungen", "Shortcuts", "Control Center und Spielwechsler ohne Taste öffnen", "Open the Control Center and switcher without a button"),
         Page("profiles", IconView.Kind.FAN, "Profile pro App", "Profiles per app", "Leistung und Lüfter je Emulator", "Performance and fan per emulator"),
@@ -148,7 +148,7 @@ class MainActivity : Activity() {
     /** Which page a section belongs to (by its title). */
     private fun pageOf(title: String): String = when (title) {
         "Status" -> "status"
-        tr("Home-Taste") -> "home"
+        tr("Home-Taste"), t("Zusatztasten", "Extra buttons") -> "home"
         t("Verknüpfungen", "Shortcuts") -> "shortcuts"
         t("Tastenkürzel", "Emulator shortcuts") -> "hotkeys"
         tr("Darstellung"), tr("Tastensymbole") -> "look"
@@ -379,6 +379,17 @@ class MainActivity : Activity() {
             t("Die Home-/Guide-Taste eines Bluetooth- oder USB-Controllers (z. B. 8BitDo) wirkt wie die Home-Taste des Geräts",
                 "The Home/Guide button of a Bluetooth or USB controller (e.g. 8BitDo) works like the handheld's Home button"),
             { if (prefs.padHome) tr("An") else tr("Aus") }) { prefs.padHome = !prefs.padHome }
+
+        // extra buttons: back paddles (Odin 2, Pocket 6) or M1/M2 (Nova) – both arrive as C and Z
+        val nova = android.os.Build.MODEL.contains("Nova", true)
+        val ex = section(t("Zusatztasten", "Extra buttons"))
+        ex.addView(text(t("Rückseitentasten bzw. M1/M2. Eine belegte Taste erreicht das Spiel nicht mehr – frei gelassen funktioniert sie im Spiel wie bisher.",
+            "Back paddles or M1/M2. A button with an action no longer reaches the game – left free it works in games as before."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
+        for ((code, name) in listOf(KeyEvent.KEYCODE_BUTTON_C to (if (nova) "M1" else t("Paddel links", "Left paddle")),
+                KeyEvent.KEYCODE_BUTTON_Z to (if (nova) "M2" else t("Paddel rechts", "Right paddle"))))
+            for (long in listOf(false, true))
+                row(ex, "$name · " + (if (long) tr("Lange drücken") else tr("Einmal drücken")), null,
+                    { prefs.extraKey(code, long).label }) { prefs.setExtraKey(code, long, cycle(actions, prefs.extraKey(code, long))) }
 
         // starting the overlays without a button: home screen shortcuts and extra app icons for frontends
         val sc = section(t("Verknüpfungen", "Shortcuts"))
