@@ -644,8 +644,6 @@ class ControlCenter(private val svc: HugminnService) {
                 if (ledTab != 0) tr("Zurück") else tr("Schließen"))
             return
         }
-        val pc = pages() + if (editing) 1 else 0
-        if (pc > 1) footer.addView(text(t("Seite ${gridPage + 1}/$pc", "Page ${gridPage + 1}/$pc"), 13f, pal.onSurfaceVariant).apply { setPadding(0, 0, 16 * d, 0) })
         if (editing) {
             footer.addView(text(if (holding) tr("Verschieben: Steuerkreuz") else tr("Bearbeiten"), 13f, pal.primary, bold = true).apply { setPadding(0, 0, 16 * d, 0) },
                 if (footer.layoutParams?.width == WRAP) lp(WRAP, WRAP) else lp(0, WRAP, 1f))
@@ -2258,6 +2256,39 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
+    /** Shows its one child whole: taller than the box and it is scaled down (from the top, centred). */
+    private class FitBox(ctx: android.content.Context) : android.view.ViewGroup(ctx) {
+        private var s = 1f
+        override fun onMeasure(ws: Int, hs: Int) {
+            val w = MeasureSpec.getSize(ws)
+            val h = MeasureSpec.getSize(hs)
+            setMeasuredDimension(w, h)
+            val c = getChildAt(0) ?: return
+            val free = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+            c.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), free)
+            s = 1f
+            if (h > 0 && c.measuredHeight > h) {
+                // a wider layout at a smaller scale: measured twice so the width still fills the box
+                repeat(2) {
+                    s = (h.toFloat() / c.measuredHeight * s).coerceIn(0.5f, 1f)
+                    c.measure(MeasureSpec.makeMeasureSpec((w / s).toInt(), MeasureSpec.EXACTLY), free)
+                    if (c.measuredHeight * s <= h) return@repeat
+                }
+                s = (h.toFloat() / c.measuredHeight).coerceAtMost(s).coerceIn(0.5f, 1f)
+            }
+        }
+        override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+            val c = getChildAt(0) ?: return
+            c.layout(0, 0, c.measuredWidth, c.measuredHeight)
+            c.pivotX = 0f
+            c.pivotY = 0f
+            c.scaleX = s
+            c.scaleY = s
+            // centred horizontally
+            c.translationX = ((r - l) - c.measuredWidth * s) / 2f
+        }
+    }
+
     /** Scrolls when the window is taller than the screen (4:3); never taller than [maxH]. */
     private class MaxScroll(ctx: android.content.Context, private val maxH: Int) : android.widget.ScrollView(ctx) {
         override fun onMeasure(ws: Int, hs: Int) = super.onMeasure(ws, MeasureSpec.makeMeasureSpec(maxH, MeasureSpec.AT_MOST))
@@ -2462,8 +2493,9 @@ class ControlCenter(private val svc: HugminnService) {
         tabs.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_R1, 20))
         box.addView(tabs, lp(MATCH, WRAP))
 
-        val scroll = android.widget.ScrollView(svc).apply { isVerticalScrollBarEnabled = false }
-        ledScroll = scroll
+        // everything fits the window: too tall (4:3) and the content is shrunk as a whole – no scrolling
+        val scroll = FitBox(svc)
+        ledScroll = null
         box.addView(scroll, lp(MATCH, bodyH))
         val outer = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         scroll.addView(outer)
