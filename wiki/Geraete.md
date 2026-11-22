@@ -14,7 +14,8 @@ Hugminn ist für Android-Handhelds von **Retroid** und **AYN** gemacht. Es erken
 | Retroid Pocket Nova | ✅ getestet |
 | Retroid Pocket 5 | ✅ läuft (von der Community getestet) |
 | G2 | ❔ ein Tester hat einen Bericht angekündigt |
-| AYN Odin 2 / Odin 2 Mini / Odin 2 Portal | ❔ noch nicht getestet |
+| AYN Odin 2 | ✅ getestet |
+| AYN Odin 2 Mini / Odin 2 Portal | ❔ noch nicht getestet – sollten sich wie der Odin 2 verhalten |
 | AYN Thor (zwei Bildschirme) | 🕓 später geplant, als eigenes Update |
 | Retroid Pocket Dual (zwei Bildschirme) | 🕓 später geplant, als eigenes Update |
 
@@ -45,12 +46,12 @@ Snapdragon 8 Gen 2 · 4,5" 4:3, 1280×960, 120 Hz
 | Game Switcher | ✅ |
 | Control Center | ✅ – eigenes 4:3-Layout mit 5 Zeilen |
 | Home-Taste | ✅ |
-| Leistungs- und Lüfterprofile | ❔ |
-| Stick-LEDs und Effekte | ✅ |
+| Leistungs- und Lüfterprofile | ✅ |
+| Stick-LEDs und Effekte | ✅ – jeder Stick einzeln (eine Zone pro Stick) |
 | Leistungs-Overlay (FPS) | ✅ |
 | Aufnahme | ✅ – LED-Pulsieren während der Aufnahme getestet |
-| Eingebaute Steuerung ausschalten | ❔ |
-| Einrichtungsassistent und Gerätetest | ❔ |
+| Eingebaute Steuerung ausschalten | ✅ |
+| Einrichtungsassistent und Gerätetest | ✅ |
 
 ### Retroid Pocket 5
 Snapdragon 865 · 5,5" 16:9, 1080p
@@ -68,7 +69,22 @@ Snapdragon 865 · 5,5" 16:9, 1080p
 
 Offen: ein Detail zu den Lautstärketasten bei geöffnetem Benachrichtigungsfeld – Antwort des Testers steht aus.
 
-### G2 · AYN-Odin-2-Familie
+### AYN Odin 2
+Snapdragon 8 Gen 2 · 6" 16:9, 1080p
+
+| Bereich | |
+| --- | --- |
+| Game Switcher | ✅ |
+| Control Center | ✅ |
+| Home-Taste (einmal, zweimal, halten) | ✅ |
+| Leistungs- und Lüfterprofile | ✅ |
+| Beleuchtung: Sticks und Seitenleuchten, jeweils einzeln | ✅ |
+| Leistungs-Overlay (FPS) | ✅ |
+| Aufnahme (Screenshot, Video mit Ton) | ✅ |
+| Tastenlayout (Modern/Retro) und eingebaute Steuerung ausschalten | ✅ |
+| Einrichtungsassistent und Gerätetest (mit LED-Tester) | ✅ |
+
+### G2 · Odin 2 Mini / Portal
 Noch nichts bestätigt. Die Grundfunktionen (Game Switcher, Control Center, Home-Taste) sollten auf jedem Android-Handheld laufen; gerätespezifische Funktionen wie Leistungs- und Lüfterprofile, Stick-LEDs oder die Tastenbelegung hängen von der Firmware des Herstellers ab und brauchen eventuell Anpassungen. Ein Gerätebericht zeigt genau, was fehlt.
 
 ### Dual-Screen-Geräte (AYN Thor, Retroid Pocket Dual)

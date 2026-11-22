@@ -14,7 +14,8 @@ Hugminn is made for Android handhelds from **Retroid** and **AYN**. It detects t
 | Retroid Pocket Nova | ✅ tested |
 | Retroid Pocket 5 | ✅ works (tested by the community) |
 | G2 | ❔ a tester has announced a report |
-| AYN Odin 2 / Odin 2 Mini / Odin 2 Portal | ❔ not tested yet |
+| AYN Odin 2 | ✅ tested |
+| AYN Odin 2 Mini / Odin 2 Portal | ❔ not tested yet – should behave like the Odin 2 |
 | AYN Thor (two screens) | 🕓 planned later, as its own update |
 | Retroid Pocket Dual (two screens) | 🕓 planned later, as its own update |
 
@@ -45,12 +46,12 @@ Snapdragon 8 Gen 2 · 4.5" 4:3, 1280×960, 120 Hz
 | Game switcher | ✅ |
 | Control Center | ✅ – own 4:3 layout with 5 rows |
 | Home button | ✅ |
-| Performance and fan profiles | ❔ |
-| Stick LEDs and effects | ✅ |
+| Performance and fan profiles | ✅ |
+| Stick LEDs and effects | ✅ – each stick on its own (one zone per stick) |
 | Performance overlay (FPS) | ✅ |
 | Capture | ✅ – LED pulse while recording tested |
-| Turning off the built-in controls | ❔ |
-| Setup wizard and device test | ❔ |
+| Turning off the built-in controls | ✅ |
+| Setup wizard and device test | ✅ |
 
 ### Retroid Pocket 5
 Snapdragon 865 · 5.5" 16:9, 1080p
@@ -68,7 +69,22 @@ Snapdragon 865 · 5.5" 16:9, 1080p
 
 Open: a detail about the volume buttons while the notification shade is open – waiting for the tester's answer.
 
-### G2 · AYN Odin 2 family
+### AYN Odin 2
+Snapdragon 8 Gen 2 · 6" 16:9, 1080p
+
+| Area | |
+| --- | --- |
+| Game switcher | ✅ |
+| Control Center | ✅ |
+| Home button (once, twice, hold) | ✅ |
+| Performance and fan profiles | ✅ |
+| Lights: sticks and side lights, each on its own | ✅ |
+| Performance overlay (FPS) | ✅ |
+| Capture (screenshot, video with sound) | ✅ |
+| Button layout (Modern/Retro) and turning off the built-in controls | ✅ |
+| Setup wizard and device test (with LED tester) | ✅ |
+
+### G2 · Odin 2 Mini / Portal
 Nothing confirmed yet. Hugminn's basics (game switcher, Control Center, Home button) should work on every Android handheld; device-specific features such as performance and fan profiles, stick LEDs or the button layout depend on the manufacturer's firmware and may need adjustments. A device report shows exactly what is missing.
 
 ### Dual-screen devices (AYN Thor, Retroid Pocket Dual)
