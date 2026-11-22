@@ -175,6 +175,8 @@ class DeviceTestActivity : Activity() {
                 "Each shows up here with its code. Move on by holding Start for a second, with the button below or after 40 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(10)) })
         val log = mutableListOf<String>()
         val downAt = HashMap<Int, Long>()
+        var lastUp = 0L
+        var gap = -1L
         val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         list.addView(lines)
         var done = false
@@ -190,11 +192,17 @@ class DeviceTestActivity : Activity() {
             if (!done) {
                 val name = KeyEvent.keyCodeToString(e.keyCode).removePrefix("KEYCODE_")
                 when (e.action) {
-                    KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) downAt[e.keyCode] = e.eventTime
+                    KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
+                        downAt[e.keyCode] = e.eventTime
+                        // pause since the last release: shows how fast a double click really is
+                        gap = if (lastUp > 0) e.eventTime - lastUp else -1L
+                    }
                     KeyEvent.ACTION_UP -> {
                         val ms = downAt.remove(e.keyCode)?.let { e.eventTime - it } ?: 0L
                         if (e.keyCode == KeyEvent.KEYCODE_BUTTON_START && ms >= 1000) finish() else {
-                            val entry = "$name (${e.keyCode}) scan ${e.scanCode} · ${e.device?.name ?: "?"} · $ms ms"
+                            lastUp = e.eventTime
+                            val entry = "$name (${e.keyCode}) scan ${e.scanCode} · ${e.device?.name ?: "?"} · $ms ms" +
+                                (if (gap in 0..2000) " · Pause $gap ms" else "")
                             log += entry
                             lines.addView(text(entry, 14f, fg).apply { setPadding(0, d(3), 0, d(3)) }, 0)
                         }
