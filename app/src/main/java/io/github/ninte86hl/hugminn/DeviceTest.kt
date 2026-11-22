@@ -204,7 +204,7 @@ class DeviceTestActivity : Activity() {
         LedFx.previewZone = if (Device.hasSideLights(this)) 2 else 1  // Odin 2: zone 2 = sticks
         // the LEDs only show anything while their power switch is on: on for the test, back afterwards
         val before = Device.elStates(this)
-        val stickOn = if (Device.hasSideLights(this)) Device.stickLedCmds(this, true)
+        val stickOn = if (Device.hasSideLights(this)) Device.stickLedCmds(this, true).toList()
             else listOf(Root.putSetting("system", "joystick_light_enabled", "1,1"))
         Root.run(*stickOn.toTypedArray()) { runOnUiThread { LedFx.preview(Color.RED, Color.RED, 1f) } }
         fun answer(seen: Boolean) {
