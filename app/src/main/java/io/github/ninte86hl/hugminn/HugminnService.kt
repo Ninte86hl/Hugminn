@@ -21,7 +21,7 @@ class HugminnService : AccessibilityService() {
         /** Set by the device test while it waits for buttons (Home included). */
         @Volatile var keyProbe: ((Int) -> Unit)? = null
         /** Device test, extra buttons: every key goes here (a copy) and nowhere else – power aside. */
-        @Volatile var keyLog: ((KeyEvent) -> Unit)? = null
+        @Volatile var keyTap: ((KeyEvent) -> Unit)? = null
         /** Sees every key (without taking it): the setup's button test works whichever window has the focus. */
         @Volatile var keyWatch: ((Int) -> Unit)? = null
         /** The setup wizard waits for the switcher / Control Center to be opened ("switcher", "cc"). */
@@ -350,7 +350,7 @@ class HugminnService : AccessibilityService() {
             while (keyLog.size > 40) keyLog.removeFirst()
         }
         keyWatch?.let { w -> if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) { val c = event.keyCode; ui.post { w(c) } } }
-        keyLog?.let { l ->
+        keyTap?.let { l ->
             if (event.keyCode != KeyEvent.KEYCODE_POWER) { val copy = KeyEvent(event); ui.post { l(copy) }; return true }
         }
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
