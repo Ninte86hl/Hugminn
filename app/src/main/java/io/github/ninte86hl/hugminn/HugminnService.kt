@@ -351,14 +351,11 @@ class HugminnService : AccessibilityService() {
                 return true
             }
         }
-        // Pocket Classic: its one button sends Back (Back is on the face buttons and touch anyway), so it
-        // becomes a full Home button. The firmware adds a Home of its own after a quick double Back: dropped.
-        if (Device.noSticks && event.keyCode == KeyEvent.KEYCODE_BACK && event.device?.name?.contains("Retroid", true) == true) {
-            classicBackAt = event.eventTime
-            return onHome(event, forced = true)
-        }
-        if (Device.noSticks && (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME) &&
-            event.eventTime - classicBackAt < 1500) return true
+        // Pocket Classic: the firmware tells single, double and long apart itself – a single press
+        // arrives as Back, a double click as one Home (the Backs are swallowed), held as a long Back.
+        // Back is on the face buttons and touch anyway, so the button becomes a full Home button.
+        if (Device.noSticks && event.keyCode == KeyEvent.KEYCODE_BACK && event.device?.name?.contains("Retroid", true) == true) return onClassicKey(event, false)
+        if (Device.noSticks && (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME)) return onClassicKey(event, true)
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
         // extra buttons (paddles, M1/M2) – only once the person gave them something to do
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_C || event.keyCode == KeyEvent.KEYCODE_BUTTON_Z) onExtraKey(event)?.let { return it }
@@ -428,7 +425,31 @@ class HugminnService : AccessibilityService() {
         return true
     }
 
-    private var classicBackAt = -10_000L
+    private var classicLong = false
+    private val classicLongPress = Runnable { classicLong = true; perform(prefs.long) }
+
+    private fun onClassicKey(e: KeyEvent, double: Boolean): Boolean {
+        // lock screen: the button stays Android's
+        if (getSystemService(android.app.KeyguardManager::class.java)?.isKeyguardLocked == true) return false
+        when (e.action) {
+            KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0 && double) {
+                // picture of the game right now, before the switcher covers it
+                if (!controlCenter.isOpen && !anySwitcherOpen && prefs.ownSwitcher) foregroundPkg?.let { fg ->
+                    if (windowPkg == fg && onTopScreen(fg)) Snapshots.capture(this, fg)
+                }
+            } else if (e.repeatCount == 0) {
+                classicLong = false
+                if (prefs.long != Action.NONE) ui.postDelayed(classicLongPress, prefs.longMs.toLong())
+            }
+            KeyEvent.ACTION_UP -> {
+                ui.removeCallbacks(classicLongPress)
+                if (double) ui.post { perform(prefs.double) }
+                else if (!classicLong) ui.post { perform(prefs.single) }
+                classicLong = false
+            }
+        }
+        return true
+    }
 
     private val extraLong = HashMap<Int, Boolean>()
 
