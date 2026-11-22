@@ -141,7 +141,7 @@ class DeviceTestActivity : Activity() {
             val missing = keys.filterKeys { it !in pressed }.values
             add(t("Tasten", "Buttons"), t("Tasten", "Buttons"), if (missing.isEmpty()) CheckState.OK else CheckState.WARN,
                 if (missing.isEmpty()) t("Alle ${keys.size} erkannt", "All ${keys.size} detected") else t("Nicht erkannt: ", "Not detected: ") + missing.joinToString())
-            startLedTest()
+            startExtraKeys()
         }
         keyTest = { code ->
             if (code in keys && pressed.add(code)) {
@@ -151,6 +151,49 @@ class DeviceTestActivity : Activity() {
             true
         }
         list.postDelayed({ finishKeys() }, 30_000)
+    }
+
+    /**
+     * Extra buttons (M1, M2, back paddles, a Home that is also Back): every key that arrives is listed
+     * with its code, scan code, device and how long it was held, so the report shows what the
+     * firmware makes of them. Hugminn itself ignores all keys meanwhile (power aside).
+     */
+    private fun startExtraKeys() {
+        list.removeAllViews()
+        list.addView(text(t("Zusatztasten", "Extra buttons"), 18f, fg, true))
+        list.addView(text(t("Drück jetzt jede zusätzliche Taste (M1, M2, Paddles …) einmal kurz und einmal lang, dazu Home kurz und lang. " +
+            "Jede Taste erscheint hier mit ihrem Code. Fertig mit dem Knopf unten oder nach 40 Sekunden.",
+            "Now press every extra button (M1, M2, paddles …) once briefly and once long, and Home briefly and long. " +
+                "Each shows up here with its code. Done with the button below or after 40 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(10)) })
+        val log = mutableListOf<String>()
+        val downAt = HashMap<Int, Long>()
+        val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        list.addView(lines)
+        var done = false
+        fun finish() {
+            if (done) return
+            done = true
+            HugminnService.keyLog = null
+            add(t("Tasten", "Buttons"), t("Zusatztasten", "Extra buttons"), CheckState.OK,
+                if (log.isEmpty()) t("keine gedrückt", "none pressed") else log.joinToString(" | "))
+            startLedTest()
+        }
+        HugminnService.keyLog = { e ->
+            if (!done) {
+                val name = KeyEvent.keyCodeToString(e.keyCode).removePrefix("KEYCODE_")
+                when (e.action) {
+                    KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) downAt[e.keyCode] = e.eventTime
+                    KeyEvent.ACTION_UP -> {
+                        val ms = downAt.remove(e.keyCode)?.let { e.eventTime - it } ?: 0L
+                        val entry = "$name (${e.keyCode}) scan ${e.scanCode} · ${e.device?.name ?: "?"} · $ms ms"
+                        log += entry
+                        lines.addView(text(entry, 14f, fg).apply { setPadding(0, d(3), 0, d(3)) }, 0)
+                    }
+                }
+            }
+        }
+        setButtons(button(t("Fertig", "Done"), primary = true) { finish() })
+        list.postDelayed({ finish() }, 40_000)
     }
 
     private fun startLedTest() {
@@ -311,6 +354,7 @@ class DeviceTestActivity : Activity() {
     override fun onDestroy() {
         keyTest = null
         HugminnService.keyProbe = null
+        HugminnService.keyLog = null
         super.onDestroy()
     }
 }
