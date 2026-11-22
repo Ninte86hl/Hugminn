@@ -22,7 +22,7 @@ Effekte einzeln (◀ ▶): Statisch, Atmen, Pulsieren, Regenbogen, Farbwechsel �
 | Steuerkreuz / Stick | zwischen den Feldern wechseln |
 | A | Feld nehmen (dann ändert ◀ ▶ es), A nochmal bestätigt |
 | Nord (Y · Retro X · △) | auf *Zeigt*: direkt zur Einstellung dessen, was das Licht zeigt (Farbe, Kombi oder Effekt) |
-| West (X · Retro Y · □) | was dieses Licht zeigt (Farbe, Effekt, Helligkeit) auf alle Lichter übertragen |
+| West (X · Retro Y · □) | für alle Lichter: *Gerät* überträgt dieses Licht (Farbe, Effekt, Helligkeit), *Modus* den gezeigten Effekt, *Farbe* die Farbe unter der Auswahl |
 | B | zurück zu *Gerät*; dort schließt es das Fenster |
 
 Bei 10 % Akku pulsieren die Sticks rot.

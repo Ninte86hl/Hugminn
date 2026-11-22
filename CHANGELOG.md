@@ -11,7 +11,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Brightness and saturation per light as bars in 5 % steps; colour combinations (left lights the first colour, right ones the second).
 - *Colour*: 15 colours, the 16th tile opens the colour wheel – the LED shows each colour right away. After choosing, the window goes back to *Device* for the next light.
 - *Mode*: static, breathing, pulsing, rainbow, colour cycle, battery and temperature display, with speed; breathing and pulsing use the light's colour. *For all lights that are on* gives every light the same effect.
-- North button on *Shows* jumps straight to the setting of what the light shows; west copies the light to all others.
+- North button on *Shows* jumps straight to the setting of what the light shows; west applies to all lights – in *Device* the whole light, in *Mode* the effect, in *Colour* the colour.
 - Rainbow and colour cycle run calmer, without flicker.
 - Fits 16:9 and 4:3: on small screens the content shrinks so everything is visible.
 - LED tester in the device test: lights every LED setting and driver zone in turn and asks what lit up.
@@ -55,7 +55,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Helligkeit und Sättigung pro Licht als Balken in 5-%-Schritten; Farbkombinationen (linke Lichter die erste Farbe, rechte die zweite).
 - *Farbe*: 15 Farben, die 16. Kachel öffnet das Farbrad – die LED zeigt jede Farbe sofort. Nach der Wahl geht es zurück zu *Gerät* für das nächste Licht.
 - *Modus*: Statisch, Atmen, Pulsieren, Regenbogen, Farbwechsel, Akku- und Temperaturanzeige, mit Tempo; Atmen und Pulsieren nehmen die Farbe des Lichts. *Für alle eingeschalteten Lichter* gibt allen denselben Effekt.
-- Nord-Taste auf *Zeigt* springt direkt zur Einstellung dessen, was das Licht zeigt; West überträgt das Licht auf alle anderen.
+- Nord-Taste auf *Zeigt* springt direkt zur Einstellung dessen, was das Licht zeigt; West gilt für alle Lichter – in *Gerät* das ganze Licht, in *Modus* der Effekt, in *Farbe* die Farbe.
 - Regenbogen und Farbwechsel laufen ruhiger, ohne Flackern.
 - Passt auf 16:9 und 4:3: Auf kleinen Bildschirmen wird der Inhalt verkleinert, damit alles zu sehen ist.
 - LED-Tester im Gerätetest: schaltet jede LED-Einstellung und Treiber-Zone nacheinander ein und fragt, was geleuchtet hat.

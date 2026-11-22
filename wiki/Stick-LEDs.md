@@ -22,7 +22,7 @@ Effects one at a time (◀ ▶): static, breathing, pulsing, rainbow, colour cyc
 | D-pad / stick | move between the fields |
 | A | take a field (then ◀ ▶ change it), A again confirms |
 | North (Y · Retro X · △) | on *Shows*: straight to the setting of what the light shows (colour, combo or effect) |
-| West (X · Retro Y · □) | copy what this light shows (colour, effect, brightness) to all lights |
+| West (X · Retro Y · □) | for all lights: *Device* copies this light (colour, effect, brightness), *Mode* the effect shown, *Colour* the colour under the cursor |
 | B | back to *Device*; there it closes the window |
 
 The sticks pulse red when the battery drops to 10 %.
