@@ -362,13 +362,14 @@ class HugminnService : AccessibilityService() {
                 return true
             }
         }
-        // Pocket Classic: its one button sends Back (short and long) and Home on a double click
-        if (Device.noSticks && event.keyCode == KeyEvent.KEYCODE_BACK && event.device?.name?.contains("Retroid", true) == true) return onClassicBack(event)
-        if (Device.noSticks && (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME)) {
-            // the firmware's own double click (it follows the two Backs): counts once, with Hugminn's own detection
-            if (event.action == KeyEvent.ACTION_UP && event.eventTime - classicDoubleAt > 1500) { classicDoubleAt = event.eventTime; ui.post { perform(prefs.double) } }
-            return true
+        // Pocket Classic: its one button sends Back (Back is on the face buttons and touch anyway), so it
+        // becomes a full Home button. The firmware adds a Home of its own after a quick double Back: dropped.
+        if (Device.noSticks && event.keyCode == KeyEvent.KEYCODE_BACK && event.device?.name?.contains("Retroid", true) == true) {
+            classicBackAt = event.eventTime
+            return onHome(event, forced = true)
         }
+        if (Device.noSticks && (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME) &&
+            event.eventTime - classicBackAt < 1500) return true
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
         // extra buttons (paddles, M1/M2) – only once the person gave them something to do
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_C || event.keyCode == KeyEvent.KEYCODE_BUTTON_Z) onExtraKey(event)?.let { return it }
@@ -446,42 +447,7 @@ class HugminnService : AccessibilityService() {
         return true
     }
 
-    private var classicLong = false
-    private var classicLastUp = 0L
-    private var classicDoubleAt = -10_000L
-    private val classicLongPress = Runnable { classicLong = true; perform(prefs.long) }
-
-    /**
-     * Pocket Classic: its button only ever sends Back – a double click is two Backs, which the system
-     * turns into Home. Hugminn takes that over: short stays Back, a quick second press does the
-     * double-press action (Game Switcher by default), held it does the long-press action.
-     */
-    private fun onClassicBack(e: KeyEvent): Boolean {
-        when (e.action) {
-            KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
-                classicLong = false
-                ui.postDelayed(classicLongPress, prefs.longMs.toLong())
-            }
-            KeyEvent.ACTION_UP -> {
-                ui.removeCallbacks(classicLongPress)
-                if (!classicLong) {
-                    var second = e.eventTime - classicLastUp < prefs.doubleMs
-                    classicLastUp = if (second) 0L else e.eventTime
-                    if (second && e.eventTime - classicDoubleAt <= 1500) second = false
-                    if (second) classicDoubleAt = e.eventTime
-                    ui.post {
-                        when {
-                            second -> perform(prefs.double)
-                            controlCenter.isOpen || own.isOpen || switcher.isOpen -> runCatching { closeOverlays() }
-                            else -> performGlobalAction(GLOBAL_ACTION_BACK)
-                        }
-                    }
-                } else classicLastUp = 0L
-                classicLong = false
-            }
-        }
-        return true
-    }
+    private var classicBackAt = -10_000L
 
     private val extraLong = HashMap<Int, Boolean>()
 
