@@ -427,7 +427,7 @@ class ControlCenter(private val svc: HugminnService) {
                 val cell = View(svc).apply {
                     val cx = x
                     val cy = y
-                    setOnClickListener { cursorX = cx; cursorY = cy; editKey(KeyEvent.KEYCODE_BUTTON_A) }
+                    setOnClickListener { cursorX = cx; cursorY = cy; editKey(KeyEvent.KEYCODE_BUTTON_Y) }
                 }
                 editFree[y * 100 + x] = cell
                 board.place(cell, x, y, 1, 1)
@@ -648,10 +648,11 @@ class ControlCenter(private val svc: HugminnService) {
             footer.addView(text(if (holding) tr("Verschieben: Steuerkreuz") else tr("Bearbeiten"), 13f, pal.primary, bold = true).apply { setPadding(0, 0, 16 * d, 0) },
                 if (footer.layoutParams?.width == WRAP) lp(WRAP, WRAP) else lp(0, WRAP, 1f))
             if (!holding) hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
+            val onEl = elementAt(cursorX, cursorY) >= 0
             fixed(if (holding) tr("Verschieben") else tr("Navigieren"),
-                if (!holding && elementAt(cursorX, cursorY) >= 0) tr("Entfernen") else null,
-                tr("Fertig"),
-                if (holding) tr("Ablegen") else if (elementAt(cursorX, cursorY) >= 0) tr("Optionen") else tr("Hinzufügen"),
+                if (holding) null else if (onEl) tr("Optionen") else tr("Hinzufügen"),
+                if (!holding && onEl) tr("Entfernen") else null,
+                if (holding) tr("Ablegen") else tr("Fertig"),
                 if (holding) tr("Zurück") else tr("Abbrechen"))
         } else {
             if (pages() > 1) hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
@@ -1698,7 +1699,7 @@ class ControlCenter(private val svc: HugminnService) {
                 // without one connected yet, they come back on by themselves if none arrives within 60 s
                 MenuEntry(t("Eingebaute Steuerung aus", "Built-in controls off"), checked = off,
                     hint = if (off) t("A schaltet sie wieder ein", "A turns them back on") else if (pad) t("Für einen externen Controller", "For an external controller") else t("Controller innerhalb 30 s verbinden", "Connect a controller within 30 s"),
-                    run = { Device.setBuiltin(svc, off) { refreshAll(); if (!off && !pad) svc.guardBuiltinOff() } }),
+                    run = { Device.setBuiltin(svc, off) { svc.ui.post { refreshAll(); if (!off && !pad) svc.guardBuiltinOff() } } }),
             ))
         } else null
         "theme" -> Tile(tr("Farbschema"), IconView.Kind.PALETTE, { svc.prefs.theme.label }, { false }) {
@@ -3324,18 +3325,16 @@ class ControlCenter(private val svc: HugminnService) {
                 markEdit()
                 renderFooter()
             }
-            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> when {
-                holding -> { holding = false; renderGrid() }
-                el >= 0 -> elementMenu(el)
-                else -> addMenu()
-            }
-            // north removes, west ends editing (it also started it)
-            KeyEvent.KEYCODE_BUTTON_Y -> if (el >= 0) {
+            // A: drop the held element, or finish editing and keep the changes
+            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> if (holding) { holding = false; renderGrid() } else finishEdit()
+            // north: options of the element (move, size, remove), on a free cell: add one
+            KeyEvent.KEYCODE_BUTTON_Y -> if (!holding) { if (el >= 0) elementMenu(el) else addMenu() }
+            // west: remove the element
+            KeyEvent.KEYCODE_BUTTON_X -> if (el >= 0) {
                 entries.removeAt(el)
                 holding = false
                 renderGrid()
             }
-            KeyEvent.KEYCODE_BUTTON_X -> if (holding) { holding = false; renderGrid() } else finishEdit()
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             // B: let go of the held element, or leave editing without keeping the changes

@@ -91,14 +91,14 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
             chars("asdfghjkl") + Key("@", "@", 1f, more = "#&%"),
             listOf(Key(if (shift) "⇪" else "⇧", null, 1.4f, Act.SHIFT)) + chars(if (de) "yxcvbnm" else "zxcvbnm") +
                 Key("-", "-", 1f, more = "_+=/") + Key(".", ".", 1f, more = ",;:!?"),
-            listOf(Key("?123", null, 1.6f, Act.SYM), Key("⌨", null, 1.1f, Act.HIDE), Key("‹", null, 1f, Act.LEFT),
-                Key(space, " ", 3.8f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
+            listOf(Key("?123", null, 1.6f, Act.SYM), Key("‹", null, 1f, Act.LEFT),
+                Key(space, " ", 4.6f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
         ) else listOf(
             "1234567890".map { Key(it.toString(), it.toString(), 1f) } + Key("⌫", null, 1.4f, Act.BACK),
             "!\"§$%&/()=?".map { Key(it.toString(), it.toString(), 1f) },
             "+*#'<>;:,_~".map { Key(it.toString(), it.toString(), 1f) } + Key(".", ".", 1f),
-            listOf(Key("ABC", null, 1.6f, Act.SYM), Key("⌨", null, 1.1f, Act.HIDE), Key("@", "@", 1f), Key("‹", null, 1f, Act.LEFT),
-                Key(space, " ", 3.8f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
+            listOf(Key("ABC", null, 1.6f, Act.SYM), Key("@", "@", 1f), Key("‹", null, 1f, Act.LEFT),
+                Key(space, " ", 4.6f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
         )
         row = row.coerceIn(0, rows.lastIndex)
         col = col.coerceIn(0, rows[row].lastIndex)
@@ -253,6 +253,7 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
     // ---------- controller ----------
 
     private var aLong = false
+    private var aDown = false
     private val aHold = Runnable { aLong = openPopup(rows[row][col]) }
 
     /** Key events from the activity (down and up); true when handled. */
@@ -262,13 +263,16 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
         val isA = code == KeyEvent.KEYCODE_BUTTON_A || code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
         if (isA) {
             if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {
+                aDown = true
                 if (popup != null) { choosePopup(); aLong = true; return true }
                 aLong = false
                 postDelayed(aHold, 450)
             } else if (e.action == KeyEvent.ACTION_UP) {
                 removeCallbacks(aHold)
-                if (!aLong) press(rows[row][col])
+                // only an A pressed here types: the release of the A that chose the network does not
+                if (!aLong && aDown) press(rows[row][col])
                 aLong = false
+                aDown = false
             }
             return true
         }

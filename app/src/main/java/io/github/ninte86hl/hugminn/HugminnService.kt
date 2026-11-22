@@ -497,6 +497,8 @@ class HugminnService : AccessibilityService() {
     private var guardRun: Runnable? = null
     @Volatile var guardDiag = ""
     fun guardBuiltinOff() {
+        // called from a root callback too: the Control Center may only be closed on the main thread
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) { ui.post { guardBuiltinOff() }; return }
         guardRun?.let { ui.removeCallbacks(it) }
         if (::controlCenter.isInitialized) controlCenter.close()
         val end = SystemClock.elapsedRealtime() + 30_000

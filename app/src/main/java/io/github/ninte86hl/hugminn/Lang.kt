@@ -241,6 +241,7 @@ object Lang {
         "Android-Tastatur – Select holt Hugminns Tastatur zurück" to "Android keyboard – Select brings Hugminn's keyboard back",
         "Navigieren" to "Navigate",
         "Ändern" to "Change",
+        "Select wechselt zwischen Hugminns und Androids Tastatur" to "Select switches between Hugminn's and Android's keyboard",
         "Linker Stick" to "Left stick",
         "Rechter Stick" to "Right stick",
         "Linke Seite" to "Left side",
