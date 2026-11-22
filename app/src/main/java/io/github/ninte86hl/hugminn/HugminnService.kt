@@ -427,11 +427,15 @@ class HugminnService : AccessibilityService() {
     }
 
     private var classicLong = false
+    private var classicLastUp = 0L
     private val classicLongPress = Runnable { classicLong = true; perform(prefs.long) }
 
-    /** Pocket Classic: short stays Back, held for the long-press time it does Hugminn's long press. */
+    /**
+     * Pocket Classic: its button only ever sends Back – a double click is two Backs, which the system
+     * turns into Home. Hugminn takes that over: short stays Back, a quick second press does the
+     * single-press action (Home by default), held it does the long-press action.
+     */
     private fun onClassicBack(e: KeyEvent): Boolean {
-        if (prefs.long == Action.NONE) return false
         when (e.action) {
             KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
                 classicLong = false
@@ -439,10 +443,17 @@ class HugminnService : AccessibilityService() {
             }
             KeyEvent.ACTION_UP -> {
                 ui.removeCallbacks(classicLongPress)
-                if (!classicLong) ui.post {
-                    if (controlCenter.isOpen || own.isOpen || switcher.isOpen) runCatching { closeOverlays() }
-                    else performGlobalAction(GLOBAL_ACTION_BACK)
-                }
+                if (!classicLong) {
+                    val second = e.eventTime - classicLastUp < prefs.doubleMs
+                    classicLastUp = if (second) 0L else e.eventTime
+                    ui.post {
+                        when {
+                            second -> perform(prefs.single)
+                            controlCenter.isOpen || own.isOpen || switcher.isOpen -> runCatching { closeOverlays() }
+                            else -> performGlobalAction(GLOBAL_ACTION_BACK)
+                        }
+                    }
+                } else classicLastUp = 0L
                 classicLong = false
             }
         }
