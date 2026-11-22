@@ -388,6 +388,8 @@ class ControlCenter(private val svc: HugminnService) {
         items.clear()
         inside = null
         itemEntry.clear()
+        editTiles.clear()
+        editFree.clear()
         body.removeAllViews()
         val board = GridBoard(svc, gridCols, 10 * d)
         val viewIndex = HashMap<View, Int>()
@@ -403,10 +405,8 @@ class ControlCenter(private val svc: HugminnService) {
             val (view, item) = element(pl.entry, rootOk)
             viewIndex[view] = idx
             if (editing) {
-                val sel = idx == cursorEl
                 view.setOnClickListener { cursorX = pl.x; cursorY = pl.y; elementMenu(idx) }
-                view.foreground = if (sel) shape(0, 22f * d, (if (holding) 5 else 3) * d, if (holding) tileOn() else pal.onSurface) else null
-                if (sel && holding) { view.scaleX = 0.94f; view.scaleY = 0.94f }
+                editTiles[idx] = view to (item?.round == true)
             } else if (item != null) {
                 items += item
                 itemEntry += idx
@@ -417,19 +417,15 @@ class ControlCenter(private val svc: HugminnService) {
             // Free cells as dashed squares; A on one adds something there
             for (y in 0 until GridLayout.ROWS) for (x in 0 until gridCols) {
                 if (covered[y][x]) continue
-                val sel = cursorEl < 0 && x == cursorX && y == cursorY
                 val cell = View(svc).apply {
-                    background = android.graphics.drawable.GradientDrawable().apply {
-                        cornerRadius = 22f * d
-                        setStroke(2 * d, if (sel) pal.onSurface else pal.outline, 8f * d, 6f * d)
-                        setColor(if (sel) (pal.onSurface and 0x00FFFFFF) or 0x1A000000 else 0)
-                    }
                     val cx = x
                     val cy = y
                     setOnClickListener { cursorX = cx; cursorY = cy; editKey(KeyEvent.KEYCODE_BUTTON_A) }
                 }
+                editFree[y * 100 + x] = cell
                 board.place(cell, x, y, 1, 1)
             }
+            markEdit()
         }
         body.addView(board, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         if (!editing && placed.isEmpty()) body.addView(text(tr("Leer – Y drücken und „Anordnen“ wählen"), 15f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER },
@@ -443,6 +439,36 @@ class ControlCenter(private val svc: HugminnService) {
         }
         renderFooter()
         body.post { showFocus() }
+    }
+
+    /** Edit mode: the elements (index → view, round) and the free cells (y*100+x → view) on screen. */
+    private val editTiles = HashMap<Int, Pair<View, Boolean>>()
+    private val editFree = HashMap<Int, View>()
+
+    /**
+     * Edit mode: marks the element or free cell under the cursor in place – moving the cursor no
+     * longer rebuilds the whole grid (that made every tile flicker). The frame has the element's own
+     * corners (round for the round switches of the dot style), so it is not cut off.
+     */
+    private fun markEdit() {
+        val cursorEl = elementAt(cursorX, cursorY)
+        editTiles.forEach { (idx, pair) ->
+            val (v, round) = pair
+            val sel = idx == cursorEl
+            val r = if (round && pal.dots && v.width > 0) v.width / 2f else 22f * d
+            v.foreground = if (sel) focusMark(v, r, (if (holding) 5 else 3) * d, if (holding) tileOn() else pal.onSurface) else null
+            val sc = if (sel && holding) 0.94f else 1f
+            v.scaleX = sc; v.scaleY = sc
+            if (round && pal.dots && v.width == 0 && sel) v.post { markEdit() }
+        }
+        editFree.forEach { (key, v) ->
+            val sel = cursorEl < 0 && key == cursorY * 100 + cursorX
+            v.background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = 22f * d
+                setStroke(2 * d, if (sel) pal.onSurface else pal.outline, 8f * d, 6f * d)
+                setColor(if (sel) (pal.onSurface and 0x00FFFFFF) or 0x1A000000 else 0)
+            }
+        }
     }
 
     private var cursorX = 0
@@ -2292,7 +2318,7 @@ class ControlCenter(private val svc: HugminnService) {
         val bodyH = (dm.heightPixels - 180 * d).coerceIn(160 * d, 440 * d)
         // 16:9: the Gerät tab in two columns (element + status | brightness + saturation), the
         // combinations below; 4:3 or narrow: one column that scrolls
-        val twoCol = ledTab == 0 && boxW - 44 * d >= 600 * d
+        val twoCol = ledTab == 0 && boxW - 44 * d >= 480 * d
         val colW = if (twoCol) minOf(boxW - 44 * d, 760 * d) else minOf(boxW - 44 * d, 360 * d)
         val halfW = (colW - 16 * d) / 2
         val box = reuse?.apply { removeAllViews() } ?: LinearLayout(svc).apply {
@@ -3208,7 +3234,9 @@ class ControlCenter(private val svc: HugminnService) {
                 if (ny < 0 || ny >= GridLayout.ROWS) return
                 cursorX = nx
                 cursorY = ny
-                renderGrid()
+                // only the mark moves: no rebuild, no flicker
+                markEdit()
+                renderFooter()
             }
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> when {
                 holding -> { holding = false; renderGrid() }
