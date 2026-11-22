@@ -17,10 +17,9 @@ At the top, like in the Control Center, the header shows **Muninn · Game Switch
 | --- | --- |
 | D-pad, left stick, L1/R1 | Browse |
 | A | Open the app (its running task comes back to the front) |
-| □ / X | Close the app, also removing it from Android's recent apps |
-| △ / Y | Options: [shortcuts](Emulator-Shortcuts) (emulators), pin / unpin, app info, close all others |
+| West (X · Retro Y · □) | Close the app, also removing it from Android's recent apps |
+| North (Y · Retro X · △) | Options: [shortcuts](Emulator-Shortcuts) (emulators), pin / unpin, app info, close all others |
 | ○ / B | Back to where you were |
-| Select | Screenshot including the switcher, saved to Pictures/Screenshots |
 
 Touch works too: swipe sideways to browse, swipe a card up to close it, tap to open.
 
@@ -28,6 +27,10 @@ Touch works too: swipe sideways to browse, swipe a card up to close it, tap to o
 - **Pause the game:** while the switcher is open, the game is covered and pauses, including its sound. It continues when you go back.
 - **Swipe gesture:** swiping up from the bottom of the screen can open Hugminn's switcher instead of Android's recent apps.
 - **Classic mode:** instead of its own switcher, Hugminn can lay a frame over Android's own recent-apps view (Settings → Game Switcher → *Own overview* off).
+
+## Video apps
+- **Keep playing:** while music or a video plays (Spotify, YouTube & co.), opening the switcher or the Control Center no longer pauses it – games still pause.
+- **Always landscape:** YouTube, Netflix, Disney+, Prime Video and Crunchyroll are shown fully in landscape, not only full-screen videos (Settings → Game Switcher → *Video apps always landscape*).
 
 ## Tip: turn off picture-in-picture
 Recommended for everyone who uses Hugminn: switch off **picture-in-picture** for your video apps (YouTube, Netflix, Disney+, Prime Video …). Otherwise a video shrinks into a small floating window when you switch to another app, that lies over your game and the switcher – and you have to close or move that little player by hand every time. YouTube does it too.

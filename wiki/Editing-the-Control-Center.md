@@ -1,6 +1,6 @@
 # Editing the Control Center
 
-Press **△ / Y** in the Control Center to open the edit menu. It opens as a **side panel** on the right, so every change can be watched on the Control Center next to it. **L1 / R1** switch between four categories; **up/down** picks a line, **◀ ▶** changes its value (live), **A** runs actions.
+Press **west** (X · Retro Y · □) in the Control Center to open the edit menu. It opens as a **side panel** on the right, so every change can be watched on the Control Center next to it. **L1 / R1** switch between four categories; **up/down** picks a line, **◀ ▶** changes its value (live), **A** runs actions.
 
 | Category | Entries |
 | --- | --- |
@@ -15,7 +15,8 @@ Lines that don't apply stay hidden: darken and blur only appear with a picture, 
 
 ![Edit mode](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/modern/dark-edit.png)
 
-- Select an element and press **A**: a menu offers *Move* (with the D-pad, A drops it), *Size* (e.g. 2×1 wide) and *Remove*.
+- Select an element and press **A**: a menu offers *Move* (with the D-pad, A drops it), *Size* (e.g. 2×1 wide) and *Remove*. **North** removes it directly.
+- **West** ends edit mode and keeps the changes; **B** cancels and leaves everything as it was before.
 - Touch works too: long-press an element and drag it.
 - Free cells show a dashed outline; pressing A on one opens the picker for a new element.
 - The grid has several pages (R1/L1). The number of rows and columns can be set in the [settings](Settings).

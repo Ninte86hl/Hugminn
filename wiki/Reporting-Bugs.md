@@ -7,4 +7,4 @@ Hugminn itself never sends anything.
 Helpful to include:
 - What you did right before the problem
 - Which emulator or app was running
-- A screenshot (Select button in the switcher or the Control Center)
+- A screenshot (Power + Volume down, or the screenshot tile in the Control Center)

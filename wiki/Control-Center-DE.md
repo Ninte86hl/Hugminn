@@ -6,8 +6,8 @@ Halte **Home** gedrückt, um das Control Center zu öffnen: ein Raster aus Kache
 
 ## Bedienung
 - Das Steuerkreuz bewegt sich durch das Raster; ausgewählt ist erst etwas, wenn du eine Richtung drückst.
-- **A** schaltet einen Schalter oder bestätigt einen Regler, **□ / X** öffnet das Untermenü der Kachel, **△ / Y** das Bearbeiten-Menü, **R1/L1** wechselt die Seite, **○ / B** schließt.
-- **Select** macht einen Screenshot.
+- Die Tasten gehen nach Position, bei jedem Layout gleich: **A** schaltet einen Schalter oder bestätigt einen Regler, **Nord** (Y · Retro X · △) öffnet die Optionen der Kachel, **West** (X · Retro Y · □) das Bearbeiten-Menü, **L1/R1** wechseln die Seite, **B** schließt.
+- Die Hinweise unten zeigen immer Steuerkreuz, Nord, West, Bestätigen und Zurück in derselben Reihenfolge (blass, wenn eine Taste gerade nichts tut); L/R erscheinen, wenn es Seiten oder Tabs gibt. Jeder Hinweis lässt sich antippen.
 - Die **Lautstärketasten** des Geräts funktionieren wie gewohnt; ein Lautstärke-Regler auf dem Bildschirm bewegt sich mit.
 - **Start** spielt/pausiert die Musik, **L2 / R2** springen zum vorherigen / nächsten Titel.
 - **Von der oberen Kante nach unten wischen** öffnet Androids Schnelleinstellungen – der Ausweg, falls keine Taste reagiert.
@@ -24,7 +24,7 @@ Halte **Home** gedrückt, um das Control Center zu öffnen: ein Raster aus Kache
 - **Bildschirm aus:** schickt den Handheld in den Ruhemodus wie die Power-Taste; das Spiel pausiert, bis du ihn aufweckst.
 - **Geräte-Akku:** Akkustand verbundener Bluetooth-Controller und -Kopfhörer, sofern sie ihn melden.
 - **Android-Einstellungen:** öffnet Androids Einstellungen.
-- **Controller-Stil:** Tastenlayout Xbox oder Retroid, oder *Eingebaute Steuerung aus* für einen [externen Controller](Externer-Controller).
+- **Controller-Stil:** Tastenlayout Modern oder Retro, oder *Eingebaute Steuerung aus* für einen [externen Controller](Externer-Controller).
 
 ## Größen
 Jedes Element gibt es in den Größen, die zu ihm passen (im [Bearbeitungsmodus](Control-Center-bearbeiten): A → Größe). Elemente in einer Größe, die es nicht mehr gibt, nehmen die nächstpassende.

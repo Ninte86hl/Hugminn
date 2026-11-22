@@ -7,4 +7,4 @@ Hugminn selbst sendet nie etwas.
 Hilfreich sind:
 - Was du direkt vor dem Problem gemacht hast
 - Welcher Emulator oder welche App lief
-- Ein Screenshot (Select-Taste im Switcher oder Control Center)
+- Ein Screenshot (Power + Leiser oder die Screenshot-Kachel im Control Center)

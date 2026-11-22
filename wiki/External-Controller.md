@@ -10,7 +10,7 @@ Hold the **Controller style** tile in the [Control Center](Control-Center) (or p
 
 - **With a controller connected:** the built-in controls stay off until you switch them back on, or until the controller disconnects.
 - **Without a controller yet:** the Control Center closes and a countdown in the middle of the screen asks you to connect one. If none connects within 30 seconds, the built-in controls come back on by themselves.
-- **Controller disconnected:** the built-in controls come back on automatically, with the layout you had before (Xbox or Retroid).
+- **Controller disconnected:** the built-in controls come back on automatically, with the layout you had before (Modern or Retro).
 
 ## If no button responds
 Touch always works:
