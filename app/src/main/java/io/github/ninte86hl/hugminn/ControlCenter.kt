@@ -595,11 +595,26 @@ class ControlCenter(private val svc: HugminnService) {
                 }
             })
         }
+        /** Two buttons for one hint (L and R for tabs and pages); a tap goes forward. */
+        fun hint2(k1: Int, k2: Int, s: String) {
+            footer.addView(LinearLayout(svc).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                addView(Glyphs.chip(svc, svc.prefs, pal, k1, 22))
+                addView(View(svc), lp(4 * d, 1))
+                addView(Glyphs.chip(svc, svc.prefs, pal, k2, 22))
+                addView(text(s, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+                setOnClickListener {
+                    val now = android.os.SystemClock.uptimeMillis()
+                    onKey(KeyEvent(now, now, KeyEvent.ACTION_DOWN, k2, 0))
+                    onKey(KeyEvent(now, now, KeyEvent.ACTION_UP, k2, 0))
+                }
+            })
+        }
         // LED window: its own hints (the north button sets what the light shows)
         if (ledCells != null && (menuView as? View)?.tag == "led") {
             if (ledFocus == "st" && ledTab == 0 && Device.elState(svc, ledEl) > 0) hint(northKey(), tr("Einstellen"))
             if (ledTab == 0) hint(KeyEvent.KEYCODE_BUTTON_X, tr("Auf alle"))
-            hint(KeyEvent.KEYCODE_BUTTON_R1, "Tab")
+            hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, "Tab")
             hint(KeyEvent.KEYCODE_BUTTON_A, if (ledEditing != null) tr("Fertig") else tr("Auswählen"))
             hint(KeyEvent.KEYCODE_BUTTON_B, if (ledTab != 0) tr("Zurück") else tr("Schließen"))
             return
@@ -612,12 +627,11 @@ class ControlCenter(private val svc: HugminnService) {
             if (holding) hint(KeyEvent.KEYCODE_BUTTON_A, tr("Ablegen")) else {
                 hint(KeyEvent.KEYCODE_BUTTON_A, if (elementAt(cursorX, cursorY) >= 0) tr("Optionen") else tr("Hinzufügen"))
                 hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Entfernen"))
-                hint(KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
+                hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             }
             hint(KeyEvent.KEYCODE_BUTTON_B, tr("Fertig"))
         } else {
-            hint(KeyEvent.KEYCODE_BUTTON_SELECT, "Screenshot")
-            if (pages() > 1) hint(KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
+            if (pages() > 1) hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
             if (menuHere) hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Optionen"))
             if (inside != null) {

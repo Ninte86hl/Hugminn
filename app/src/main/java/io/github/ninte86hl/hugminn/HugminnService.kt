@@ -364,14 +364,6 @@ class HugminnService : AccessibilityService() {
         if (event.keyCode == KeyEvent.KEYCODE_POWER && event.action == KeyEvent.ACTION_DOWN) ui.post { runCatching { closeOverlays() } }
         // the device's own keys always reach Android (volume, power, screenshot with Power + Volume down)
         if (event.keyCode in systemKeys) return false
-        // Select: screenshot with the overlays (Android's key combination cannot reach them)
-        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || anySwitcherOpen)) {
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                if (prefs.githubToken.isNullOrBlank()) Shot.take(this)
-                else Feedback.capture(this, if (controlCenter.isOpen) "controlcenter" else "switcher")
-            }
-            return true
-        }
         // the overlays go by button position (north, west …), the same on every layout
         val ev = Glyphs.logical(event)
         return try {

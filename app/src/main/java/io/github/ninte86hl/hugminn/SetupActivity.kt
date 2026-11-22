@@ -372,7 +372,6 @@ class SetupActivity : Activity() {
                 KeyEvent.KEYCODE_BUTTON_A to t("Schalten / Regler bestätigen", "Toggle / confirm a slider"),
                 KeyEvent.KEYCODE_BUTTON_Y to t("Untermenü (WLAN, LEDs …)", "Submenu (Wi-Fi, LEDs …)"),
                 KeyEvent.KEYCODE_BUTTON_X to t("Bearbeiten und anordnen", "Edit and arrange"),
-                "Select" to "Screenshot",
             ))
         }
     }
