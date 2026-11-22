@@ -11,7 +11,7 @@ android {
         applicationId = "io.github.ninte86hl.hugminn"
         minSdk = 30
         targetSdk = 34
-        versionCode = 435
+        versionCode = 436
         versionName = "1.14.0-test.112"
     }
 
