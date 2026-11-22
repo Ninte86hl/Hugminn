@@ -12,7 +12,8 @@ Shows whether Hugminn is switched on as an accessibility service, whether the ha
 | Style | Modern, Pixel, Dot matrix or Cocoon; applies everywhere: Control Center, switcher, overlay and the settings |
 | Tile colour | Colour of active tiles, also the accent colour |
 | Colour scheme | System, light, dark, OLED black (true black, saves power on OLED screens) |
-| Button symbols | Automatic, Xbox, Nintendo or PlayStation; coloured or plain |
+| Button symbols | Automatic, Modern, Retro or Modern (alternative, shapes); coloured or plain |
+| Navigation bar | Hide the bar or gesture line at the bottom everywhere (root); a swipe from the bottom edge brings it back for a moment |
 
 ## Home button
 Action for a single, double and long press, and the times for double and long presses. See [Home button](Home-Button).
@@ -26,6 +27,7 @@ Put the Control Center or the game switcher on the home screen (also in Cocoon),
 | Own overview | On: Hugminn's own switcher with its own previews. Off: a frame over Android's recent apps |
 | Pause the game | The app behind the switcher is covered and pauses, including sound |
 | Swipe gesture | Hugminn also takes over when the recent apps are opened by swiping up |
+| Video apps always landscape | YouTube, Netflix, Disney+, Prime Video and Crunchyroll fully in landscape |
 | Status bar | Clock and battery in the chosen style, nothing, or Android's normal bar |
 
 ## Control Center

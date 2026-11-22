@@ -121,16 +121,45 @@ class SetupActivity : Activity() {
             setOnFocusChangeListener { v, f -> v.foreground = if (f) Look.shape(this@SetupActivity, pixel, 0, d(16).toFloat(), d(3), pal.primary) else null }
         }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        col.addView(text(label, 15f, pal.onSurface, bold = true))
-        col.addView(text(sub(), 12f, pal.onSurfaceVariant).apply { maxLines = 3 })
+        // small screens (Pocket Nova, 4:3): a size smaller, so no word has to break in the middle
+        col.addView(text(label, if (narrow) 13.5f else 15f, pal.onSurface, bold = true))
+        col.addView(text(sub(), if (narrow) 11f else 12f, pal.onSurfaceVariant).apply { maxLines = 3 })
         card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = d(10) })
-        card.addView(text(value(), 14f, pal.onPrimaryContainer, bold = true).apply {
+        card.addView(text(value(), if (narrow) 13f else 14f, pal.onPrimaryContainer, bold = true).apply {
             background = Look.shape(this@SetupActivity, pixel, pal.primaryContainer, d(14).toFloat())
-            setPadding(d(14), d(6), d(14), d(6))
+            setPadding(if (narrow) d(10) else d(14), d(6), if (narrow) d(10) else d(14), d(6))
         })
         buttons += card
         // side by side under picture and text
         parent.addView(card, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { if (parent.childCount > 0) marginStart = d(12) })
+    }
+
+    /** A small or 4:3 screen (Pocket Nova): option cards get the height their text needs. */
+    private val narrow get() = resources.displayMetrics.let { it.widthPixels / it.density < 760f }
+
+    /** Shows its one child whole: taller than the room and it is scaled down from the top. */
+    private class FitPage(ctx: android.content.Context) : android.view.ViewGroup(ctx) {
+        private var s = 1f
+        override fun onMeasure(ws: Int, hs: Int) {
+            val w = MeasureSpec.getSize(ws)
+            val h = MeasureSpec.getSize(hs)
+            setMeasuredDimension(w, h)
+            val c = getChildAt(0) ?: return
+            val free = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+            c.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), free)
+            s = 1f
+            if (h > 0 && c.measuredHeight > h) {
+                s = (h.toFloat() / c.measuredHeight).coerceIn(0.6f, 1f)
+                c.measure(MeasureSpec.makeMeasureSpec((w / s).toInt(), MeasureSpec.EXACTLY), free)
+                s = minOf(s, h.toFloat() / c.measuredHeight).coerceIn(0.6f, 1f)
+            }
+        }
+        override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+            val c = getChildAt(0) ?: return
+            c.layout(0, 0, c.measuredWidth, c.measuredHeight)
+            c.pivotX = 0f; c.pivotY = 0f
+            c.scaleX = s; c.scaleY = s
+        }
     }
 
     /** Button to focus after a rebuild (-1: "next"). */
@@ -207,9 +236,11 @@ class SetupActivity : Activity() {
             8 -> buttonsPage(body)
             else -> donePage(body)
         }
-        // nothing scrolls (awkward with a controller): the page fits, the buttons stay at the bottom
-        root.addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        if (opts.childCount > 0) root.addView(opts, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, d(76)).apply { bottomMargin = d(6) })
+        // nothing scrolls (awkward with a controller): the page fits – too tall for a small screen and
+        // it is shrunk as a whole – and the buttons stay at the bottom
+        root.addView(FitPage(this).apply { addView(body) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        if (opts.childCount > 0) root.addView(opts, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+            if (narrow) LinearLayout.LayoutParams.WRAP_CONTENT else d(76)).apply { bottomMargin = d(6) })
 
         // navigation
         val nav = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, d(8), 0, 0) }
@@ -370,9 +401,8 @@ class SetupActivity : Activity() {
                 t("Home lang", "Home long") to t("Control Center öffnen", "Open the Control Center"),
                 KeyEvent.KEYCODE_DPAD_LEFT to t("Feld auswählen", "Choose a tile"),
                 KeyEvent.KEYCODE_BUTTON_A to t("Schalten / Regler bestätigen", "Toggle / confirm a slider"),
-                KeyEvent.KEYCODE_BUTTON_X to t("Untermenü (WLAN, LEDs …)", "Submenu (Wi-Fi, LEDs …)"),
-                KeyEvent.KEYCODE_BUTTON_Y to t("Bearbeiten und anordnen", "Edit and arrange"),
-                "Select" to "Screenshot",
+                KeyEvent.KEYCODE_BUTTON_Y to t("Untermenü (WLAN, LEDs …)", "Submenu (Wi-Fi, LEDs …)"),
+                KeyEvent.KEYCODE_BUTTON_X to t("Bearbeiten und anordnen", "Edit and arrange"),
             ))
         }
     }
@@ -402,7 +432,7 @@ class SetupActivity : Activity() {
             14f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, 0) })
     }
 
-    /** Button symbols: Xbox, Nintendo or PlayStation, coloured or plain, shown large. */
+    /** Button symbols: Modern, Retro or Modern (alternative, shapes), coloured or plain, shown large. */
     private fun buttonsPage(b: LinearLayout) {
         val row = LinearLayout(this).apply { gravity = Gravity.TOP }
         // the four face buttons in their places (diamond), large, instead of a picture
@@ -416,17 +446,18 @@ class SetupActivity : Activity() {
         val nin = Glyphs.nintendoLayout()
         val bottom = if (nin) KeyEvent.KEYCODE_BUTTON_B else KeyEvent.KEYCODE_BUTTON_A
         val right = if (nin) KeyEvent.KEYCODE_BUTTON_A else KeyEvent.KEYCODE_BUTTON_B
-        val left = if (nin) KeyEvent.KEYCODE_BUTTON_Y else KeyEvent.KEYCODE_BUTTON_X
-        val top = if (nin) KeyEvent.KEYCODE_BUTTON_X else KeyEvent.KEYCODE_BUTTON_Y
+        // inside Hugminn X is always west and Y north (Glyphs.logical): the symbols show the real letter
+        val left = KeyEvent.KEYCODE_BUTTON_X
+        val top = KeyEvent.KEYCODE_BUTTON_Y
         put(top, 92, 16); put(left, 30, 76); put(right, 154, 76); put(bottom, 92, 136)
         row.addView(diamond, LinearLayout.LayoutParams(d(240), d(210)).apply { marginEnd = d(28) })
         val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         c.addView(text(tr("Tastensymbole"), 26f, pal.onSurface, bold = true))
         c.addView(text(
             t("So zeigt Hugminn die Tasten in allen Hinweisen an. „Automatisch“ folgt dem Tastenlayout aus den Retroid-Einstellungen" +
-                (if (nin) " – dein Gerät nutzt gerade das Retroid-/Nintendo-Layout (A rechts)." else " – dein Gerät nutzt gerade das Xbox-Layout (A unten)."),
+                (if (nin) " – dein Gerät nutzt gerade das Retro-Layout (A rechts)." else " – dein Gerät nutzt gerade das Modern-Layout (A unten)."),
                 "This is how Hugminn shows the buttons in all hints. “Automatic” follows the button layout in the Retroid settings" +
-                    (if (nin) " – your device currently uses the Retroid/Nintendo layout (A on the right)." else " – your device currently uses the Xbox layout (A at the bottom).")),
+                    (if (nin) " – your device currently uses the Retro layout (A on the right)." else " – your device currently uses the Modern layout (A at the bottom).")),
             14f, pal.onSurfaceVariant,
         ).apply { setPadding(0, d(8), 0, 0) })
         row.addView(c, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -434,9 +465,9 @@ class SetupActivity : Activity() {
         options?.let { o ->
             option(o, tr("Stil"), {
                 when (prefs.glyphStyle) {
-                    GlyphStyle.XBOX -> t("A, B, X, Y wie beim Xbox-Controller", "A, B, X, Y like the Xbox controller")
-                    GlyphStyle.NINTENDO -> t("A, B, X, Y wie beim Nintendo-Controller", "A, B, X, Y like the Nintendo controller")
-                    GlyphStyle.PLAYSTATION -> t("Kreuz, Kreis, Quadrat, Dreieck", "Cross, circle, square, triangle")
+                    GlyphStyle.XBOX -> t("A, B, X, Y im Modern-Layout (A unten)", "A, B, X, Y in the Modern layout (A at the bottom)")
+                    GlyphStyle.NINTENDO -> t("A, B, X, Y im Retro-Layout (A rechts)", "A, B, X, Y in the Retro layout (A on the right)")
+                    GlyphStyle.PLAYSTATION -> t("Modern mit Formen: Kreuz, Kreis, Quadrat, Dreieck", "Modern with shapes: cross, circle, square, triangle")
                     else -> t("Folgt dem Tastenlayout des Geräts", "Follows the device's button layout")
                 }
             }, { prefs.glyphStyle.label }) { prefs.glyphStyle = cycle(GlyphStyle.values().toList(), prefs.glyphStyle) }

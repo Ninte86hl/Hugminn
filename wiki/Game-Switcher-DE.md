@@ -17,10 +17,9 @@ Oben steht wie im Control Center die Kopfzeile **Muninn · Game Switcher** mit U
 | --- | --- |
 | Steuerkreuz, linker Stick, L1/R1 | Blättern |
 | A | App öffnen (ihre laufende Aufgabe kommt wieder nach vorn) |
-| □ / X | App schließen, auch aus Androids Übersicht |
-| △ / Y | Optionen: [Tastenkürzel](Tastenkuerzel) (Emulatoren), anheften / lösen, App-Info, alle anderen schließen |
+| West (X · Retro Y · □) | App schließen, auch aus Androids Übersicht |
+| Nord (Y · Retro X · △) | Optionen: [Tastenkürzel](Tastenkuerzel) (Emulatoren), anheften / lösen, App-Info, alle anderen schließen |
 | ○ / B | Zurück, wo du warst |
-| Select | Screenshot samt Switcher, gespeichert unter Bilder/Screenshots |
 
 Touch geht auch: seitlich wischen zum Blättern, Karte nach oben wischen zum Schließen, antippen zum Öffnen.
 
@@ -28,3 +27,12 @@ Touch geht auch: seitlich wischen zum Blättern, Karte nach oben wischen zum Sch
 - **Spiel pausieren:** Solange der Switcher offen ist, wird das Spiel verdeckt und hält an, auch der Ton. Es läuft weiter, wenn du zurückgehst.
 - **Wischgeste:** Wischen vom unteren Rand kann statt Androids Übersicht Hugminns Switcher öffnen.
 - **Klassischer Modus:** Statt des eigenen Switchers legt Hugminn einen Rahmen über Androids Übersicht (Einstellungen → Game Switcher → *Eigene Übersicht* aus).
+
+## Video-Apps
+- **Laufen weiter:** Spielt Musik oder ein Video (Spotify, YouTube & Co.), pausieren Switcher und Control Center es beim Öffnen nicht mehr – Spiele halten weiterhin an.
+- **Immer quer:** YouTube, Netflix, Disney+, Prime Video und Crunchyroll erscheinen komplett quer, nicht nur Videos im Vollbild (Einstellungen → Game Switcher → *Video-Apps immer quer*).
+
+## Tipp: Bild-im-Bild ausschalten
+Empfehlung für alle, die Hugminn nutzen: Schalte **Bild im Bild** für deine Video-Apps aus (YouTube, Netflix, Disney+, Prime Video …). Sonst schrumpft ein Video beim Wechsel zu einer anderen App in ein kleines schwebendes Fenster, das über deinem Spiel und dem Switcher liegt – und diesen kleinen Player musst du dann jedes Mal von Hand schließen oder wegschieben. Das betrifft auch YouTube.
+
+Android-Einstellungen → **Apps** → **Spezieller App-Zugriff** → **Bild im Bild** → für jede Video-App ausschalten (die genauen Bezeichnungen können je nach Gerät leicht abweichen).

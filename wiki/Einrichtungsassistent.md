@@ -58,7 +58,7 @@ Jeweils an oder aus, Spiel pausieren, solange es offen ist, die Wischgeste für 
 | --- | --- |
 | ![Aussehen](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/setup/look.jpg) | ![Tastensymbole](https://raw.githubusercontent.com/Ninte86hl/Hugminn/main/docs/screenshots/setup/symbols.jpg) |
 
-[Stil](Stile-und-Farbschemata) und Farbschema, danach Xbox-, Nintendo- oder PlayStation-Symbole (oder *Automatisch* nach dem Retroid-Tastenlayout), farbig oder schlicht.
+[Stil](Stile-und-Farbschemata) und Farbschema, danach Modern-, Retro- oder Modern-(alternativ)-Symbole (oder *Automatisch* nach dem Retroid-Tastenlayout), farbig oder schlicht.
 
 ## 10. Fertig – und ein freiwilliger Bericht
 | | |

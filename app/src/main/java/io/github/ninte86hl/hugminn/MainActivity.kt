@@ -425,6 +425,10 @@ class MainActivity : Activity() {
             Backdrop.prepareGlass(this) { build() }
             content.post { build() }
         }
+        if (Root.available()) row(look, t("Navigationsleiste ausblenden", "Hide the navigation bar"),
+            t("Die Leiste bzw. der Gestenstrich unten verschwindet überall. Vom unteren Rand wischen holt sie kurz zurück",
+                "The bar or gesture line at the bottom disappears everywhere. Swipe up from the bottom edge to bring it back for a moment"),
+            { if (prefs.hideNav) tr("An") else tr("Aus") }) { NavBar.set(this, !prefs.hideNav) }
         row(look, tr("Kachelfarbe"), tr("Farbe aktiver Kacheln im Control Center"), { TILE_COLORS[prefs.tileColor] ?: "" }) {
             prefs.tileColor = cycle(TILE_COLORS.keys.toList(), prefs.tileColor)
         }
@@ -499,6 +503,20 @@ class MainActivity : Activity() {
         row(sw, tr("Auch bei Wischgeste"), tr("Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird"), { if (prefs.autoSwitcher) tr("An") else tr("Aus") }) {
             prefs.autoSwitcher = !prefs.autoSwitcher
         }
+        if (Displays.second(this) != null && Prefs.dualReady(this)) {
+            row(sw, t("Zweiter Bildschirm", "Second screen"),
+                t("Name, Spiel, Tastenhinweise und Tastenkürzel des Emulators unten auf dem zweiten Bildschirm – oben bleibt mehr Platz für die Vorschaubilder",
+                    "Name, game, button hints and the emulator's shortcuts on the second screen – more room for the previews up top"),
+                { if (prefs.dualSwitcher) tr("An") else tr("Aus") }) { prefs.dualSwitcher = !prefs.dualSwitcher }
+            row(sw, t("Player auf dem zweiten Bildschirm", "Player on the second screen"),
+                t("Läuft oben Musik oder ein Video (Spotify, YouTube …), zeigt der untere Bildschirm Cover, Titel und Tasten – bei Videos nur den Titel. Den Balken antippen oder ziehen springt",
+                    "While music or a video plays up top (Spotify, YouTube …), the lower screen shows cover, title and buttons – for videos only the title. Tap or drag the bar to jump"),
+                { if (prefs.dualMedia) tr("An") else tr("Aus") }) { prefs.dualMedia = !prefs.dualMedia }
+        }
+        row(sw, t("Video-Apps immer quer", "Video apps always landscape"),
+            t("YouTube, Netflix, Disney+, Prime Video und Crunchyroll werden komplett quer angezeigt, nicht nur Videos im Vollbild – auch Startseite, Suche und Menüs",
+                "YouTube, Netflix, Disney+, Prime Video and Crunchyroll are shown fully in landscape, not only full-screen videos – also home page, search and menus"),
+            { if (prefs.landscapeOn) tr("An") else tr("Aus") }) { prefs.landscapeOn = !prefs.landscapeOn }
         row(sw, tr("Statusleiste"), tr("Was der Rahmen oben zeigt: Uhrzeit und Akku im gewählten Stil, nichts, oder die normale Android-Leiste"), { prefs.statusBar.label }) {
             prefs.statusBar = cycle(StatusBar.values().toList(), prefs.statusBar)
         }
@@ -554,7 +572,7 @@ class MainActivity : Activity() {
             listOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y).forEach { k ->
                 preview.addView(Glyphs.chip(this, prefs, pal, k), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = d(8) })
             }
-            preview.addView(text(if (Glyphs.nintendoLayout()) tr("  (Gerät im Retroid-/Nintendo-Layout)") else tr("  (Gerät im Xbox-Layout)"), 12f, pal.onSurfaceVariant))
+            preview.addView(text(if (Glyphs.nintendoLayout()) tr("  (Gerät im Retro-Layout)") else tr("  (Gerät im Modern-Layout)"), 12f, pal.onSurfaceVariant))
         }
         fillPreview()
         afterChange += fillPreview
@@ -579,6 +597,10 @@ class MainActivity : Activity() {
                         "it then always starts with that profile, afterwards the previous setting comes back. A game's profile beats the emulator's."),
                 12f, pal.onSurfaceVariant,
             ).apply { setPadding(0, d(6), 0, d(6)) })
+            row(ap, t("Im Launcher: Normal · Leise", "In the launcher: Normal · Quiet"),
+                t("Auf dem Startbildschirm laufen Leistung Normal und Lüfter Leise – spart Akku zwischen den Spielen. Beim Start einer App ohne Profil kommt die vorige Einstellung zurück.",
+                    "On the home screen performance runs Normal and the fan Quiet – saves battery between games. An app without a profile gets the previous setting back."),
+                { if (svc.prefs.launcherProfile) tr("An") else tr("Aus") }) { svc.prefs.launcherProfile = !svc.prefs.launcherProfile }
             if (profiles.isEmpty()) ap.addView(text(t("Noch keine gespeichert", "None saved yet"), 14f, pal.onSurface))
             fun parts(p: AppProfiles.Profile) = listOfNotNull(
                 p.perf?.let { Device.perfProfiles[it] ?: it },

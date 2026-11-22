@@ -52,10 +52,45 @@ class HugminnService : AccessibilityService() {
             if (pm?.isInteractive != true) return
             // the app whose window came last (from the window events): asking Android for the active window
             // here would wait for that app, and keys wait meanwhile, since they pass this thread
-            if (windowPkg == pkg) Snapshots.capture(this@HugminnService, pkg)
+            if (windowPkg == pkg && onTopScreen(pkg)) Snapshots.capture(this@HugminnService, pkg)
         }
     }
     private lateinit var controlCenter: ControlCenter
+    private var dualMedia: DualMedia? = null
+    private var landscape: Landscape? = null
+    private val landscapeCheck = Runnable { landscape?.check() }
+    private val lastTop = mutableMapOf<Int, String?>()
+
+    @Volatile private var dualScreen: Boolean? = null
+
+    /**
+     * Dual screen: is [pkg] really what the top screen shows? (After Home the launcher is in front up
+     * top, while the last app may still count as "in front" – its card would get the launcher's picture.)
+     * Only the windows' titles are compared: asking the app itself could make keys wait.
+     */
+    private fun onTopScreen(pkg: String): Boolean {
+        val dual = dualScreen ?: (Displays.second(this) != null).also { dualScreen = it }
+        if (!dual || android.os.Build.VERSION.SDK_INT < 30) return true
+        val w = runCatching { windowsOnAllDisplays.get(android.view.Display.DEFAULT_DISPLAY) }.getOrNull()
+            ?.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION } ?: return true
+        val title = w.title?.toString() ?: return true
+        return title == Apps.label(this, pkg)
+    }
+
+    /** The app in front on the top screen (null: home screen) – only display 0 counts, not the Thor's lower screen. */
+    fun topScreenApp(): String? = topAppOn(android.view.Display.DEFAULT_DISPLAY)
+
+    /** The app in front on screen [id] (null: its launcher, e.g. Cocoon on the Thor's lower screen). */
+    fun topAppOn(id: Int): String? {
+        if (android.os.Build.VERSION.SDK_INT < 30) return if (id != 0 || homeInFront) null else foregroundPkg
+        val wins = runCatching { windowsOnAllDisplays.get(id) }.getOrNull() ?: return lastTop[id]
+        val app = wins.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION } ?: return lastTop[id]
+        val pkg = runCatching { app.root?.packageName?.toString() }.getOrNull() ?: return lastTop[id]
+        // Hugminn's own pause screen (switcher) lies over the app: keep the app
+        if (pkg == packageName) return lastTop[id]
+        return (if (Apps.isHome(this, pkg) || pkg.contains("cocoon")) null else pkg).also { lastTop[id] = it }
+    }
+
     lateinit var overlay: PerfOverlay
         private set
 
@@ -72,6 +107,8 @@ class HugminnService : AccessibilityService() {
     }
 
     private var lastNight = -1
+
+
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
@@ -95,6 +132,23 @@ class HugminnService : AccessibilityService() {
         own.refresh()
         ui.postDelayed(snapshotTick, 7000)
         controlCenter = ControlCenter(this)
+        dualMedia = DualMedia(this).also { it.start() }
+        landscape = Landscape(this)
+        NavBar.resume(this)
+        Device.refreshLayout(this)
+        if (Root.available()) Displays.collectLeds()
+        FeedbackBubble.start(this)
+        // the tablet view (test builds) is gone for good: a density it left behind goes back to the old value
+        Thread {
+            val sp = getSharedPreferences("hugminn", MODE_PRIVATE)
+            sp.all.keys.filter { it.startsWith("wideRestore") }.forEach { k ->
+                val back = sp.getInt(k, -1)
+                val id = k.removePrefix("wideRestore").toIntOrNull() ?: 0
+                if (back >= 0 && Root.available()) Root.exec(if (back > 0) "wm density $back -d $id" else "wm density reset -d $id")
+                sp.edit().remove(k).apply()
+            }
+            listOf("wideOn", "wideApps", "wideDpi", "wideKeep", "wideOn2", "wideApps2").forEach { sp.edit().remove(it).apply() }
+        }.start()
         overlay = PerfOverlay(this)
         instance = this
         if (prefs.overlayOn) ui.post { runCatching { overlay.show() } }
@@ -147,6 +201,9 @@ class HugminnService : AccessibilityService() {
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, i: Intent) {
                 WakeDiag.start(this@HugminnService)
+                // AYN with two stick colours: the firmware puts its one colour back on waking
+                if (Device.aynSplit(this@HugminnService) && LedFx.current() == LedEffect.NONE && Device.stickLeds(this@HugminnService))
+                    LedFx.restoreStatic(this@HugminnService, delayMs = 1500)
                 ui.postDelayed({
                     Thread {
                         if (Root.available() && Device.builtinOff(this@HugminnService) && !Device.externalPad())
@@ -175,11 +232,16 @@ class HugminnService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         closeOverlays()
+        dualMedia?.stop()
+        landscape?.hide()
         instance = null
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
+        dualMedia?.stop()
+        landscape?.hide()
+        FeedbackBubble.stop(this)
         if (::overlay.isInitialized) overlay.hide()
         LedFx.stop()
         FanCurve.stop(restoreSmart = true)
@@ -226,6 +288,11 @@ class HugminnService : AccessibilityService() {
                 homeInFront = true
             }
         }
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            dualMedia?.kick()
+            ui.removeCallbacks(landscapeCheck)
+            ui.postDelayed(landscapeCheck, 150)
+        }
         if (event.packageName?.toString() == foregroundPkg) appEventAt = SystemClock.uptimeMillis()
         if (::switcher.isInitialized) try {
             switcher.onEvent(event)
@@ -270,6 +337,8 @@ class HugminnService : AccessibilityService() {
     private fun onKeyEventInner(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
         keyWatch?.let { w -> if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) { val c = event.keyCode; ui.post { w(c) } } }
+        // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
+        if (Device.isAynKey(event)) return false
         // the device test asks for the Home button: it goes there instead of opening anything
         keyProbe?.let { probe ->
             if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME) {
@@ -284,16 +353,13 @@ class HugminnService : AccessibilityService() {
         if (event.keyCode == KeyEvent.KEYCODE_POWER && event.action == KeyEvent.ACTION_DOWN) ui.post { runCatching { closeOverlays() } }
         // the device's own keys always reach Android (volume, power, screenshot with Power + Volume down)
         if (event.keyCode in systemKeys) return false
-        // Select: screenshot with the overlays (Android's key combination cannot reach them)
-        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || anySwitcherOpen)) {
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) Shot.take(this)
-            return true
-        }
+        // the overlays go by button position (north, west …), the same on every layout
+        val ev = Glyphs.logical(event)
         return try {
             when {
-                controlCenter.isOpen -> controlCenter.onKey(event)
-                own.isOpen -> own.onKey(event)
-                switcher.isOpen -> switcher.onKey(event)
+                controlCenter.isOpen -> controlCenter.onKey(ev)
+                own.isOpen -> own.onKey(ev)
+                switcher.isOpen -> switcher.onKey(ev)
                 else -> false
             }
         } catch (t: Throwable) {
@@ -319,7 +385,7 @@ class HugminnService : AccessibilityService() {
                 if (e.repeatCount > 0) return true
                 // picture of the game right now, before anything covers it (own switcher)
                 if (!overlayOpen && p.ownSwitcher && !pendingSingle) foregroundPkg?.let { fg ->
-                    if (windowPkg == fg) Snapshots.capture(this, fg)
+                    if (windowPkg == fg && onTopScreen(fg)) Snapshots.capture(this, fg)
                 }
                 if (pendingSingle) {
                     ui.removeCallbacks(singlePress)
@@ -401,7 +467,7 @@ class HugminnService : AccessibilityService() {
 
     fun startApp(i: Intent) {
         try {
-            startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), Displays.onTop(this))
         } catch (t: Throwable) {
         }
     }
@@ -412,6 +478,8 @@ class HugminnService : AccessibilityService() {
     private var guardRun: Runnable? = null
     @Volatile var guardDiag = ""
     fun guardBuiltinOff() {
+        // called from a root callback too: the Control Center may only be closed on the main thread
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) { ui.post { guardBuiltinOff() }; return }
         guardRun?.let { ui.removeCallbacks(it) }
         if (::controlCenter.isInitialized) controlCenter.close()
         val end = SystemClock.elapsedRealtime() + 30_000
@@ -445,6 +513,9 @@ class HugminnService : AccessibilityService() {
         guardRun = tick
         tick.run()
     }
+
+    /** Android's task of [pkg] (-1 if unknown), for bringing it back to the front. */
+    fun taskOf(pkg: String): Int = if (::own.isInitialized) own.taskOf(pkg) else -1
 
     fun controlCenterOpen() = ::controlCenter.isInitialized && controlCenter.isOpen
 }

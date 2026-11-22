@@ -103,6 +103,9 @@ class OwnSwitcher(private val svc: HugminnService) {
     private var root: FrameLayout? = null
     private var carousel: Carousel? = null
     private var bar: LinearLayout? = null
+    /** Dual-screen handhelds: the second screen's window (name, hints, shortcuts) and its window manager. */
+    private var lower: LinearLayout? = null
+    private var lowerWm: WindowManager? = null
     private lateinit var pal: Palette
     private var apps: List<RecentApp> = emptyList()
     private var sel = 0
@@ -129,6 +132,8 @@ class OwnSwitcher(private val svc: HugminnService) {
             known.add(0, RecentApp(pkg, id))
         }
     }
+
+    fun taskOf(pkg: String): Int = synchronized(this) { known.firstOrNull { it.pkg == pkg }?.taskId ?: -1 }
 
     /** Reads Android's task list (root) in the background. */
     fun refresh(then: (() -> Unit)? = null) {
@@ -177,13 +182,14 @@ class OwnSwitcher(private val svc: HugminnService) {
             }
         }
         // the game titles need a few more root calls: in the background, the list is shown at once
-        thread { runCatching { GameTitle.update(svc, data) }; svc.ui.post { renderTitle() } }
+        thread { runCatching { GameTitle.update(svc, data) }; svc.ui.post { renderTitle(); renderLower() } }
         diag = "Taskliste: ${starts.size} Tasks, ${res.size} Apps: ${res.joinToString { it.pkg }}" +
             (if (skipped.isNotEmpty()) "\nÜbergangen: ${skipped.distinct().joinToString()}" else "")
         return res
     }
 
     fun open(swipe: Boolean) {
+        Displays.snapshot(svc, svc, "Switcher")
         if (isOpen) return
         isOpen = true
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
@@ -239,7 +245,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
         val f = fromPkg
         // cover the app with a black screen so it pauses (and goes quiet) while the switcher is open
-        val pauseIt = { if (isOpen && fromPkg != null && svc.prefs.pauseInSwitcher) PauseActivity.hold(svc, "switcher") }
+        // music and videos keep playing: pausing them would only break the flow
+        val pauseIt = { if (isOpen && fromPkg != null && svc.prefs.pauseInSwitcher && !Media.playsIn(svc, fromPkg)) PauseActivity.hold(svc, "switcher") }
         if (f != null && !swipe) Snapshots.capture(svc, f) { pauseIt(); afterList() } else { pauseIt(); afterList() }
     }
 
@@ -257,6 +264,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         bar = null
         // removed at once: a fade-out left a ghost of the cards over the home screen
         r?.let { runCatching { wm.removeViewImmediate(it) } }
+        closeLower()
         val under = recentsUnder
         recentsUnder = false
         if (back && (fromSwipe || under)) {
@@ -269,6 +277,8 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     /** Brings an app (its existing task) to the front. */
     private fun bring(a: RecentApp) {
+        // a paused player stays paused (Prime Video would start again by itself)
+        thread { runCatching { Media.keepPaused(svc, a.pkg) } }
         var moved = false
         if (a.taskId > 0) moved = runCatching {
             svc.getSystemService(ActivityManager::class.java).moveTaskToFront(a.taskId, 0)
@@ -583,7 +593,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         val lp = WindowManager.LayoutParams(
             m.bounds.width(), m.bounds.height() - sysTop,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                // music/video plays behind: the switcher does not take the focus, some players (Crunchyroll)
+                // stop as soon as they lose it. The buttons still reach the switcher through Hugminn.
+                (if (Media.playsIn(svc, fromPkg)) WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE else 0),
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -599,8 +612,133 @@ class OwnSwitcher(private val svc: HugminnService) {
         root = r
         carousel = c
         bar = b
+        // dual screen: name, hints and shortcuts move to the second screen, the cards get the room
+        if (openLower()) {
+            // room for the small hint capsule at the bottom; 16:9 a bit narrower, so the corner marks fit
+            (c.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = svc.dp(58); c.layoutParams = it }
+            c.wide = 0.60f
+            c.tall = 0.84f
+        }
         c.set(apps, sel, animate = false)
         renderBar()
+    }
+
+    // ---------- second screen (AYN Thor and other dual-screen handhelds) ----------
+
+    /** Opens the window on the second screen; false if there is none (or it may not be used). */
+    private fun openLower(): Boolean {
+        if (!svc.prefs.dualSwitcher) return false
+        val info = Displays.second(svc) ?: return false
+        val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(info.id) ?: return false
+        return runCatching {
+            // a display context of the accessibility service: its window manager may add overlays there
+            val dwm = svc.createDisplayContext(display).getSystemService(WindowManager::class.java)
+            val v = LinearLayout(svc).apply {
+                orientation = LinearLayout.VERTICAL
+                background = Look.ground(svc, pal)
+                setPadding(svc.dp(28), svc.dp(24), svc.dp(28), svc.dp(20))
+            }
+            val lp = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT,
+            ).apply { fitInsetsTypes = 0; layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS }
+            dwm.addView(v, lp)
+            lower = v
+            lowerWm = dwm
+            true
+        }.onFailure { Crash.note(svc, it) }.getOrDefault(false)
+    }
+
+    private fun closeLower() {
+        val v = lower ?: return
+        lower = null
+        runCatching { lowerWm?.removeViewImmediate(v) }
+        lowerWm = null
+    }
+
+    /**
+     * The second screen – "look up top, operate down here":
+     * top: the app's icon, name, game and "2 of 3"; middle: the emulator's shortcuts; bottom: the pin, in a field of its own, only as big as it needs.
+     * The button hints stay small on the top screen.
+     */
+    private fun renderLower() {
+        val v = lower ?: return
+        v.removeAllViews()
+        val a = apps.getOrNull(sel)
+        val m = menu
+        val picture = Backdrop.active(svc)
+        val onGround = if (picture) pal.onSurface else pal.onSurfaceVariant
+        if (a == null) {
+            v.addView(text("Muninn", 18f, 0xFF2F7DF0.toInt(), bold = true).apply { setPadding(0, 0, 0, svc.dp(14)) })
+            v.addView(text(tr("Keine offenen Apps"), 24f, pal.onSurface, bold = true))
+            v.addView(text(tr("Starte ein Spiel, dann taucht es hier auf"), 15f, onGround))
+            v.addView(View(svc), LinearLayout.LayoutParams(1, 0, 1f))
+            return
+        }
+        // --- top: the app
+        val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+        head.addView(ImageView(svc).apply { setImageDrawable(Apps.icon(svc, a.pkg)) }, LinearLayout.LayoutParams(svc.dp(64), svc.dp(64)))
+        head.addView(LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(svc.dp(16), 0, 0, 0)
+            addView(text(Apps.label(svc, a.pkg), 24f, pal.onSurface, bold = true))
+            GameTitle.titles[a.pkg]?.let { addView(text(it, 16f, pal.onSurface)) }
+            addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}"), 14f, onGround))
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        v.addView(head)
+        // --- middle: the emulator's shortcuts (music/video has its own player outside the switcher)
+        val middle = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
+        if (m == null) {
+            val emu = Apps.typeOf(a.pkg) != AppType.APP
+            val keys = if (emu) runCatching { Hotkeys.list(svc, a.pkg) }.getOrDefault(emptyList()) else emptyList()
+            if (keys.isNotEmpty()) middle.addView(shortcutCard(keys, onGround), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        v.addView(middle, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = svc.dp(12); bottomMargin = svc.dp(12) })
+        // --- bottom: the pin, a field of its own (tap to pin or unpin; Y → options does the same)
+        val pinned = Hotkeys.isPinned(svc, a.pkg)
+        val pin = LinearLayout(svc).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            background = Look.shape(svc, Look.pixel(svc), if (pinned) pal.primaryContainer else pal.tile, svc.dp(18).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+            setPadding(svc.dp(14), svc.dp(8), svc.dp(16), svc.dp(8))
+            addView(IconView(svc, IconView.Kind.PIN, 18).styled(pal, Look.pixel(svc)).apply { setColor(if (pinned) pal.onPrimaryContainer else pal.onSurface) },
+                LinearLayout.LayoutParams(svc.dp(20), svc.dp(20)))
+            addView(text(if (pinned) t("Angeheftet – bleibt im Switcher", "Pinned – stays in the switcher") else t("Anheften", "Pin"), 14f,
+                if (pinned) pal.onPrimaryContainer else pal.onSurface, bold = pinned).apply { setPadding(svc.dp(10), 0, 0, 0) })
+            setOnClickListener { Hotkeys.setPinned(svc, a.pkg, !pinned); renderBar() }
+        }
+        v.addView(pin, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+    }
+
+    /** The emulator's shortcuts as a card made like the tiles; two columns when there are many. */
+    private fun shortcutCard(keys: List<Pair<Hotkeys.Act, IntArray>>, onGround: Int): View {
+        val card = LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Look.shape(svc, Look.pixel(svc), pal.tile, svc.dp(22).toFloat(), if (pal.tileEdge != 0) svc.dp(1) else 0, pal.tileEdge)
+            setPadding(svc.dp(16), svc.dp(10), svc.dp(12), svc.dp(8))
+        }
+        card.addView(text(t("Tastenkürzel", "Shortcuts"), 15f, pal.onSurface, bold = true).apply { setPadding(0, 0, 0, svc.dp(4)) })
+        val two = keys.size > 5
+        val cols = LinearLayout(svc)
+        val columns = if (two) listOf(keys.take((keys.size + 1) / 2), keys.drop((keys.size + 1) / 2)) else listOf(keys)
+        columns.forEach { part ->
+            val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+            for ((act, combo) in part) {
+                val row = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, svc.dp(2), svc.dp(6), svc.dp(2)) }
+                val chips = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+                combo.forEachIndexed { i, k ->
+                    if (i > 0) chips.addView(text(if (k == KeyEvent.KEYCODE_DPAD_RIGHT) "/" else "+", 12f, onGround).apply { setPadding(svc.dp(3), 0, svc.dp(3), 0) })
+                    chips.addView(Glyphs.chip(svc, svc.prefs, pal, k, if (two) 20 else 22))
+                }
+                row.addView(chips, LinearLayout.LayoutParams(svc.dp(if (two) 96 else 130), LinearLayout.LayoutParams.WRAP_CONTENT))
+                row.addView(text(act.label, if (two) 12f else 14f, pal.onSurface).apply { maxLines = 2 }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                col.addView(row)
+            }
+            cols.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        card.addView(cols)
+        return card
     }
 
     private fun text(s: String, sizeSp: Float, color: Int, bold: Boolean = false) = TextView(svc).apply {
@@ -612,12 +750,20 @@ class OwnSwitcher(private val svc: HugminnService) {
         ellipsize = TextUtils.TruncateAt.END
     }
 
-    private fun hint(key: Int, label: String) = LinearLayout(svc).apply {
+    private fun hint(key: Int, label: String, small: Boolean = false) = LinearLayout(svc).apply {
         gravity = Gravity.CENTER_VERTICAL
-        addView(Glyphs.chip(svc, svc.prefs, pal, key, 24))
+        addView(Glyphs.chip(svc, svc.prefs, pal, key, if (small) 20 else 24))
         // narrow 4:3 screens (Pocket Nova): smaller labels and gaps, so the app name keeps its room
-        val narrow = svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density < 720
-        addView(text(label, if (narrow) 11f else 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(svc.dp(if (narrow) 4 else 7), 0, svc.dp(if (narrow) 9 else 16), 0) })
+        val narrow = small || svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density < 720
+        addView(text(label, if (narrow) 12f else 13f, if (Backdrop.active(svc) || small) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(svc.dp(if (narrow) 5 else 7), 0, svc.dp(if (narrow) 12 else 16), 0) })
+    }
+
+    /** See-through capsule (glass look) for the hints on the top screen of dual-screen handhelds. */
+    private fun glassCapsule(): android.graphics.drawable.Drawable {
+        val fill = if (pal.tileStyle == TileStyle.GLASS) pal.tile
+            else (pal.surface and 0x00FFFFFF) or ((if (pal.dark) 150 else 190) shl 24)
+        val edge = if (pal.dark) android.graphics.Color.argb(70, 255, 255, 255) else android.graphics.Color.argb(110, 255, 255, 255)
+        return rounded(fill, 999f, svc.dp(1), edge)
     }
 
     private var titleView: TextView? = null
@@ -633,8 +779,38 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     private fun renderBar() {
         renderTitle()
+        renderLower()
         val b = bar ?: return
         b.removeAllViews()
+        // with a second screen the bar up here becomes a small see-through capsule with the button
+        // hints only ("look up top, a small reminder"); the options menu still uses the full bar
+        if (lower != null) {
+            val compact = menu == null
+            (b.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                if (compact) {
+                    lp.width = FrameLayout.LayoutParams.WRAP_CONTENT; lp.height = svc.dp(42)
+                    lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; lp.bottomMargin = svc.dp(10)
+                } else {
+                    lp.width = FrameLayout.LayoutParams.MATCH_PARENT; lp.height = svc.dp(62)
+                    lp.gravity = Gravity.BOTTOM; lp.bottomMargin = svc.dp(8)
+                }
+                b.layoutParams = lp
+            }
+            b.background = glassCapsule()
+            b.setPadding(svc.dp(if (compact) 16 else 24), 0, svc.dp(if (compact) 2 else 10), 0)
+            if (compact) {
+                val a = apps.getOrNull(sel)
+                if (a == null) b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück"), small = true))
+                else {
+                    if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln"), small = true))
+                    b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Öffnen"), small = true))
+                    b.addView(hint(KeyEvent.KEYCODE_BUTTON_X, tr("Schließen"), small = true))
+                    b.addView(hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Optionen"), small = true))
+                    b.addView(hint(KeyEvent.KEYCODE_BUTTON_B, tr("Zurück"), small = true))
+                }
+                return
+            }
+        }
         val m = menu
         val a = apps.getOrNull(sel)
         if (m != null) {
@@ -733,6 +909,8 @@ class OwnSwitcher(private val svc: HugminnService) {
             typeface = Look.font(ctx, pixel, false)
         }
         private val icons = HashMap<String, android.graphics.drawable.Drawable?>()
+        /** Share of the width the selected card may take: more when the bar sits on a second screen. */
+        var wide = 0.56f
 
         /** Corner brackets around the selected card (when chosen): made anew per card, so they settle in once. */
         private var corners: CornerFrame? = null
@@ -769,10 +947,47 @@ class OwnSwitcher(private val svc: HugminnService) {
         private fun shape(r: RectF): Path = if (pixel) pixelPath(r, unit, 3) else Path().apply { addRoundRect(r, radius, radius, Path.Direction.CW) }
 
         /** Card frame of item [i] for the current scroll position. */
+        /** Height share of the cards: taller when the bar sits on a second screen. */
+        var tall = 0.70f
+
+        /**
+         * The picture inside a preview without black bars (letterbox/pillarbox), so a 4:3 or 8:7 game
+         * gets a card in its own shape. Measured once per preview.
+         */
+        private val content = java.util.WeakHashMap<Bitmap, Rect>()
+
+        private fun contentOf(b: Bitmap): Rect = content.getOrPut(b) {
+            fun dark(c: Int) = (android.graphics.Color.red(c) + android.graphics.Color.green(c) + android.graphics.Color.blue(c)) < 3 * 22
+            // a line is a bar when (almost) every sample on it is near black
+            fun rowDark(y: Int): Boolean { var n = 0; for (k in 0 until 24) if (dark(b.getPixel((b.width * (k + 0.5f) / 24).toInt(), y))) n++; return n >= 22 }
+            fun colDark(x: Int): Boolean { var n = 0; for (k in 0 until 24) if (dark(b.getPixel(x, (b.height * (k + 0.5f) / 24).toInt()))) n++; return n >= 22 }
+            runCatching {
+                var l = 0; var r = b.width - 1; var t = 0; var btm = b.height - 1
+                val maxX = (b.width * 0.3f).toInt(); val maxY = (b.height * 0.3f).toInt()
+                while (l < maxX && colDark(l)) l++
+                while (r > b.width - 1 - maxX && colDark(r)) r--
+                while (t < maxY && rowDark(t)) t++
+                while (btm > b.height - 1 - maxY && rowDark(btm)) btm--
+                if (r - l < b.width / 3 || btm - t < b.height / 3) Rect(0, 0, b.width, b.height) else Rect(l, t, r + 1, btm + 1)
+            }.getOrDefault(Rect(0, 0, b.width, b.height))
+        }
+
+        /** Shape of a card: the game's own (snapped to 1:1, 8:7, 4:3, 3:2 or 16:9), else 16:9. */
+        private fun aspectOf(i: Int): Float {
+            val shot = apps.getOrNull(i)?.let { Snapshots.get(context, it.pkg) } ?: return 16f / 9f
+            val c = contentOf(shot)
+            val a = (c.width().toFloat() / c.height().coerceAtLeast(1)).coerceIn(1f, 16f / 9f)
+            return floatArrayOf(1f, 8f / 7f, 4f / 3f, 3f / 2f, 16f / 9f).minByOrNull { abs(it - a) }!!.let { if (abs(it - a) / it < 0.05f) it else a }
+        }
+
         private fun frame(i: Int): Pair<RectF, Float> {
-            val h = height * 0.70f
-            val w = min(h * 16f / 9f, width * 0.56f)
-            val ch = w * 9f / 16f
+            val h = height * tall
+            // the slot every card sits in: 16:9, as wide as allowed
+            val w = min(h * 16f / 9f, width * wide)
+            // the card in the game's own shape: narrower shapes may use the full height
+            val a = aspectOf(i)
+            val cw = min(w, h * a)
+            val ch = cw / a
             val gap = context.dp(22).toFloat()
             val d = i - pos
             val ad = abs(d)
@@ -784,7 +999,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             val off = if (ad <= 1f) ad * first else first + (ad - 1f) * next
             val cx = width / 2f + Math.signum(d) * off
             val cy = height * 0.47f
-            return RectF(cx - w * scale / 2f, cy - ch * scale / 2f, cx + w * scale / 2f, cy + ch * scale / 2f) to scale
+            return RectF(cx - cw * scale / 2f, cy - ch * scale / 2f, cx + cw * scale / 2f, cy + ch * scale / 2f) to scale
         }
 
         override fun onDraw(c: Canvas) {
@@ -806,15 +1021,16 @@ class OwnSwitcher(private val svc: HugminnService) {
                 c.save()
                 c.clipPath(path)
                 if (shot != null) {
-                    // centre crop into the card
-                    val sr = shot.width / shot.height.toFloat()
+                    // the picture without black bars, centre-cropped into the card
+                    val cr = contentOf(shot)
+                    val sr = cr.width() / cr.height().toFloat()
                     val rr = r.width() / r.height()
                     val src = if (sr > rr) {
-                        val w = shot.height * rr
-                        Rect(((shot.width - w) / 2).toInt(), 0, ((shot.width + w) / 2).toInt(), shot.height)
+                        val w = cr.height() * rr
+                        Rect((cr.centerX() - w / 2).toInt(), cr.top, (cr.centerX() + w / 2).toInt(), cr.bottom)
                     } else {
-                        val h = shot.width / rr
-                        Rect(0, ((shot.height - h) / 2).toInt(), shot.width, ((shot.height + h) / 2).toInt())
+                        val h = cr.width() / rr
+                        Rect(cr.left, (cr.centerY() - h / 2).toInt(), cr.right, (cr.centerY() + h / 2).toInt())
                     }
                     c.drawBitmap(shot, src, r, bmpPaint)
                 } else {
@@ -863,8 +1079,8 @@ class OwnSwitcher(private val svc: HugminnService) {
 
         /** Distance between two neighbouring cards (for dragging). */
         private fun pitch(): Float {
-            val h = height * 0.70f
-            val w = min(h * 16f / 9f, width * 0.56f)
+            val h = height * tall
+            val w = min(h * 16f / 9f, width * wide)
             return w * 0.66f + context.dp(22)
         }
 

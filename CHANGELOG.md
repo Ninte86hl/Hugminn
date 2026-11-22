@@ -2,6 +2,104 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.14.0
+
+### 🇬🇧 English
+**Lights (stick LEDs)**
+- New LED window with three tabs (L1/R1): *Device*, *Mode* and *Colour*. Every light on its own – the two sticks, on the AYN Odin 2 also the two side lights.
+- *Shows*: a switch per light with Off · Colour · Combo · Effect. Each light keeps its colour and effect, the switch only picks what lights – switching needs no setting up again.
+- Brightness and saturation per light as bars in 5 % steps; colour combinations (left lights the first colour, right ones the second).
+- *Colour*: 15 colours, the 16th tile opens the colour wheel – the LED shows each colour right away. After choosing, the window goes back to *Device* for the next light.
+- *Mode*: static, breathing, pulsing, rainbow, colour cycle, battery and temperature display, with speed; breathing and pulsing use the light's colour. *For all lights that are on* gives every light the same effect.
+- North button on *Shows* jumps straight to the setting of what the light shows; west applies to all lights – in *Device* the whole light, in *Mode* the effect, in *Colour* the colour.
+- Rainbow and colour cycle run calmer, without flicker.
+- Fits 16:9 and 4:3: on small screens the content shrinks so everything is visible.
+- LED tester in the device test: lights every LED setting and driver zone in turn and asks what lit up.
+- AYN Odin 2: the tile is called *Lights* and covers sticks and side lights.
+
+**Buttons**
+- Buttons go by position, the same on every device and layout: **north** = options / set up, **west** = second action (switcher: close the app, Control Center: edit, LED window: copy to all, keyboard: delete). Confirm and back follow the layout as on that console.
+- In the Control Center, *Options* and *Edit* swapped places to match the game switcher.
+- Button symbols are called **Modern**, **Retro** and **Modern (alternative)** (shapes); shoulder, trigger, Start and Select are labelled the way each style names them (LB/RB · L/R · L1/R1 …).
+- The hints at the bottom always show the D-pad, north, west, confirm and back in the same order; L/R only when there are pages or tabs.
+- **Edit mode: A finishes and keeps the changes, B now cancels** and leaves the layout as it was. North opens an element's options (or adds one on a free cell), west removes it.
+- Select no longer takes a screenshot in the switcher and the Control Center (Power + Volume down or the screenshot tile still do).
+- Keyboard (Wi-Fi password): Select (or the ⌨ button) switches to Android's own keyboard and back; the A that chose the network no longer types a letter.
+
+**Video apps**
+- Always landscape: YouTube, Netflix, Disney+, Prime Video and Crunchyroll are shown fully sideways, not only full-screen videos. No root needed. Settings → Game Switcher.
+- Keep playing: opening the switcher or the Control Center no longer pauses music or videos – games still pause.
+- Switching to a paused video app keeps it paused.
+- Hide the navigation bar (root): the bar or gesture line disappears everywhere, a swipe from the bottom brings it back for a moment. Settings → Look.
+
+**Control Center and switcher**
+- Switcher previews in the game's own shape: black bars are cut off, a 4:3, 8:7 or square game gets a card in its format.
+- The Performance and Fan cards open their profiles on touch; touching a value card no longer redraws the Control Center.
+- Edit mode: moving the cursor no longer makes the tiles flicker; the selection frame follows each tile's own corners and is no longer cut off at the edge.
+
+**Profiles and setup**
+- On the home screen performance runs Normal and the fan Quiet between games (Settings → Profiles per app, can be switched off); an app without a profile gets the previous setting back.
+- Setup wizard on 4:3 screens (Pocket Nova): the option cards get the height their text needs and the page shrinks to fit instead of cutting things off.
+
+**AYN handhelds**
+- The built-in "Odin Controller" counts as the handheld's own controls, not an external controller.
+- The trigger mode tile also shows before the mode was ever changed in AYN's settings.
+- AYN Odin 2: battery and GPU values are read where the firmware hides the usual files.
+- The Button layout tile uses AYN's controller style – Modern, Retro or built-in controls off.
+- "Nintendo" is called "Retro" everywhere.
+
+**Other**
+- Missing English translations added.
+- Built-in controls off: closing the Control Center from that menu no longer crashes Hugminn.
+
+### 🇩🇪 Deutsch
+**Beleuchtung (Stick-LEDs)**
+- Neues LED-Fenster mit drei Tabs (L1/R1): *Gerät*, *Modus* und *Farbe*. Jedes Licht einzeln – die beiden Sticks, auf dem AYN Odin 2 auch die beiden Seitenleuchten.
+- *Zeigt*: ein Schalter pro Licht mit Aus · Farbe · Kombi · Effekt. Jedes Licht merkt sich Farbe und Effekt, der Schalter wählt nur, was leuchtet – Umschalten ohne neu einzustellen.
+- Helligkeit und Sättigung pro Licht als Balken in 5-%-Schritten; Farbkombinationen (linke Lichter die erste Farbe, rechte die zweite).
+- *Farbe*: 15 Farben, die 16. Kachel öffnet das Farbrad – die LED zeigt jede Farbe sofort. Nach der Wahl geht es zurück zu *Gerät* für das nächste Licht.
+- *Modus*: Statisch, Atmen, Pulsieren, Regenbogen, Farbwechsel, Akku- und Temperaturanzeige, mit Tempo; Atmen und Pulsieren nehmen die Farbe des Lichts. *Für alle eingeschalteten Lichter* gibt allen denselben Effekt.
+- Nord-Taste auf *Zeigt* springt direkt zur Einstellung dessen, was das Licht zeigt; West gilt für alle Lichter – in *Gerät* das ganze Licht, in *Modus* der Effekt, in *Farbe* die Farbe.
+- Regenbogen und Farbwechsel laufen ruhiger, ohne Flackern.
+- Passt auf 16:9 und 4:3: Auf kleinen Bildschirmen wird der Inhalt verkleinert, damit alles zu sehen ist.
+- LED-Tester im Gerätetest: schaltet jede LED-Einstellung und Treiber-Zone nacheinander ein und fragt, was geleuchtet hat.
+- AYN Odin 2: Die Kachel heißt *Beleuchtung* und umfasst Sticks und Seitenleuchten.
+
+**Tasten**
+- Die Tasten gehen nach Position, auf jedem Gerät und Layout gleich: **Nord** = Optionen / Einstellen, **West** = zweite Aktion (Switcher: App schließen, Control Center: Bearbeiten, LED-Fenster: auf alle übertragen, Tastatur: löschen). Bestätigen und Zurück folgen dem Layout wie bei der jeweiligen Konsole.
+- Im Control Center haben *Optionen* und *Bearbeiten* die Plätze getauscht, passend zum Game Switcher.
+- Die Tastensymbole heißen **Modern**, **Retro** und **Modern (alternativ)** (Formen); Schulter, Trigger, Start und Select sind so beschriftet, wie der jeweilige Stil sie nennt (LB/RB · L/R · L1/R1 …).
+- Die Hinweise unten zeigen immer Steuerkreuz, Nord, West, Bestätigen und Zurück in derselben Reihenfolge; L/R nur, wenn es Seiten oder Tabs gibt.
+- **Bearbeitungsmodus: A beendet und behält die Änderungen, B bricht jetzt ab** und lässt das Layout, wie es war. Nord öffnet die Optionen eines Elements (oder fügt auf einem freien Feld eins hinzu), West entfernt es.
+- Select macht im Switcher und Control Center keinen Screenshot mehr (Power + Leiser oder die Screenshot-Kachel weiterhin).
+- Tastatur (WLAN-Passwort): Select (oder der ⌨-Knopf) wechselt zur Android-Tastatur und zurück; das A, mit dem das Netz gewählt wurde, tippt keinen Buchstaben mehr.
+
+**Video-Apps**
+- Immer quer: YouTube, Netflix, Disney+, Prime Video und Crunchyroll erscheinen komplett quer, nicht nur Videos im Vollbild. Ohne Root. Einstellungen → Game Switcher.
+- Laufen weiter: Switcher und Control Center pausieren Musik und Videos beim Öffnen nicht mehr – Spiele halten weiterhin an.
+- Wechselt man zu einer pausierten Video-App, bleibt sie pausiert.
+- Navigationsleiste ausblenden (Root): Die Leiste bzw. der Gestenstrich verschwindet überall, ein Wisch von unten holt sie kurz zurück. Einstellungen → Darstellung.
+
+**Control Center und Switcher**
+- Vorschaubilder im Switcher im Format des Spiels: Schwarze Balken werden abgeschnitten, ein 4:3-, 8:7- oder quadratisches Spiel bekommt eine Karte in seinem Format.
+- Die Karten Leistung und Lüfter öffnen ihre Profile per Touch; Antippen einer Wertekarte baut das Control Center nicht mehr neu auf.
+- Bearbeitungsmodus: Beim Bewegen der Auswahl flackern die Kacheln nicht mehr; der Auswahlrahmen folgt den Ecken jeder Kachel und wird am Rand nicht mehr abgeschnitten.
+
+**Profile und Einrichtung**
+- Auf dem Startbildschirm laufen zwischen den Spielen Leistung Normal und Lüfter Leise (Einstellungen → Profile pro App, abschaltbar); eine App ohne Profil bekommt die vorige Einstellung zurück.
+- Einrichtungsassistent auf 4:3-Bildschirmen (Pocket Nova): Die Optionskarten bekommen die Höhe, die ihr Text braucht, und die Seite wird verkleinert statt abgeschnitten.
+
+**AYN-Handhelds**
+- Der eingebaute „Odin Controller“ zählt als eigene Steuerung des Geräts, nicht als externer Controller.
+- Die Kachel Trigger-Modus erscheint auch, wenn der Modus in AYNs Einstellungen noch nie umgestellt wurde.
+- AYN Odin 2: Akku- und GPU-Werte werden gelesen, wo die Firmware die üblichen Dateien versteckt.
+- Die Kachel Tastenlayout nutzt AYNs Controller-Stil – Modern, Retro oder eingebaute Steuerung aus.
+- Aus „Nintendo“ wird überall „Retro“.
+
+**Sonstiges**
+- Fehlende englische Übersetzungen ergänzt.
+- Eingebaute Steuerung aus: Das Schließen des Control Centers aus diesem Menü bringt Hugminn nicht mehr zum Absturz.
+
 ## 1.13.2
 
 ### 🇬🇧 English

@@ -124,16 +124,33 @@ object Glyphs {
     data class Glyph(val text: String?, val shape: Shape?, val color: Int)
 
     /** True when the handheld runs in Retroid/Nintendo layout (A on the right). */
-    fun nintendoLayout(): Boolean = InputDevice.getDeviceIds().any { id ->
+    fun nintendoLayout(): Boolean = Device.aynNintendo ?: InputDevice.getDeviceIds().any { id ->
         InputDevice.getDevice(id)?.name?.contains("Retroid Pocket Controller", ignoreCase = true) == true
     }
 
+    /**
+     * Inside Hugminn the two upper face buttons go by position, the same on every device and layout:
+     * Y stands for the north button, X for the west one (the retro layout's X/Y are swapped on the
+     * way in, see [logical]). A and B follow the layout: confirm and back as on that console.
+     */
     fun posOf(keyCode: Int, nintendo: Boolean = nintendoLayout()): Pos? = when (keyCode) {
         KeyEvent.KEYCODE_BUTTON_A -> if (nintendo) Pos.RIGHT else Pos.BOTTOM
         KeyEvent.KEYCODE_BUTTON_B -> if (nintendo) Pos.BOTTOM else Pos.RIGHT
-        KeyEvent.KEYCODE_BUTTON_X -> if (nintendo) Pos.TOP else Pos.LEFT
-        KeyEvent.KEYCODE_BUTTON_Y -> if (nintendo) Pos.LEFT else Pos.TOP
+        KeyEvent.KEYCODE_BUTTON_X -> Pos.LEFT
+        KeyEvent.KEYCODE_BUTTON_Y -> Pos.TOP
         else -> null
+    }
+
+    /** The key code Hugminn works with: in the retro layout the north button (X) becomes Y, the west one (Y) X. */
+    fun logical(code: Int): Int = if (!nintendoLayout()) code else when (code) {
+        KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
+        KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
+        else -> code
+    }
+
+    fun logical(e: KeyEvent): KeyEvent {
+        val c = logical(e.keyCode)
+        return if (c == e.keyCode) e else KeyEvent(e.downTime, e.eventTime, e.action, c, e.repeatCount, e.metaState, e.deviceId, e.scanCode, e.flags, e.source)
     }
 
     private fun styleFor(prefs: Prefs, nintendo: Boolean) = when (prefs.glyphStyle) {
@@ -143,7 +160,7 @@ object Glyphs {
 
     fun glyph(prefs: Prefs, keyCode: Int): Glyph {
         val nintendo = nintendoLayout()
-        val pos = posOf(keyCode, nintendo) ?: return Glyph(keyLabel(keyCode), null, 0)
+        val pos = posOf(keyCode, nintendo) ?: return Glyph(keyLabel(keyCode, styleFor(prefs, nintendo)), null, 0)
         val g = when (styleFor(prefs, nintendo)) {
             GlyphStyle.PLAYSTATION -> when (pos) {
                 Pos.BOTTOM -> Glyph(null, Shape.CROSS, 0xFF8FB4F0.toInt())
@@ -167,13 +184,22 @@ object Glyphs {
         return if (prefs.glyphColored) g else g.copy(color = 0)
     }
 
-    private fun keyLabel(k: Int) = when (k) {
-        KeyEvent.KEYCODE_BUTTON_L1 -> "LB"
-        KeyEvent.KEYCODE_BUTTON_R1 -> "RB"
-        KeyEvent.KEYCODE_BUTTON_START -> "☰"
-        KeyEvent.KEYCODE_BUTTON_SELECT -> "⧉"
-        KeyEvent.KEYCODE_BUTTON_L2 -> "LT"
-        KeyEvent.KEYCODE_BUTTON_R2 -> "RT"
+    /** Shoulder and menu buttons the way each style names them. */
+    private fun keyLabel(k: Int, style: GlyphStyle): String {
+        val retro = style == GlyphStyle.NINTENDO
+        val alt = style == GlyphStyle.PLAYSTATION
+        return when (k) {
+            KeyEvent.KEYCODE_BUTTON_L1 -> if (retro) "L" else if (alt) "L1" else "LB"
+            KeyEvent.KEYCODE_BUTTON_R1 -> if (retro) "R" else if (alt) "R1" else "RB"
+            KeyEvent.KEYCODE_BUTTON_L2 -> if (retro) "ZL" else if (alt) "L2" else "LT"
+            KeyEvent.KEYCODE_BUTTON_R2 -> if (retro) "ZR" else if (alt) "R2" else "RT"
+            KeyEvent.KEYCODE_BUTTON_START -> if (retro) "+" else if (alt) "≡" else "☰"
+            KeyEvent.KEYCODE_BUTTON_SELECT -> if (retro) "−" else if (alt) "⇧" else "⧉"
+            else -> keyLabelCommon(k)
+        }
+    }
+
+    private fun keyLabelCommon(k: Int) = when (k) {
         KeyEvent.KEYCODE_BUTTON_THUMBL -> "L3"
         KeyEvent.KEYCODE_BUTTON_THUMBR -> "R3"
         KeyEvent.KEYCODE_BUTTON_MODE -> "⌂"

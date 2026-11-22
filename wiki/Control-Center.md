@@ -6,8 +6,8 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 
 ## Navigating
 - The D-pad moves through the grid; nothing is selected until you press a direction.
-- **A** toggles a switch or confirms a slider, **□ / X** opens the tile's submenu, **△ / Y** opens the edit menu, **R1/L1** changes the page, **○ / B** closes.
-- **Select** takes a screenshot.
+- Buttons go by position, the same with every layout: **A** toggles a switch or confirms a slider, **north** (Y · Retro X · △) opens the tile's options, **west** (X · Retro Y · □) opens the edit menu, **L1/R1** change the page, **B** closes.
+- The hints at the bottom always show the D-pad, north, west, confirm and back in the same order (dimmed when a button has nothing to do); L/R appear when there are pages or tabs. Every hint can be tapped.
 - The device's **volume keys** work as usual; a volume slider on screen moves along.
 - **Start** plays/pauses the music, **L2 / R2** skip to the previous / next track.
 - **Swipe down from the top edge** to open Android's quick settings – a way out if no button responds.
@@ -24,7 +24,7 @@ Hold **Home** to open the Control Center: a full-screen grid of tiles with every
 - **Screen off:** puts the handheld to sleep like the power button; the game pauses until you wake it.
 - **Device battery:** battery level of connected Bluetooth controllers and headphones that report one.
 - **Settings:** opens Android's settings.
-- **Controller style:** Xbox or Retroid button layout, or *Built-in controls off* for an [external controller](External-Controller).
+- **Controller style:** Modern or Retro button layout, or *Built-in controls off* for an [external controller](External-Controller).
 
 ## Sizes
 Each element comes in the sizes that suit it (in [edit mode](Editing-the-Control-Center): A → Size). Elements in a size that is no longer offered take the nearest one.

@@ -154,18 +154,118 @@ class DeviceTestActivity : Activity() {
     }
 
     private fun startLedTest() {
-        if (!Root.available() || Device.sys(this, "joystick_light_enabled") == null) { showSummary(); return }
+        if (!Root.available() || !Device.hasStickLeds(this)) { showSummary(); return }
         list.removeAllViews()
         list.addView(text(t("Stick-LEDs", "Stick LEDs"), 18f, fg, true))
         list.addView(text(t("Die Sticks leuchten jetzt rot. Siehst du es?", "The sticks light up red now. Can you see it?"), 15f, fg).apply { setPadding(0, d(6), 0, 0) })
+        LedFx.previewZone = if (Device.hasSideLights(this)) 2 else 1  // Odin 2: zone 2 = sticks
         LedFx.preview(Color.RED, Color.RED, 1f)
         fun answer(seen: Boolean) {
-            add(t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) CheckState.OK else CheckState.FAIL,
+            add(if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) CheckState.OK else CheckState.FAIL,
                 if (seen) "" else t("Farben werden nicht übernommen", "Colours are not applied"))
             runCatching { if (Device.stickLeds(this)) { if (Prefs(this).ledEffect != LedEffect.NONE) LedFx.resume(this) else LedFx.restoreStatic(this) } else LedFx.preview(0, 0, 1f) }
-            showSummary()
+            startLedProbe()
         }
         setButtons(button(t("Nein", "No")) { answer(false) }, button(t("Ja", "Yes"), primary = true) { answer(true) })
+    }
+
+    // ---- LED tester (AYN Odin 2: sticks and side lights) ----
+
+    /** One step: switch something on, ask what lights up, put it back. */
+    private class Probe(val name: String, val on: List<String>, val off: List<String>)
+
+    /** What can light up: the device's elements, and anything else. */
+    private val lightNames get() = Device.ledElNames(this) + t("Etwas anderes", "Something else")
+
+    /**
+     * Lights one setting or driver zone after the other in red and asks what lit up – so it is clear
+     * which switch drives which light (Odin 2, Thor, Retroid). The answers go into the result (and the
+     * feedback report).
+     */
+    private fun startLedProbe() {
+        status(t("LED-Tester wird vorbereitet …", "Preparing the LED tester …"))
+        Thread {
+            val probes = mutableListOf<Probe>()
+            val restore = mutableListOf<String>()
+            val allOn: List<String>
+            if (Device.isAyn) {
+                val keys = listOf("left_joystick_light_enabled", "right_joystick_light_enabled", "left_handle_light_enabled", "right_handle_light_enabled")
+                    .filter { Device.sys(this, it) != null }
+                val before = keys.associateWith { Device.sys(this, it) ?: "1" }
+                val colorBefore = Device.sys(this, "led_light_picker_color") ?: "-1"
+                fun only(k: String?) = keys.map { Root.putSetting("system", it, if (it == k) "1" else "0") } +
+                    Root.putSetting("system", "led_light_picker_color", "${0xFFFF0000.toInt()}")
+                keys.forEach { k -> probes += Probe("AYN: $k", only(k), emptyList()) }
+                allOn = keys.map { Root.putSetting("system", it, "1") }
+                restore += keys.map { Root.putSetting("system", it, before[it] ?: "1") } + Root.putSetting("system", "led_light_picker_color", colorBefore)
+            } else {
+                // Retroid: one setting "left,right" and the colours "#left,#right"
+                val en = Device.sys(this, "joystick_light_enabled") ?: "1,1"
+                val col = Device.sys(this, "joystick_led_light_picker_color")
+                val red = Root.putSetting("system", "joystick_led_light_picker_color", "#ffff0000,#ffff0000")
+                for (v in listOf("1,0", "0,1")) probes += Probe("Retroid: joystick_light_enabled=$v", listOf(Root.putSetting("system", "joystick_light_enabled", v), red), emptyList())
+                allOn = listOf(Root.putSetting("system", "joystick_light_enabled", "1,1"))
+                restore += Root.putSetting("system", "joystick_light_enabled", en)
+                if (col != null) restore += Root.putSetting("system", "joystick_led_light_picker_color", col)
+            }
+            // the LED drivers: each one, each zone on its own (everything else dark)
+            val drivers = Root.execLong("ls -d /sys/class/sn3112* 2>/dev/null", 3_000)?.lines()?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+            val dark = drivers.flatMap { dv -> (1..4).map { z -> "echo $z-0:0:0:255 > $dv/led/brightness" } }
+            for (dv in drivers) for (z in 1..4)
+                probes += Probe("${dv.substringAfterLast('/')} Zone $z", allOn + listOf("sleep 0.4") + dark + "echo $z-255:0:0:255 > $dv/led/brightness", dark)
+            // other light drivers of the device (not the screen, flash or vibration)
+            val leds = Root.execLong("ls /sys/class/leds/ 2>/dev/null", 3_000)?.lines()?.map { it.trim() }?.filter {
+                it.isNotEmpty() && !Regex("lcd|backlight|wled|flash|torch|vibrator|haptic|mmc|charging|battery", RegexOption.IGNORE_CASE).containsMatchIn(it)
+            }.orEmpty().take(8)
+            leds.forEach { l ->
+                val max = Root.exec("cat /sys/class/leds/$l/max_brightness")?.trim()?.toIntOrNull() ?: 255
+                val was = Root.exec("cat /sys/class/leds/$l/brightness")?.trim()?.toIntOrNull() ?: 0
+                probes += Probe("leds/$l", listOf("echo $max > /sys/class/leds/$l/brightness"), listOf("echo $was > /sys/class/leds/$l/brightness"))
+            }
+            Displays.ledProbe += "Treiber: ${drivers.joinToString().ifEmpty { "keine" }} · leds: ${leds.joinToString().ifEmpty { "keine" }}\n"
+            runOnUiThread { probeStep(probes, 0, restore) }
+        }.start()
+    }
+
+    private fun probeStep(probes: List<Probe>, i: Int, restore: List<String>) {
+        if (i >= probes.size) {
+            status(t("Beleuchtung wird zurückgestellt …", "Putting the lights back …"))
+            Thread {
+                Root.run(*restore.toTypedArray()) {
+                    runCatching { if (Prefs(this).ledEffect != LedEffect.NONE) LedFx.resume(this) else LedFx.restoreStatic(this, delayMs = 400) }
+                    runOnUiThread { showSummary() }
+                }
+            }.start()
+            return
+        }
+        val p = probes[i]
+        list.removeAllViews()
+        list.addView(text(t("LED-Tester · ${i + 1}/${probes.size}", "LED tester · ${i + 1}/${probes.size}"), 18f, fg, true))
+        list.addView(text(p.name, 13f, dim).apply { setPadding(0, d(4), 0, 0) })
+        list.addView(text(t("Was leuchtet jetzt rot? Alles antippen, was leuchtet, dann Weiter.", "What lights up red now? Tap everything that lights, then Next."), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
+        val chosen = mutableSetOf<String>()
+        val row = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        lightNames.forEach { n ->
+            lateinit var b: Button
+            b = button(n) {
+                if (!chosen.add(n)) chosen.remove(n)
+                (b.background as GradientDrawable).setColor(if (n in chosen) 0xFF2E9E5B.toInt() else card)
+            }
+            row.addView(b, LinearLayout.LayoutParams(-1, d(44)).apply { bottomMargin = d(6) })
+        }
+        list.addView(row)
+        Thread { Root.run(*p.on.toTypedArray()) }.start()
+        fun next(skip: Boolean) {
+            val seen = if (chosen.isEmpty()) t("nichts", "nothing") else lightNames.filter { it in chosen }.joinToString(", ")
+            if (!skip) add(t("LED-Tester", "LED tester"), p.name, if (chosen.isEmpty()) CheckState.WARN else CheckState.OK, "→ $seen")
+            Displays.ledProbe += "${p.name} → $seen\n"
+            Thread { if (p.off.isNotEmpty()) Root.run(*p.off.toTypedArray()) }.start()
+            probeStep(probes, i + 1, restore)
+        }
+        setButtons(
+            button(t("Abbrechen", "Cancel")) { probeStep(probes, probes.size, restore) },
+            button(t("Weiter", "Next"), primary = true) { next(false) },
+        )
     }
 
     // ---- summary ----
@@ -231,6 +331,11 @@ object DeviceReport {
         val rates = runCatching { @Suppress("DEPRECATION") windowManager.defaultDisplay.supportedModes.map { Math.round(it.refreshRate) }.distinct().sorted() }.getOrDefault(emptyList())
         add(dev, "${Build.MANUFACTURER} ${Build.MODEL}", CheckState.OK, "Android ${Build.VERSION.RELEASE}")
         add(dev, t("Bildschirm", "Screen"), CheckState.OK, "${w}×$h · " + "%.2f".format(w.toFloat() / h) + ":1 · ${rates.joinToString("/")} Hz · " + "%.2f".format(m.density))
+        // dual-screen devices: the second built-in screen (for the coming dual-screen support)
+        Displays.list(this).filter { !it.isDefault }.forEach { d ->
+            add(dev, t("Weiterer Bildschirm", "Further screen") + " #${d.id}", if (d.isPrivate) CheckState.WARN else CheckState.OK,
+                "\"${d.name}\" ${maxOf(d.width, d.height)}×${minOf(d.width, d.height)} · ${d.rates.joinToString("/")} Hz · ${d.density} dpi" + if (d.isPrivate) t(" · privat", " · private") else "")
+        }
 
         // permissions
         val perm = t("Berechtigungen", "Permissions")
@@ -244,17 +349,22 @@ object DeviceReport {
             if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != 0) t("Wird bei der ersten Aufnahme erteilt", "Granted on the first recording") else "")
 
         // the handheld's own settings
-        val fw = t("Retroid-Funktionen", "Retroid features")
+        val fw = if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features")
         listOf(
             "performance_mode" to t("Leistungsprofile", "Performance profiles"),
             "fan_mode" to t("Lüfterprofile", "Fan profiles"),
-            "temp_abxy_layout_mode" to t("Tastenlayout / eingebaute Steuerung aus", "Button layout / built-in controls off"),
+            Device.controllerKey(this) to t("Tastenlayout / eingebaute Steuerung aus", "Button layout / built-in controls off"),
             "trigger_input_mode" to t("Trigger-Modus", "Trigger mode"),
-            "joystick_light_enabled" to t("Stick-LEDs", "Stick LEDs"),
+            Device.stickLedKey(this) to t("Stick-LEDs", "Stick LEDs"),
             "is_charging_separation" to t("Direkte Stromversorgung", "Charging separation"),
         ).forEach { (key, name) ->
             val v = Device.sys(this, key)
-            add(fw, name, if (v != null) CheckState.OK else CheckState.FAIL, if (v != null) "$key = $v" else t("Einstellung fehlt – Kachel wird ausgeblendet", "Setting missing – the tile is hidden"))
+            when {
+                v != null -> add(fw, name, CheckState.OK, "$key = $v")
+                // AYN writes the trigger mode only after it was changed once: the tile still works
+                Device.lazySetting(key) -> add(fw, name, CheckState.OK, t("noch nie umgestellt – Standard", "never changed yet – default"))
+                else -> add(fw, name, CheckState.FAIL, t("Einstellung fehlt – Kachel wird ausgeblendet", "Setting missing – the tile is hidden"))
+            }
         }
         val ledDrv = root && Root.exec("test -e /sys/class/sn3112l/led/brightness && test -e /sys/class/sn3112r/led/brightness && echo yes")?.contains("yes") == true
         add(fw, t("LED-Treiber (Effekte)", "LED driver (effects)"), if (ledDrv) CheckState.OK else CheckState.WARN, if (!ledDrv) t("Effekte und Aufnahme-Pulsieren nicht möglich", "Effects and recording pulse not possible") else "sn3112")
@@ -266,7 +376,7 @@ object DeviceReport {
         val s = runCatching { metrics.sample() }.getOrNull()
         if (s != null) {
             add(live, "CPU", if (s.cpuMhz > 0) CheckState.OK else CheckState.WARN, if (s.cpuMhz > 0) "${s.cpuMhz} MHz · ${s.cpuPct.toInt()} %" else t("Takt nicht lesbar", "Clock not readable"))
-            add(live, "GPU", if (File("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage").canRead()) CheckState.OK else CheckState.WARN, "${s.gpuPct.toInt()} % · ${s.gpuMhz} MHz")
+            add(live, "GPU", if (File("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage").canRead() || s.gpuMhz > 0) CheckState.OK else CheckState.WARN, "${s.gpuPct.toInt()} % · ${s.gpuMhz} MHz")
             add(live, t("Temperaturen", "Temperatures"), if (s.cpuTemp > 0) CheckState.OK else CheckState.WARN, "CPU ${s.cpuTemp.toInt()} °C · GPU ${s.gpuTemp.toInt()} °C · " + t("Akku", "Battery") + " ${s.batTemp.toInt()} °C")
             add(live, t("Akku", "Battery"), if (s.batPct > 0) CheckState.OK else CheckState.WARN, "${s.batPct} % · " + "%.1f W".format(s.watts))
         } else add(live, t("Systemwerte", "System values"), CheckState.FAIL, t("Nicht lesbar", "Not readable"))

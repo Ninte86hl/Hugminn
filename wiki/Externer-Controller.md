@@ -10,7 +10,7 @@ Halte im [Control Center](Control-Center-DE) die Kachel **Controller-Stil** gedr
 
 - **Mit verbundenem Controller:** Die eingebaute Steuerung bleibt aus, bis du sie wieder einschaltest oder der Controller getrennt wird.
 - **Noch ohne Controller:** Das Control Center schließt sich, und ein Countdown in der Bildschirmmitte bittet dich, einen zu verbinden. Kommt innerhalb von 30 Sekunden keiner, geht die eingebaute Steuerung von selbst wieder an.
-- **Controller getrennt:** Die eingebaute Steuerung geht automatisch wieder an, mit dem Layout von vorher (Xbox oder Retroid).
+- **Controller getrennt:** Die eingebaute Steuerung geht automatisch wieder an, mit dem Layout von vorher (Modern oder Retro).
 
 ## Wenn keine Taste reagiert
 Touch geht immer:

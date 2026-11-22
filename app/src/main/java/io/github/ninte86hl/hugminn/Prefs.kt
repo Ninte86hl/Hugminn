@@ -82,14 +82,23 @@ enum class TileShape(private val labelDe: String) {
 
 enum class GlyphStyle(private val labelDe: String) {
     AUTO("Automatisch"),
-    XBOX("Xbox"),
-    NINTENDO("Nintendo"),
-    PLAYSTATION("PlayStation");
+    XBOX("Modern"),
+    NINTENDO("Retro"),
+    PLAYSTATION("Modern (alternativ)");
 
     val label get() = tr(labelDe)
 }
 
-class Prefs(ctx: Context) {
+class Prefs(private val ctx: Context) {
+    companion object {
+        @Volatile private var dual: Boolean? = null
+
+        /** Dual-screen features (AYN Thor: switcher and player on the second screen) come with 1.15 – until then only in test builds. */
+        fun dualReady(ctx: Context): Boolean = dual ?: runCatching {
+            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName?.contains("test") == true
+        }.getOrDefault(false).also { dual = it }
+    }
+
     private val p: SharedPreferences = ctx.getSharedPreferences("hugminn", Context.MODE_PRIVATE)
 
     /** 4:3 screens (Pocket Nova) are taller for their width: five rows by default instead of four. */
@@ -189,6 +198,43 @@ class Prefs(ctx: Context) {
     var glassLevel: Int
         get() = p.getInt("glassLevel", 3).coerceIn(1, 5)
         set(v) = p.edit().putInt("glassLevel", v.coerceIn(1, 5)).apply()
+
+    /** Dual-screen handhelds (AYN Thor): the switcher shows name, hints and shortcuts on the second screen. */
+    var dualSwitcher: Boolean
+        get() = dualReady(ctx) && p.getBoolean("dualSwitcher", true)
+        set(v) = p.edit().putBoolean("dualSwitcher", v).apply()
+
+    /** Dual-screen handhelds: music/video in front on the top screen → player on the second screen. */
+    var dualMedia: Boolean
+        get() = dualReady(ctx) && p.getBoolean("dualMedia", true)
+        set(v) = p.edit().putBoolean("dualMedia", v).apply()
+
+    /** Apps turned to landscape while in front (YouTube's portrait pages). */
+    var landscapeOn: Boolean
+        get() = p.getBoolean("landscapeOn", true)
+        set(v) = p.edit().putBoolean("landscapeOn", v).apply()
+
+    var landscapeApps: Set<String>
+        get() = p.getStringSet("landscapeApps", null) ?: setOf("com.google.android.youtube", "com.disney.disneyplus", "com.amazon.avod.thirdpartyclient", "com.crunchyroll.crunchyroid", "com.netflix.mediaclient")
+        set(v) = p.edit().putStringSet("landscapeApps", v).apply()
+
+    /** Android's navigation bar hidden everywhere (root, policy_control). */
+    var hideNav: Boolean
+        get() = p.getBoolean("hideNav", false)
+        set(v) = p.edit().putBoolean("hideNav", v).apply()
+
+    /** Test builds: where the feedback button floats (offset from the middle of the right edge). */
+    var bubbleY: Int
+        get() = p.getInt("bubbleY", 0)
+        set(v) = p.edit().putInt("bubbleY", v).apply()
+
+    /** AYN: own colours per stick (0 = none, AYN's one colour applies) – AYN itself keeps only one. */
+    var aynLedLeft: Int
+        get() = p.getInt("aynLedLeft", 0)
+        set(v) = p.edit().putInt("aynLedLeft", v).apply()
+    var aynLedRight: Int
+        get() = p.getInt("aynLedRight", 0)
+        set(v) = p.edit().putInt("aynLedRight", v).apply()
 
     var focusStyle: FocusStyle
         get() = enumOr(p.getString("focusStyle", null), FocusStyle.AUTO)
@@ -342,6 +388,46 @@ class Prefs(ctx: Context) {
     var ledEffect: LedEffect
         get() = enumOr(p.getString("ledEffect", null), LedEffect.NONE)
         set(v) = p.edit().putString("ledEffect", v.name).apply()
+
+    /** Odin 2: effect of the side lights (the sticks use [ledEffect]). */
+    var ledEffectSide: LedEffect
+        get() = enumOr(p.getString("ledEffectSide", null), LedEffect.NONE)
+        set(v) = p.edit().putString("ledEffectSide", v.name).apply()
+
+    /** Odin 2: own colours of the sticks (0 = AYN's colour). */
+    var aynStickLeft: Int
+        get() = p.getInt("aynStickLeft", 0)
+        set(v) = p.edit().putInt("aynStickLeft", v).apply()
+    var aynStickRight: Int
+        get() = p.getInt("aynStickRight", 0)
+        set(v) = p.edit().putInt("aynStickRight", v).apply()
+
+    /**
+     * LED elements (Odin 2: left stick, right stick, left side, right side; Retroid: the two sticks):
+     * state per element as one digit – 0 off, 1 on (keeps its look), 2 on and chosen for changes.
+     */
+    var ledElState: String
+        get() = p.getString("ledElState", "") ?: ""
+        set(v) = p.edit().putString("ledElState", v).apply()
+    /** On the home screen: performance Normal and fan Quiet (AppProfiles). */
+    var launcherProfile: Boolean
+        get() = p.getBoolean("launcherProfile", true)
+        set(v) = p.edit().putBoolean("launcherProfile", v).apply()
+
+    /** Mode per element as one digit: 0 off, 1 colour, 2 combination, 3 effect. */
+    var ledElMode: String
+        get() = p.getString("ledElMode", "") ?: ""
+        set(v) = p.edit().putString("ledElMode", v).apply()
+    /** The chosen colour combination (index into Device.ledCombos). */
+    var ledComboSel: Int
+        get() = p.getInt("ledComboSel", 0)
+        set(v) = p.edit().putInt("ledComboSel", v).apply()
+    fun ledElColor(i: Int) = p.getInt("ledElC$i", 0)
+    fun setLedElColor(i: Int, c: Int) = p.edit().putInt("ledElC$i", c).apply()
+    fun ledElB(i: Int) = p.getInt("ledElB$i", -1)
+    fun setLedElB(i: Int, v: Int) = p.edit().putInt("ledElB$i", v).apply()
+    fun ledElFx(i: Int): LedEffect? = p.getString("ledElFx$i", null)?.let { enumOr(it, LedEffect.NONE) }
+    fun setLedElFx(i: Int, e: LedEffect) = p.edit().putString("ledElFx$i", e.name).apply()
 
     var gaugePalette: GaugePalette
         get() = enumOr(p.getString("gaugePalette", null), GaugePalette.TRAFFIC)

@@ -25,6 +25,8 @@ object Media {
         private set
     /** Length and position in ms (-1 = unknown); position at [positionAt] (uptime), moving while playing. */
     @Volatile var duration = -1L
+    /** The player takes jumps (seekTo) – the progress bar on the second screen only works then. */
+    @Volatile var canSeek = false
         private set
     @Volatile private var position = -1L
     @Volatile private var positionAt = 0L
@@ -111,7 +113,7 @@ object Media {
     @Volatile var listenerInfo = "nicht geprüft"
 
     /** From Android's media sessions (needs [MediaListener] enabled); false if not available. */
-    private fun fromSessions(ctx: Context): Boolean {
+    private fun fromSessions(ctx: Context, prefer: String? = null): Boolean {
         val msm = ctx.getSystemService(android.media.session.MediaSessionManager::class.java) ?: return false
         val res = runCatching { msm.getActiveSessions(component(ctx)) }
         val active = res.getOrNull()
@@ -125,12 +127,16 @@ object Media {
         diag += "Sessions: " + list.joinToString(" | ") { m ->
             "${m.packageName} state=${m.playbackState?.state} title=${m.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)} art=${m.metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) != null}"
         }.ifEmpty { "keine" }
-        val mc = list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING && it.metadata != null }
+        val mc = list.firstOrNull { prefer != null && it.packageName == prefer && it.metadata != null }
+            // the app in front shares a session without details (Prime Video): it still counts
+            ?: list.firstOrNull { prefer != null && it.packageName == prefer && it.playbackState != null }
+            ?: list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING && it.metadata != null }
             ?: list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING }
             ?: list.firstOrNull { it.metadata != null } ?: list.firstOrNull()
         val md = mc?.metadata
         val st = mc?.playbackState
         playing = st?.state == android.media.session.PlaybackState.STATE_PLAYING
+        canSeek = st != null && (st.actions and android.media.session.PlaybackState.ACTION_SEEK_TO) != 0L
         app = mc?.packageName
         song = md?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)?.takeIf { it.isNotBlank() }
         artist = (md?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: md?.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM_ARTIST))?.takeIf { it.isNotBlank() }
@@ -148,9 +154,88 @@ object Media {
             artist = x; if (art == null) art = pic
             diag += " · Benachrichtigung: $t / $x / Bild=${pic != null}"
         } ?: run { if (mc != null && song == null) diag += " · keine Benachrichtigung gefunden" }
+        // no cover in the session: the player's notification may have one (its large picture)
+        if (mc != null && art == null) MediaListener.playerNotice(mc.packageName)?.third?.let { art = it }
+        // the app in front without any title (Prime Video): its name, so the player still shows up
+        if (mc != null && song == null && mc.packageName == prefer) song = runCatching { Apps.label(ctx, mc.packageName) }.getOrNull()
         tidy(mc?.packageName)
         title = listOfNotNull(song, artist).joinToString(" – ").ifBlank { null }
         return true
+    }
+
+    private fun controller(ctx: Context, pkg: String): android.media.session.MediaController? {
+        val msm = ctx.getSystemService(android.media.session.MediaSessionManager::class.java) ?: return null
+        // an app may keep several sessions (Prime Video): the one that is really in use
+        return runCatching {
+            val mine = (MediaListener.notificationSessions(ctx) + msm.getActiveSessions(component(ctx))).filter { it.packageName == pkg }
+            mine.firstOrNull { (it.playbackState?.state ?: 0) != 0 } ?: mine.firstOrNull()
+        }.getOrNull()
+    }
+
+    /** Playback state of [pkg]'s session (PlaybackState.STATE_…), null if it has none. */
+    fun stateOf(ctx: Context, pkg: String): Int? = runCatching { controller(ctx, pkg)?.playbackState?.state }.getOrNull()
+
+    fun pause(ctx: Context, pkg: String) { runCatching { controller(ctx, pkg)?.transportControls?.pause() } }
+
+    /**
+     * Switching to a player that was paused: some (Prime Video) start playing again on their own as
+     * soon as they are in front. Hugminn pauses them again, so it stays where you left it.
+     */
+    fun keepPaused(svc: HugminnService, pkg: String) {
+        val before = stateOf(svc, pkg) ?: return
+        if (before == android.media.session.PlaybackState.STATE_PLAYING) return
+        val until = SystemClock.uptimeMillis() + 4000
+        val check = object : Runnable {
+            override fun run() {
+                Thread {
+                    if (stateOf(svc, pkg) == android.media.session.PlaybackState.STATE_PLAYING) pause(svc, pkg)
+                    else if (SystemClock.uptimeMillis() < until) svc.ui.postDelayed(this, 400)
+                }.start()
+            }
+        }
+        svc.ui.postDelayed(check, 400)
+    }
+
+    /** One entry of the player's queue (playlist). */
+    class QItem(val id: Long, val title: String, val sub: String?, val icon: android.graphics.Bitmap?)
+
+    /** The queue the player of [pkg] shares with Android, and the id of the entry playing (-1 unknown). */
+    fun queue(ctx: Context, pkg: String): Pair<List<QItem>, Long> {
+        val mc = controller(ctx, pkg) ?: return emptyList<QItem>() to -1L
+        val q = runCatching { mc.queue }.getOrNull().orEmpty()
+        val items = q.map { qi ->
+            val d = qi.description
+            QItem(qi.queueId, d.title?.toString() ?: "", d.subtitle?.toString()?.takeIf { it.isNotBlank() }, d.iconBitmap)
+        }
+        return items to (mc.playbackState?.activeQueueItemId ?: -1L)
+    }
+
+    fun skipTo(ctx: Context, pkg: String, id: Long): Boolean =
+        runCatching { controller(ctx, pkg)?.transportControls?.skipToQueueItem(id) != null }.getOrDefault(false)
+
+    /** Jumps to [ms] in the player of [pkg] (the progress bar on the second screen). */
+    fun seek(ctx: Context, pkg: String, ms: Long): Boolean {
+        val mc = controller(ctx, pkg) ?: return false
+        return runCatching {
+            mc.transportControls.seekTo(ms)
+            position = ms
+            positionAt = SystemClock.elapsedRealtime()
+            true
+        }.getOrDefault(false)
+    }
+
+    private val playerApps = Regex("youtube|newpipe|avod|amazon.*video|spotify|music|deezer|tidal|soundcloud|podcast|audible|vlc|netflix|twitch|plex|jellyfin|kodi|stremio|disney|prime|crunchyroll|player|radio", RegexOption.IGNORE_CASE)
+
+    /**
+     * Music or a video plays in [pkg] right now (Spotify, YouTube & co.): Hugminn's switcher and
+     * Control Center then leave it running instead of pausing it – that would only break the flow.
+     */
+    fun playsIn(ctx: Context, pkg: String?): Boolean {
+        if (pkg == null) return false
+        val sound = ctx.getSystemService(AudioManager::class.java)?.isMusicActive == true
+        if (!sound) return false
+        // the session read last, or a player by its name (sessions are not read on every handheld all the time)
+        return (app == pkg && playing) || playerApps.containsMatchIn(pkg)
     }
 
     fun key(ctx: Context, code: Int) {
@@ -161,8 +246,8 @@ object Media {
     }
 
     /** Reads the media sessions; the one playing wins, else the newest with a title. */
-    fun refresh(ctx: Context? = null) {
-        if (ctx != null && fromSessions(ctx)) return
+    fun refresh(ctx: Context? = null, prefer: String? = null) {
+        if (ctx != null && fromSessions(ctx, prefer)) return
         if (!Root.available()) return
         // not allowed yet (e.g. right after an update): switch the listener on and try again
         if (ctx != null && Device.autoGrant(ctx)) {
@@ -170,7 +255,7 @@ object Media {
             Thread.sleep(300)
             if (fromSessions(ctx)) return
         }
-        song = null; artist = null; art = null; duration = -1L; position = -1L
+        song = null; artist = null; art = null; duration = -1L; position = -1L; canSeek = false
         val out = Root.execLong("dumpsys media_session | grep -E 'package=|state=PlaybackState|description='", 3_000) ?: return
         class S(val pkg: String) { var state = 0; var desc: String? = null }
         val list = mutableListOf<S>()

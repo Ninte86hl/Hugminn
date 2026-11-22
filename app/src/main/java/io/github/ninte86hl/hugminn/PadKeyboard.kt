@@ -14,11 +14,11 @@ import kotlin.math.abs
 /**
  * Hugminn's own on-screen keyboard (German layout), drawn in the chosen style and made for the
  * controller: four slim rows; numbers, umlauts and special characters sit behind a long press
- * (hold A or the key). D-pad moves, A types, X deletes, Y upper/lower case, L1/R1 cursor,
- * Start confirms. [onDone] runs for the OK key.
+ * (hold A or the key). D-pad moves, A types, west deletes, north upper/lower case, L1/R1 cursor,
+ * Start confirms, Select (or the ⌨ key) hides it for Android's own keyboard. [onDone] runs for the OK key.
  */
 class PadKeyboard(ctx: Context, private val pal: Palette, private val target: EditText, private val onDone: () -> Unit) : View(ctx) {
-    private enum class Act { CHAR, SHIFT, BACK, SYM, SPACE, OK, LEFT, RIGHT }
+    private enum class Act { CHAR, SHIFT, BACK, SYM, SPACE, OK, LEFT, RIGHT, HIDE }
     private class Key(val label: String, val out: String?, val w: Float, val act: Act = Act.CHAR, val more: String = "") {
         val rect = RectF()
     }
@@ -32,6 +32,9 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
     private var row = 1
     private var col = 0
     var showCursor = true
+
+    /** The ⌨ key and Select: hide this keyboard (Android's own one takes over). */
+    var onHide: () -> Unit = {}
 
     /** Long-press choice: the key's extra characters. */
     private var popup: List<String>? = null
@@ -208,6 +211,7 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
             Act.LEFT -> target.setSelection((start - 1).coerceAtLeast(0))
             Act.RIGHT -> target.setSelection((start + 1).coerceAtMost(e.length))
             Act.OK -> onDone()
+            Act.HIDE -> onHide()
         }
     }
 
@@ -249,21 +253,26 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
     // ---------- controller ----------
 
     private var aLong = false
+    private var aDown = false
     private val aHold = Runnable { aLong = openPopup(rows[row][col]) }
 
     /** Key events from the activity (down and up); true when handled. */
     fun onKeyEvent(e: KeyEvent): Boolean {
-        val code = e.keyCode
+        // by position: north (Y) shift, west (X) delete – on every layout
+        val code = Glyphs.logical(e.keyCode)
         val isA = code == KeyEvent.KEYCODE_BUTTON_A || code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
         if (isA) {
             if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {
+                aDown = true
                 if (popup != null) { choosePopup(); aLong = true; return true }
                 aLong = false
                 postDelayed(aHold, 450)
             } else if (e.action == KeyEvent.ACTION_UP) {
                 removeCallbacks(aHold)
-                if (!aLong) press(rows[row][col])
+                // only an A pressed here types: the release of the A that chose the network does not
+                if (!aLong && aDown) press(rows[row][col])
                 aLong = false
+                aDown = false
             }
             return true
         }
@@ -296,6 +305,7 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
             KeyEvent.KEYCODE_BUTTON_L1 -> press(Key("‹", null, 1f, Act.LEFT))
             KeyEvent.KEYCODE_BUTTON_R1 -> press(Key("›", null, 1f, Act.RIGHT))
             KeyEvent.KEYCODE_BUTTON_START -> onDone()
+            KeyEvent.KEYCODE_BUTTON_SELECT -> onHide()
             else -> return false
         }
         return true

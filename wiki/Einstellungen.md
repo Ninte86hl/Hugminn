@@ -12,7 +12,8 @@ Zeigt, ob Hugminn als Bedienungshilfe eingeschaltet ist, ob der Root-Dienst des 
 | Stil | Modern, Pixel, Punktmatrix oder Cocoon; gilt überall: Control Center, Switcher, Overlay und Einstellungen |
 | Kachelfarbe | Farbe aktiver Kacheln, zugleich die Akzentfarbe |
 | Farbschema | System, hell, dunkel, OLED-Schwarz (echtes Schwarz, spart auf OLED-Bildschirmen Strom) |
-| Tastensymbole | Automatisch, Xbox, Nintendo oder PlayStation; farbig oder schlicht |
+| Tastensymbole | Automatisch, Modern, Retro oder Modern (alternativ, Formen); farbig oder schlicht |
+| Navigationsleiste | Leiste bzw. Gestenstrich unten überall ausblenden (Root); ein Wisch vom unteren Rand holt sie kurz zurück |
 
 ## Home-Taste
 Aktion für einfachen, doppelten und langen Druck sowie die Zeiten für Doppeldruck und langen Druck. Siehe [Home-Taste](Home-Taste).
@@ -26,6 +27,7 @@ Control Center oder Spielwechsler auf den Startbildschirm legen (auch in Cocoon)
 | Eigene Übersicht | An: Hugminns eigener Switcher mit eigenen Vorschaubildern. Aus: ein Rahmen über Androids Übersicht |
 | Spiel pausieren | Die App hinter dem Switcher wird verdeckt und hält an, auch der Ton |
 | Auch bei Wischgeste | Hugminn übernimmt auch, wenn die Übersicht per Wischen von unten geöffnet wird |
+| Video-Apps immer quer | YouTube, Netflix, Disney+, Prime Video und Crunchyroll komplett quer |
 | Statusleiste | Uhrzeit und Akku im gewählten Stil, nichts oder Androids normale Leiste |
 
 ## Control Center
