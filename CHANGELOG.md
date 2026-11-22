@@ -2,59 +2,94 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
-## 1.14.0 (in testing / im Test)
+## 1.14.0
 
 ### 🇬🇧 English
-**AYN Thor (dual screen)**
-- Game switcher on two screens – look up top, operate below: the top screen shows the previews big plus a small see-through capsule with the button hints; the second screen shows the app with its icon, name, game and "2 of 3", in the middle – for emulators – the shortcuts (two columns when there are many), and at the bottom a pin field of its own (tap to pin/unpin). When the switcher closes, the game's own picture is back down there. Can be switched off: Settings → Game Switcher → Second screen.
-- Player on the second screen: while a music or video app (Spotify, YouTube & co.) is in front up top – playing or paused – the lower screen shows it the whole time: cover, title and artist for music, thumbnail, title and artist for videos, with big touch buttons (they vibrate briefly) and a progress bar you can tap or drag to jump – handy for videos (only where the player allows jumping). Videos show their thumbnail in 16:9 above the title. A moon button next to the app's name turns the lower screen dark at once; after 20 seconds without a touch it fades to black by itself (saves battery, spares the OLED); a touch brings it back. It appears within about a second and stays as long as the app is in front up top; the Thor's own launcher on the lower screen no longer hides it. YouTube: if its controls stay over the video while you control it from below, Hugminn hides them after a few seconds with YouTube's own × button. Buttons: volume −, back, play/pause, next, volume +; at the very bottom the progress bar with the times. For YouTube a full-screen button up top: from the big player to YouTube's normal pages with the video small in the corner, and back. Can be switched off: Settings → Game Switcher → Player on the second screen.
-- Game switcher previews in the game's own shape: black bars are cut off, so a 4:3, 8:7 or square game gets a card in its format (16:9 stays 16:9). On the Thor the cards are also bigger, since the bar moved to the second screen.
-- Device test: lists further screens (dual-screen handhelds like the AYN Thor) – the groundwork for dual-screen support.
-- AYN handhelds: the built-in "Odin Controller" is recognised as the handheld's own controls, not as an external controller.
-- AYN handhelds: the trigger mode tile (digital, analog or both) also shows before the mode was ever changed in AYN's settings, with AYN's own numbering of analog and digital.
-- Video apps always landscape: while YouTube, Netflix, Disney+, Prime Video or Crunchyroll is in front, Hugminn asks Android for landscape (like rotation apps do), so the whole app is shown sideways – home page, search and comments too, not only full-screen videos. No root needed. Settings → Game Switcher → Video apps always landscape.
-- Player on the second screen in every style: buttons, bars and icons follow the chosen look (pixel blocks, dots, Cocoon …); the dim button is now a moon.
-- Hide the navigation bar (root): the bar or gesture line at the bottom disappears everywhere, a swipe from the bottom edge brings it back for a moment. Settings → Look.
-- Player on the second screen: Prime Video is recognised as a video app; apps that give no cover (Disney+, Crunchyroll …) show the player's notification picture, or else a picture of the video up top – taken once it plays and again after every play/pause, black bars cut off. Prime Video shows up even though it gives no title (its name instead).
-- Switching to a paused video app (e.g. Prime Video) through the switcher keeps it paused – some players started again by themselves.
-- Music and videos keep playing: when a player app (Spotify, YouTube & co.) is playing, opening the game switcher or the Control Center no longer pauses it, and switcher and Control Center leave it the focus (players like Crunchyroll stop without it) – games still pause as before.
-- AYN Thor: a card in the switcher no longer gets the launcher's picture (after Home, the last app's card showed Cocoon instead of the app).
-- AYN Odin 2: battery (level, power, temperature) and GPU values are read where the firmware hides the usual files – from Android itself, the GPU through root.
-- Control Center: the big Performance and Fan cards open their profiles on touch; touching a value card (temperature, battery, watts) no longer redraws the Control Center. On the Odin 2 the LED tile is called Lights and covers sticks and side lights together.
-- LED window, clearer: a real on/off switch at the top; one Mode row (static, breathe, pulse, colour cycle, rainbow, battery, temperature) instead of Display and Effect; colours only where the mode uses them (left · both · right with their current colours); speed only for moving modes. On the Odin 2 two tabs, Sticks and Sides (L1/R1), each fully on its own, plus Copy to the other area. Everything reachable with D-pad and stick; the window updates in place.
-- AYN Odin 2: LED tester in the device test – lights each setting and LED driver zone in turn and asks what lights up (sticks, sides), to find out what drives which light.
-- AYN Odin 2: the Button layout tile uses AYN's Controller style – Xbox, Retro, or built-in controls off (Disconnect).
-- "Nintendo" is now called "Retro" everywhere (button layout with A on the right, button symbols).
-- Control Center: touching a tile only uses it (sliders, menus of Performance, Fan & co.); tiles are moved by touch only in edit mode. Every button hint at the bottom can be tapped – "Y Edit" opens editing for touch.
-- AYN Odin 2: the lights tile switches sticks and side lights; sticks and sides can also be switched on their own in its menu.
-- AYN Thor: Hugminn's own screens (feedback, pause screen, recording) and apps started from the switcher or Control Center always open on the top screen – before, a touch on the lower screen sent them down there. While the player covers the lower screen, a touch there no longer takes the focus away from the app up top, so the buttons keep controlling it.
-- AYN Thor: the AYN button stays AYN's – Hugminn no longer takes it as a second Home button, so AYN's menu and its long press work as intended.
+**Lights (stick LEDs)**
+- New LED window with three tabs (L1/R1): *Device*, *Mode* and *Colour*. Every light on its own – the two sticks, on the AYN Odin 2 also the two side lights.
+- *Shows*: a switch per light with Off · Colour · Combo · Effect. Each light keeps its colour and effect, the switch only picks what lights – switching needs no setting up again.
+- Brightness and saturation per light as bars in 5 % steps; colour combinations (left lights the first colour, right ones the second).
+- *Colour*: 15 colours, the 16th tile opens the colour wheel – the LED shows each colour right away. After choosing, the window goes back to *Device* for the next light.
+- *Mode*: static, breathing, pulsing, rainbow, colour cycle, battery and temperature display, with speed; breathing and pulsing use the light's colour. *For all lights that are on* gives every light the same effect.
+- North button on *Shows* jumps straight to the setting of what the light shows; west copies the light to all others.
+- Rainbow and colour cycle run calmer, without flicker.
+- Fits 16:9 and 4:3: on small screens the content shrinks so everything is visible.
+- LED tester in the device test: lights every LED setting and driver zone in turn and asks what lit up.
+- AYN Odin 2: the tile is called *Lights* and covers sticks and side lights.
+
+**Buttons**
+- Buttons go by position, the same on every device and layout: **north** = options / set up, **west** = second action (switcher: close the app, Control Center: edit, LED window: copy to all, keyboard: delete). Confirm and back follow the layout as on that console.
+- In the Control Center, *Options* and *Edit* swapped places to match the game switcher.
+- Button symbols are called **Modern**, **Retro** and **Modern (alternative)** (shapes); shoulder, trigger, Start and Select are labelled the way each style names them (LB/RB · L/R · L1/R1 …).
+- The hints at the bottom always show the D-pad, north, west, confirm and back in the same order; L/R only when there are pages or tabs.
+- **Edit mode: B now cancels** and leaves the layout as it was – **west** ends editing and keeps the changes. North removes an element.
+- Select no longer takes a screenshot in the switcher and the Control Center (Power + Volume down or the screenshot tile still do).
+- Keyboard (Wi-Fi password): the ⌨ key, a button or Select switch to Android's own keyboard and back.
+
+**Video apps**
+- Always landscape: YouTube, Netflix, Disney+, Prime Video and Crunchyroll are shown fully sideways, not only full-screen videos. No root needed. Settings → Game Switcher.
+- Keep playing: opening the switcher or the Control Center no longer pauses music or videos – games still pause.
+- Switching to a paused video app keeps it paused.
+- Hide the navigation bar (root): the bar or gesture line disappears everywhere, a swipe from the bottom brings it back for a moment. Settings → Look.
+
+**Control Center and switcher**
+- Switcher previews in the game's own shape: black bars are cut off, a 4:3, 8:7 or square game gets a card in its format.
+- The Performance and Fan cards open their profiles on touch; touching a value card no longer redraws the Control Center.
+- Edit mode: moving the cursor no longer makes the tiles flicker; the selection frame follows each tile's own corners and is no longer cut off at the edge.
+
+**AYN handhelds**
+- The built-in "Odin Controller" counts as the handheld's own controls, not an external controller.
+- The trigger mode tile also shows before the mode was ever changed in AYN's settings.
+- AYN Odin 2: battery and GPU values are read where the firmware hides the usual files.
+- The Button layout tile uses AYN's controller style – Modern, Retro or built-in controls off.
+- "Nintendo" is called "Retro" everywhere.
+
+**Other**
+- Missing English translations added.
 
 ### 🇩🇪 Deutsch
-**AYN Thor (zwei Bildschirme)**
-- Game Switcher auf zwei Bildschirmen – oben schauen, unten bedienen: Oben groß die Vorschaubilder und eine kleine durchscheinende Kapsel mit den Tastenhinweisen; unten die App mit Symbol, Name, Spiel und „2 von 3“, in der Mitte – bei Emulatoren – die Tastenkürzel (bei vielen in zwei Spalten) und ganz unten eine eigene Fläche zum Anheften (antippen heftet an bzw. löst). Schließt der Switcher, ist unten sofort wieder das Bild des Spiels da. Abschaltbar: Einstellungen → Game Switcher → Zweiter Bildschirm.
-- Player auf dem zweiten Bildschirm: Ist oben eine Musik- oder Video-App (Spotify, YouTube & Co.) im Vordergrund – spielend oder pausiert –, zeigt der untere Bildschirm sie dauerhaft an: bei Musik Cover, Titel und Interpret, bei Videos Vorschaubild, Titel und Interpret, dazu große Tasten zum Antippen (mit kurzer Vibration) und ein Fortschrittsbalken, den man antippen oder ziehen kann, um zu springen – praktisch bei Videos (nur wo der Player Sprünge zulässt). Videos zeigen über dem Titel ihr Vorschaubild in 16:9. Eine Mond-Taste neben dem App-Namen dunkelt den unteren Bildschirm sofort ab; nach 20 Sekunden ohne Berührung wird er von selbst schwarz (spart Akku, schont das OLED); eine Berührung holt ihn zurück. Er erscheint nach etwa einer Sekunde und bleibt, solange die App oben vorne ist; der eigene Launcher des Thor auf dem unteren Bildschirm blendet ihn nicht mehr aus. YouTube: Bleiben dessen Bedienelemente über dem Video stehen, während du von unten steuerst, blendet Hugminn sie nach ein paar Sekunden mit YouTubes eigenem ×-Knopf aus. Tasten: Lautstärke −, zurück, Play/Pause, weiter, Lautstärke +; ganz unten der Fortschrittsbalken mit den Zeiten. Für YouTube oben eine Vollbild-Taste: vom großen Player auf die normalen YouTube-Seiten mit dem Video klein in der Ecke und zurück. Abschaltbar: Einstellungen → Game Switcher → Player auf dem zweiten Bildschirm.
-- Vorschaubilder im Game Switcher im Format des Spiels: Schwarze Balken werden abgeschnitten, ein 4:3-, 8:7- oder quadratisches Spiel bekommt eine Karte in seinem Format (16:9 bleibt 16:9). Auf dem Thor werden die Karten zudem größer, weil die Leiste auf den zweiten Bildschirm gewandert ist.
-- Gerätetest: zeigt weitere Bildschirme an (Dual-Screen-Handhelds wie der AYN Thor) – die Grundlage für die Dual-Screen-Unterstützung.
-- AYN-Handhelds: Der eingebaute „Odin Controller“ wird als eigene Steuerung des Geräts erkannt, nicht als externer Controller.
-- AYN-Handhelds: Die Kachel Trigger-Modus (digital, analog oder beides) erscheint auch, wenn der Modus in AYNs Einstellungen noch nie umgestellt wurde, mit AYNs eigener Zuordnung von analog und digital.
-- Video-Apps immer quer: Solange YouTube, Netflix, Disney+, Prime Video oder Crunchyroll vorne ist, verlangt Hugminn bei Android das Querformat (wie Rotations-Apps), die App erscheint dann komplett quer – auch Startseite, Suche und Kommentare, nicht nur Videos im Vollbild. Ohne Root. Einstellungen → Game Switcher → Video-Apps immer quer.
-- Player auf dem zweiten Bildschirm in jedem Stil: Tasten, Balken und Symbole folgen dem gewählten Look (Pixel-Blöcke, Punkte, Cocoon …); die Abdunkeln-Taste ist jetzt ein Mond.
-- Navigationsleiste ausblenden (Root): Die Leiste bzw. der Gestenstrich unten verschwindet überall, ein Wisch vom unteren Rand holt sie kurz zurück. Einstellungen → Darstellung.
-- Player auf dem zweiten Bildschirm: Prime Video wird als Video-App erkannt; Apps ohne eigenes Cover (Disney+, Crunchyroll …) zeigen das Bild aus der Player-Benachrichtigung oder sonst ein Bild des Videos oben – aufgenommen, sobald es läuft, und neu nach jedem Play/Pause, schwarze Balken abgeschnitten. Prime Video erscheint auch ohne Titel (dann mit seinem Namen).
-- Wechselt man über den Switcher zu einer pausierten Video-App (z. B. Prime Video), bleibt sie pausiert – manche Player liefen sonst von selbst weiter.
-- Musik und Videos laufen weiter: Spielt gerade eine Player-App (Spotify, YouTube & Co.), pausieren Game Switcher und Control Center sie beim Öffnen nicht mehr, und Switcher und Control Center lassen ihr den Fokus (Player wie Crunchyroll halten sonst an) – Spiele halten weiterhin an.
-- AYN Thor: Eine Karte im Switcher bekommt nicht mehr das Bild des Launchers (nach Home zeigte die Karte der letzten App Cocoon statt der App).
-- AYN Odin 2: Akku (Stand, Leistung, Temperatur) und GPU-Werte werden gelesen, wo die Firmware die üblichen Dateien versteckt – aus Android selbst, die GPU über Root.
-- Control Center: Die großen Karten Leistung und Lüfter öffnen ihre Profile per Touch; Antippen einer Wertekarte (Temperatur, Akku, Watt) baut das Control Center nicht mehr neu auf. Auf dem Odin 2 heißt die LED-Kachel Beleuchtung und umfasst Sticks und Seitenbeleuchtung zusammen.
-- LED-Fenster übersichtlicher: ein echter Ein/Aus-Schalter oben; eine Reihe Modus (Statisch, Atmen, Pulsieren, Farbwechsel, Regenbogen, Akku, Temperatur) statt Anzeige und Effekt; Farben nur, wo der Modus sie nutzt (Links · Beide · Rechts mit ihren aktuellen Farben); Tempo nur bei bewegten Modi. Auf dem Odin 2 zwei Tabs, Sticks und Seiten (L1/R1), jeweils komplett eigenständig, dazu Übertragen auf den anderen Bereich. Alles mit Steuerkreuz und Stick erreichbar; das Fenster aktualisiert sich an Ort und Stelle.
-- AYN Odin 2: LED-Tester im Gerätetest – schaltet jede Einstellung und jede Zone des LED-Treibers nacheinander rot und fragt, was leuchtet (Sticks, Seiten), um herauszufinden, was welches Licht steuert.
-- AYN Odin 2: Die Kachel Tastenlayout nutzt AYNs Controller-Stil – Xbox, Retro oder eingebaute Steuerung aus (Disconnect).
-- Aus „Nintendo“ wird überall „Retro“ (Tastenlayout mit A rechts, Tastensymbole).
-- Control Center: Berühren einer Kachel bedient sie nur noch (Regler, Menüs von Leistung, Lüfter & Co.); verschoben wird per Touch nur noch im Bearbeiten-Modus. Jeder Tastenhinweis unten lässt sich antippen – „Y Bearbeiten“ öffnet das Bearbeiten für Touch.
-- AYN Odin 2: Die Beleuchtung-Kachel schaltet Sticks und Seitenbeleuchtung; in ihrem Menü lassen sich Sticks und Seiten auch einzeln schalten.
-- AYN Thor: Hugminns eigene Fenster (Feedback, Pausenbild, Aufnahme) und Apps, die aus dem Switcher oder Control Center starten, öffnen immer auf dem oberen Bildschirm – vorher landeten sie nach einer Berührung des unteren Bildschirms dort. Solange der Player den unteren Bildschirm bedeckt, nimmt eine Berührung dort der App oben nicht mehr den Fokus weg, die Tasten steuern also weiter sie.
-- AYN Thor: Die AYN-Taste bleibt bei AYN – Hugminn behandelt sie nicht mehr als zweite Home-Taste, AYNs Menü und der lange Druck funktionieren wie vorgesehen.
+**Beleuchtung (Stick-LEDs)**
+- Neues LED-Fenster mit drei Tabs (L1/R1): *Gerät*, *Modus* und *Farbe*. Jedes Licht einzeln – die beiden Sticks, auf dem AYN Odin 2 auch die beiden Seitenleuchten.
+- *Zeigt*: ein Schalter pro Licht mit Aus · Farbe · Kombi · Effekt. Jedes Licht merkt sich Farbe und Effekt, der Schalter wählt nur, was leuchtet – Umschalten ohne neu einzustellen.
+- Helligkeit und Sättigung pro Licht als Balken in 5-%-Schritten; Farbkombinationen (linke Lichter die erste Farbe, rechte die zweite).
+- *Farbe*: 15 Farben, die 16. Kachel öffnet das Farbrad – die LED zeigt jede Farbe sofort. Nach der Wahl geht es zurück zu *Gerät* für das nächste Licht.
+- *Modus*: Statisch, Atmen, Pulsieren, Regenbogen, Farbwechsel, Akku- und Temperaturanzeige, mit Tempo; Atmen und Pulsieren nehmen die Farbe des Lichts. *Für alle eingeschalteten Lichter* gibt allen denselben Effekt.
+- Nord-Taste auf *Zeigt* springt direkt zur Einstellung dessen, was das Licht zeigt; West überträgt das Licht auf alle anderen.
+- Regenbogen und Farbwechsel laufen ruhiger, ohne Flackern.
+- Passt auf 16:9 und 4:3: Auf kleinen Bildschirmen wird der Inhalt verkleinert, damit alles zu sehen ist.
+- LED-Tester im Gerätetest: schaltet jede LED-Einstellung und Treiber-Zone nacheinander ein und fragt, was geleuchtet hat.
+- AYN Odin 2: Die Kachel heißt *Beleuchtung* und umfasst Sticks und Seitenleuchten.
+
+**Tasten**
+- Die Tasten gehen nach Position, auf jedem Gerät und Layout gleich: **Nord** = Optionen / Einstellen, **West** = zweite Aktion (Switcher: App schließen, Control Center: Bearbeiten, LED-Fenster: auf alle übertragen, Tastatur: löschen). Bestätigen und Zurück folgen dem Layout wie bei der jeweiligen Konsole.
+- Im Control Center haben *Optionen* und *Bearbeiten* die Plätze getauscht, passend zum Game Switcher.
+- Die Tastensymbole heißen **Modern**, **Retro** und **Modern (alternativ)** (Formen); Schulter, Trigger, Start und Select sind so beschriftet, wie der jeweilige Stil sie nennt (LB/RB · L/R · L1/R1 …).
+- Die Hinweise unten zeigen immer Steuerkreuz, Nord, West, Bestätigen und Zurück in derselben Reihenfolge; L/R nur, wenn es Seiten oder Tabs gibt.
+- **Bearbeitungsmodus: B bricht jetzt ab** und lässt das Layout, wie es war – **West** beendet das Bearbeiten und behält die Änderungen. Nord entfernt ein Element.
+- Select macht im Switcher und Control Center keinen Screenshot mehr (Power + Leiser oder die Screenshot-Kachel weiterhin).
+- Tastatur (WLAN-Passwort): Die ⌨-Taste, ein Knopf oder Select wechseln zur Android-Tastatur und zurück.
+
+**Video-Apps**
+- Immer quer: YouTube, Netflix, Disney+, Prime Video und Crunchyroll erscheinen komplett quer, nicht nur Videos im Vollbild. Ohne Root. Einstellungen → Game Switcher.
+- Laufen weiter: Switcher und Control Center pausieren Musik und Videos beim Öffnen nicht mehr – Spiele halten weiterhin an.
+- Wechselt man zu einer pausierten Video-App, bleibt sie pausiert.
+- Navigationsleiste ausblenden (Root): Die Leiste bzw. der Gestenstrich verschwindet überall, ein Wisch von unten holt sie kurz zurück. Einstellungen → Darstellung.
+
+**Control Center und Switcher**
+- Vorschaubilder im Switcher im Format des Spiels: Schwarze Balken werden abgeschnitten, ein 4:3-, 8:7- oder quadratisches Spiel bekommt eine Karte in seinem Format.
+- Die Karten Leistung und Lüfter öffnen ihre Profile per Touch; Antippen einer Wertekarte baut das Control Center nicht mehr neu auf.
+- Bearbeitungsmodus: Beim Bewegen der Auswahl flackern die Kacheln nicht mehr; der Auswahlrahmen folgt den Ecken jeder Kachel und wird am Rand nicht mehr abgeschnitten.
+
+**AYN-Handhelds**
+- Der eingebaute „Odin Controller“ zählt als eigene Steuerung des Geräts, nicht als externer Controller.
+- Die Kachel Trigger-Modus erscheint auch, wenn der Modus in AYNs Einstellungen noch nie umgestellt wurde.
+- AYN Odin 2: Akku- und GPU-Werte werden gelesen, wo die Firmware die üblichen Dateien versteckt.
+- Die Kachel Tastenlayout nutzt AYNs Controller-Stil – Modern, Retro oder eingebaute Steuerung aus.
+- Aus „Nintendo“ wird überall „Retro“.
+
+**Sonstiges**
+- Fehlende englische Übersetzungen ergänzt.
+
 ## 1.13.2
 
 ### 🇬🇧 English

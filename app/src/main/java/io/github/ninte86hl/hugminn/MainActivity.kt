@@ -503,7 +503,7 @@ class MainActivity : Activity() {
         row(sw, tr("Auch bei Wischgeste"), tr("Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird"), { if (prefs.autoSwitcher) tr("An") else tr("Aus") }) {
             prefs.autoSwitcher = !prefs.autoSwitcher
         }
-        if (Displays.second(this) != null) {
+        if (Displays.second(this) != null && Prefs.dualReady(this)) {
             row(sw, t("Zweiter Bildschirm", "Second screen"),
                 t("Name, Spiel, Tastenhinweise und Tastenkürzel des Emulators unten auf dem zweiten Bildschirm – oben bleibt mehr Platz für die Vorschaubilder",
                     "Name, game, button hints and the emulator's shortcuts on the second screen – more room for the previews up top"),

@@ -89,7 +89,16 @@ enum class GlyphStyle(private val labelDe: String) {
     val label get() = tr(labelDe)
 }
 
-class Prefs(ctx: Context) {
+class Prefs(private val ctx: Context) {
+    companion object {
+        @Volatile private var dual: Boolean? = null
+
+        /** Dual-screen features (AYN Thor: switcher and player on the second screen) come with 1.15 – until then only in test builds. */
+        fun dualReady(ctx: Context): Boolean = dual ?: runCatching {
+            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName?.contains("test") == true
+        }.getOrDefault(false).also { dual = it }
+    }
+
     private val p: SharedPreferences = ctx.getSharedPreferences("hugminn", Context.MODE_PRIVATE)
 
     /** 4:3 screens (Pocket Nova) are taller for their width: five rows by default instead of four. */
@@ -197,12 +206,12 @@ class Prefs(ctx: Context) {
 
     /** Dual-screen handhelds (AYN Thor): the switcher shows name, hints and shortcuts on the second screen. */
     var dualSwitcher: Boolean
-        get() = p.getBoolean("dualSwitcher", true)
+        get() = dualReady(ctx) && p.getBoolean("dualSwitcher", true)
         set(v) = p.edit().putBoolean("dualSwitcher", v).apply()
 
     /** Dual-screen handhelds: music/video in front on the top screen → player on the second screen. */
     var dualMedia: Boolean
-        get() = p.getBoolean("dualMedia", true)
+        get() = dualReady(ctx) && p.getBoolean("dualMedia", true)
         set(v) = p.edit().putBoolean("dualMedia", v).apply()
 
     /** Apps turned to landscape while in front (YouTube's portrait pages). */
