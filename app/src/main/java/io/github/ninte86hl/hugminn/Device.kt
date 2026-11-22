@@ -149,7 +149,11 @@ object Device {
      * (left_/right_joystick_light_enabled) and a single colour as a number.
      */
     private fun aynLeds(ctx: Context) = isAyn && sys(ctx, "left_joystick_light_enabled") != null
-    fun hasStickLeds(ctx: Context) = sys(ctx, "joystick_light_enabled") != null || aynLeds(ctx)
+    /** Retroid Pocket Classic (both variants): a D-pad only, no sticks – so no stick LEDs either. */
+    val noSticks: Boolean = listOf(android.os.Build.MODEL, android.os.Build.DEVICE, android.os.Build.PRODUCT)
+        .any { it?.contains("classic", true) == true }
+
+    fun hasStickLeds(ctx: Context) = !noSticks && (sys(ctx, "joystick_light_enabled") != null || aynLeds(ctx))
     /** The setting the device test shows for the stick LEDs. */
     fun stickLedKey(ctx: Context) = if (aynLeds(ctx)) "left_joystick_light_enabled" else "joystick_light_enabled"
 

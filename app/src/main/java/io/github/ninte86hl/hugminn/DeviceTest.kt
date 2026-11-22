@@ -85,6 +85,8 @@ class DeviceTestActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (keyTest != null && event.keyCode == KeyEvent.KEYCODE_BUTTON_START && event.action == KeyEvent.ACTION_DOWN &&
+            event.repeatCount > 0 && event.eventTime - event.downTime >= 1000) { keyTestDone?.invoke(); return true }
         keyTest?.let { if (event.action == KeyEvent.ACTION_DOWN && it(event.keyCode)) return true; if (keyTest != null) return true }
         if (event.action == KeyEvent.ACTION_UP) when (event.keyCode) {
             KeyEvent.KEYCODE_BUTTON_A -> { currentFocus?.performClick(); return true }
@@ -103,21 +105,25 @@ class DeviceTestActivity : Activity() {
 
     // ---- hands-on part ----
 
-    private val keys = linkedMapOf(
+    private val keys = linkedMapOf<Int, String>(
         KeyEvent.KEYCODE_BUTTON_A to "A", KeyEvent.KEYCODE_BUTTON_B to "B", KeyEvent.KEYCODE_BUTTON_X to "X", KeyEvent.KEYCODE_BUTTON_Y to "Y",
         KeyEvent.KEYCODE_BUTTON_L1 to "L1", KeyEvent.KEYCODE_BUTTON_R1 to "R1", KeyEvent.KEYCODE_BUTTON_L2 to "L2", KeyEvent.KEYCODE_BUTTON_R2 to "R2",
         KeyEvent.KEYCODE_BUTTON_START to "Start", KeyEvent.KEYCODE_BUTTON_SELECT to "Select",
         KeyEvent.KEYCODE_BUTTON_THUMBL to "L3", KeyEvent.KEYCODE_BUTTON_THUMBR to "R3",
         KeyEvent.KEYCODE_VOLUME_UP to "Vol+", KeyEvent.KEYCODE_VOLUME_DOWN to "Vol−",
         KeyEvent.KEYCODE_HOME to "Home", KeyEvent.KEYCODE_BACK to t("Zurück", "Back"),
-    )
+    ).apply { if (Device.noSticks) { remove(KeyEvent.KEYCODE_BUTTON_THUMBL); remove(KeyEvent.KEYCODE_BUTTON_THUMBR) } }
+
+    /** Start held for a second ends a step early and goes on with the test (A and B are under test). */
+    private var keyTestDone: (() -> Unit)? = null
 
     private fun startKeyTest() {
         val pressed = mutableSetOf<Int>()
         val labels = mutableMapOf<Int, TextView>()
         list.removeAllViews()
         list.addView(text(t("Tasten: drücke jede Taste einmal", "Buttons: press each button once"), 18f, fg, true))
-        list.addView(text(t("Endet automatisch, wenn alle gedrückt sind, oder nach 30 Sekunden.", "Ends by itself once all are pressed, or after 30 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
+        list.addView(text(t("Endet automatisch, wenn alle gedrückt sind, oder nach 30 Sekunden. Start 1 Sekunde halten oder „Weiter“ tippen: vorzeitig weiter zum nächsten Schritt.",
+            "Ends by itself once all are pressed, or after 30 seconds. Hold Start for a second or tap “Next” to move on early."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
         var grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         keys.entries.forEachIndexed { i, (code, name) ->
             if (i == 8) { list.addView(grid); grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, d(6), 0, 0) } }
@@ -131,12 +137,12 @@ class DeviceTestActivity : Activity() {
         list.addView(grid)
         // Home is taken by Hugminn itself: it tells the test instead of opening the Control Center
         HugminnService.keyProbe = { code -> keyTest?.invoke(code) }
-        setButtons()
         var done = false
         fun finishKeys() {
             if (done) return
             done = true
             keyTest = null
+            keyTestDone = null
             HugminnService.keyProbe = null
             val missing = keys.filterKeys { it !in pressed }.values
             add(t("Tasten", "Buttons"), t("Tasten", "Buttons"), if (missing.isEmpty()) CheckState.OK else CheckState.WARN,
@@ -150,6 +156,8 @@ class DeviceTestActivity : Activity() {
             }
             true
         }
+        keyTestDone = { finishKeys() }
+        setButtons(button(t("Weiter", "Next"), primary = true) { finishKeys() })
         list.postDelayed({ finishKeys() }, 30_000)
     }
 
@@ -162,9 +170,9 @@ class DeviceTestActivity : Activity() {
         list.removeAllViews()
         list.addView(text(t("Zusatztasten", "Extra buttons"), 18f, fg, true))
         list.addView(text(t("Drück jetzt jede zusätzliche Taste (M1, M2, Paddles …) einmal kurz und einmal lang, dazu Home kurz und lang. " +
-            "Jede Taste erscheint hier mit ihrem Code. Fertig mit dem Knopf unten oder nach 40 Sekunden.",
+            "Jede Taste erscheint hier mit ihrem Code. Weiter mit Start 1 Sekunde halten, dem Knopf unten oder nach 40 Sekunden.",
             "Now press every extra button (M1, M2, paddles …) once briefly and once long, and Home briefly and long. " +
-                "Each shows up here with its code. Done with the button below or after 40 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(10)) })
+                "Each shows up here with its code. Move on by holding Start for a second, with the button below or after 40 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(10)) })
         val log = mutableListOf<String>()
         val downAt = HashMap<Int, Long>()
         val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -185,14 +193,16 @@ class DeviceTestActivity : Activity() {
                     KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) downAt[e.keyCode] = e.eventTime
                     KeyEvent.ACTION_UP -> {
                         val ms = downAt.remove(e.keyCode)?.let { e.eventTime - it } ?: 0L
-                        val entry = "$name (${e.keyCode}) scan ${e.scanCode} · ${e.device?.name ?: "?"} · $ms ms"
-                        log += entry
-                        lines.addView(text(entry, 14f, fg).apply { setPadding(0, d(3), 0, d(3)) }, 0)
+                        if (e.keyCode == KeyEvent.KEYCODE_BUTTON_START && ms >= 1000) finish() else {
+                            val entry = "$name (${e.keyCode}) scan ${e.scanCode} · ${e.device?.name ?: "?"} · $ms ms"
+                            log += entry
+                            lines.addView(text(entry, 14f, fg).apply { setPadding(0, d(3), 0, d(3)) }, 0)
+                        }
                     }
                 }
             }
         }
-        setButtons(button(t("Fertig", "Done"), primary = true) { finish() })
+        setButtons(button(t("Weiter", "Next"), primary = true) { finish() })
         list.postDelayed({ finish() }, 40_000)
     }
 
