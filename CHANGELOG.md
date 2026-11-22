@@ -28,7 +28,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 
 **Video apps**
 - Always landscape: YouTube, Netflix, Disney+, Prime Video and Crunchyroll are shown fully sideways, not only full-screen videos. No root needed. Settings → Game Switcher.
-- Keep playing: opening the switcher or the Control Center no longer pauses music or videos – games still pause.
+- Keep playing: opening the switcher or the Control Center no longer pauses music or videos – games still pause. For videos, picture-in-picture (the mini player) has to be switched off for the video app, otherwise it shrinks into a small window instead (Android settings → Apps → Special app access → Picture-in-picture).
 - Switching to a paused video app keeps it paused.
 - Hide the navigation bar (root): the bar or gesture line disappears everywhere, a swipe from the bottom brings it back for a moment. Settings → Look.
 
@@ -76,7 +76,7 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 
 **Video-Apps**
 - Immer quer: YouTube, Netflix, Disney+, Prime Video und Crunchyroll erscheinen komplett quer, nicht nur Videos im Vollbild. Ohne Root. Einstellungen → Game Switcher.
-- Laufen weiter: Switcher und Control Center pausieren Musik und Videos beim Öffnen nicht mehr – Spiele halten weiterhin an.
+- Laufen weiter: Switcher und Control Center pausieren Musik und Videos beim Öffnen nicht mehr – Spiele halten weiterhin an. Für Videos muss Bild-im-Bild (der Mini-Player) für die Video-App ausgeschaltet sein, sonst schrumpft sie stattdessen in ein kleines Fenster (Android-Einstellungen → Apps → Spezieller App-Zugriff → Bild im Bild).
 - Wechselt man zu einer pausierten Video-App, bleibt sie pausiert.
 - Navigationsleiste ausblenden (Root): Die Leiste bzw. der Gestenstrich verschwindet überall, ein Wisch von unten holt sie kurz zurück. Einstellungen → Darstellung.
 
