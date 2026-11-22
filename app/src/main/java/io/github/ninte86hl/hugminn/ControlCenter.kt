@@ -652,7 +652,7 @@ class ControlCenter(private val svc: HugminnService) {
                 if (!holding && elementAt(cursorX, cursorY) >= 0) tr("Entfernen") else null,
                 tr("Fertig"),
                 if (holding) tr("Ablegen") else if (elementAt(cursorX, cursorY) >= 0) tr("Optionen") else tr("Hinzufügen"),
-                tr("Fertig"))
+                if (holding) tr("Zurück") else tr("Abbrechen"))
         } else {
             if (pages() > 1) hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
@@ -3274,6 +3274,13 @@ class ControlCenter(private val svc: HugminnService) {
         renderGrid()
     }
 
+    /** Leaves edit mode and forgets its changes (the stored layout is drawn again). */
+    private fun cancelEdit() {
+        editing = false
+        holding = false
+        renderGrid()
+    }
+
     private fun finishEdit() {
         svc.prefs.ccGrid = placed.map { it.entry.copy(x = it.x, y = it.y, page = it.page) }
         editing = false
@@ -3331,7 +3338,8 @@ class ControlCenter(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_X -> if (holding) { holding = false; renderGrid() } else finishEdit()
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
-            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> if (holding) { holding = false; renderGrid() } else finishEdit()
+            // B: let go of the held element, or leave editing without keeping the changes
+            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> if (holding) { holding = false; renderGrid() } else cancelEdit()
         }
     }
 
