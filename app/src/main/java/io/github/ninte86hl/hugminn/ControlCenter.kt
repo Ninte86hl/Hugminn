@@ -579,6 +579,12 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
+    /** Narrow screens (Pocket Classic, 620 dp; the Nova has 640): smaller words and gaps, so every hint fits. */
+    private val narrowFooter get() = svc.resources.displayMetrics.let { it.widthPixels / it.density } < 630
+
+    private fun hintText(s: String) = text(s, if (narrowFooter) 11f else 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant)
+        .apply { setPadding(if (narrowFooter) 4 * d else 6 * d, 0, if (narrowFooter) 9 * d else 16 * d, 0); maxLines = 1 }
+
     private fun renderFooter() {
         val footer = footerView ?: return
         footer.removeAllViews()
@@ -587,7 +593,7 @@ class ControlCenter(private val svc: HugminnService) {
             footer.addView(LinearLayout(svc).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
-                addView(text(s, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+                addView(hintText(s))
                 setOnClickListener {
                     val now = android.os.SystemClock.uptimeMillis()
                     onKey(KeyEvent(now, now, KeyEvent.ACTION_DOWN, k, 0))
@@ -602,7 +608,7 @@ class ControlCenter(private val svc: HugminnService) {
                 addView(Glyphs.chip(svc, svc.prefs, pal, k1, 22))
                 addView(View(svc), lp(4 * d, 1))
                 addView(Glyphs.chip(svc, svc.prefs, pal, k2, 22))
-                addView(text(s, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+                addView(hintText(s))
                 setOnClickListener {
                     val now = android.os.SystemClock.uptimeMillis()
                     onKey(KeyEvent(now, now, KeyEvent.ACTION_DOWN, k2, 0))
@@ -618,7 +624,7 @@ class ControlCenter(private val svc: HugminnService) {
             footer.addView(LinearLayout(svc).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_DPAD_LEFT, 22))
-                addView(text(dpad, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+                addView(hintText(dpad))
             })
             fun opt(k: Int, label: String?) {
                 if (label != null) { hint(k, label); return }
@@ -626,7 +632,7 @@ class ControlCenter(private val svc: HugminnService) {
                     gravity = Gravity.CENTER_VERTICAL
                     alpha = 0.3f
                     addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
-                    addView(View(svc), lp(16 * d, 1))
+                    addView(View(svc), lp(if (narrowFooter) 8 * d else 16 * d, 1))
                 })
             }
             opt(KeyEvent.KEYCODE_BUTTON_Y, north)
