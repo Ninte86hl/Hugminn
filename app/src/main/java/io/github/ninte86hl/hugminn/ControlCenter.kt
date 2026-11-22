@@ -2679,6 +2679,12 @@ class ControlCenter(private val svc: HugminnService) {
             "combo" to mapOf(U to "bar"),
         )
         if (cells.none { it.key == ledFocus }) ledFocus = cells.firstOrNull { !it.key.startsWith("tab") }?.key ?: "tab$ledTab"
+        // descriptions (the small texts) wrap instead of being cut off
+        fun unclip(v: View) {
+            if (v is TextView && v.textSize < 12f * svc.resources.displayMetrics.scaledDensity) { v.maxLines = 3; v.ellipsize = null }
+            if (v is ViewGroup) for (k in 0 until v.childCount) unclip(v.getChildAt(k))
+        }
+        unclip(box)
         if (reuse == null) r.addView(box, FrameLayout.LayoutParams(boxW, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
         showLedSel()
