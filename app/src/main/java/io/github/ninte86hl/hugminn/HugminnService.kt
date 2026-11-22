@@ -437,14 +437,15 @@ class HugminnService : AccessibilityService() {
                 if (!controlCenter.isOpen && !anySwitcherOpen && prefs.ownSwitcher) foregroundPkg?.let { fg ->
                     if (windowPkg == fg && onTopScreen(fg)) Snapshots.capture(this, fg)
                 }
+                // right away on the press: the firmware's release comes ~80 ms later
+                ui.post { perform(prefs.double) }
             } else if (e.repeatCount == 0) {
                 classicLong = false
                 if (prefs.long != Action.NONE) ui.postDelayed(classicLongPress, prefs.longMs.toLong())
             }
             KeyEvent.ACTION_UP -> {
                 ui.removeCallbacks(classicLongPress)
-                if (double) ui.post { perform(prefs.double) }
-                else if (!classicLong) ui.post { perform(prefs.single) }
+                if (!double && !classicLong) ui.post { perform(prefs.single) }
                 classicLong = false
             }
         }
