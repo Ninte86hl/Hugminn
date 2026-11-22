@@ -30,6 +30,12 @@ object LedFx {
     @Volatile private var thread: Thread? = null
     @Volatile private var effect = LedEffect.NONE
     @Volatile private var running = false
+    /**
+     * Which loop may write: every start counts on. A stopped loop could keep running when the root
+     * call it was in swallowed the interrupt – then two loops wrote the LEDs in turn (colour cycles
+     * flashed, the speed seemed ignored). Now a loop ends as soon as a newer one started.
+     */
+    @Volatile private var generation = 0
     private const val FRAME_MS = 40L
 
     /** Effect speed factors and brightness steps offered in the LED window. */
@@ -213,6 +219,7 @@ object LedFx {
 
     fun stop() {
         running = false
+        generation++
         thread?.interrupt()
         thread = null
     }
@@ -224,12 +231,13 @@ object LedFx {
         val app = ctx.applicationContext
         val (left, right) = colors ?: Device.ledColors(app) ?: (Color.WHITE to Color.WHITE)
         if (odin) { startOdin(app, e, colors); return }
+        val gen = generation
         val t = Thread {
             if (diag.isEmpty()) diag = "Zonen: " + (Root.exec("ls /sys/class/sn3112l/led/ | tr '\\n' ' '") ?: "keine Antwort")
             var phase = 0f
             var last = System.currentTimeMillis()
             try {
-                while (!Thread.currentThread().isInterrupted && running && effect == e) {
+                while (!Thread.currentThread().isInterrupted && running && effect == e && gen == generation) {
                     val now = System.currentTimeMillis()
                     // phase advances with the speed, so changing it never makes the effect jump
                     phase += (now - last) / 1000f * speed
@@ -267,6 +275,7 @@ object LedFx {
      * [forced]: recording / low battery – every lit element pulses in that colour.
      */
     private fun startOdin(app: Context, stickE: LedEffect, forced: Pair<Int, Int>?) {
+        val gen = generation
         val t = Thread {
             var phase = 0f
             var last = System.currentTimeMillis()
@@ -278,7 +287,7 @@ object LedFx {
             var col = IntArray(4) { Color.WHITE }
             var kb = FloatArray(4) { 1f }
             try {
-                while (!Thread.currentThread().isInterrupted && running) {
+                while (!Thread.currentThread().isInterrupted && running && gen == generation) {
                     val now = System.currentTimeMillis()
                     phase += (now - last) / 1000f * speed
                     last = now
@@ -307,7 +316,7 @@ object LedFx {
                     }
                     val full = now - lastWrite > 2000
                     val changed = parts.filterIndexed { i, p -> full || lastParts.getOrNull(i) != p }
-                    if (changed.isNotEmpty()) {
+                    if (changed.isNotEmpty() && gen == generation) {
                         Root.exec(changed.joinToString("; "), 1_000)
                         lastParts = parts.toList()
                         if (full) lastWrite = now
