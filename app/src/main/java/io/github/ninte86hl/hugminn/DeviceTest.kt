@@ -51,6 +51,11 @@ class DeviceTestActivity : Activity() {
         buttons = LinearLayout(this).apply { gravity = Gravity.END; setPadding(0, d(12), 0, 0) }
         root.addView(buttons)
         setContentView(root)
+        if (intent.getBooleanExtra("double", false)) {
+            add(t("Gerät", "Device"), "${Build.MANUFACTURER} ${Build.MODEL}", CheckState.OK, "Android ${Build.VERSION.RELEASE} · Firmware ${Build.DISPLAY}")
+            startDoubleTest()
+            return
+        }
         status(t("Prüfe … (etwa 10 Sekunden)", "Checking … (about 10 seconds)"))
         Thread { runAuto(); runOnUiThread { startKeyTest() } }.start()
     }
@@ -213,6 +218,61 @@ class DeviceTestActivity : Activity() {
         setButtons(button(t("Weiter", "Next"), primary = true) { finish() })
         list.postDelayed({ finish() }, 40_000)
     }
+
+    /**
+     * Double-click test (Pocket Classic): every key with the time since the test began and since the
+     * key before, down and up, so the report shows what the firmware really sends on a double click
+     * and when. Hugminn itself does nothing meanwhile.
+     */
+    private fun startDoubleTest() {
+        list.removeAllViews()
+        list.addView(text(t("Doppelklick-Test", "Double-click test"), 18f, fg, true))
+        list.addView(text(t("Drück die Taste unter dem Bildschirm etwa fünfmal doppelt – so, wie du den Game Switcher öffnen würdest – mit ein paar Sekunden Pause dazwischen. " +
+            "Danach einmal einzeln und einmal lang. Weiter mit Start 1 Sekunde halten, dem Knopf unten oder nach 60 Sekunden.",
+            "Double-click the button below the screen about five times – the way you'd open the Game Switcher – with a few seconds in between. " +
+                "Then once single and once long. Move on by holding Start for a second, with the button below or after 60 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(10)) })
+        val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        list.addView(lines)
+        val log = mutableListOf<String>()
+        val start = android.os.SystemClock.uptimeMillis()
+        var last = 0L
+        var lastUp = 0L
+        val startDown = HashMap<Int, Long>()
+        var done = false
+        fun finish() {
+            if (done) return
+            done = true
+            HugminnService.keyTap = null
+            add(t("Tasten", "Buttons"), t("Doppelklick", "Double click"), CheckState.OK,
+                if (log.isEmpty()) t("keine gedrückt", "none pressed") else log.joinToString(" | "))
+            showSummary()
+        }
+        HugminnService.keyTap = { e ->
+            if (!done) {
+                if (e.keyCode == KeyEvent.KEYCODE_BUTTON_START) {
+                    if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) startDown[0] = e.eventTime
+                    if (e.action == KeyEvent.ACTION_UP && e.eventTime - (startDown[0] ?: e.eventTime) >= 1000) finish()
+                } else if (e.repeatCount == 0) {
+                    val name = KeyEvent.keyCodeToString(e.keyCode).removePrefix("KEYCODE_")
+                    val down = e.action == KeyEvent.ACTION_DOWN
+                    val since = if (last > 0) e.eventTime - last else 0L
+                    var entry = "+${e.eventTime - start} ms $name ${if (down) "↓" else "↑"} (Δ $since)"
+                    if (down && lastUp > 0) {
+                        val pause = e.eventTime - lastUp
+                        if (pause < prefs.doubleMs) entry += t(" ⇒ Doppelklick", " ⇒ double click")
+                    }
+                    if (!down) lastUp = e.eventTime
+                    last = e.eventTime
+                    log += entry
+                    lines.addView(text(entry, 14f, if (entry.contains("⇒")) 0xFF2E9E5B.toInt() else fg).apply { setPadding(0, d(2), 0, d(2)) }, 0)
+                }
+            }
+        }
+        setButtons(button(t("Weiter", "Next"), primary = true) { finish() })
+        list.postDelayed({ finish() }, 60_000)
+    }
+
+    private val prefs by lazy { Prefs(this) }
 
     private fun startLedTest() {
         if (!Root.available() || !Device.hasStickLeds(this)) { showSummary(); return }
