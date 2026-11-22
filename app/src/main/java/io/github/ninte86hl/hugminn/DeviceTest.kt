@@ -202,11 +202,16 @@ class DeviceTestActivity : Activity() {
         list.addView(text(t("Stick-LEDs", "Stick LEDs"), 18f, fg, true))
         list.addView(text(t("Die Sticks leuchten jetzt rot. Siehst du es?", "The sticks light up red now. Can you see it?"), 15f, fg).apply { setPadding(0, d(6), 0, 0) })
         LedFx.previewZone = if (Device.hasSideLights(this)) 2 else 1  // Odin 2: zone 2 = sticks
-        LedFx.preview(Color.RED, Color.RED, 1f)
+        // the LEDs only show anything while their power switch is on: on for the test, back afterwards
+        val before = Device.elStates(this)
+        val stickOn = if (Device.hasSideLights(this)) Device.stickLedCmds(this, true)
+            else listOf(Root.putSetting("system", "joystick_light_enabled", "1,1"))
+        Root.run(*stickOn.toTypedArray()) { runOnUiThread { LedFx.preview(Color.RED, Color.RED, 1f) } }
         fun answer(seen: Boolean) {
             add(if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) CheckState.OK else CheckState.FAIL,
                 if (seen) "" else t("Farben werden nicht übernommen", "Colours are not applied"))
-            runCatching { if (Device.stickLeds(this)) { if (Prefs(this).ledEffect != LedEffect.NONE) LedFx.resume(this) else LedFx.restoreStatic(this) } else LedFx.preview(0, 0, 1f) }
+            // the lights as they were: power switches and the elements' own modes
+            runCatching { Device.setElStates(this, before) {} }
             startLedProbe()
         }
         setButtons(button(t("Nein", "No")) { answer(false) }, button(t("Ja", "Yes"), primary = true) { answer(true) })
