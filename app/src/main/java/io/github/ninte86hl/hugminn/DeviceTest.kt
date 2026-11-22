@@ -173,12 +173,12 @@ class DeviceTestActivity : Activity() {
         fun finish() {
             if (done) return
             done = true
-            HugminnService.keyLog = null
+            HugminnService.keyTap = null
             add(t("Tasten", "Buttons"), t("Zusatztasten", "Extra buttons"), CheckState.OK,
                 if (log.isEmpty()) t("keine gedrückt", "none pressed") else log.joinToString(" | "))
             startLedTest()
         }
-        HugminnService.keyLog = { e ->
+        HugminnService.keyTap = { e ->
             if (!done) {
                 val name = KeyEvent.keyCodeToString(e.keyCode).removePrefix("KEYCODE_")
                 when (e.action) {
@@ -354,7 +354,7 @@ class DeviceTestActivity : Activity() {
     override fun onDestroy() {
         keyTest = null
         HugminnService.keyProbe = null
-        HugminnService.keyLog = null
+        HugminnService.keyTap = null
         super.onDestroy()
     }
 }
