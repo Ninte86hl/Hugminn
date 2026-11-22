@@ -366,9 +366,9 @@ class MainActivity : Activity() {
         // Gestures
         val g = section(tr("Home-Taste"))
         val actions = Action.values().toList()
-        if (Device.noSticks) g.addView(text(t("Pocket Classic: Kurz drücken bleibt immer Zurück. Doppelklick und langes Drücken lassen sich belegen.",
-            "Pocket Classic: a short press always stays Back. Double click and long press can be set."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
-        if (!Device.noSticks) row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
+        if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch.",
+            "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
+        row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
         row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
         row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
