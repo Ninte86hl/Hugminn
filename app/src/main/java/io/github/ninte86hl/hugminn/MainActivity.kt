@@ -377,6 +377,9 @@ class MainActivity : Activity() {
         row(g, tr("Zeit für langen Druck"), null, { "${prefs.longMs} ms" }) {
             prefs.longMs = cycle(listOf(350, 450, 600, 800), prefs.longMs)
         }
+        if (Device.noSticks) row(g, t("Doppelklick testen", "Test the double click"),
+            t("Zeigt, was die Taste beim Doppelklick wirklich sendet, und schickt es als Bericht", "Shows what the button really sends on a double click, and sends it as a report"),
+            { t("Starten", "Start") }) { startActivity(Intent(this, DeviceTestActivity::class.java).putExtra("double", true)) }
         row(g, t("Home-Taste am Controller", "Home button on a controller"),
             t("Die Home-/Guide-Taste eines Bluetooth- oder USB-Controllers (z. B. 8BitDo) wirkt wie die Home-Taste des Geräts",
                 "The Home/Guide button of a Bluetooth or USB controller (e.g. 8BitDo) works like the handheld's Home button"),
