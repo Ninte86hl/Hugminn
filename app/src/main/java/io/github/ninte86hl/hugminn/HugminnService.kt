@@ -351,6 +351,12 @@ class HugminnService : AccessibilityService() {
                 return true
             }
         }
+        // Pocket Classic: its one button sends Back (short and long) and Home on a double click
+        if (Device.noSticks && event.keyCode == KeyEvent.KEYCODE_BACK && event.device?.name?.contains("Retroid", true) == true) return onClassicBack(event)
+        if (Device.noSticks && (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME)) {
+            if (event.action == KeyEvent.ACTION_UP) ui.post { perform(prefs.single) }
+            return true
+        }
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
         // extra buttons (paddles, M1/M2) – only once the person gave them something to do
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_C || event.keyCode == KeyEvent.KEYCODE_BUTTON_Z) onExtraKey(event)?.let { return it }
@@ -415,6 +421,29 @@ class HugminnService : AccessibilityService() {
                         ui.postDelayed(singlePress, p.doubleMs.toLong())
                     }
                 }
+            }
+        }
+        return true
+    }
+
+    private var classicLong = false
+    private val classicLongPress = Runnable { classicLong = true; perform(prefs.long) }
+
+    /** Pocket Classic: short stays Back, held for the long-press time it does Hugminn's long press. */
+    private fun onClassicBack(e: KeyEvent): Boolean {
+        if (prefs.long == Action.NONE) return false
+        when (e.action) {
+            KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
+                classicLong = false
+                ui.postDelayed(classicLongPress, prefs.longMs.toLong())
+            }
+            KeyEvent.ACTION_UP -> {
+                ui.removeCallbacks(classicLongPress)
+                if (!classicLong) ui.post {
+                    if (controlCenter.isOpen || own.isOpen || switcher.isOpen) runCatching { closeOverlays() }
+                    else performGlobalAction(GLOBAL_ACTION_BACK)
+                }
+                classicLong = false
             }
         }
         return true
