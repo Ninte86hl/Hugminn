@@ -37,6 +37,10 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - The Performance and Fan cards open their profiles on touch; touching a value card no longer redraws the Control Center.
 - Edit mode: moving the cursor no longer makes the tiles flicker; the selection frame follows each tile's own corners and is no longer cut off at the edge.
 
+**Profiles and setup**
+- On the home screen performance runs Normal and the fan Quiet between games (Settings → Profiles per app, can be switched off); an app without a profile gets the previous setting back.
+- Setup wizard on 4:3 screens (Pocket Nova): the option cards get the height their text needs and the page shrinks to fit instead of cutting things off.
+
 **AYN handhelds**
 - The built-in "Odin Controller" counts as the handheld's own controls, not an external controller.
 - The trigger mode tile also shows before the mode was ever changed in AYN's settings.
@@ -80,6 +84,10 @@ Each release on GitHub shows its section of this file. / Jede Version auf GitHub
 - Vorschaubilder im Switcher im Format des Spiels: Schwarze Balken werden abgeschnitten, ein 4:3-, 8:7- oder quadratisches Spiel bekommt eine Karte in seinem Format.
 - Die Karten Leistung und Lüfter öffnen ihre Profile per Touch; Antippen einer Wertekarte baut das Control Center nicht mehr neu auf.
 - Bearbeitungsmodus: Beim Bewegen der Auswahl flackern die Kacheln nicht mehr; der Auswahlrahmen folgt den Ecken jeder Kachel und wird am Rand nicht mehr abgeschnitten.
+
+**Profile und Einrichtung**
+- Auf dem Startbildschirm laufen zwischen den Spielen Leistung Normal und Lüfter Leise (Einstellungen → Profile pro App, abschaltbar); eine App ohne Profil bekommt die vorige Einstellung zurück.
+- Einrichtungsassistent auf 4:3-Bildschirmen (Pocket Nova): Die Optionskarten bekommen die Höhe, die ihr Text braucht, und die Seite wird verkleinert statt abgeschnitten.
 
 **AYN-Handhelds**
 - Der eingebaute „Odin Controller“ zählt als eigene Steuerung des Geräts, nicht als externer Controller.

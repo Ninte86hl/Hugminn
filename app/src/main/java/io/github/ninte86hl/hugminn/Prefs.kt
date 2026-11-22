@@ -414,6 +414,11 @@ class Prefs(private val ctx: Context) {
     var ledElState: String
         get() = p.getString("ledElState", "") ?: ""
         set(v) = p.edit().putString("ledElState", v).apply()
+    /** On the home screen: performance Normal and fan Quiet (AppProfiles). */
+    var launcherProfile: Boolean
+        get() = p.getBoolean("launcherProfile", true)
+        set(v) = p.edit().putBoolean("launcherProfile", v).apply()
+
     /** Mode per element as one digit: 0 off, 1 colour, 2 combination, 3 effect. */
     var ledElMode: String
         get() = p.getString("ledElMode", "") ?: ""

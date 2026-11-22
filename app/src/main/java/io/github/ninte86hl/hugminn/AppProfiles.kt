@@ -12,6 +12,9 @@ package io.github.ninte86hl.hugminn
 object AppProfiles {
     class Profile(val perf: String?, val fan: String?)
 
+    /** Key of the launcher's own profile (not stored, see Prefs.launcherProfile). */
+    private const val HOME = "#home"
+
     /** Key of the profile currently applied, and what was set before it. */
     @Volatile private var activeKey: String? = null
     private var basePerf: String? = null
@@ -102,7 +105,9 @@ object AppProfiles {
 
     @Synchronized
     private fun evaluate(svc: HugminnService, pkg: String?, title: String?) {
+        // the home screen: Normal · Quiet, if switched on (and the device has these profiles)
         val hit = pkg?.let { find(all(svc), it, title) }
+            ?: if (pkg == null && svc.prefs.launcherProfile && Device.sys(svc, "performance_mode") != null) HOME to Profile("0", if (Device.sys(svc, "fan_mode") != null) "1" else null) else null
         if (hit != null) {
             if (activeKey == hit.first) return
             if (activeKey == null) remember(svc)
@@ -110,6 +115,8 @@ object AppProfiles {
             val p = hit.second
             apply(svc, p.perf ?: basePerf, p.fan ?: baseFan, if (p.fan == null) baseCurve else p.fan == "6")
             // a short notice says which profile took over (game or emulator)
+            // the launcher's profile comes without a notice
+            if (hit.first == HOME) { svc.ui.removeCallbacks(notice); return }
             val who = titleOf(hit.first) ?: Apps.label(svc, pkgOf(hit.first))
             val what = listOfNotNull(p.perf?.let { Device.perfProfiles[it] ?: it }, p.fan?.let { t("Lüfter ", "Fan ") + (Device.fanProfiles[it] ?: it) }).joinToString(" · ")
             // one notice, once things have settled (the game's profile often follows the emulator's within seconds)
