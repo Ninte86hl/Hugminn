@@ -252,6 +252,13 @@ class ControlCenter(private val svc: HugminnService) {
      * Focus mark for [v]: corner brackets or the full frame, as chosen. The same mark on the same
      * element is kept, so the corners settle in once per move and never replay while standing still.
      */
+    /** The element's own corner radius (its background), so the focus frame follows its outline. */
+    private fun cornerOf(v: View): Float {
+        val bg = v.background as? android.graphics.drawable.GradientDrawable
+        val r = runCatching { bg?.cornerRadius ?: 0f }.getOrDefault(0f)
+        return if (r > 0f) r.coerceAtMost(minOf(v.width, v.height) / 2f.coerceAtLeast(1f)).takeIf { v.width > 0 } ?: r else 22f * d
+    }
+
     private fun focusMark(v: View, r: Float, width: Int, color: Int): android.graphics.drawable.Drawable {
         val key = "${System.identityHashCode(v)}|$r|$width|$color|${pal.focusCorners}"
         val old = v.foreground
@@ -428,6 +435,12 @@ class ControlCenter(private val svc: HugminnService) {
             markEdit()
         }
         body.addView(board, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        // the chosen tile grows a little (Cocoon) and carries its frame: nothing may cut it off at the
+        // edge of the grid
+        board.clipChildren = false
+        board.clipToPadding = false
+        var pv: android.view.ViewParent? = body
+        while (pv is ViewGroup) { pv.clipChildren = false; pv.clipToPadding = false; pv = pv.parent }
         if (!editing && placed.isEmpty()) body.addView(text(tr("Leer – Y drücken und „Anordnen“ wählen"), 15f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER },
             FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         gearItem?.let { if (!editing) items += it }
@@ -455,7 +468,7 @@ class ControlCenter(private val svc: HugminnService) {
         editTiles.forEach { (idx, pair) ->
             val (v, round) = pair
             val sel = idx == cursorEl
-            val r = if (round && pal.dots && v.width > 0) v.width / 2f else 22f * d
+            val r = if (round && pal.dots && v.width > 0) v.width / 2f else cornerOf(v)
             v.foreground = if (sel) focusMark(v, r, (if (holding) 5 else 3) * d, if (holding) tileOn() else pal.onSurface) else null
             val sc = if (sel && holding) 0.94f else 1f
             v.scaleX = sc; v.scaleY = sc
@@ -3103,7 +3116,7 @@ class ControlCenter(private val svc: HugminnService) {
             // Same corners as the element itself: round only for the round 1×1 switches of the dot style.
             val v = it.view
             val circle = round && it.round && v.width > 0
-            val r = if (circle) v.width / 2f else 22f * d
+            val r = if (circle) v.width / 2f else cornerOf(v)
             val adj = adjusting && i == focus && it.onAdjust != null
             if (pal.cocoon) {
                 // Cocoon: a thick accent ring and the selected element lifts a little
