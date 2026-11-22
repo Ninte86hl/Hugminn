@@ -366,12 +366,12 @@ class MainActivity : Activity() {
         // Gestures
         val g = section(tr("Home-Taste"))
         val actions = Action.values().toList()
-        if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch.",
-            "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
+        if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch. Den Doppelklick erkennt die Firmware selbst.",
+            "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch. The firmware detects the double click itself."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
         row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
-        row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
+        if (!Device.noSticks) row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
             prefs.doubleMs = cycle(listOf(220, 260, 300, 350, 400), prefs.doubleMs)
         }
         row(g, tr("Zeit für langen Druck"), null, { "${prefs.longMs} ms" }) {
