@@ -18,7 +18,8 @@ import kotlin.concurrent.thread
 /** Small window for a WLAN password (the Control Center cannot show the keyboard itself). */
 class WifiPasswordActivity : Activity() {
     private var keyboard: PadKeyboard? = null
-    private val hat by lazy { HatInput(android.os.Handler(mainLooper)) { code -> keyboard?.onKey(code) } }
+    private var toggleKeyboard: (() -> Unit)? = null
+    private val hat by lazy { HatInput(android.os.Handler(mainLooper)) { code -> keyboard?.takeIf { it.visibility == View.VISIBLE }?.onKey(code) } }
 
     override fun dispatchGenericMotionEvent(ev: android.view.MotionEvent): Boolean =
         hat.onMotion(ev) || super.dispatchGenericMotionEvent(ev)
@@ -31,6 +32,11 @@ class WifiPasswordActivity : Activity() {
         }
         if (code == android.view.KeyEvent.KEYCODE_VOLUME_UP || code == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) return super.dispatchKeyEvent(event)
         val kb = keyboard ?: return super.dispatchKeyEvent(event)
+        // Hugminn's keyboard hidden: Select brings it back, everything else goes to Android's keyboard
+        if (kb.visibility != View.VISIBLE) {
+            if (code == android.view.KeyEvent.KEYCODE_BUTTON_SELECT) { if (event.action == android.view.KeyEvent.ACTION_UP) toggleKeyboard?.invoke(); return true }
+            return super.dispatchKeyEvent(event)
+        }
         if (kb.onKeyEvent(event)) return true
         return if (event.action == android.view.KeyEvent.ACTION_UP) true else super.dispatchKeyEvent(event)
     }
@@ -95,6 +101,10 @@ class WifiPasswordActivity : Activity() {
             }
         }
         input.setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_DONE) { connect(); true } else false }
+        // switch between Hugminn's keyboard (controller) and Android's own (touch)
+        val swap = button("⌨", false) { toggleKeyboard?.invoke() }
+        buttons.addView(swap)
+        buttons.addView(View(this), LinearLayout.LayoutParams(dp(10), 1))
         buttons.addView(button(tr("Abbrechen"), false) { finish() })
         buttons.addView(View(this), LinearLayout.LayoutParams(dp(10), 1))
         buttons.addView(button(tr("Verbinden"), true) { connect() })
@@ -102,7 +112,23 @@ class WifiPasswordActivity : Activity() {
 
         // Hugminn's own keyboard in the chosen style (the system keyboard stays hidden)
         input.showSoftInputOnFocus = false
-        keyboard = PadKeyboard(this, pal, input) { connect() }
+        val kbd = PadKeyboard(this, pal, input) { connect() }
+        keyboard = kbd
+        toggleKeyboard = {
+            val imm = getSystemService(InputMethodManager::class.java)
+            if (kbd.visibility == View.VISIBLE) {
+                kbd.visibility = View.GONE
+                input.showSoftInputOnFocus = true
+                input.requestFocus()
+                imm?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+                Toast.makeText(this, tr("Android-Tastatur – Select holt Hugminns Tastatur zurück"), Toast.LENGTH_SHORT).show()
+            } else {
+                imm?.hideSoftInputFromWindow(input.windowToken, 0)
+                input.showSoftInputOnFocus = false
+                kbd.visibility = View.VISIBLE
+            }
+        }
+        kbd.onHide = { toggleKeyboard?.invoke() }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL

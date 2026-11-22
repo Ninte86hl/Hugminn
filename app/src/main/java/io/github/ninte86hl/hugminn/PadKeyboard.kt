@@ -14,11 +14,11 @@ import kotlin.math.abs
 /**
  * Hugminn's own on-screen keyboard (German layout), drawn in the chosen style and made for the
  * controller: four slim rows; numbers, umlauts and special characters sit behind a long press
- * (hold A or the key). D-pad moves, A types, X deletes, Y upper/lower case, L1/R1 cursor,
- * Start confirms. [onDone] runs for the OK key.
+ * (hold A or the key). D-pad moves, A types, west deletes, north upper/lower case, L1/R1 cursor,
+ * Start confirms, Select (or the ⌨ key) hides it for Android's own keyboard. [onDone] runs for the OK key.
  */
 class PadKeyboard(ctx: Context, private val pal: Palette, private val target: EditText, private val onDone: () -> Unit) : View(ctx) {
-    private enum class Act { CHAR, SHIFT, BACK, SYM, SPACE, OK, LEFT, RIGHT }
+    private enum class Act { CHAR, SHIFT, BACK, SYM, SPACE, OK, LEFT, RIGHT, HIDE }
     private class Key(val label: String, val out: String?, val w: Float, val act: Act = Act.CHAR, val more: String = "") {
         val rect = RectF()
     }
@@ -32,6 +32,9 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
     private var row = 1
     private var col = 0
     var showCursor = true
+
+    /** The ⌨ key and Select: hide this keyboard (Android's own one takes over). */
+    var onHide: () -> Unit = {}
 
     /** Long-press choice: the key's extra characters. */
     private var popup: List<String>? = null
@@ -88,14 +91,14 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
             chars("asdfghjkl") + Key("@", "@", 1f, more = "#&%"),
             listOf(Key(if (shift) "⇪" else "⇧", null, 1.4f, Act.SHIFT)) + chars(if (de) "yxcvbnm" else "zxcvbnm") +
                 Key("-", "-", 1f, more = "_+=/") + Key(".", ".", 1f, more = ",;:!?"),
-            listOf(Key("?123", null, 1.6f, Act.SYM), Key("‹", null, 1f, Act.LEFT),
-                Key(space, " ", 4.6f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
+            listOf(Key("?123", null, 1.6f, Act.SYM), Key("⌨", null, 1.1f, Act.HIDE), Key("‹", null, 1f, Act.LEFT),
+                Key(space, " ", 3.8f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
         ) else listOf(
             "1234567890".map { Key(it.toString(), it.toString(), 1f) } + Key("⌫", null, 1.4f, Act.BACK),
             "!\"§$%&/()=?".map { Key(it.toString(), it.toString(), 1f) },
             "+*#'<>;:,_~".map { Key(it.toString(), it.toString(), 1f) } + Key(".", ".", 1f),
-            listOf(Key("ABC", null, 1.6f, Act.SYM), Key("@", "@", 1f), Key("‹", null, 1f, Act.LEFT),
-                Key(space, " ", 4.6f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
+            listOf(Key("ABC", null, 1.6f, Act.SYM), Key("⌨", null, 1.1f, Act.HIDE), Key("@", "@", 1f), Key("‹", null, 1f, Act.LEFT),
+                Key(space, " ", 3.8f, Act.SPACE), Key("›", null, 1f, Act.RIGHT), Key("OK", null, 1.8f, Act.OK)),
         )
         row = row.coerceIn(0, rows.lastIndex)
         col = col.coerceIn(0, rows[row].lastIndex)
@@ -208,6 +211,7 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
             Act.LEFT -> target.setSelection((start - 1).coerceAtLeast(0))
             Act.RIGHT -> target.setSelection((start + 1).coerceAtMost(e.length))
             Act.OK -> onDone()
+            Act.HIDE -> onHide()
         }
     }
 
@@ -297,6 +301,7 @@ class PadKeyboard(ctx: Context, private val pal: Palette, private val target: Ed
             KeyEvent.KEYCODE_BUTTON_L1 -> press(Key("‹", null, 1f, Act.LEFT))
             KeyEvent.KEYCODE_BUTTON_R1 -> press(Key("›", null, 1f, Act.RIGHT))
             KeyEvent.KEYCODE_BUTTON_START -> onDone()
+            KeyEvent.KEYCODE_BUTTON_SELECT -> onHide()
             else -> return false
         }
         return true
