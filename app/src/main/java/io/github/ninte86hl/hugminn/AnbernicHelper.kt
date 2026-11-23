@@ -28,7 +28,8 @@ object AnbernicHelper {
         val d = dir(ctx) ?: return "no folder"
         val files = d.listFiles()?.joinToString { "${it.name} (${(System.currentTimeMillis() - it.lastModified()) / 1000} s)" } ?: "–"
         val log = runCatching { File(d, "log").readLines().take(14).joinToString(" | ") }.getOrDefault("no log")
-        return "files: $files · log: $log".take(900)
+        val diag = runCatching { android.provider.Settings.System.getString(ctx.contentResolver, "hugminn_helper_diag") }.getOrNull() ?: "no note"
+        return "note: $diag · files: $files · log: $log".take(900)
     }
 
     fun put(ctx: Context, key: String, value: String): Boolean {
@@ -44,12 +45,15 @@ object AnbernicHelper {
 # Accepts only these settings, only numbers: ${allowed.joinToString(" ")}
 P=$pkg
 L=/data/local/tmp/hugminn-helper.sh
+# a note Hugminn can always read, whoever runs this (root or system)
+note() { settings put system hugminn_helper_diag "${'$'}*" 2>/dev/null; }
+note "uid=${'$'}(id -u) ctx=${'$'}(cat /proc/self/attr/current 2>/dev/null) t=${'$'}(date +%s) data=${'$'}(ls -ld /data/media/0/Android/data/${'$'}P/files/helper 2>&1 | tr -s ' ' | cut -c1-60) tmp=${'$'}(touch /data/local/tmp/.h 2>&1 && echo ok)"
 # Hugminn's folder: the first way to it that works
 D=""
 for d in /storage/emulated/0/Android/data/${'$'}P/files/helper /sdcard/Android/data/${'$'}P/files/helper /data/media/0/Android/data/${'$'}P/files/helper; do
   if [ -d "${'$'}d" ] && touch "${'$'}d/.probe" 2>/dev/null; then D="${'$'}d"; break; fi
 done
-[ -z "${'$'}D" ] && { echo "Hugminn folder not found – tap 'Save the script' in Hugminn first"; exit 1; }
+[ -z "${'$'}D" ] && { note "${'$'}(settings get system hugminn_helper_diag) | no folder"; echo "Hugminn folder not found"; exit 1; }
 exec > "${'$'}D/log" 2>&1
 echo "start ${'$'}(date)"; id; echo "folder ${'$'}D"; ls -ld "${'$'}D"
 dumpsys deviceidle whitelist +${'$'}P
@@ -80,7 +84,8 @@ chmod 755 ${'$'}L; echo "loop written: ${'$'}?"
 date +%s > ${'$'}D/alive; chmod 666 ${'$'}D/alive
 chown ${'$'}(stat -c %u ${'$'}D):${'$'}(stat -c %g ${'$'}D) ${'$'}D/alive
 (setsid sh ${'$'}L "${'$'}D" </dev/null >/dev/null 2>&1 &) ; echo "helper started: ${'$'}?"
-sleep 2; echo "running: ${'$'}(pgrep -f hugminn-helper.sh | tr '\n' ' ')"
+sleep 2; R=${'$'}(pgrep -f hugminn-helper.sh | tr '\n' ' '); echo "running: ${'$'}R"
+note "${'$'}(settings get system hugminn_helper_diag) | folder ${'$'}D | running ${'$'}R"
 ls -l "${'$'}D"
 """.trimStart()
 }
