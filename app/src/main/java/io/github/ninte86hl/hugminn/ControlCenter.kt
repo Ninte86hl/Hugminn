@@ -1297,7 +1297,9 @@ class ControlCenter(private val svc: HugminnService) {
      */
     private fun cocoonToggle(t: Tile, e: GridEntry): View {
         val small = e.w == 1 && e.h == 1
-        val icon = IconView(svc, t.icon, if (small) 28 else 24)
+        // narrow screens (Pocket Classic): smaller cells – a smaller badge, and small tiles show only the badge
+        val compact = narrowFooter
+        val icon = IconView(svc, t.icon, if (compact) (if (small) 20 else 18) else if (small) 28 else 24)
         val badge = FrameLayout(svc).apply {
             addView(icon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         }
@@ -1309,22 +1311,22 @@ class ControlCenter(private val svc: HugminnService) {
             if (!small) switchTitles += this
         }
         val state = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
-        val bs = if (small) 54 * d else 46 * d
+        val bs = if (small) (if (compact) 36 else 54) * d else (if (compact) 32 else 46) * d
         val v: ViewGroup = if (small) LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(6 * d, 6 * d, 6 * d, 6 * d)
             addView(badge, lp(bs, bs))
-            addView(title, lp(MATCH, WRAP).apply { topMargin = 8 * d })
+            if (!compact) addView(title, lp(MATCH, WRAP).apply { topMargin = 8 * d })
             contentDescription = t.title
         } else LinearLayout(svc).apply {
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(16 * d, 0, 12 * d, 0)
+            setPadding((if (compact) 10 else 16) * d, 0, (if (compact) 8 else 12) * d, 0)
             addView(badge, lp(bs, bs))
             val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
             col.addView(title)
             col.addView(state)
-            addView(col, lp(0, WRAP, 1f).apply { marginStart = 14 * d })
+            addView(col, lp(0, WRAP, 1f).apply { marginStart = (if (compact) 8 else 14) * d })
         }
         v.background = tileFill(false, 22f * d)
         // a shadow under black or see-through tiles only looks dirty
