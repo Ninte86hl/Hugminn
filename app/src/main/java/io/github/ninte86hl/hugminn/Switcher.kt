@@ -101,6 +101,7 @@ class Switcher(private val svc: HugminnService) {
     fun open() {
         if (isOpen) return
         isOpen = true
+        svc.overlayState()
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
         lingering?.let { l -> lingering = null; runCatching { wm.removeView(l) } }
         // Opened from the home screen: B leads back there, not into the last game.
@@ -127,6 +128,7 @@ class Switcher(private val svc: HugminnService) {
     fun close(goBack: Boolean) {
         if (!isOpen) return
         isOpen = false
+        svc.overlayState()
         hat.stop()
         closedAt = SystemClock.uptimeMillis()
         generation++

@@ -48,8 +48,23 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
             when {
                 type.startsWith("cpu-") || type.startsWith("cpuss-") -> cpuZones += temp
                 type.startsWith("gpuss-") || type == "gpu" -> gpuZones += temp
+                // Unisoc (Anbernic): soc-, big7-, mid5-, lit0-, apcpu0-thmzone … and gpu-thmzone
+                type == "gpu-thmzone" -> gpuZones += temp
+                type.endsWith("-thmzone") && Regex("^(soc|big|mid|lit|apcpu)").containsMatchIn(type) -> cpuZones += temp
             }
         }
+    }
+
+    /** Mali/Unisoc GPU: its devfreq node (clock, and the load where the driver reports one). */
+    private val gpuFreq: File? = File("/sys/class/devfreq").listFiles()?.firstOrNull { it.name.endsWith(".gpu") || it.name.endsWith("gpu") }
+
+    private fun devfreqGpu(): Pair<Float, Int>? {
+        val d = gpuFreq ?: return null
+        val mhz = read(File(d, "cur_freq"))?.trim()?.toLongOrNull()?.let { (if (it > 100_000) it / 1_000_000 else it).toInt() } ?: return null
+        // "load" is "45@680000000Hz" on many drivers
+        val pct = read(File(d, "load"))?.substringBefore('@')?.trim()?.toFloatOrNull()
+            ?: read(File(d, "device/utilisation"))?.trim()?.toFloatOrNull() ?: -1f
+        return pct to mhz
     }
 
     @Volatile private var gpuRoot: Pair<Float, Int>? = null
@@ -152,6 +167,7 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
         var gpuPct = read(File(gpuDir, "gpu_busy_percentage"))?.filter { it.isDigit() }?.toFloatOrNull() ?: -1f
         var gpuMhz = (read(File(gpuDir, "gpuclk"))?.toLongOrNull() ?: -1L).let { if (it < 0) -1 else (it / 1_000_000).toInt() }
         // some firmwares (AYN Odin 2) do not let apps read the GPU values: ask root, at most every 2 s
+        if (gpuPct < 0 || gpuMhz < 0) devfreqGpu()?.let { (p, m) -> if (gpuPct < 0 && p >= 0) gpuPct = p; if (gpuMhz < 0) gpuMhz = m }
         if (gpuPct < 0 || gpuMhz < 0) rootGpu()?.let { (p, m) -> if (gpuPct < 0) gpuPct = p; if (gpuMhz < 0) gpuMhz = m }
         if (gpuPct < 0) gpuPct = 0f
         if (gpuMhz < 0) gpuMhz = 0

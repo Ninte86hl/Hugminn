@@ -122,48 +122,86 @@ class DeviceTestActivity : Activity() {
     /** Start held for a second ends a step early and goes on with the test (A and B are under test). */
     private var keyTestDone: (() -> Unit)? = null
 
+    /**
+     * Guided button test: asks for one button after the other and notes what really arrives
+     * (code, scan code, device). A button that sends something else – swapped A/B, B as Back
+     * from a maker's key mapper – shows up in the report. Start held for a second ends it early,
+     * a button not pressed within 8 seconds is skipped.
+     */
     private fun startKeyTest() {
-        val pressed = mutableSetOf<Int>()
-        val labels = mutableMapOf<Int, TextView>()
-        list.removeAllViews()
-        list.addView(text(t("Tasten: drücke jede Taste einmal", "Buttons: press each button once"), 18f, fg, true))
-        list.addView(text(t("Endet automatisch, wenn alle gedrückt sind, oder nach 30 Sekunden. Start 1 Sekunde halten oder „Weiter“ tippen: vorzeitig weiter zum nächsten Schritt.",
-            "Ends by itself once all are pressed, or after 30 seconds. Hold Start for a second or tap “Next” to move on early."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
-        var grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        keys.entries.forEachIndexed { i, (code, name) ->
-            if (i == 8) { list.addView(grid); grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, d(6), 0, 0) } }
-            val v = text(name, 16f, dim, true).apply {
-                gravity = Gravity.CENTER
-                background = GradientDrawable().apply { setColor(card); cornerRadius = d(10).toFloat() }
-            }
-            labels[code] = v
-            grid.addView(v, LinearLayout.LayoutParams(0, d(48), 1f).apply { marginEnd = d(6) })
-        }
-        list.addView(grid)
-        // Home is taken by Hugminn itself: it tells the test instead of opening the Control Center
-        HugminnService.keyProbe = { code -> keyTest?.invoke(code) }
+        val order = keys.entries.toList()
+        val rows = mutableListOf<String>()
+        val wrong = mutableListOf<String>()
+        val skipped = mutableListOf<String>()
+        var idx = 0
         var done = false
+        list.removeAllViews()
+        list.addView(text(t("Tasten: drücke die angezeigte Taste", "Buttons: press the button shown"), 18f, fg, true))
+        list.addView(text(t("Eine Taste nach der anderen. Nicht vorhanden: 8 Sekunden warten, dann geht es weiter. Start 1 Sekunde halten beendet den Test.",
+            "One button after the other. Not there: wait 8 seconds and it moves on. Holding Start for a second ends the test."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
+        val prompt = text("", 34f, fg, true).apply { gravity = Gravity.CENTER; setPadding(0, d(10), 0, d(4)) }
+        val progress = text("", 13f, dim).apply { gravity = Gravity.CENTER }
+        val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, d(12), 0, 0) }
+        list.addView(prompt); list.addView(progress); list.addView(lines)
+        val timeout = Runnable { }
+        var skipTask: Runnable = timeout
         fun finishKeys() {
             if (done) return
             done = true
-            keyTest = null
-            keyTestDone = null
-            HugminnService.keyProbe = null
-            val missing = keys.filterKeys { it !in pressed }.values
-            add(t("Tasten", "Buttons"), t("Tasten", "Buttons"), if (missing.isEmpty()) CheckState.OK else CheckState.WARN,
-                if (missing.isEmpty()) t("Alle ${keys.size} erkannt", "All ${keys.size} detected") else t("Nicht erkannt: ", "Not detected: ") + missing.joinToString())
+            list.removeCallbacks(skipTask)
+            keyTest = null; keyTestDone = null
+            HugminnService.keyProbe = null; HugminnService.keyTap = null
+            val state = if (wrong.isEmpty() && skipped.isEmpty()) CheckState.OK else CheckState.WARN
+            val head = when {
+                wrong.isEmpty() && skipped.isEmpty() -> t("Alle ${order.size} richtig", "All ${order.size} correct")
+                else -> listOfNotNull(wrong.takeIf { it.isNotEmpty() }?.let { t("Anders: ", "Different: ") + it.joinToString() },
+                    skipped.takeIf { it.isNotEmpty() }?.let { t("Nicht gedrückt: ", "Not pressed: ") + it.joinToString() }).joinToString(" · ")
+            }
+            add(t("Tasten", "Buttons"), t("Tasten", "Buttons"), state, head)
+            add(t("Tasten", "Buttons"), t("Tastencodes", "Button codes"), CheckState.OK, rows.joinToString(" · "))
             startExtraKeys()
         }
-        keyTest = { code ->
-            if (code in keys && pressed.add(code)) {
-                labels[code]?.apply { setTextColor(Color.WHITE); (background as GradientDrawable).setColor(0xFF2E9E5B.toInt()) }
-                if (pressed.size == keys.size) list.postDelayed({ finishKeys() }, 400)
+        fun show() {
+            if (idx >= order.size) { finishKeys(); return }
+            prompt.text = order[idx].value
+            progress.text = "${idx + 1} / ${order.size}"
+            list.removeCallbacks(skipTask)
+            skipTask = Runnable {
+                if (!done) { skipped += order[idx].value; rows += "${order[idx].value}→–"; idx++; show() }
             }
-            true
+            list.postDelayed(skipTask, 8_000)
         }
-        keyTestDone = { finishKeys() }
-        setButtons(button(t("Weiter", "Next"), primary = true) { finishKeys() })
-        list.postDelayed({ finishKeys() }, 30_000)
+        fun got(code: Int, scan: Int, dev: String?) {
+            if (done || idx >= order.size) return
+            val (want, name) = order[idx]
+            val got = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
+            // Home: whatever the maker sends for it (Home, F10 on Anbernic, Back on the Pocket Classic) is fine
+            val ok = code == want || (want == KeyEvent.KEYCODE_HOME && code in setOf(KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_MOVE_HOME, KeyEvent.KEYCODE_F10, KeyEvent.KEYCODE_BACK))
+            rows += "$name→$got($code/$scan)"
+            if (!ok) wrong += "$name→$got"
+            lines.addView(text("$name  →  $got ($code, scan $scan${dev?.let { " · $it" } ?: ""})", 14f, if (ok) fg else 0xFFE0303C.toInt()).apply { setPadding(0, d(2), 0, d(2)) }, 0)
+            idx++
+            show()
+        }
+        if (HugminnService.instance != null) {
+            // raw, before anything of Hugminn: the service hands over every key
+            val startDown = longArrayOf(0)
+            HugminnService.keyTap = { e ->
+                if (e.keyCode == KeyEvent.KEYCODE_BUTTON_START) {
+                    if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) startDown[0] = e.eventTime
+                    if (e.action == KeyEvent.ACTION_UP) {
+                        if (e.eventTime - startDown[0] >= 1000) finishKeys() else got(e.keyCode, e.scanCode, e.device?.name)
+                    }
+                } else if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) got(e.keyCode, e.scanCode, e.device?.name)
+            }
+        } else {
+            HugminnService.keyProbe = { code -> got(code, 0, null) }
+            keyTest = { code -> got(code, 0, null); true }
+            keyTestDone = { finishKeys() }
+        }
+        setButtons(button(t("Überspringen", "Skip"), primary = false) { list.removeCallbacks(skipTask); skipTask.run() },
+            button(t("Weiter", "Next"), primary = true) { finishKeys() })
+        show()
     }
 
     /**
