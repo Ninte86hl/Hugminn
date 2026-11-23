@@ -171,8 +171,12 @@ class DeviceTestActivity : Activity() {
             }
             list.postDelayed(skipTask, 8_000)
         }
+        // a stick click (L3/R3) nudges the stick too: only the first key of a press counts, and the
+        // next button is asked for once everything is released again
+        val held = mutableSetOf<Int>()
+        var waitRelease = false
         fun got(code: Int, scan: Int, dev: String?) {
-            if (done || idx >= order.size) return
+            if (done || idx >= order.size || waitRelease) return
             val (want, name) = order[idx]
             val got = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
             // Home: whatever the maker sends for it (Home, F10 on Anbernic, Back on the Pocket Classic) is fine
@@ -181,7 +185,11 @@ class DeviceTestActivity : Activity() {
             if (!ok) wrong += "$name→$got"
             lines.addView(text("$name  →  $got ($code, scan $scan${dev?.let { " · $it" } ?: ""})", 14f, if (ok) fg else 0xFFE0303C.toInt()).apply { setPadding(0, d(2), 0, d(2)) }, 0)
             idx++
-            show()
+            if (held.isEmpty()) list.postDelayed({ show() }, 350) else { waitRelease = true; list.removeCallbacks(skipTask) }
+        }
+        fun released(code: Int) {
+            held.remove(code)
+            if (waitRelease && held.isEmpty()) { waitRelease = false; list.postDelayed({ if (!done) show() }, 350) }
         }
         if (HugminnService.instance != null) {
             // raw, before anything of Hugminn: the service hands over every key
@@ -192,7 +200,11 @@ class DeviceTestActivity : Activity() {
                     if (e.action == KeyEvent.ACTION_UP) {
                         if (e.eventTime - startDown[0] >= 1000) finishKeys() else got(e.keyCode, e.scanCode, e.device?.name)
                     }
-                } else if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) got(e.keyCode, e.scanCode, e.device?.name)
+                } else if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {
+                    val first = held.isEmpty()
+                    held += e.keyCode
+                    if (first) got(e.keyCode, e.scanCode, e.device?.name)
+                } else if (e.action == KeyEvent.ACTION_UP) released(e.keyCode)
             }
         } else {
             HugminnService.keyProbe = { code -> got(code, 0, null) }
