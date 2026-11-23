@@ -310,12 +310,14 @@ class OwnSwitcher(private val svc: HugminnService) {
             Notice.show(svc, t("Angeheftet – lösen mit Y", "Pinned – unpin with Y"), corner = true)
             return
         }
-        if (!Root.available()) {
+        val helper = !Root.available() && Device.canWrite(svc)
+        if (!Root.available() && !helper) {
             svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
             close(back = false)
             return
         }
-        removeTask(a)
+        // Anbernic without root: its helper ends the app; the card leaves Hugminn's list
+        if (helper) AnbernicHelper.stop(svc, a.pkg) else removeTask(a)
         Snapshots.remove(svc, a.pkg)
         synchronized(this) { known.removeAll { it.pkg == a.pkg } }
         if (a.pkg == fromPkg) fromPkg = null
