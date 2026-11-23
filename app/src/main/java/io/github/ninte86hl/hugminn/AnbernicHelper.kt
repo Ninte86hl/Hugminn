@@ -117,6 +117,11 @@ hw() {
     find /sys -maxdepth 7 \( -iname '*led*' -o -iname '*rgb*' -o -iname '*light*' -o -iname '*effect*' \) 2>/dev/null | grep -vE 'backlight|/leds/|kernel/slab|/module/' | head -60
     echo "## joypad"
     for d in ${'$'}(find /sys/bus/platform/devices /sys/bus/i2c/devices /sys/bus/serial/devices -maxdepth 1 2>/dev/null | grep -iE 'joy|pad|mcu|gamepad|rgb'); do echo "${'$'}d: ${'$'}(ls ${'$'}d | tr '\n' ' ')"; done
+    echo "## joypad values"
+    J=/sys/devices/platform/singleadc-joypad
+    for x in led_switch led_mode led_speed led_level led_set led_sync_colour custum_rgb_r custum_rgb_g custum_rgb_b Led_rgb_r1 Led_rgb_g1 Led_rgb_b1 Led_rgb_r2 Led_rgb_g2 Led_rgb_b2 mcu_info adc_deadzone remapkey_switch remapkey_xbox_switch enable poll_interval; do
+      [ -e "${'$'}J/${'$'}x" ] && echo "${'$'}x=${'$'}(head -c 300 "${'$'}J/${'$'}x" 2>&1 | tr '\n' ' ') (${'$'}(stat -c %a "${'$'}J/${'$'}x"))"
+    done
     echo "## dev"
     ls -l /dev 2>/dev/null | grep -iE 'tty[A-Z]|hidraw|joy|led|mcu|uart|rgb|i2c' | awk '{print ${'$'}1, ${'$'}3, ${'$'}4, ${'$'}NF}'
     echo "## procs"
