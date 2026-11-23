@@ -307,6 +307,8 @@ class MainActivity : Activity() {
         // Status
         val running = HugminnService.instance != null
         val rootOk = Root.available()
+        // Anbernic: keep helper.sh in the folder up to date (an update brings a new one; ▶ in Root Scripts starts it)
+        if (Device.isAnbernic && android.os.Environment.isExternalStorageManager()) runCatching { AnbernicHelper.install(packageName) }
         // Anbernic without root: a one-line script for its "Root Scripts" grants Hugminn the system settings
         if (Device.isAnbernic && !rootOk && !Device.canWrite(this)) {
             val an = section(t("Anbernic freischalten", "Unlock on Anbernic"))
