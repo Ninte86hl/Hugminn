@@ -194,9 +194,19 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
             ?: (sticky?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) == android.os.BatteryManager.BATTERY_STATUS_CHARGING)
         val batMinutes = estimate(watts, uv, charging)
 
+        var cpuT = maxTemp(cpuZones)
+        var gpuT = maxTemp(gpuZones)
+        // Anbernic: the helper reads what Android hides from apps
+        if (Device.isAnbernic && (cpuT <= 0f || gpuT <= 0f || gpuMhz <= 0)) AnbernicHelper.stats()?.let { st ->
+            fun t(v: Float?) = v?.takeIf { it > 0 }?.let { if (it > 1000) it / 1000f else it }
+            if (cpuT <= 0f) t(st["cpu"])?.let { cpuT = it }
+            if (gpuT <= 0f) t(st["gpu"])?.let { gpuT = it }
+            if (gpuMhz <= 0) st["gpumhz"]?.takeIf { it > 0 }?.let { gpuMhz = (if (it > 100_000) it / 1_000_000 else it).toInt() }
+            if (gpuPct <= 0f) st["gpuload"]?.let { gpuPct = it }
+        }
         return Sample(
             cpuPct.coerceIn(0f, 100f), cpuMhz, gpuPct.coerceIn(0f, 100f), gpuMhz,
-            usedMb, totalMb, maxTemp(cpuZones), maxTemp(gpuZones), batTemp, batPct, watts, charging,
+            usedMb, totalMb, cpuT, gpuT, batTemp, batPct, watts, charging,
             frame?.fps ?: -1,
             frame?.frameTimesMs ?: emptyList(),
             batMinutes,
