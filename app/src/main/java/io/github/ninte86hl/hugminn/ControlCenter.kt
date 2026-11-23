@@ -3467,6 +3467,9 @@ class ControlCenter(private val svc: HugminnService) {
             bar.addView(text(name, 14f, if (sel) tileOnFg() else pal.onSurface, bold = sel).apply {
                 gravity = Gravity.CENTER
                 maxLines = 1
+                setPadding(4 * d, 0, 4 * d, 0)
+                // a long name ("Hintergrund") gets smaller rather than cut
+                fitWidth(this, 14f, 9f)
                 background = shape(if (sel) tileOn() else pal.surfaceHighest, 14f * d)
                 setOnClickListener { tabMenu(title, tabs, i) }
             }, lp(0, 36 * d, 1f).apply { marginEnd = 6 * d })
