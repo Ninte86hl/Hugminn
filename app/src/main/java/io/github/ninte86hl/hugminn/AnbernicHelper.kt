@@ -113,6 +113,20 @@ hw() {
     done
     echo "## gpu"
     for g in /sys/class/devfreq/*; do echo "${'$'}(basename "${'$'}g"): gov=${'$'}(cat "${'$'}g/governor" 2>/dev/null) min=${'$'}(cat "${'$'}g/min_freq" 2>/dev/null) max=${'$'}(cat "${'$'}g/max_freq" 2>/dev/null) avail=${'$'}(cat "${'$'}g/available_frequencies" 2>/dev/null | head -c 200)"; done
+    echo "## led-ish"
+    find /sys -maxdepth 7 \( -iname '*led*' -o -iname '*rgb*' -o -iname '*light*' -o -iname '*effect*' \) 2>/dev/null | grep -vE 'backlight|/leds/|kernel/slab|/module/' | head -60
+    echo "## joypad"
+    for d in ${'$'}(find /sys/bus/platform/devices /sys/bus/i2c/devices /sys/bus/serial/devices -maxdepth 1 2>/dev/null | grep -iE 'joy|pad|mcu|gamepad|rgb'); do echo "${'$'}d: ${'$'}(ls ${'$'}d | tr '\n' ' ')"; done
+    echo "## dev"
+    ls -l /dev 2>/dev/null | grep -iE 'tty[A-Z]|hidraw|joy|led|mcu|uart|rgb|i2c' | awk '{print ${'$'}1, ${'$'}3, ${'$'}4, ${'$'}NF}'
+    echo "## procs"
+    ps -A -o PID,NAME 2>/dev/null | grep -iE 'anbernic|anbanic|rgsetting|joypad|led|light|rgb|control'
+    for p in ${'$'}(ps -A -o PID,NAME 2>/dev/null | grep -iE 'anbernic|anbanic|rgsetting|joypad|rgb' | awk '{print ${'$'}1}'); do
+      echo "pid ${'$'}p ${'$'}(cat /proc/${'$'}p/cmdline 2>/dev/null | tr '\0' ' '): ${'$'}(ls -l /proc/${'$'}p/fd 2>/dev/null | grep -oE '(/dev|/sys)/[^ ]+' | sort -u | tr '\n' ' ')"
+    done
+    echo "## pwm-fan"
+    ls /sys/devices/platform/pwm-fan 2>/dev/null | tr '\n' ' '; echo; echo "pwm1=${'$'}(cat /sys/class/hwmon/hwmon0/pwm1 2>/dev/null)"
+    find /sys/devices/platform/pwm-fan -maxdepth 3 -type f 2>/dev/null | head -30
     echo "## props"
     getprop | grep -iE 'fan|led|light|rgb|joy' | head -40
   } > "${'$'}D/hw.txt" 2>&1
