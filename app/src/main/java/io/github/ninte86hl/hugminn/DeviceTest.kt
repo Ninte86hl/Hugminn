@@ -470,8 +470,8 @@ object DeviceReport {
         add(perm, t("Bedienungshilfe", "Accessibility service"), ok(HugminnService.instance != null), if (HugminnService.instance == null) t("Hugminn ist nicht eingeschaltet", "Hugminn is not switched on") else "")
         add(perm, "Root", ok(root), if (!root) t("Ohne Root fehlen Leistung, Lüfter, LEDs und mehr", "Without root, performance, fan, LEDs and more are missing") else "")
         if (!root) add(perm, t("Systemeinstellungen schreiben", "Write system settings"), if (Device.canWrite(this)) CheckState.OK else CheckState.WARN,
-            if (Device.canWrite(this)) t("Freigeschaltet – Leistung, Lüfter, Beleuchtung ohne Root", "Unlocked – performance, fan, lighting without root")
-            else t("Nicht freigeschaltet (Anbernic: Skript von der Startseite)", "Not unlocked (Anbernic: script from the start page)"))
+            if (Device.canWrite(this)) t("Helfer läuft – Leistung, Lüfter, Beleuchtung ohne Root", "Helper running – performance, fan, lighting without root")
+            else t("Helfer läuft nicht (Anbernic: Skript von der Startseite, nach Neustart ▶)", "Helper not running (Anbernic: script from the start page, ▶ after a restart)"))
         add(perm, t("Hintergrund-Erlaubnis", "Background whitelist"), if (Device.whitelisted(this)) CheckState.OK else CheckState.WARN, if (!Device.whitelisted(this)) t("Das System könnte Hugminn beenden", "The system might end Hugminn") else "")
         val listeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners").orEmpty()
         add(perm, t("Musik-Zugriff", "Music access"), if (listeners.contains(packageName)) CheckState.OK else CheckState.WARN, if (!listeners.contains(packageName)) t("Musikkachel zeigt evtl. keine Titel", "Music tile may show no titles") else "")
