@@ -2508,17 +2508,10 @@ class ControlCenter(private val svc: HugminnService) {
 
         // --- top: title, tabs below it, both centred
         box.addView(text(tr("Beleuchtung"), 18f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
-        val tabs = LinearLayout(svc).apply { gravity = Gravity.CENTER; setPadding(0, 8 * d, 0, 6 * d) }
-        tabs.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_L1, 20))
-        listOf(tr("Gerät"), tr("Modus"), tr("Farbe")).forEachIndexed { i, name ->
-            val c = chip(name, i == ledTab).apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) }
-            val act = { if (ledTab != i) { ledTab = i; ledWheelView = false; ledFocus = "tab$i"; ledPicker() } }
-            c.setOnClickListener { act() }
-            tabs.addView(c, lp(WRAP, 34 * d).apply { marginStart = 6 * d; marginEnd = 6 * d })
-            // the tabs take no focus: L1/R1 switch them
-        }
-        tabs.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_R1, 20))
-        box.addView(tabs, lp(MATCH, WRAP))
+        // the tabs take no focus: L1/R1 switch them
+        box.addView(tabHeader(listOf(tr("Gerät"), tr("Modus"), tr("Farbe")), ledTab) { i ->
+            if (ledTab != i) { ledTab = i; ledWheelView = false; ledFocus = "tab$i"; ledPicker() }
+        }.apply { setPadding(0, 8 * d, 0, 6 * d) }, lp(MATCH, WRAP))
 
         // everything fits the window: too tall (4:3) and the content is shrunk as a whole – no scrolling
         val scroll = FitBox(svc)
@@ -3461,20 +3454,34 @@ class ControlCenter(private val svc: HugminnService) {
     /** Draws the tab row: ◀ tabs ▶, the chosen one filled. */
     private fun styleTabs(bar: LinearLayout, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int, title: String) {
         bar.removeAllViews()
-        bar.addView(text("◀", 13f, pal.onSurfaceVariant, bold = true).apply { setPadding(0, 0, 8 * d, 0) })
-        tabs.forEachIndexed { i, (name, _) ->
-            val sel = i == tab
-            bar.addView(text(name, 14f, if (sel) tileOnFg() else pal.onSurface, bold = sel).apply {
-                gravity = Gravity.CENTER
-                maxLines = 1
-                setPadding(4 * d, 0, 4 * d, 0)
-                // a long name ("Hintergrund") gets smaller rather than cut
-                fitWidth(this, 14f, 9f)
-                background = shape(if (sel) tileOn() else pal.surfaceHighest, 14f * d)
-                setOnClickListener { tabMenu(title, tabs, i) }
-            }, lp(0, 36 * d, 1f).apply { marginEnd = 6 * d })
-        }
-        bar.addView(text("▶", 13f, pal.onSurfaceVariant, bold = true).apply { setPadding(2 * d, 0, 0, 0) })
+        bar.addView(tabHeader(tabs.map { it.first }, tab) { i -> tabMenu(title, tabs, i) }, lp(MATCH, WRAP))
+    }
+
+    /**
+     * Tabs of every menu, on every screen: only the current one with its name (full width, never
+     * shrunk), L1/R1 beside it as the way to switch, dots below for how many there are and where.
+     */
+    private fun tabHeader(names: List<String>, sel: Int, onPick: (Int) -> Unit): View {
+        val n = names.size
+        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+        row.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_L1, 22).apply { setOnClickListener { onPick((sel - 1 + n) % n) } })
+        row.addView(text(names[sel], 15f, tileOnFg(), bold = true).apply {
+            gravity = Gravity.CENTER
+            maxLines = 1
+            setPadding(18 * d, 0, 18 * d, 0)
+            minWidth = 140 * d
+            background = shape(tileOn(), 16f * d)
+        }, lp(WRAP, 36 * d).apply { marginStart = 12 * d; marginEnd = 12 * d })
+        row.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_R1, 22).apply { setOnClickListener { onPick((sel + 1) % n) } })
+        col.addView(row, lp(MATCH, WRAP))
+        val dots = LinearLayout(svc).apply { gravity = Gravity.CENTER; setPadding(0, 7 * d, 0, 0) }
+        for (i in 0 until n) dots.addView(View(svc).apply {
+            background = shape(if (i == sel) tileOn() else pal.outline, 99f * d)
+            setOnClickListener { onPick(i) }
+        }, lp(if (i == sel) 16 * d else 6 * d, 6 * d).apply { marginStart = 3 * d; marginEnd = 3 * d })
+        col.addView(dots, lp(MATCH, WRAP))
+        return col
     }
 
     private fun setTabKeys(title: String, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int) {
