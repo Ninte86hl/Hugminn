@@ -309,7 +309,7 @@ object Feedback {
         // Anbernic helper: what it found out about the hardware (LEDs, temperatures, fan), and its log
         if (Device.isAnbernic) runCatching {
             val d = AnbernicHelper.dir()
-            java.io.File(d, "hw.txt").takeIf { it.exists() }?.let { appendLine(); appendLine("Anbernic-Hardware (Helfer):"); appendLine(it.readText().take(12_000)) }
+            java.io.File(d, "hw.txt").takeIf { it.exists() }?.let { appendLine(); appendLine("Anbernic-Hardware (Helfer):"); appendLine(it.readText().take(40_000)) }
             java.io.File(d, "log").takeIf { it.exists() }?.let { appendLine(); appendLine("Helfer-Log:"); it.readLines().takeLast(30).forEach { l -> appendLine("  $l") } }
         }
         runCatching { svc.own.diag + svc.own.removeDiag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
