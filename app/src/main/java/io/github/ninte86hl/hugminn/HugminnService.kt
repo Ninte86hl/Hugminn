@@ -156,7 +156,12 @@ class HugminnService : AccessibilityService() {
         overlay = PerfOverlay(this)
         instance = this
         if (prefs.overlayOn) ui.post { runCatching { overlay.show() } }
-        // Keep the firmware from killing Hugminn in the background.
+        // Keep the firmware from killing Hugminn in the background: its whitelist, on every start once
+        // root answers (it was missing on a Pocket 5 that hadn't run the automatic grants)
+        Thread {
+            repeat(20) { if (!Root.available()) Thread.sleep(1000) }
+            if (Root.available() && !Device.whitelisted(this)) Device.ensureWhitelist(this)
+        }.start()
         if (Device.autoGrant(this)) Thread {
             Device.ensureWhitelist(this)
             listOf(
