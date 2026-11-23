@@ -91,12 +91,33 @@ P=$pkg
 D=${'$'}(dirname "${'$'}0")
 note() { echo "${'$'}(date +%H:%M:%S) ${'$'}*" >> "${'$'}D/log"; chmod 666 "${'$'}D/log"; }
 beat() { date +%s > "${'$'}D/alive"; chmod 666 "${'$'}D/alive"; }
+# once per start: what the hardware offers (LED drivers, temperature sensors, fan) – read-only
+hw() {
+  {
+    echo "## leds"
+    for l in /sys/class/leds/*; do
+      echo "${'$'}(basename "${'$'}l"): max=${'$'}(cat "${'$'}l/max_brightness" 2>/dev/null) now=${'$'}(cat "${'$'}l/brightness" 2>/dev/null) trigger=${'$'}(grep -o '\[[^]]*\]' "${'$'}l/trigger" 2>/dev/null) files=${'$'}(ls "${'$'}l" | tr '\n' ' ')"
+      for x in multi_index multi_intensity color mode effect speed; do [ -f "${'$'}l/${'$'}x" ] && echo "   ${'$'}x=${'$'}(head -c 200 "${'$'}l/${'$'}x" | tr '\n' ' ')"; done
+    done
+    echo "## thermal"
+    for z in /sys/class/thermal/thermal_zone*; do echo "${'$'}(basename "${'$'}z") ${'$'}(cat "${'$'}z/type" 2>/dev/null) ${'$'}(cat "${'$'}z/temp" 2>/dev/null)"; done
+    echo "## hwmon"
+    for h in /sys/class/hwmon/hwmon*; do echo "${'$'}(basename "${'$'}h") ${'$'}(cat "${'$'}h/name" 2>/dev/null): ${'$'}(ls "${'$'}h" | tr '\n' ' ')"; done
+    echo "## fan"
+    find /sys/class /sys/devices/platform -maxdepth 4 -iname '*fan*' 2>/dev/null | head -40
+    for f in ${'$'}(find /sys/class /sys/devices/platform -maxdepth 5 \( -iname '*rpm*' -o -iname 'fan*_input' -o -iname '*speed*' \) 2>/dev/null | grep -i fan | head -10); do echo "${'$'}f=${'$'}(cat "${'$'}f" 2>/dev/null)"; done
+    echo "## props"
+    getprop | grep -iE 'fan|led|light|rgb|joy' | head -40
+  } > "${'$'}D/hw.txt" 2>&1
+  chmod 666 "${'$'}D/hw.txt"
+}
 # already running from the other path: nothing to do
 if [ "${'$'}1" != "loop" ]; then
   pkill -f "helper.sh loop" 2>/dev/null
   note "start uid=${'$'}(id -u) folder=${'$'}D low=${'$'}([ -d /data/media/0/${'$'}(basename "${'$'}D") ] && echo ok)"
   beat
   dumpsys deviceidle whitelist +${'$'}P >/dev/null 2>&1
+  hw; note "hardware report: ${'$'}(wc -l < "${'$'}D/hw.txt") lines"
   setsid sh "${'$'}0" loop </dev/null >/dev/null 2>&1 &
   exit 0
 fi
