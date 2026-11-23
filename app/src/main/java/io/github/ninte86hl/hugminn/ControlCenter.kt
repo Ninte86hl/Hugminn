@@ -937,9 +937,14 @@ class ControlCenter(private val svc: HugminnService) {
         c.addView(bar, lp(MATCH, (if (pal.dots || pixel) 6 else 5) * d).apply { topMargin = 4 * d; bottomMargin = 6 * d })
         val more = text("", 11f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
         c.addView(more)
-        // small cells (Pocket Classic, larger Cocoon badges): the extra line goes rather than being cut in half
+        // small cells (Pocket Classic, larger Cocoon badges): the big value gets smaller until every line fits
         c.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
-            if (more.visibility == View.VISIBLE && more.bottom > v.height - v.paddingBottom + 1) v.post { more.visibility = View.GONE }
+            val over = more.bottom - (v.height - v.paddingBottom)
+            val lpv = value.layoutParams
+            if (over > 0 && lpv.height > 18 * d) v.post {
+                lpv.height = (lpv.height - over - 2 * d).coerceAtLeast(18 * d)
+                value.layoutParams = lpv
+            }
         }
         val gp = svc.prefs.gaugePalette
         val refresh = { value.text = if (perf) Device.perfLabel(svc) else Device.fanLabel(svc) }
