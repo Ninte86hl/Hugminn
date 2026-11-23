@@ -74,6 +74,13 @@ object GridLayout {
             6 -> GridEntry(p[0], p[1].toIntOrNull() ?: 1, p[2].toIntOrNull() ?: 1, p[3].toIntOrNull() ?: -1, p[4].toIntOrNull() ?: -1, p[5].toIntOrNull() ?: 0)
             else -> null
         }
+    }?.let { compactPages(it) }
+
+    /** Pages left empty (everything moved off page 1, say) disappear: the others move up. */
+    fun compactPages(list: List<GridEntry>): List<GridEntry> {
+        val used = list.map { it.page.coerceAtLeast(0) }.distinct().sorted()
+        if (used.isEmpty() || used == used.indices.toList()) return list
+        return list.map { it.copy(page = used.indexOf(it.page.coerceAtLeast(0))) }
     }
 
     fun format(list: List<GridEntry>) = list.joinToString(",") { "${it.id}:${it.w}:${it.h}:${it.x}:${it.y}:${it.page}" }
