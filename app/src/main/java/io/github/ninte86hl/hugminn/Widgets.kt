@@ -220,8 +220,9 @@ class BigSlider(
         val f = value / max.coerceAtLeast(1).toFloat()
         if (pal.dots) {
             body(c, w, h, r)
-            val top = w * 0.55f
-            val bottom = h - w * 0.55f
+            // only between the percent (top) and the icon (bottom), so neither touches the dots
+            val top = w * 0.32f + minOf(w * 0.24f, context.dp(16).toFloat()) * 0.4f + context.dp(10)
+            val bottom = h - context.dp(22) - w * 0.22f - context.dp(8)
             val n = ((bottom - top) / (w * 0.16f)).toInt().coerceAtLeast(6)
             val step = (bottom - top) / n
             val lit = Math.round(f * n)

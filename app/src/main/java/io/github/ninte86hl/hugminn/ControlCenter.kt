@@ -96,6 +96,7 @@ class ControlCenter(private val svc: HugminnService) {
         Displays.snapshot(svc, svc, "Control Center")
         Device.refreshLayout(svc)
         isOpen = true
+        svc.overlayState()
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("cc") } }
         pal = Palette(svc)
         items.clear()
@@ -190,6 +191,7 @@ class ControlCenter(private val svc: HugminnService) {
     fun close() {
         if (!isOpen) return
         isOpen = false
+        svc.overlayState()
         hat.stop()
         stopBtScan()
         if (editing) {
@@ -502,8 +504,8 @@ class ControlCenter(private val svc: HugminnService) {
 
     /**
      * D-pad in the grid: always to the neighbouring cell in that direction, staying on the same row
-     * (or column) where possible; empty cells are skipped; past the edge: next page, above the top row:
-     * the settings button.
+     * (or column) where possible; empty cells are skipped; the edge is the end (pages only with L/R –
+     * edit mode moves across them), above the top row: the settings button.
      */
     private fun gridNav(dx: Int, dy: Int) {
         val gearIdx = gearItem?.let { items.indexOf(it) } ?: -1
@@ -533,7 +535,7 @@ class ControlCenter(private val svc: HugminnService) {
                 }
                 x += dx
             }
-            if (pages() > 1) {
+            if (false && pages() > 1) {
                 changePage(dx)
                 val target = placed.withIndex().filter { it.value.page == gridPage }
                     .minByOrNull { (if (dx > 0) it.value.x else gridCols - it.value.x) * 10 + abs(it.value.y - ry) }
@@ -579,6 +581,12 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
+    /** Narrow screens (Pocket Classic, 620 dp; the Nova has 640): smaller words and gaps, so every hint fits. */
+    private val narrowFooter get() = svc.resources.displayMetrics.let { it.widthPixels / it.density } < 630
+
+    private fun hintText(s: String) = text(s, if (narrowFooter) 11f else 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant)
+        .apply { setPadding(if (narrowFooter) 4 * d else 6 * d, 0, if (narrowFooter) 9 * d else 16 * d, 0); maxLines = 1 }
+
     private fun renderFooter() {
         val footer = footerView ?: return
         footer.removeAllViews()
@@ -587,7 +595,7 @@ class ControlCenter(private val svc: HugminnService) {
             footer.addView(LinearLayout(svc).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
-                addView(text(s, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+                addView(hintText(s))
                 setOnClickListener {
                     val now = android.os.SystemClock.uptimeMillis()
                     onKey(KeyEvent(now, now, KeyEvent.ACTION_DOWN, k, 0))
@@ -602,7 +610,7 @@ class ControlCenter(private val svc: HugminnService) {
                 addView(Glyphs.chip(svc, svc.prefs, pal, k1, 22))
                 addView(View(svc), lp(4 * d, 1))
                 addView(Glyphs.chip(svc, svc.prefs, pal, k2, 22))
-                addView(text(s, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+                addView(hintText(s))
                 setOnClickListener {
                     val now = android.os.SystemClock.uptimeMillis()
                     onKey(KeyEvent(now, now, KeyEvent.ACTION_DOWN, k2, 0))
@@ -618,7 +626,7 @@ class ControlCenter(private val svc: HugminnService) {
             footer.addView(LinearLayout(svc).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_DPAD_LEFT, 22))
-                addView(text(dpad, 13f, if (Backdrop.active(svc)) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(6 * d, 0, 16 * d, 0) })
+                addView(hintText(dpad))
             })
             fun opt(k: Int, label: String?) {
                 if (label != null) { hint(k, label); return }
@@ -626,7 +634,7 @@ class ControlCenter(private val svc: HugminnService) {
                     gravity = Gravity.CENTER_VERTICAL
                     alpha = 0.3f
                     addView(Glyphs.chip(svc, svc.prefs, pal, k, 22))
-                    addView(View(svc), lp(16 * d, 1))
+                    addView(View(svc), lp(if (narrowFooter) 8 * d else 16 * d, 1))
                 })
             }
             opt(KeyEvent.KEYCODE_BUTTON_Y, north)
@@ -728,7 +736,7 @@ class ControlCenter(private val svc: HugminnService) {
         }
         val big = e.w >= 2 && e.h >= 2
         if (id == "system") return systemElement(e)
-        if (big && (id == "perf" || id == "fan") && rootOk) return profileElement(e)
+        if (big && (id == "perf" || id == "fan") && (rootOk || Device.canWrite(svc))) return profileElement(e)
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
         if (id == "media" && big) return mediaElement(e, t)
@@ -931,6 +939,15 @@ class ControlCenter(private val svc: HugminnService) {
         c.addView(bar, lp(MATCH, (if (pal.dots || pixel) 6 else 5) * d).apply { topMargin = 4 * d; bottomMargin = 6 * d })
         val more = text("", 11f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
         c.addView(more)
+        // small cells (Pocket Classic, larger Cocoon badges): the big value gets smaller until every line fits
+        c.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val over = more.bottom - (v.height - v.paddingBottom)
+            val lpv = value.layoutParams
+            if (over > 0 && lpv.height > 18 * d) v.post {
+                lpv.height = (lpv.height - over - 2 * d).coerceAtLeast(18 * d)
+                value.layoutParams = lpv
+            }
+        }
         val gp = svc.prefs.gaugePalette
         val refresh = { value.text = if (perf) Device.perfLabel(svc) else Device.fanLabel(svc) }
         refresh()
@@ -1291,7 +1308,9 @@ class ControlCenter(private val svc: HugminnService) {
      */
     private fun cocoonToggle(t: Tile, e: GridEntry): View {
         val small = e.w == 1 && e.h == 1
-        val icon = IconView(svc, t.icon, if (small) 28 else 24)
+        // narrow screens (Pocket Classic): smaller cells – a smaller badge, and small tiles show only the badge
+        val compact = narrowFooter
+        val icon = IconView(svc, t.icon, if (compact) (if (small) 20 else 18) else if (small) 28 else 24)
         val badge = FrameLayout(svc).apply {
             addView(icon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         }
@@ -1303,22 +1322,22 @@ class ControlCenter(private val svc: HugminnService) {
             if (!small) switchTitles += this
         }
         val state = text("", 12f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
-        val bs = if (small) 54 * d else 46 * d
+        val bs = if (small) (if (compact) 36 else 54) * d else (if (compact) 32 else 46) * d
         val v: ViewGroup = if (small) LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(6 * d, 6 * d, 6 * d, 6 * d)
             addView(badge, lp(bs, bs))
-            addView(title, lp(MATCH, WRAP).apply { topMargin = 8 * d })
+            if (!compact) addView(title, lp(MATCH, WRAP).apply { topMargin = 8 * d })
             contentDescription = t.title
         } else LinearLayout(svc).apply {
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(16 * d, 0, 12 * d, 0)
+            setPadding((if (compact) 10 else 16) * d, 0, (if (compact) 8 else 12) * d, 0)
             addView(badge, lp(bs, bs))
             val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
             col.addView(title)
             col.addView(state)
-            addView(col, lp(0, WRAP, 1f).apply { marginStart = 14 * d })
+            addView(col, lp(0, WRAP, 1f).apply { marginStart = (if (compact) 8 else 14) * d })
         }
         v.background = tileFill(false, 22f * d)
         // a shadow under black or see-through tiles only looks dirty
@@ -1372,7 +1391,7 @@ class ControlCenter(private val svc: HugminnService) {
             "fps" -> InfoSpec(IconView.Kind.REFRESH, "FPS", { s -> if (s.fps >= 0) "${s.fps}" else "–" },
                 { _ -> t("${Math.round(display?.refreshRate ?: 60f)} Hz Modus", "${Math.round(display?.refreshRate ?: 60f)} Hz mode") }, onA = { overlayMenu() })
             "perf" -> InfoSpec(IconView.Kind.BOLT, tr("LEISTUNG"), { _ -> Device.perfLabel(svc) }, { s -> t("CPU bis %.2f GHz", "CPU up to %.2f GHz").format(s.cpuMhz / 1000f) },
-                onA = { profileMenu(tr("Leistungsprofil"), "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } } })
+                onA = { profileMenu(tr("Leistungsprofil"), Device.perfKey, Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } } })
             "fan" -> InfoSpec(IconView.Kind.FAN, tr("LÜFTER"), { _ -> Device.fanLabel(svc) },
                 { _ -> if (FanCurve.isRunning()) t("${FanCurve.currentPct} % bei ${FanCurve.currentTemp.toInt()} °C", "${FanCurve.currentPct} % at ${FanCurve.currentTemp.toInt()} °C") else tr("Profil") },
                 onA = { profileMenu(tr("Lüfterprofil"), "fan_mode", Device.fanProfiles) { v -> chooseFan(v) } })
@@ -1588,7 +1607,7 @@ class ControlCenter(private val svc: HugminnService) {
                 ).joinToString(" · ")
             }
             CcBlock.PERF -> info(IconView.Kind.BOLT, tr("LEISTUNG"), onA = {
-                profileMenu(tr("Leistungsprofil"), "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
+                profileMenu(tr("Leistungsprofil"), Device.perfKey, Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
             }) { big, sub, s ->
                 big.text = Device.perfLabel(svc)
                 sub.text = t("CPU bis %.2f GHz", "CPU up to %.2f GHz").format(s.cpuMhz / 1000f)
@@ -1644,10 +1663,10 @@ class ControlCenter(private val svc: HugminnService) {
         }, { Device.btOn(svc) }, { btMenu(rootOk) }) {
             if (rootOk) Device.setBt(!Device.btOn(svc)) { refreshAll() } else btMenu(false)
         }
-        "perf" -> if (rootOk && Device.sys(svc, "performance_mode") != null) Tile(tr("Leistung"), IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
-            profileMenu(tr("Leistung"), "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
+        "perf" -> if ((rootOk || Device.canWrite(svc)) && Device.sys(svc, Device.perfKey) != null) Tile(tr("Leistung"), IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
+            profileMenu(tr("Leistung"), Device.perfKey, Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
         } else null
-        "fan" -> if (rootOk && Device.sys(svc, "fan_mode") != null) Tile(tr("Lüfter"), IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
+        "fan" -> if ((rootOk || Device.canWrite(svc)) && Device.sys(svc, "fan_mode") != null) Tile(tr("Lüfter"), IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
             profileMenu(tr("Lüfter"), "fan_mode", Device.fanProfiles) { v -> chooseFan(v) }
         } else null
         "refresh" -> {
@@ -1657,7 +1676,13 @@ class ControlCenter(private val svc: HugminnService) {
                     Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
                 } else null
         }
-        "leds" -> if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
+        // Anbernic: its own lighting – on/off, effect from the menu
+        "leds" -> if (Device.isAnbernic && (rootOk || Device.canWrite(svc)) && Device.sys(svc, "led_enable") != null)
+            Tile(tr("Beleuchtung"), IconView.Kind.LED, { if (Device.sysOn(svc, "led_enable")) Device.anbernicEffects[Device.sys(svc, "led_effect")] ?: tr("An") else tr("Aus") },
+                { Device.sysOn(svc, "led_enable") }, {
+                    profileMenu(tr("Beleuchtung"), "led_effect", Device.anbernicEffects) { v -> Device.put("led_effect", v) { Device.put("led_enable", "1") { refreshAll() } } }
+                }) { Device.put("led_enable", if (Device.sysOn(svc, "led_enable")) "0" else "1") { refreshAll() } }
+        else if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
         "dnd" -> if (rootOk) Tile(tr("Nicht stören"), IconView.Kind.MOON, { if (Device.dnd(svc)) tr("An") else tr("Aus") }, { Device.dnd(svc) }) {
             Device.setDnd(!Device.dnd(svc)) { refreshAll() }
         } else null
@@ -1954,7 +1979,7 @@ class ControlCenter(private val svc: HugminnService) {
         val app = svc.foregroundPkg
         val kind = if (key == "fan_mode") "fan" else "perf"
         // only for games and emulators (not for e.g. a file manager or Obtainium that happens to be open)
-        if (app != null && !svc.homeInFront && Apps.isGameLike(svc, app) && Root.available() && (key == "fan_mode" || key == "performance_mode")) {
+        if (app != null && !svc.homeInFront && Apps.isGameLike(svc, app) && (Root.available() || Device.canWrite(svc)) && (key == "fan_mode" || key == Device.perfKey)) {
             val name = Apps.label(svc, app)
             val saved = AppProfiles.of(svc, app)?.let { if (kind == "fan") it.fan else it.perf }
             val now = if (kind == "fan" && svc.prefs.fanCustom) "6" else cur
@@ -2500,17 +2525,10 @@ class ControlCenter(private val svc: HugminnService) {
 
         // --- top: title, tabs below it, both centred
         box.addView(text(tr("Beleuchtung"), 18f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
-        val tabs = LinearLayout(svc).apply { gravity = Gravity.CENTER; setPadding(0, 8 * d, 0, 6 * d) }
-        tabs.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_L1, 20))
-        listOf(tr("Gerät"), tr("Modus"), tr("Farbe")).forEachIndexed { i, name ->
-            val c = chip(name, i == ledTab).apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) }
-            val act = { if (ledTab != i) { ledTab = i; ledWheelView = false; ledFocus = "tab$i"; ledPicker() } }
-            c.setOnClickListener { act() }
-            tabs.addView(c, lp(WRAP, 34 * d).apply { marginStart = 6 * d; marginEnd = 6 * d })
-            // the tabs take no focus: L1/R1 switch them
-        }
-        tabs.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_R1, 20))
-        box.addView(tabs, lp(MATCH, WRAP))
+        // the tabs take no focus: L1/R1 switch them
+        box.addView(tabHeader(listOf(tr("Gerät"), tr("Modus"), tr("Farbe")), ledTab) { i ->
+            if (ledTab != i) { ledTab = i; ledWheelView = false; ledFocus = "tab$i"; ledPicker() }
+        }.apply { setPadding(0, 8 * d, 0, 6 * d) }, lp(MATCH, WRAP))
 
         // everything fits the window: too tall (4:3) and the content is shrunk as a whole – no scrolling
         val scroll = FitBox(svc)
@@ -3453,17 +3471,34 @@ class ControlCenter(private val svc: HugminnService) {
     /** Draws the tab row: ◀ tabs ▶, the chosen one filled. */
     private fun styleTabs(bar: LinearLayout, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int, title: String) {
         bar.removeAllViews()
-        bar.addView(text("◀", 13f, pal.onSurfaceVariant, bold = true).apply { setPadding(0, 0, 8 * d, 0) })
-        tabs.forEachIndexed { i, (name, _) ->
-            val sel = i == tab
-            bar.addView(text(name, 14f, if (sel) tileOnFg() else pal.onSurface, bold = sel).apply {
-                gravity = Gravity.CENTER
-                maxLines = 1
-                background = shape(if (sel) tileOn() else pal.surfaceHighest, 14f * d)
-                setOnClickListener { tabMenu(title, tabs, i) }
-            }, lp(0, 36 * d, 1f).apply { marginEnd = 6 * d })
-        }
-        bar.addView(text("▶", 13f, pal.onSurfaceVariant, bold = true).apply { setPadding(2 * d, 0, 0, 0) })
+        bar.addView(tabHeader(tabs.map { it.first }, tab) { i -> tabMenu(title, tabs, i) }, lp(MATCH, WRAP))
+    }
+
+    /**
+     * Tabs of every menu, on every screen: only the current one with its name (full width, never
+     * shrunk), L1/R1 beside it as the way to switch, dots below for how many there are and where.
+     */
+    private fun tabHeader(names: List<String>, sel: Int, onPick: (Int) -> Unit): View {
+        val n = names.size
+        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+        row.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_L1, 22).apply { setOnClickListener { onPick((sel - 1 + n) % n) } })
+        row.addView(text(names[sel], 15f, tileOnFg(), bold = true).apply {
+            gravity = Gravity.CENTER
+            maxLines = 1
+            setPadding(18 * d, 0, 18 * d, 0)
+            minWidth = 140 * d
+            background = shape(tileOn(), 16f * d)
+        }, lp(WRAP, 36 * d).apply { marginStart = 12 * d; marginEnd = 12 * d })
+        row.addView(Glyphs.chip(svc, svc.prefs, pal, KeyEvent.KEYCODE_BUTTON_R1, 22).apply { setOnClickListener { onPick((sel + 1) % n) } })
+        col.addView(row, lp(MATCH, WRAP))
+        val dots = LinearLayout(svc).apply { gravity = Gravity.CENTER; setPadding(0, 7 * d, 0, 0) }
+        for (i in 0 until n) dots.addView(View(svc).apply {
+            background = shape(if (i == sel) tileOn() else pal.outline, 99f * d)
+            setOnClickListener { onPick(i) }
+        }, lp(if (i == sel) 16 * d else 6 * d, 6 * d).apply { marginStart = 3 * d; marginEnd = 3 * d })
+        col.addView(dots, lp(MATCH, WRAP))
+        return col
     }
 
     private fun setTabKeys(title: String, tabs: List<Pair<String, List<MenuEntry>>>, tab: Int) {

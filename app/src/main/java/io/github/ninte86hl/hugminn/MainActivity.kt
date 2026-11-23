@@ -137,7 +137,7 @@ class MainActivity : Activity() {
         Page("look", IconView.Kind.PALETTE, "Darstellung", "Appearance", "Stil, Farben, Sprache, Tastensymbole", "Style, colours, language, button symbols"),
         Page("cc", IconView.Kind.SCREEN, "Control Center", "Control Center", "Statusleiste, Kacheln, LED-App", "Status bar, tiles, LED app"),
         Page("switcher", IconView.Kind.REFRESH, "Game Switcher", "Game Switcher", "Eigene Übersicht, Pausieren, Wischgeste", "Own overview, pausing, swipe gesture"),
-        Page("home", IconView.Kind.GAMEPAD, "Home-Taste", "Home button", "Einmal, zweimal und lange drücken", "Single, double and long press"),
+        Page("home", IconView.Kind.GAMEPAD, "Tasten", "Buttons", "Home-Taste und Zusatztasten", "Home button and extra buttons"),
         Page("hotkeys", IconView.Kind.GAMEPAD, "Tastenkürzel", "Emulator shortcuts", "Welche Tasten in welchem Emulator was tun", "Which buttons do what in each emulator"),
         Page("shortcuts", IconView.Kind.PLAY, "Verknüpfungen", "Shortcuts", "Control Center und Spielwechsler ohne Taste öffnen", "Open the Control Center and switcher without a button"),
         Page("profiles", IconView.Kind.FAN, "Profile pro App", "Profiles per app", "Leistung und Lüfter je Emulator", "Performance and fan per emulator"),
@@ -148,7 +148,7 @@ class MainActivity : Activity() {
     /** Which page a section belongs to (by its title). */
     private fun pageOf(title: String): String = when (title) {
         "Status" -> "status"
-        tr("Home-Taste") -> "home"
+        tr("Home-Taste"), t("Zusatztasten", "Extra buttons") -> "home"
         t("Verknüpfungen", "Shortcuts") -> "shortcuts"
         t("Tastenkürzel", "Emulator shortcuts") -> "hotkeys"
         tr("Darstellung"), tr("Tastensymbole") -> "look"
@@ -307,6 +307,28 @@ class MainActivity : Activity() {
         // Status
         val running = HugminnService.instance != null
         val rootOk = Root.available()
+        // Anbernic: keep helper.sh in the folder up to date (an update brings a new one; ▶ in Root Scripts starts it)
+        if (Device.isAnbernic && android.os.Environment.isExternalStorageManager()) runCatching { AnbernicHelper.install(packageName) }
+        // Anbernic without root: a one-line script for its "Root Scripts" grants Hugminn the system settings
+        if (Device.isAnbernic && !rootOk && !Device.canWrite(this)) {
+            val an = section(t("Anbernic freischalten", "Unlock on Anbernic"))
+            an.addView(text(t("Ohne Root darf Hugminn Leistung, Lüfter und Beleuchtung nur anzeigen. Ein kleiner Helfer schaltet das Umschalten frei: Skripte anlegen, " +
+                "in Anbernics Einstellungen → Advanced → Root Scripts → Import Script „hugminn-anbernic.sh“ aus dem Ordner hugminn wählen und unter Script Management mit ▶ starten. " +
+                "Nach jedem Neustart einmal ▶ drücken. Läuft der Helfer, verschwindet dieser Abschnitt.",
+                "Without root Hugminn may only show performance, fan and lighting. A small helper unlocks switching them: create the scripts, in Anbernic's " +
+                    "settings → Advanced → Root Scripts → Import Script pick “hugminn-anbernic.sh” from the hugminn folder and start it with ▶ under Script Management. " +
+                    "After every restart press ▶ once. While the helper runs, this section disappears."), 13f, pal.onSurfaceVariant)
+                .apply { setPadding(0, d(8), 0, d(4)) })
+            if (!android.os.Environment.isExternalStorageManager())
+                row(an, t("Eigener Ordner „hugminn“", "Own folder “hugminn”"), t("Zugriff auf alle Dateien erlauben – dann liegen die Skripte im internen Speicher unter hugminn statt in Download", "Allow all files access – the scripts then live in internal storage under hugminn instead of Download"), { "" }) {
+                    runCatching { startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, android.net.Uri.parse("package:$packageName"))) }
+                }
+            row(an, t("Skripte anlegen", "Create the scripts"), t("hugminn-anbernic.sh und helper.sh in ", "hugminn-anbernic.sh and helper.sh in ") + AnbernicHelper.dir().path.substringAfter("/0/"), { "" }) {
+                val ok = runCatching { AnbernicHelper.install(packageName) }.isSuccess
+                android.widget.Toast.makeText(this, if (ok) t("Angelegt: ", "Created: ") + AnbernicHelper.dir().path.substringAfter("/0/")
+                    else t("Anlegen ging nicht", "Could not create"), android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
         val st = section("Status")
         st.addView(text(if (running) tr("✓ Hugminn ist aktiv") else tr("✕ Hugminn ist noch nicht aktiv"), 16f, pal.onSurface, bold = true).apply {
             setPadding(0, d(6), 0, d(2))
@@ -366,19 +388,35 @@ class MainActivity : Activity() {
         // Gestures
         val g = section(tr("Home-Taste"))
         val actions = Action.values().toList()
+        if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch. Den Doppelklick erkennt die Firmware selbst.",
+            "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch. The firmware detects the double click itself."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
         row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
-        row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
+        if (!Device.noSticks) row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
             prefs.doubleMs = cycle(listOf(220, 260, 300, 350, 400), prefs.doubleMs)
         }
         row(g, tr("Zeit für langen Druck"), null, { "${prefs.longMs} ms" }) {
             prefs.longMs = cycle(listOf(350, 450, 600, 800), prefs.longMs)
         }
+        if (Device.noSticks) row(g, t("Doppelklick testen", "Test the double click"),
+            t("Zeigt, was die Taste beim Doppelklick wirklich sendet, und schickt es als Bericht", "Shows what the button really sends on a double click, and sends it as a report"),
+            { t("Starten", "Start") }) { startActivity(Intent(this, DeviceTestActivity::class.java).putExtra("double", true)) }
         row(g, t("Home-Taste am Controller", "Home button on a controller"),
             t("Die Home-/Guide-Taste eines Bluetooth- oder USB-Controllers (z. B. 8BitDo) wirkt wie die Home-Taste des Geräts",
                 "The Home/Guide button of a Bluetooth or USB controller (e.g. 8BitDo) works like the handheld's Home button"),
             { if (prefs.padHome) tr("An") else tr("Aus") }) { prefs.padHome = !prefs.padHome }
+
+        // extra buttons: back paddles (Odin 2, Pocket 6) or M1/M2 (Nova) – both arrive as C and Z
+        val nova = android.os.Build.MODEL.contains("Nova", true)
+        val ex = section(t("Zusatztasten", "Extra buttons"))
+        ex.addView(text(t("Rückseitentasten, M1/M2 bzw. C/Z (Pocket Classic mit sechs Tasten). Eine belegte Taste erreicht das Spiel nicht mehr – frei gelassen funktioniert sie im Spiel wie bisher.",
+            "Back paddles, M1/M2 or C/Z (six-button Pocket Classic). A button with an action no longer reaches the game – left free it works in games as before."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
+        for ((code, name) in listOf(KeyEvent.KEYCODE_BUTTON_C to (if (nova) "M1" else if (Device.noSticks) "C" else t("Paddel links", "Left paddle")),
+                KeyEvent.KEYCODE_BUTTON_Z to (if (nova) "M2" else if (Device.noSticks) "Z" else t("Paddel rechts", "Right paddle"))))
+            for (long in listOf(false, true))
+                row(ex, "$name · " + (if (long) tr("Lange drücken") else tr("Einmal drücken")), null,
+                    { prefs.extraKey(code, long).label }) { prefs.setExtraKey(code, long, cycle(actions, prefs.extraKey(code, long))) }
 
         // starting the overlays without a button: home screen shortcuts and extra app icons for frontends
         val sc = section(t("Verknüpfungen", "Shortcuts"))
@@ -597,10 +635,34 @@ class MainActivity : Activity() {
                         "it then always starts with that profile, afterwards the previous setting comes back. A game's profile beats the emulator's."),
                 12f, pal.onSurfaceVariant,
             ).apply { setPadding(0, d(6), 0, d(6)) })
-            row(ap, t("Im Launcher: Normal · Leise", "In the launcher: Normal · Quiet"),
-                t("Auf dem Startbildschirm laufen Leistung Normal und Lüfter Leise – spart Akku zwischen den Spielen. Beim Start einer App ohne Profil kommt die vorige Einstellung zurück.",
-                    "On the home screen performance runs Normal and the fan Quiet – saves battery between games. An app without a profile gets the previous setting back."),
-                { if (svc.prefs.launcherProfile) tr("An") else tr("Aus") }) { svc.prefs.launcherProfile = !svc.prefs.launcherProfile }
+            row(ap, t("Profil im Launcher", "Profile in the launcher"),
+                t("Im Launcher laufen immer die Leistung und der Lüfter unten – spart Akku zwischen den Spielen. Beim Start einer App ohne Profil kommt die vorige Einstellung zurück.",
+                    "In the launcher the performance and fan below always apply – saves battery between games. An app without a profile gets the previous setting back."),
+                { if (svc.prefs.launcherProfile) tr("An") else tr("Aus") }) { svc.prefs.launcherProfile = !svc.prefs.launcherProfile; content.post { build() } }
+            if (svc.prefs.launcherProfile) {
+                val sysHome = runCatching {
+                    packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                        ?.activityInfo?.packageName?.takeIf { it != "android" }
+                }.getOrNull()
+                row(ap, t("Launcher", "Launcher"), t("Die App, die als Startbildschirm zählt", "The app that counts as the home screen"),
+                    { svc.prefs.launcherPkg.ifBlank { null }?.let { Apps.label(this, it) }
+                        ?: t("Automatisch", "Automatic") + (sysHome?.let { " (${Apps.label(this, it)})" } ?: "") }) {
+                    val apps = Apps.labels(this).entries.map { it.key to it.value }.filter { it.second != packageName }
+                        .distinctBy { it.second }.sortedBy { it.first.lowercase() }
+                    val names = listOf(t("Automatisch", "Automatic") + (sysHome?.let { " (${Apps.label(this, it)})" } ?: "")) + apps.map { it.first }
+                    android.app.AlertDialog.Builder(this).setTitle(t("Launcher wählen", "Choose launcher"))
+                        .setItems(names.toTypedArray()) { _, i -> svc.prefs.launcherPkg = if (i == 0) "" else apps[i - 1].second; content.post { build() } }
+                        .setNegativeButton(t("Abbrechen", "Cancel"), null).show()
+                }
+                if (Device.sys(svc, Device.perfKey) != null) row(ap, t("Leistung im Launcher", "Performance in the launcher"), null,
+                    { Device.perfProfiles[svc.prefs.launcherPerf] ?: svc.prefs.launcherPerf }) {
+                    svc.prefs.launcherPerf = cycle(Device.perfProfiles.keys.toList(), svc.prefs.launcherPerf)
+                }
+                if (Device.sys(svc, "fan_mode") != null) row(ap, t("Lüfter im Launcher", "Fan in the launcher"), null,
+                    { Device.fanProfiles[svc.prefs.launcherFan] ?: svc.prefs.launcherFan }) {
+                    svc.prefs.launcherFan = cycle(Device.fanProfiles.keys.toList(), svc.prefs.launcherFan)
+                }
+            }
             if (profiles.isEmpty()) ap.addView(text(t("Noch keine gespeichert", "None saved yet"), 14f, pal.onSurface))
             fun parts(p: AppProfiles.Profile) = listOfNotNull(
                 p.perf?.let { Device.perfProfiles[it] ?: it },

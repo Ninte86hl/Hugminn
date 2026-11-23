@@ -20,6 +20,8 @@ class HugminnService : AccessibilityService() {
         @Volatile var instance: HugminnService? = null
         /** Set by the device test while it waits for buttons (Home included). */
         @Volatile var keyProbe: ((Int) -> Unit)? = null
+        /** Device test, extra buttons: every key goes here (a copy) and nowhere else – power aside. */
+        @Volatile var keyTap: ((KeyEvent) -> Unit)? = null
         /** Sees every key (without taking it): the setup's button test works whichever window has the focus. */
         @Volatile var keyWatch: ((Int) -> Unit)? = null
         /** The setup wizard waits for the switcher / Control Center to be opened ("switcher", "cc"). */
@@ -122,6 +124,8 @@ class HugminnService : AccessibilityService() {
         Crash.install(this)
         prefs = Prefs(this)
         prefs.keepOldStyle()
+        Apps.chosenHome = prefs.launcherPkg.ifBlank { null }
+        Device.app = applicationContext
         prefs.forgetOld()
         // the Android wallpaper may have changed while Hugminn was off: copy it again in the background
         if (prefs.backdrop == BackdropSource.WALLPAPER) ui.postDelayed({ if (Root.available()) Backdrop.fetchWallpaper(this) { } }, 8_000)
@@ -152,7 +156,12 @@ class HugminnService : AccessibilityService() {
         overlay = PerfOverlay(this)
         instance = this
         if (prefs.overlayOn) ui.post { runCatching { overlay.show() } }
-        // Keep the firmware from killing Hugminn in the background.
+        // Keep the firmware from killing Hugminn in the background: its whitelist, on every start once
+        // root answers (it was missing on a Pocket 5 that hadn't run the automatic grants)
+        Thread {
+            repeat(20) { if (!Root.available()) Thread.sleep(1000) }
+            if (Root.available() && !Device.whitelisted(this)) Device.ensureWhitelist(this)
+        }.start()
         if (Device.autoGrant(this)) Thread {
             Device.ensureWhitelist(this)
             listOf(
@@ -337,16 +346,29 @@ class HugminnService : AccessibilityService() {
     private fun onKeyEventInner(event: KeyEvent): Boolean {
         if (!::prefs.isInitialized) return false
         keyWatch?.let { w -> if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) { val c = event.keyCode; ui.post { w(c) } } }
+        keyTap?.let { l ->
+            if (event.keyCode != KeyEvent.KEYCODE_POWER) { val copy = KeyEvent(event); ui.post { l(copy) }; return true }
+        }
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
         if (Device.isAynKey(event)) return false
+        // Anbernic (RG 406H): its Home button sends F10 from the built-in pad
+        val anbernicHome = event.keyCode == KeyEvent.KEYCODE_F10 && event.device?.name == "retrogame_joypad" && Device.isAnbernic
         // the device test asks for the Home button: it goes there instead of opening anything
         keyProbe?.let { probe ->
-            if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME) {
+            if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || anbernicHome) {
                 if (event.action == KeyEvent.ACTION_UP) ui.post { probe(KeyEvent.KEYCODE_HOME) }
                 return true
             }
         }
+        // Pocket Classic: the firmware tells single, double and long apart itself – a single press
+        // arrives as Back, a double click as one Home (the Backs are swallowed), held as a long Back.
+        // Back is on the face buttons and touch anyway, so the button becomes a full Home button.
+        if (Device.noSticks && event.keyCode == KeyEvent.KEYCODE_BACK && event.device?.name?.contains("Retroid", true) == true) return onClassicKey(event, false)
+        if (Device.noSticks && (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME)) return onClassicKey(event, true)
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
+        if (anbernicHome) return onHome(event, forced = true)
+        // extra buttons (paddles, M1/M2) – only once the person gave them something to do
+        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_C || event.keyCode == KeyEvent.KEYCODE_BUTTON_Z) onExtraKey(event)?.let { return it }
         // an external controller (e.g. 8BitDo over Bluetooth): its Home/Guide button counts as Home
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE && prefs.padHome && event.device?.isExternal == true) return onHome(event, forced = true)
         // the power key closes everything of Hugminn first, so Android's power menu is never hidden behind it
@@ -413,6 +435,62 @@ class HugminnService : AccessibilityService() {
         return true
     }
 
+    private var classicLong = false
+    private val classicLongPress = Runnable { classicLong = true; perform(prefs.long) }
+
+    private fun onClassicKey(e: KeyEvent, double: Boolean): Boolean {
+        // lock screen: the button stays Android's
+        if (getSystemService(android.app.KeyguardManager::class.java)?.isKeyguardLocked == true) return false
+        when (e.action) {
+            KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0 && double) {
+                // picture of the game right now, before the switcher covers it
+                if (!controlCenter.isOpen && !anySwitcherOpen && prefs.ownSwitcher) foregroundPkg?.let { fg ->
+                    if (windowPkg == fg && onTopScreen(fg)) Snapshots.capture(this, fg)
+                }
+                // right away on the press: the firmware's release comes ~80 ms later
+                ui.post { perform(prefs.double) }
+            } else if (e.repeatCount == 0) {
+                classicLong = false
+                if (prefs.long != Action.NONE) ui.postDelayed(classicLongPress, prefs.longMs.toLong())
+            }
+            KeyEvent.ACTION_UP -> {
+                ui.removeCallbacks(classicLongPress)
+                if (!double && !classicLong) ui.post { perform(prefs.single) }
+                classicLong = false
+            }
+        }
+        return true
+    }
+
+    private val extraLong = HashMap<Int, Boolean>()
+
+    /** Short and long press of an extra button; null: nothing set, the key goes on to the game. */
+    private fun onExtraKey(e: KeyEvent): Boolean? {
+        val code = e.keyCode
+        val short = prefs.extraKey(code, false)
+        val long = prefs.extraKey(code, true)
+        if (short == Action.NONE && long == Action.NONE) return null
+        when (e.action) {
+            KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
+                extraLong[code] = false
+                if (long != Action.NONE) extraLongPress(code)
+            }
+            KeyEvent.ACTION_UP -> {
+                ui.removeCallbacksAndMessages(extraToken(code))
+                if (extraLong[code] != true) perform(short)
+                extraLong.remove(code)
+            }
+        }
+        return true
+    }
+
+    private fun extraToken(code: Int) = "extra$code"
+
+    private fun extraLongPress(code: Int): Runnable = Runnable { extraLong[code] = true; perform(prefs.extraKey(code, true)) }.also { r ->
+        // tagged, so the release can take it back
+        ui.postAtTime(r, extraToken(code), android.os.SystemClock.uptimeMillis() + prefs.longMs)
+    }
+
     fun perform(a: Action) {
         // trying out the overlays in the setup: a single press must not leave the wizard
         if (overlayOpened != null && a == Action.HOME) return
@@ -454,6 +532,23 @@ class HugminnService : AccessibilityService() {
                 ui.postDelayed({ performGlobalAction(GLOBAL_ACTION_RECENTS) }, 280)
             }
         }
+    }
+
+    private var keymapPaused = false
+
+    /**
+     * An overlay opened or closed. Anbernic: its key mapper is paused meanwhile (as its own panel
+     * does it), otherwise it turns B into Back and the like inside Hugminn's windows.
+     */
+    fun overlayState() {
+        if (!Device.isAnbernic) return
+        val open = (::controlCenter.isInitialized && controlCenter.isOpen) || anySwitcherOpen
+        if (open == keymapPaused) return
+        keymapPaused = open
+        Thread {
+            runCatching { android.provider.Settings.Global.putString(contentResolver, "keymap_paused_by_panel", if (open) "1" else "0") }
+                .onFailure { AnbernicHelper.trace("keymap pause failed: ${it.message}") }
+        }.start()
     }
 
     fun closeOverlays() {

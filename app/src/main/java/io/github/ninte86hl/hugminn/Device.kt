@@ -9,19 +9,50 @@ object Device {
 
     val isRetroid get() = android.os.Build.MODEL.contains("Retroid", ignoreCase = true)
 
-    fun performance(ctx: Context) = (sys(ctx, "performance_mode") ?: "0") != "0"
+    fun performance(ctx: Context) = (sys(ctx, perfKey) ?: "0") != "0"
 
     /** Known profiles (value → name). Values not listed yet are shown raw and can still be picked. */
     // Values as used by the shared Retroid/AYN firmware (fan 6 = custom speed from fan_speed).
-    val perfProfiles get() = linkedMapOf("0" to "Normal", "1" to tr("Leistung"), "2" to tr("Hohe Leistung"))
-    val fanProfiles get() = linkedMapOf("0" to tr("Aus"), "1" to tr("Leise"), "4" to "Smart", "5" to "Sport", "6" to tr("Eigene Kurve"))
+    /** Anbernic support comes with 1.14.2 – until then only in test builds. */
+    val isAnbernic get() = (android.os.Build.MANUFACTURER.contains("Anbernic", true) || android.os.Build.MODEL.startsWith("RG", true)) && Prefs.testBuild()
+
+    /** Anbernic stores its performance mode as cpu_mode (0 Balance, 1 Game). */
+    val perfKey get() = if (isAnbernic) "cpu_mode" else "performance_mode"
+
+    val perfProfiles get() = if (isAnbernic) linkedMapOf("0" to "Normal", "1" to tr("Leistung"))
+        else linkedMapOf("0" to "Normal", "1" to tr("Leistung"), "2" to tr("Hohe Leistung"))
+    /** Anbernic: 0 Silent, 1 Balance, 2 Turbo, 3 fixed speed (custom_fan_speed %). */
+    val fanProfiles get() = if (isAnbernic) linkedMapOf("0" to tr("Leise"), "1" to tr("Ausgewogen"), "2" to "Turbo", "3" to tr("Fest"))
+        else linkedMapOf("0" to tr("Aus"), "1" to tr("Leise"), "4" to "Smart", "5" to "Sport", "6" to tr("Eigene Kurve"))
+    /** Anbernic lighting effects (led_effect). */
+    val anbernicEffects get() = linkedMapOf("0" to tr("Leuchten"), "1" to tr("Atmen"), "2" to tr("Regenbogen"), "3" to "Marquee", "4" to tr("Lauflicht"), "5" to "Gaming")
+
+    /** App context, for writing settings without root. */
+    @Volatile var app: Context? = null
+
+    /** Without root: Anbernic's helper (started by its "Root Scripts") writes the settings for Hugminn. */
+    fun canWrite(ctx: Context) = isAnbernic && AnbernicHelper.alive(ctx)
+
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** One system setting: root if there is root, otherwise through Anbernic's helper. */
+    fun put(key: String, value: String, then: () -> Unit) {
+        val c = app
+        if (isAnbernic) AnbernicHelper.trace("put $key=$value root=${Root.available()} app=${c != null} helper=${c?.let { canWrite(it) }}")
+        if (!Root.available() && c != null && canWrite(c)) {
+            AnbernicHelper.put(c, key, value)
+            // the helper looks every 0.3 s; "settings put" itself takes a moment: refresh twice
+            main.postDelayed(then, 700)
+            main.postDelayed(then, 1800)
+        } else Root.run(Root.putSetting("system", key, value), then = then)
+    }
     /** Trigger modes; AYN numbers analog and digital the other way round than Retroid. */
     val triggerModes get() = if (isAyn) linkedMapOf("2" to tr("Analog + Digital"), "0" to tr("Nur analog"), "1" to tr("Nur digital"))
         else linkedMapOf("2" to tr("Analog + Digital"), "1" to tr("Nur analog"), "0" to tr("Nur digital"))
 
     /** Simple on/off system settings of the firmware (1 = on). */
     fun sysOn(ctx: Context, key: String) = sys(ctx, key)?.trim() == "1"
-    fun setSys(key: String, value: String, then: () -> Unit) = Root.run(Root.putSetting("system", key, value), then = then)
+    fun setSys(key: String, value: String, then: () -> Unit) = put(key, value, then)
 
     /**
      * AYN (Odin 2) has no temp_abxy_layout_mode: its "Controller style" is flip_button_layout
@@ -108,11 +139,13 @@ object Device {
         return table[v] ?: t("Profil $v", "Profile $v")
     }
 
-    fun fanLabel(ctx: Context) = profileLabel(ctx, "fan_mode", fanProfiles)
-    fun perfLabel(ctx: Context) = profileLabel(ctx, "performance_mode", perfProfiles)
+    fun fanLabel(ctx: Context) = profileLabel(ctx, "fan_mode", fanProfiles).let { l ->
+        if (isAnbernic && sys(ctx, "fan_mode") == "3") "$l ${sys(ctx, "custom_fan_speed") ?: "50"} %" else l
+    }
+    fun perfLabel(ctx: Context) = profileLabel(ctx, perfKey, perfProfiles)
 
-    fun setFan(value: String, then: () -> Unit) = Root.run(Root.putSetting("system", "fan_mode", value), then = then)
-    fun setPerf(value: String, then: () -> Unit) = Root.run(
+    fun setFan(value: String, then: () -> Unit) = put("fan_mode", value, then)
+    fun setPerf(value: String, then: () -> Unit) = if (isAnbernic) put(perfKey, value, then) else Root.run(
         Root.putSetting("system", "performance_mode", value),
         "setprop persist.vendor.debug.mode ${if (value == "0") 0 else 1}",
         then = then,
@@ -149,7 +182,11 @@ object Device {
      * (left_/right_joystick_light_enabled) and a single colour as a number.
      */
     private fun aynLeds(ctx: Context) = isAyn && sys(ctx, "left_joystick_light_enabled") != null
-    fun hasStickLeds(ctx: Context) = sys(ctx, "joystick_light_enabled") != null || aynLeds(ctx)
+    /** Retroid Pocket Classic (both variants): a D-pad only, no sticks – so no stick LEDs either. */
+    val noSticks: Boolean = listOf(android.os.Build.MODEL, android.os.Build.DEVICE, android.os.Build.PRODUCT)
+        .any { it?.contains("classic", true) == true }
+
+    fun hasStickLeds(ctx: Context) = !noSticks && (sys(ctx, "joystick_light_enabled") != null || aynLeds(ctx))
     /** The setting the device test shows for the stick LEDs. */
     fun stickLedKey(ctx: Context) = if (aynLeds(ctx)) "left_joystick_light_enabled" else "joystick_light_enabled"
 

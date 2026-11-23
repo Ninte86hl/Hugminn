@@ -90,7 +90,7 @@ object AppProfiles {
     }
 
     private fun remember(svc: HugminnService) {
-        basePerf = Device.sys(svc, "performance_mode")
+        basePerf = Device.sys(svc, Device.perfKey)
         baseFan = Device.sys(svc, "fan_mode")
         baseCurve = svc.prefs.fanCustom
     }
@@ -107,7 +107,7 @@ object AppProfiles {
     private fun evaluate(svc: HugminnService, pkg: String?, title: String?) {
         // the home screen: Normal · Quiet, if switched on (and the device has these profiles)
         val hit = pkg?.let { find(all(svc), it, title) }
-            ?: if (pkg == null && svc.prefs.launcherProfile && Device.sys(svc, "performance_mode") != null) HOME to Profile("0", if (Device.sys(svc, "fan_mode") != null) "1" else null) else null
+            ?: if (pkg == null && svc.prefs.launcherProfile && Device.sys(svc, Device.perfKey) != null) HOME to Profile(svc.prefs.launcherPerf, if (Device.sys(svc, "fan_mode") != null) svc.prefs.launcherFan else null) else null
         if (hit != null) {
             if (activeKey == hit.first) return
             if (activeKey == null) remember(svc)
@@ -155,7 +155,7 @@ object AppProfiles {
     private val applier = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "hugminn-profile").apply { isDaemon = true } }
 
     private fun apply(svc: HugminnService, perf: String?, fan: String?, curve: Boolean) = applier.execute {
-        if (perf != null && perf != Device.sys(svc, "performance_mode")) Device.setPerf(perf) {}
+        if (perf != null && perf != Device.sys(svc, Device.perfKey)) Device.setPerf(perf) {}
         if (curve && FanCurve.available()) {
             if (!FanCurve.isRunning()) FanCurve.start(svc)
         } else if (fan != null) {

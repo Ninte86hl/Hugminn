@@ -192,6 +192,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         Displays.snapshot(svc, svc, "Switcher")
         if (isOpen) return
         isOpen = true
+        svc.overlayState()
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
         fromSwipe = swipe
         val front = svc.windowPkg // from the window events: no waiting for the app in front
@@ -253,6 +254,7 @@ class OwnSwitcher(private val svc: HugminnService) {
     fun close(back: Boolean) {
         if (!isOpen) return
         isOpen = false
+        svc.overlayState()
         closedAt = SystemClock.uptimeMillis()
         hat.stop()
         menu = null
@@ -308,12 +310,14 @@ class OwnSwitcher(private val svc: HugminnService) {
             Notice.show(svc, t("Angeheftet – lösen mit Y", "Pinned – unpin with Y"), corner = true)
             return
         }
-        if (!Root.available()) {
+        val helper = !Root.available() && Device.canWrite(svc)
+        if (!Root.available() && !helper) {
             svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
             close(back = false)
             return
         }
-        removeTask(a)
+        // Anbernic without root: its helper ends the app; the card leaves Hugminn's list
+        if (helper) AnbernicHelper.stop(svc, a.pkg) else removeTask(a)
         Snapshots.remove(svc, a.pkg)
         synchronized(this) { known.removeAll { it.pkg == a.pkg } }
         if (a.pkg == fromPkg) fromPkg = null
@@ -754,8 +758,14 @@ class OwnSwitcher(private val svc: HugminnService) {
         gravity = Gravity.CENTER_VERTICAL
         addView(Glyphs.chip(svc, svc.prefs, pal, key, if (small) 20 else 24))
         // narrow 4:3 screens (Pocket Nova): smaller labels and gaps, so the app name keeps its room
-        val narrow = small || svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density < 720
-        addView(text(label, if (narrow) 12f else 13f, if (Backdrop.active(svc) || small) pal.onSurface else pal.onSurfaceVariant).apply { setPadding(svc.dp(if (narrow) 5 else 7), 0, svc.dp(if (narrow) 12 else 16), 0) })
+        val w = svc.resources.displayMetrics.widthPixels / svc.resources.displayMetrics.density
+        val narrow = small || w < 720
+        // even narrower (Pocket Classic, 620 dp)
+        val tiny = !small && w < 630
+        addView(text(label, if (tiny) 11f else if (narrow) 12f else 13f, if (Backdrop.active(svc) || small) pal.onSurface else pal.onSurfaceVariant).apply {
+            maxLines = 1
+            setPadding(svc.dp(if (tiny) 4 else if (narrow) 5 else 7), 0, svc.dp(if (tiny) 9 else if (narrow) 12 else 16), 0)
+        })
     }
 
     /** See-through capsule (glass look) for the hints on the top screen of dual-screen handhelds. */
@@ -853,7 +863,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             })
             addView(text(t("${Apps.typeOf(a.pkg).label} · ${sel + 1} von ${apps.size}", "${Apps.typeOf(a.pkg).label} · ${sel + 1} of ${apps.size}"), 12f, pal.onSurfaceVariant))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        if (apps.size > 1) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln")))
+        if (apps.size > 1 && svc.resources.displayMetrics.let { it.widthPixels / it.density } >= 630) b.addView(hint(KeyEvent.KEYCODE_DPAD_LEFT, tr("Wechseln")))
         b.addView(hint(KeyEvent.KEYCODE_BUTTON_A, tr("Öffnen")))
         b.addView(hint(KeyEvent.KEYCODE_BUTTON_X, tr("Schließen")))
         b.addView(hint(KeyEvent.KEYCODE_BUTTON_Y, tr("Optionen")))

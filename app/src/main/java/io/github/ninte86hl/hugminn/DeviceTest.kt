@@ -51,6 +51,11 @@ class DeviceTestActivity : Activity() {
         buttons = LinearLayout(this).apply { gravity = Gravity.END; setPadding(0, d(12), 0, 0) }
         root.addView(buttons)
         setContentView(root)
+        if (intent.getBooleanExtra("double", false)) {
+            add(t("Gerät", "Device"), "${Build.MANUFACTURER} ${Build.MODEL}", CheckState.OK, "Android ${Build.VERSION.RELEASE} · Firmware ${Build.DISPLAY}")
+            startDoubleTest()
+            return
+        }
         status(t("Prüfe … (etwa 10 Sekunden)", "Checking … (about 10 seconds)"))
         Thread { runAuto(); runOnUiThread { startKeyTest() } }.start()
     }
@@ -85,6 +90,8 @@ class DeviceTestActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (keyTest != null && event.keyCode == KeyEvent.KEYCODE_BUTTON_START && event.action == KeyEvent.ACTION_DOWN &&
+            event.repeatCount > 0 && event.eventTime - event.downTime >= 1000) { keyTestDone?.invoke(); return true }
         keyTest?.let { if (event.action == KeyEvent.ACTION_DOWN && it(event.keyCode)) return true; if (keyTest != null) return true }
         if (event.action == KeyEvent.ACTION_UP) when (event.keyCode) {
             KeyEvent.KEYCODE_BUTTON_A -> { currentFocus?.performClick(); return true }
@@ -103,55 +110,227 @@ class DeviceTestActivity : Activity() {
 
     // ---- hands-on part ----
 
-    private val keys = linkedMapOf(
+    private val keys = linkedMapOf<Int, String>(
         KeyEvent.KEYCODE_BUTTON_A to "A", KeyEvent.KEYCODE_BUTTON_B to "B", KeyEvent.KEYCODE_BUTTON_X to "X", KeyEvent.KEYCODE_BUTTON_Y to "Y",
         KeyEvent.KEYCODE_BUTTON_L1 to "L1", KeyEvent.KEYCODE_BUTTON_R1 to "R1", KeyEvent.KEYCODE_BUTTON_L2 to "L2", KeyEvent.KEYCODE_BUTTON_R2 to "R2",
         KeyEvent.KEYCODE_BUTTON_START to "Start", KeyEvent.KEYCODE_BUTTON_SELECT to "Select",
         KeyEvent.KEYCODE_BUTTON_THUMBL to "L3", KeyEvent.KEYCODE_BUTTON_THUMBR to "R3",
         KeyEvent.KEYCODE_VOLUME_UP to "Vol+", KeyEvent.KEYCODE_VOLUME_DOWN to "Vol−",
         KeyEvent.KEYCODE_HOME to "Home", KeyEvent.KEYCODE_BACK to t("Zurück", "Back"),
-    )
+    ).apply { if (Device.noSticks) { remove(KeyEvent.KEYCODE_BUTTON_THUMBL); remove(KeyEvent.KEYCODE_BUTTON_THUMBR) } }
 
+    /** Start held for a second ends a step early and goes on with the test (A and B are under test). */
+    private var keyTestDone: (() -> Unit)? = null
+
+    /**
+     * Guided button test: asks for one button after the other and notes what really arrives
+     * (code, scan code, device). A button that sends something else – swapped A/B, B as Back
+     * from a maker's key mapper – shows up in the report. Start held for a second ends it early,
+     * a button not pressed within 8 seconds is skipped.
+     */
     private fun startKeyTest() {
-        val pressed = mutableSetOf<Int>()
-        val labels = mutableMapOf<Int, TextView>()
-        list.removeAllViews()
-        list.addView(text(t("Tasten: drücke jede Taste einmal", "Buttons: press each button once"), 18f, fg, true))
-        list.addView(text(t("Endet automatisch, wenn alle gedrückt sind, oder nach 30 Sekunden.", "Ends by itself once all are pressed, or after 30 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
-        var grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        keys.entries.forEachIndexed { i, (code, name) ->
-            if (i == 8) { list.addView(grid); grid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, d(6), 0, 0) } }
-            val v = text(name, 16f, dim, true).apply {
-                gravity = Gravity.CENTER
-                background = GradientDrawable().apply { setColor(card); cornerRadius = d(10).toFloat() }
-            }
-            labels[code] = v
-            grid.addView(v, LinearLayout.LayoutParams(0, d(48), 1f).apply { marginEnd = d(6) })
-        }
-        list.addView(grid)
-        // Home is taken by Hugminn itself: it tells the test instead of opening the Control Center
-        HugminnService.keyProbe = { code -> keyTest?.invoke(code) }
-        setButtons()
+        val order = keys.entries.toList()
+        val rows = mutableListOf<String>()
+        val wrong = mutableListOf<String>()
+        val skipped = mutableListOf<String>()
+        var idx = 0
         var done = false
+        var askedAt = 0L
+        list.removeAllViews()
+        list.addView(text(t("Tasten: drücke die angezeigte Taste", "Buttons: press the button shown"), 18f, fg, true))
+        list.addView(text(t("Eine Taste nach der anderen. Nicht vorhanden: 8 Sekunden warten, dann geht es weiter. Start 1 Sekunde halten beendet den Test.",
+            "One button after the other. Not there: wait 8 seconds and it moves on. Holding Start for a second ends the test."), 13f, dim).apply { setPadding(0, d(4), 0, d(12)) })
+        val prompt = text("", 34f, fg, true).apply { gravity = Gravity.CENTER; setPadding(0, d(10), 0, d(4)) }
+        val progress = text("", 13f, dim).apply { gravity = Gravity.CENTER }
+        val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, d(12), 0, 0) }
+        list.addView(prompt); list.addView(progress); list.addView(lines)
+        val timeout = Runnable { }
+        var skipTask: Runnable = timeout
         fun finishKeys() {
             if (done) return
             done = true
-            keyTest = null
-            HugminnService.keyProbe = null
-            val missing = keys.filterKeys { it !in pressed }.values
-            add(t("Tasten", "Buttons"), t("Tasten", "Buttons"), if (missing.isEmpty()) CheckState.OK else CheckState.WARN,
-                if (missing.isEmpty()) t("Alle ${keys.size} erkannt", "All ${keys.size} detected") else t("Nicht erkannt: ", "Not detected: ") + missing.joinToString())
+            list.removeCallbacks(skipTask)
+            keyTest = null; keyTestDone = null
+            HugminnService.keyProbe = null; HugminnService.keyTap = null
+            val state = if (wrong.isEmpty() && skipped.isEmpty()) CheckState.OK else CheckState.WARN
+            val head = when {
+                wrong.isEmpty() && skipped.isEmpty() -> t("Alle ${order.size} richtig", "All ${order.size} correct")
+                else -> listOfNotNull(wrong.takeIf { it.isNotEmpty() }?.let { t("Anders: ", "Different: ") + it.joinToString() },
+                    skipped.takeIf { it.isNotEmpty() }?.let { t("Nicht gedrückt: ", "Not pressed: ") + it.joinToString() }).joinToString(" · ")
+            }
+            add(t("Tasten", "Buttons"), t("Tasten", "Buttons"), state, head)
+            add(t("Tasten", "Buttons"), t("Tastencodes", "Button codes"), CheckState.OK, rows.joinToString(" · "))
+            startExtraKeys()
+        }
+        fun show() {
+            if (idx >= order.size) { finishKeys(); return }
+            askedAt = android.os.SystemClock.uptimeMillis()
+            prompt.text = order[idx].value
+            progress.text = "${idx + 1} / ${order.size}"
+            list.removeCallbacks(skipTask)
+            skipTask = Runnable {
+                if (!done) { skipped += order[idx].value; rows += "${order[idx].value}→–"; idx++; show() }
+            }
+            list.postDelayed(skipTask, 8_000)
+        }
+        // a stick click (L3/R3) nudges the stick too: only the first key of a press counts, and the
+        // next button is asked for once everything is released again
+        val held = mutableSetOf<Int>()
+        var waitRelease = false
+        fun got(code: Int, scan: Int, dev: String?) {
+            if (done || idx >= order.size || waitRelease) return
+            val (want, name) = order[idx]
+            // tilting a stick while clicking it sends D-pad keys: they don't answer for L3/R3 or any other button
+            val dpad = code in setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER)
+            val wantDpad = want in setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT)
+            if (dpad && !wantDpad) return
+            // a moment after the last button: leftovers of it don't count for the next one
+            if (android.os.SystemClock.uptimeMillis() - askedAt < 500) return
+            val got = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
+            // Home: whatever the maker sends for it (Home, F10 on Anbernic, Back on the Pocket Classic) is fine
+            val ok = code == want || (want == KeyEvent.KEYCODE_HOME && code in setOf(KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_MOVE_HOME, KeyEvent.KEYCODE_F10, KeyEvent.KEYCODE_BACK))
+            rows += "$name→$got($code/$scan)"
+            if (!ok) wrong += "$name→$got"
+            lines.addView(text("$name  →  $got ($code, scan $scan${dev?.let { " · $it" } ?: ""})", 14f, if (ok) fg else 0xFFE0303C.toInt()).apply { setPadding(0, d(2), 0, d(2)) }, 0)
+            idx++
+            if (held.isEmpty()) list.postDelayed({ show() }, 350) else { waitRelease = true; list.removeCallbacks(skipTask) }
+        }
+        fun released(code: Int) {
+            held.remove(code)
+            if (waitRelease && held.isEmpty()) { waitRelease = false; list.postDelayed({ if (!done) show() }, 350) }
+        }
+        if (HugminnService.instance != null) {
+            // raw, before anything of Hugminn: the service hands over every key
+            val startDown = longArrayOf(0)
+            HugminnService.keyTap = { e ->
+                if (e.keyCode == KeyEvent.KEYCODE_BUTTON_START) {
+                    if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) startDown[0] = e.eventTime
+                    if (e.action == KeyEvent.ACTION_UP) {
+                        if (e.eventTime - startDown[0] >= 1000) finishKeys() else got(e.keyCode, e.scanCode, e.device?.name)
+                    }
+                } else if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {
+                    val first = held.isEmpty()
+                    held += e.keyCode
+                    if (first) got(e.keyCode, e.scanCode, e.device?.name)
+                } else if (e.action == KeyEvent.ACTION_UP) released(e.keyCode)
+            }
+        } else {
+            HugminnService.keyProbe = { code -> got(code, 0, null) }
+            keyTest = { code -> got(code, 0, null); true }
+            keyTestDone = { finishKeys() }
+        }
+        setButtons(button(t("Überspringen", "Skip"), primary = false) { list.removeCallbacks(skipTask); skipTask.run() },
+            button(t("Weiter", "Next"), primary = true) { finishKeys() })
+        show()
+    }
+
+    /**
+     * Extra buttons (M1, M2, back paddles, a Home that is also Back): every key that arrives is listed
+     * with its code, scan code, device and how long it was held, so the report shows what the
+     * firmware makes of them. Hugminn itself ignores all keys meanwhile (power aside).
+     */
+    private fun startExtraKeys() {
+        list.removeAllViews()
+        list.addView(text(t("Zusatztasten", "Extra buttons"), 18f, fg, true))
+        list.addView(text(t("Drück jetzt jede zusätzliche Taste (M1, M2, Paddles …) einmal kurz und einmal lang, dazu Home kurz und lang. " +
+            "Jede Taste erscheint hier mit ihrem Code. Weiter mit Start 1 Sekunde halten, dem Knopf unten oder nach 40 Sekunden.",
+            "Now press every extra button (M1, M2, paddles …) once briefly and once long, and Home briefly and long. " +
+                "Each shows up here with its code. Move on by holding Start for a second, with the button below or after 40 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(10)) })
+        val log = mutableListOf<String>()
+        val downAt = HashMap<Int, Long>()
+        var lastUp = 0L
+        var gap = -1L
+        val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        list.addView(lines)
+        var done = false
+        fun finish() {
+            if (done) return
+            done = true
+            HugminnService.keyTap = null
+            add(t("Tasten", "Buttons"), t("Zusatztasten", "Extra buttons"), CheckState.OK,
+                if (log.isEmpty()) t("keine gedrückt", "none pressed") else log.joinToString(" | "))
             startLedTest()
         }
-        keyTest = { code ->
-            if (code in keys && pressed.add(code)) {
-                labels[code]?.apply { setTextColor(Color.WHITE); (background as GradientDrawable).setColor(0xFF2E9E5B.toInt()) }
-                if (pressed.size == keys.size) list.postDelayed({ finishKeys() }, 400)
+        HugminnService.keyTap = { e ->
+            if (!done) {
+                val name = KeyEvent.keyCodeToString(e.keyCode).removePrefix("KEYCODE_")
+                when (e.action) {
+                    KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
+                        downAt[e.keyCode] = e.eventTime
+                        // pause since the last release: shows how fast a double click really is
+                        gap = if (lastUp > 0) e.eventTime - lastUp else -1L
+                    }
+                    KeyEvent.ACTION_UP -> {
+                        val ms = downAt.remove(e.keyCode)?.let { e.eventTime - it } ?: 0L
+                        if (e.keyCode == KeyEvent.KEYCODE_BUTTON_START && ms >= 1000) finish() else {
+                            lastUp = e.eventTime
+                            val entry = "$name (${e.keyCode}) scan ${e.scanCode} · ${e.device?.name ?: "?"} · $ms ms" +
+                                (if (gap in 0..2000) " · Pause $gap ms" else "")
+                            log += entry
+                            lines.addView(text(entry, 14f, fg).apply { setPadding(0, d(3), 0, d(3)) }, 0)
+                        }
+                    }
+                }
             }
-            true
         }
-        list.postDelayed({ finishKeys() }, 30_000)
+        setButtons(button(t("Weiter", "Next"), primary = true) { finish() })
+        list.postDelayed({ finish() }, 40_000)
     }
+
+    /**
+     * Double-click test (Pocket Classic): every key with the time since the test began and since the
+     * key before, down and up, so the report shows what the firmware really sends on a double click
+     * and when. Hugminn itself does nothing meanwhile.
+     */
+    private fun startDoubleTest() {
+        list.removeAllViews()
+        list.addView(text(t("Doppelklick-Test", "Double-click test"), 18f, fg, true))
+        list.addView(text(t("Drück die Taste unter dem Bildschirm etwa fünfmal doppelt – so, wie du den Game Switcher öffnen würdest – mit ein paar Sekunden Pause dazwischen. " +
+            "Danach einmal einzeln und einmal lang. Weiter mit Start 1 Sekunde halten, dem Knopf unten oder nach 60 Sekunden.",
+            "Double-click the button below the screen about five times – the way you'd open the Game Switcher – with a few seconds in between. " +
+                "Then once single and once long. Move on by holding Start for a second, with the button below or after 60 seconds."), 13f, dim).apply { setPadding(0, d(4), 0, d(10)) })
+        val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        list.addView(lines)
+        val log = mutableListOf<String>()
+        val start = android.os.SystemClock.uptimeMillis()
+        var last = 0L
+        var lastUp = 0L
+        val startDown = HashMap<Int, Long>()
+        var done = false
+        fun finish() {
+            if (done) return
+            done = true
+            HugminnService.keyTap = null
+            add(t("Tasten", "Buttons"), t("Doppelklick", "Double click"), CheckState.OK,
+                if (log.isEmpty()) t("keine gedrückt", "none pressed") else log.joinToString(" | "))
+            showSummary()
+        }
+        HugminnService.keyTap = { e ->
+            if (!done) {
+                if (e.keyCode == KeyEvent.KEYCODE_BUTTON_START) {
+                    if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) startDown[0] = e.eventTime
+                    if (e.action == KeyEvent.ACTION_UP && e.eventTime - (startDown[0] ?: e.eventTime) >= 1000) finish()
+                } else if (e.repeatCount == 0) {
+                    val name = KeyEvent.keyCodeToString(e.keyCode).removePrefix("KEYCODE_")
+                    val down = e.action == KeyEvent.ACTION_DOWN
+                    val since = if (last > 0) e.eventTime - last else 0L
+                    var entry = "+${e.eventTime - start} ms $name ${if (down) "↓" else "↑"} (Δ $since)"
+                    if (down && lastUp > 0) {
+                        val pause = e.eventTime - lastUp
+                        if (pause < prefs.doubleMs) entry += t(" ⇒ Doppelklick", " ⇒ double click")
+                    }
+                    if (!down) lastUp = e.eventTime
+                    last = e.eventTime
+                    log += entry
+                    lines.addView(text(entry, 14f, if (entry.contains("⇒")) 0xFF2E9E5B.toInt() else fg).apply { setPadding(0, d(2), 0, d(2)) }, 0)
+                }
+            }
+        }
+        setButtons(button(t("Weiter", "Next"), primary = true) { finish() })
+        list.postDelayed({ finish() }, 60_000)
+    }
+
+    private val prefs by lazy { Prefs(this) }
 
     private fun startLedTest() {
         if (!Root.available() || !Device.hasStickLeds(this)) { showSummary(); return }
@@ -159,11 +338,16 @@ class DeviceTestActivity : Activity() {
         list.addView(text(t("Stick-LEDs", "Stick LEDs"), 18f, fg, true))
         list.addView(text(t("Die Sticks leuchten jetzt rot. Siehst du es?", "The sticks light up red now. Can you see it?"), 15f, fg).apply { setPadding(0, d(6), 0, 0) })
         LedFx.previewZone = if (Device.hasSideLights(this)) 2 else 1  // Odin 2: zone 2 = sticks
-        LedFx.preview(Color.RED, Color.RED, 1f)
+        // the LEDs only show anything while their power switch is on: on for the test, back afterwards
+        val before = Device.elStates(this)
+        val stickOn = if (Device.hasSideLights(this)) Device.stickLedCmds(this, true).toList()
+            else listOf(Root.putSetting("system", "joystick_light_enabled", "1,1"))
+        Root.run(*stickOn.toTypedArray()) { runOnUiThread { LedFx.preview(Color.RED, Color.RED, 1f) } }
         fun answer(seen: Boolean) {
             add(if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features"), t("Stick-LEDs leuchten", "Stick LEDs light up"), if (seen) CheckState.OK else CheckState.FAIL,
                 if (seen) "" else t("Farben werden nicht übernommen", "Colours are not applied"))
-            runCatching { if (Device.stickLeds(this)) { if (Prefs(this).ledEffect != LedEffect.NONE) LedFx.resume(this) else LedFx.restoreStatic(this) } else LedFx.preview(0, 0, 1f) }
+            // the lights as they were: power switches and the elements' own modes
+            runCatching { Device.setElStates(this, before) {} }
             startLedProbe()
         }
         setButtons(button(t("Nein", "No")) { answer(false) }, button(t("Ja", "Yes"), primary = true) { answer(true) })
@@ -311,6 +495,7 @@ class DeviceTestActivity : Activity() {
     override fun onDestroy() {
         keyTest = null
         HugminnService.keyProbe = null
+        HugminnService.keyTap = null
         super.onDestroy()
     }
 }
@@ -329,7 +514,7 @@ object DeviceReport {
         val real = android.graphics.Point().also { @Suppress("DEPRECATION") windowManager.defaultDisplay.getRealSize(it) }
         val w = maxOf(real.x, real.y); val h = minOf(real.x, real.y)
         val rates = runCatching { @Suppress("DEPRECATION") windowManager.defaultDisplay.supportedModes.map { Math.round(it.refreshRate) }.distinct().sorted() }.getOrDefault(emptyList())
-        add(dev, "${Build.MANUFACTURER} ${Build.MODEL}", CheckState.OK, "Android ${Build.VERSION.RELEASE}")
+        add(dev, "${Build.MANUFACTURER} ${Build.MODEL}", CheckState.OK, "Android ${Build.VERSION.RELEASE} · Firmware ${Build.DISPLAY} (${Build.TIME.let { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date(it)) }})")
         add(dev, t("Bildschirm", "Screen"), CheckState.OK, "${w}×$h · " + "%.2f".format(w.toFloat() / h) + ":1 · ${rates.joinToString("/")} Hz · " + "%.2f".format(m.density))
         // dual-screen devices: the second built-in screen (for the coming dual-screen support)
         Displays.list(this).filter { !it.isDefault }.forEach { d ->
@@ -342,6 +527,10 @@ object DeviceReport {
         val root = Root.available()
         add(perm, t("Bedienungshilfe", "Accessibility service"), ok(HugminnService.instance != null), if (HugminnService.instance == null) t("Hugminn ist nicht eingeschaltet", "Hugminn is not switched on") else "")
         add(perm, "Root", ok(root), if (!root) t("Ohne Root fehlen Leistung, Lüfter, LEDs und mehr", "Without root, performance, fan, LEDs and more are missing") else "")
+        if (!root) add(perm, t("Systemeinstellungen schreiben", "Write system settings"), if (Device.canWrite(this)) CheckState.OK else CheckState.WARN,
+            if (Device.canWrite(this)) t("Helfer läuft – Leistung, Lüfter, Beleuchtung ohne Root", "Helper running – performance, fan, lighting without root")
+            else t("Helfer läuft nicht (Anbernic: Skript von der Startseite, nach Neustart ▶)", "Helper not running (Anbernic: script from the start page, ▶ after a restart)"))
+        if (!root && Device.isAnbernic) add(perm, t("Helfer-Protokoll", "Helper log"), CheckState.OK, AnbernicHelper.report(this))
         add(perm, t("Hintergrund-Erlaubnis", "Background whitelist"), if (Device.whitelisted(this)) CheckState.OK else CheckState.WARN, if (!Device.whitelisted(this)) t("Das System könnte Hugminn beenden", "The system might end Hugminn") else "")
         val listeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners").orEmpty()
         add(perm, t("Musik-Zugriff", "Music access"), if (listeners.contains(packageName)) CheckState.OK else CheckState.WARN, if (!listeners.contains(packageName)) t("Musikkachel zeigt evtl. keine Titel", "Music tile may show no titles") else "")
@@ -351,7 +540,7 @@ object DeviceReport {
         // the handheld's own settings
         val fw = if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features")
         listOf(
-            "performance_mode" to t("Leistungsprofile", "Performance profiles"),
+            Device.perfKey to t("Leistungsprofile", "Performance profiles"),
             "fan_mode" to t("Lüfterprofile", "Fan profiles"),
             Device.controllerKey(this) to t("Tastenlayout / eingebaute Steuerung aus", "Button layout / built-in controls off"),
             "trigger_input_mode" to t("Trigger-Modus", "Trigger mode"),
@@ -410,6 +599,21 @@ object DeviceReport {
                 add(pad, e.name, if (b != null) CheckState.OK else CheckState.WARN, if (b != null) t("Akku", "Battery") + " ${b.second} %" else t("Meldet keinen Akkustand", "Reports no battery level"))
             }
         } else add(pad, t("Externer Controller", "External controller"), CheckState.OK, t("Keiner verbunden", "None connected"))
+
+        // other makers (Anbernic …): which of their own settings exist – the way to their performance, fan and lights
+        if (!Device.isRetroid && !android.os.Build.MANUFACTURER.contains("AYN", true)) {
+            val words = Regex("perf|fan|cpu|gpu|gov|freq|light|led|rgb|joy|stick|key|button|home|charg|power|mode|anbernic|rg_", RegexOption.IGNORE_CASE)
+            // only "system": that is where the makers keep theirs (global/secure made the report too long for GitHub's link)
+            listOf("system" to android.provider.Settings.System.CONTENT_URI).forEach { (name, uri) ->
+                val found = runCatching {
+                    contentResolver.query(uri, arrayOf("name", "value"), null, null, null)?.use { c ->
+                        buildList { while (c.moveToNext()) { val k = c.getString(0) ?: continue; if (words.containsMatchIn(k)) add("$k=${c.getString(1)}") } }
+                    }
+                }.getOrNull()
+                add(t("Systemeinstellungen", "System settings"), name, if (found.isNullOrEmpty()) CheckState.WARN else CheckState.OK,
+                    found?.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(" · ") ?: t("nicht lesbar oder leer", "not readable or empty"))
+            }
+        }
     }
 
 

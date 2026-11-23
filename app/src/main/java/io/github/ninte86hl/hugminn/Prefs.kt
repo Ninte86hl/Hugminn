@@ -97,12 +97,24 @@ class Prefs(private val ctx: Context) {
         fun dualReady(ctx: Context): Boolean = dual ?: runCatching {
             ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName?.contains("test") == true
         }.getOrDefault(false).also { dual = it }
+
+        /** Test build, without a context at hand (the app's own one through Android). */
+        fun testBuild(): Boolean = dual ?: runCatching {
+            dualReady(Class.forName("android.app.ActivityThread").getMethod("currentApplication").invoke(null) as Context)
+        }.getOrDefault(false)
     }
 
     private val p: SharedPreferences = ctx.getSharedPreferences("hugminn", Context.MODE_PRIVATE)
 
     /** 4:3 screens (Pocket Nova) are taller for their width: five rows by default instead of four. */
     private val fourThree = ctx.resources.displayMetrics.let { maxOf(it.widthPixels, it.heightPixels).toFloat() / minOf(it.widthPixels, it.heightPixels) < 1.5f }
+
+    /**
+     * Extra buttons (back paddles, M1/M2): every device sends them as C (left / M1) and Z (right / M2).
+     * Not set unless the person sets them: a set one no longer reaches the game.
+     */
+    fun extraKey(code: Int, long: Boolean): Action = enumOr(p.getString("extra${code}_${if (long) "L" else "S"}", null), Action.NONE)
+    fun setExtraKey(code: Int, long: Boolean, a: Action) = p.edit().putString("extra${code}_${if (long) "L" else "S"}", a.name).apply()
 
     var single: Action
         get() = enumOr(p.getString("single", null), Action.HOME)
@@ -410,6 +422,17 @@ class Prefs(private val ctx: Context) {
         get() = p.getString("ledElState", "") ?: ""
         set(v) = p.edit().putString("ledElState", v).apply()
     /** On the home screen: performance Normal and fan Quiet (AppProfiles). */
+    /** Launcher chosen by the person ("" = Android's home app). */
+    var launcherPkg: String
+        get() = p.getString("launcherPkg", "") ?: ""
+        set(v) { p.edit().putString("launcherPkg", v).apply(); Apps.chosenHome = v.ifBlank { null } }
+    var launcherPerf: String
+        get() = p.getString("launcherPerf", "0") ?: "0"
+        set(v) = p.edit().putString("launcherPerf", v).apply()
+    var launcherFan: String
+        get() = p.getString("launcherFan", "1") ?: "1"
+        set(v) = p.edit().putString("launcherFan", v).apply()
+
     var launcherProfile: Boolean
         get() = p.getBoolean("launcherProfile", true)
         set(v) = p.edit().putBoolean("launcherProfile", v).apply()

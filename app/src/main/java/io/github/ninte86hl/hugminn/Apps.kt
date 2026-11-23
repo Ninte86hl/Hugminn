@@ -61,8 +61,12 @@ object Apps {
      * Launchers never count as apps to switch to: Android's own and the home app the user set
      * (Cocoon, ES-DE, Daijisho …).
      */
+    /** The launcher chosen in the settings (counts as home screen too). */
+    @Volatile var chosenHome: String? = null
+
     fun isHome(ctx: Context, pkg: String?): Boolean {
         if (pkg == null) return false
+        if (pkg == chosenHome) return true
         if (pkg.contains("launcher", true)) return true
         val now = System.currentTimeMillis()
         if (now - homeAt > 30_000) {
