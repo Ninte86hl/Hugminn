@@ -310,16 +310,16 @@ class MainActivity : Activity() {
         // Anbernic without root: a one-line script for its "Root Scripts" grants Hugminn the system settings
         if (Device.isAnbernic && !rootOk && !Device.canWrite(this)) {
             val an = section(t("Anbernic freischalten", "Unlock on Anbernic"))
-            an.addView(text(t("Ohne Root darf Hugminn Leistung, Lüfter und Beleuchtung nur anzeigen. Ein Skript schaltet das Umschalten einmalig frei: " +
-                "speichern, dann in Anbernics Einstellungen → Advanced → Root Scripts → Import Script „hugminn-anbernic.sh“ aus Download wählen und ausführen. Danach Hugminn neu öffnen.",
-                "Without root Hugminn may only show performance, fan and lighting. A script unlocks switching them, once: save it, then in Anbernic's " +
-                    "settings → Advanced → Root Scripts → Import Script pick “hugminn-anbernic.sh” from Download and run it. Then reopen Hugminn."), 13f, pal.onSurfaceVariant)
+            an.addView(text(t("Ohne Root darf Hugminn Leistung, Lüfter und Beleuchtung nur anzeigen. Ein kleiner Helfer schaltet das Umschalten frei: Skript speichern, " +
+                "in Anbernics Einstellungen → Advanced → Root Scripts → Import Script „hugminn-anbernic.sh“ aus Download wählen und unter Script Management mit ▶ starten. " +
+                "Nach jedem Neustart einmal ▶ drücken. Läuft der Helfer, verschwindet dieser Abschnitt.",
+                "Without root Hugminn may only show performance, fan and lighting. A small helper unlocks switching them: save the script, in Anbernic's " +
+                    "settings → Advanced → Root Scripts → Import Script pick “hugminn-anbernic.sh” from Download and start it with ▶ under Script Management. " +
+                    "After every restart press ▶ once. While the helper runs, this section disappears."), 13f, pal.onSurfaceVariant)
                 .apply { setPadding(0, d(8), 0, d(4)) })
             row(an, t("Skript speichern", "Save the script"), t("Legt hugminn-anbernic.sh im Download-Ordner ab", "Puts hugminn-anbernic.sh into Download"), { "" }) {
-                val script = "#!/system/bin/sh\n# Hugminn: system settings (performance, fan, lighting) without root\n" +
-                    "pm grant $packageName android.permission.WRITE_SECURE_SETTINGS\n" +
-                    "appops set $packageName WRITE_SETTINGS allow\n" +
-                    "dumpsys deviceidle whitelist +$packageName\n"
+                AnbernicHelper.dir(this)
+                val script = AnbernicHelper.script(packageName)
                 val ok = runCatching {
                     val v = android.content.ContentValues().apply {
                         put(android.provider.MediaStore.Downloads.DISPLAY_NAME, "hugminn-anbernic.sh")

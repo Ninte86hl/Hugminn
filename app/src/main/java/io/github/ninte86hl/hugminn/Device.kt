@@ -29,22 +29,18 @@ object Device {
     /** App context, for writing settings without root. */
     @Volatile var app: Context? = null
 
-    /**
-     * Without root Hugminn may still write system settings once WRITE_SECURE_SETTINGS was granted
-     * (Anbernic: by its "Root Scripts", once).
-     */
-    fun canWrite(ctx: Context) = ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == android.content.pm.PackageManager.PERMISSION_GRANTED
+    /** Without root: Anbernic's helper (started by its "Root Scripts") writes the settings for Hugminn. */
+    fun canWrite(ctx: Context) = isAnbernic && AnbernicHelper.alive(ctx)
 
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
 
-    /** One system setting: root if there is root, otherwise directly with the granted permission. */
+    /** One system setting: root if there is root, otherwise through Anbernic's helper. */
     fun put(key: String, value: String, then: () -> Unit) {
         val c = app
         if (!Root.available() && c != null && canWrite(c)) {
-            Thread {
-                runCatching { Settings.System.putString(c.contentResolver, key, value) }
-                main.post(then)
-            }.start()
+            AnbernicHelper.put(c, key, value)
+            // the helper looks every 0.3 s
+            main.postDelayed(then, 700)
         } else Root.run(Root.putSetting("system", key, value), then = then)
     }
     /** Trigger modes; AYN numbers analog and digital the other way round than Retroid. */
