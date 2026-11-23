@@ -37,6 +37,7 @@ object Device {
     /** One system setting: root if there is root, otherwise through Anbernic's helper. */
     fun put(key: String, value: String, then: () -> Unit) {
         val c = app
+        if (isAnbernic) AnbernicHelper.trace("put $key=$value root=${Root.available()} app=${c != null} helper=${c?.let { canWrite(it) }}")
         if (!Root.available() && c != null && canWrite(c)) {
             AnbernicHelper.put(c, key, value)
             // the helper looks every 0.3 s

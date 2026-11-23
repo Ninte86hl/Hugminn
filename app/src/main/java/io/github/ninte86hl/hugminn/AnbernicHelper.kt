@@ -35,16 +35,28 @@ object AnbernicHelper {
     }
 
     fun put(ctx: Context, key: String, value: String): Boolean {
-        if (key !in allowed || !value.all { it.isDigit() }) return false
-        return runCatching { File(dir(), "cmd").appendText("$key $value\n") }.isSuccess
+        if (key !in allowed || !value.all { it.isDigit() }) { trace("refused $key=$value"); return false }
+        val r = runCatching { File(dir(), "cmd").appendText("$key $value\n") }
+        trace("$key=$value " + (r.exceptionOrNull()?.let { "FAILED ${it.javaClass.simpleName}: ${it.message}" } ?: "→ cmd"))
+        return r.isSuccess
+    }
+
+    /** Hugminn's side of the conversation, for the device test ("sent" in the folder). */
+    fun trace(s: String) {
+        runCatching {
+            val f = File(dir(), "sent")
+            if (f.length() > 20_000) f.writeText("")
+            f.appendText(java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.ROOT).format(java.util.Date()) + " " + s + "\n")
+        }
     }
 
     /** For the device test. */
     fun report(ctx: Context): String {
         val diag = read("log")?.lines()?.takeLast(4)?.joinToString(" / ") ?: "no log"
+        val sent = read("sent")?.lines()?.takeLast(4)?.joinToString(" / ") ?: "nothing sent"
         val beat = read("alive")?.toLongOrNull()?.let { "${System.currentTimeMillis() / 1000 - it} s ago" } ?: "none"
         val files = dir().listFiles()?.joinToString { it.name + (if (it.name.startsWith("id")) "=" + runCatching { it.readText().trim().take(80) }.getOrDefault("?") else "") } ?: "–"
-        return "note: $diag · heartbeat: $beat · folder: $files".take(900)
+        return "note: $diag · sent: $sent · heartbeat: $beat · folder: $files".take(900)
     }
 
     /** Writes helper.sh and the script to import into Download/Hugminn; returns the folder. */
