@@ -34,6 +34,15 @@ object AnbernicHelper {
         return System.currentTimeMillis() / 1000 - t < 30
     }
 
+    /** The helper's live values (CPU/GPU °C, GPU MHz and load, fan PWM 0–255); null when it isn't running. */
+    fun stats(): Map<String, Float>? {
+        val f = File(dir(), "stats")
+        if (!f.exists() || System.currentTimeMillis() - f.lastModified() > 10_000) return null
+        return runCatching {
+            f.readText().trim().split(' ').mapNotNull { p -> p.split('=').takeIf { it.size == 2 }?.let { (k, v) -> v.toFloatOrNull()?.let { k to it } } }.toMap()
+        }.getOrNull()
+    }
+
     fun put(ctx: Context, key: String, value: String): Boolean {
         if (key !in allowed || !value.all { it.isDigit() }) { trace("refused $key=$value"); return false }
         val d = dir()
@@ -144,10 +153,27 @@ if [ "${'$'}1" != "loop" ]; then
   beat
   dumpsys deviceidle whitelist +${'$'}P >/dev/null 2>&1 || note "background whitelist failed"
   appops set ${'$'}P WRITE_SETTINGS allow 2>/dev/null || note "write settings failed"
+  # lets Hugminn pause Anbernic's key mapper while its windows are open (a global setting)
+  pm grant ${'$'}P android.permission.WRITE_SECURE_SETTINGS 2>/dev/null || note "secure settings failed"
   hw; note "hardware report: ${'$'}(wc -l < "${'$'}D/hw.txt") lines"
   setsid sh "${'$'}0" loop </dev/null >/dev/null 2>&1 &
   exit 0
 fi
+# live values for Hugminn (Android doesn't let apps read them here): CPU/GPU temperature, GPU clock and load
+CZ=""; GZ=""
+for z in /sys/class/thermal/thermal_zone*; do
+  read t < "${'$'}z/type" 2>/dev/null
+  case "${'$'}t" in soc-*|big*|mid*|lit*|apcpu*) CZ="${'$'}CZ ${'$'}z/temp" ;; gpu-thmzone) GZ="${'$'}z/temp" ;; esac
+done
+GF=${'$'}(ls -d /sys/class/devfreq/*.gpu 2>/dev/null | head -1)
+stats() {
+  c=0; for f in ${'$'}CZ; do read v < "${'$'}f" 2>/dev/null; [ -n "${'$'}v" ] && [ "${'$'}v" -gt "${'$'}c" ] && c=${'$'}v; done
+  g=0; [ -n "${'$'}GZ" ] && read g < "${'$'}GZ" 2>/dev/null
+  m=0; l=""; [ -n "${'$'}GF" ] && { read m < "${'$'}GF/cur_freq" 2>/dev/null; read l < "${'$'}GF/load" 2>/dev/null; }
+  p=""; read p < /sys/class/hwmon/hwmon0/pwm1 2>/dev/null
+  echo "cpu=${'$'}c gpu=${'$'}g gpumhz=${'$'}m gpuload=${'$'}{l%%@*} pwm=${'$'}p" > "${'$'}D/stats"
+  chmod 666 "${'$'}D/stats"
+}
 # every wish is its own file cmd-<time> from Hugminn; the helper only reads them (Hugminn tidies up)
 seen=" "
 n=100
@@ -167,7 +193,8 @@ while true; do
   done
   seen="${'$'}now"
   n=${'$'}((n+1))
-  # heartbeat every ~9 s
+  # live values every ~2 s, heartbeat every ~9 s
+  [ ${'$'}((n % 6)) -eq 0 ] && stats
   if [ ${'$'}n -ge 30 ]; then n=0; beat; fi
   sleep 0.3
 done
