@@ -106,6 +106,13 @@ hw() {
     echo "## fan"
     find /sys/class /sys/devices/platform -maxdepth 4 -iname '*fan*' 2>/dev/null | head -40
     for f in ${'$'}(find /sys/class /sys/devices/platform -maxdepth 5 \( -iname '*rpm*' -o -iname 'fan*_input' -o -iname '*speed*' \) 2>/dev/null | grep -i fan | head -10); do echo "${'$'}f=${'$'}(cat "${'$'}f" 2>/dev/null)"; done
+    echo "## cpu"
+    for p in /sys/devices/system/cpu/cpufreq/policy*; do
+      echo "${'$'}(basename "${'$'}p"): cpus=${'$'}(cat "${'$'}p/related_cpus" 2>/dev/null) gov=${'$'}(cat "${'$'}p/scaling_governor" 2>/dev/null) min=${'$'}(cat "${'$'}p/scaling_min_freq" 2>/dev/null) max=${'$'}(cat "${'$'}p/scaling_max_freq" 2>/dev/null) hw=${'$'}(cat "${'$'}p/cpuinfo_min_freq" 2>/dev/null)-${'$'}(cat "${'$'}p/cpuinfo_max_freq" 2>/dev/null)"
+      echo "   govs=${'$'}(cat "${'$'}p/scaling_available_governors" 2>/dev/null) freqs=${'$'}(cat "${'$'}p/scaling_available_frequencies" 2>/dev/null | head -c 300)"
+    done
+    echo "## gpu"
+    for g in /sys/class/devfreq/*; do echo "${'$'}(basename "${'$'}g"): gov=${'$'}(cat "${'$'}g/governor" 2>/dev/null) min=${'$'}(cat "${'$'}g/min_freq" 2>/dev/null) max=${'$'}(cat "${'$'}g/max_freq" 2>/dev/null) avail=${'$'}(cat "${'$'}g/available_frequencies" 2>/dev/null | head -c 200)"; done
     echo "## props"
     getprop | grep -iE 'fan|led|light|rgb|joy' | head -40
   } > "${'$'}D/hw.txt" 2>&1
