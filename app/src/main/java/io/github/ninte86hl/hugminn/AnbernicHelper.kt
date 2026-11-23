@@ -85,23 +85,32 @@ beat() { date +%s > "${'$'}D/alive"; chmod 666 "${'$'}D/alive"; }
 # already running from the other path: nothing to do
 if [ "${'$'}1" != "loop" ]; then
   pkill -f "helper.sh loop" 2>/dev/null
-  note "start uid=${'$'}(id -u) folder=${'$'}D"
+  note "start uid=${'$'}(id -u) folder=${'$'}D low=${'$'}([ -d /data/media/0/${'$'}(basename "${'$'}D") ] && echo ok)"
   beat
   dumpsys deviceidle whitelist +${'$'}P >/dev/null 2>&1
   setsid sh "${'$'}0" loop </dev/null >/dev/null 2>&1 &
   exit 0
 fi
+# the same folder without the storage layer in between: there root may rename and delete Hugminn's files
+LOW=/data/media/0/${'$'}(basename "${'$'}D")
+T=/data/local/tmp/hugminn-cmd
+warned=""
 n=100
 while true; do
-  if [ -f "${'$'}D/cmd" ]; then
-    mv "${'$'}D/cmd" "${'$'}D/cmd.run"
+  for c in "${'$'}LOW/cmd" "${'$'}D/cmd"; do
+    [ -f "${'$'}c" ] || continue
+    if ! cp "${'$'}c" "${'$'}T" 2>/dev/null; then [ -z "${'$'}warned" ] && note "cannot read ${'$'}c"; warned=1; continue; fi
+    rm -f "${'$'}c" 2>/dev/null || : > "${'$'}c" 2>/dev/null
+    # could not take it away: say so once, and don't repeat it every 0.3 s
+    if [ -s "${'$'}c" ]; then [ -z "${'$'}warned" ] && note "cannot remove ${'$'}c"; warned=1; sleep 2; fi
     while read k v; do
-      case "${'$'}k" in ${allowed.joinToString("|")}) ;; *) continue ;; esac
-      case "${'$'}v" in ''|*[!0-9]*) continue ;; esac
-      settings put system "${'$'}k" "${'$'}v" && note "${'$'}k=${'$'}v"
-    done < "${'$'}D/cmd.run"
-    rm -f "${'$'}D/cmd.run"
-  fi
+      case "${'$'}k" in ${allowed.joinToString("|")}) ;; *) note "ignored ${'$'}k"; continue ;; esac
+      case "${'$'}v" in ''|*[!0-9]*) note "ignored ${'$'}k=${'$'}v"; continue ;; esac
+      if settings put system "${'$'}k" "${'$'}v"; then note "${'$'}k=${'$'}v"; else note "failed ${'$'}k=${'$'}v"; fi
+    done < "${'$'}T"
+    rm -f "${'$'}T"
+    break
+  done
   n=${'$'}((n+1))
   # heartbeat every ~9 s
   if [ ${'$'}n -ge 30 ]; then n=0; beat; fi
