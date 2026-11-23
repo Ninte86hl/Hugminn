@@ -135,6 +135,7 @@ class DeviceTestActivity : Activity() {
         val skipped = mutableListOf<String>()
         var idx = 0
         var done = false
+        var askedAt = 0L
         list.removeAllViews()
         list.addView(text(t("Tasten: drücke die angezeigte Taste", "Buttons: press the button shown"), 18f, fg, true))
         list.addView(text(t("Eine Taste nach der anderen. Nicht vorhanden: 8 Sekunden warten, dann geht es weiter. Start 1 Sekunde halten beendet den Test.",
@@ -163,6 +164,7 @@ class DeviceTestActivity : Activity() {
         }
         fun show() {
             if (idx >= order.size) { finishKeys(); return }
+            askedAt = android.os.SystemClock.uptimeMillis()
             prompt.text = order[idx].value
             progress.text = "${idx + 1} / ${order.size}"
             list.removeCallbacks(skipTask)
@@ -178,6 +180,12 @@ class DeviceTestActivity : Activity() {
         fun got(code: Int, scan: Int, dev: String?) {
             if (done || idx >= order.size || waitRelease) return
             val (want, name) = order[idx]
+            // tilting a stick while clicking it sends D-pad keys: they don't answer for L3/R3 or any other button
+            val dpad = code in setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER)
+            val wantDpad = want in setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT)
+            if (dpad && !wantDpad) return
+            // a moment after the last button: leftovers of it don't count for the next one
+            if (android.os.SystemClock.uptimeMillis() - askedAt < 500) return
             val got = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
             // Home: whatever the maker sends for it (Home, F10 on Anbernic, Back on the Pocket Classic) is fine
             val ok = code == want || (want == KeyEvent.KEYCODE_HOME && code in setOf(KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_MOVE_HOME, KeyEvent.KEYCODE_F10, KeyEvent.KEYCODE_BACK))
