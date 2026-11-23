@@ -422,6 +422,17 @@ class Prefs(private val ctx: Context) {
         get() = p.getString("ledElState", "") ?: ""
         set(v) = p.edit().putString("ledElState", v).apply()
     /** On the home screen: performance Normal and fan Quiet (AppProfiles). */
+    /** Launcher chosen by the person ("" = Android's home app). */
+    var launcherPkg: String
+        get() = p.getString("launcherPkg", "") ?: ""
+        set(v) { p.edit().putString("launcherPkg", v).apply(); Apps.chosenHome = v.ifBlank { null } }
+    var launcherPerf: String
+        get() = p.getString("launcherPerf", "0") ?: "0"
+        set(v) = p.edit().putString("launcherPerf", v).apply()
+    var launcherFan: String
+        get() = p.getString("launcherFan", "1") ?: "1"
+        set(v) = p.edit().putString("launcherFan", v).apply()
+
     var launcherProfile: Boolean
         get() = p.getBoolean("launcherProfile", true)
         set(v) = p.edit().putBoolean("launcherProfile", v).apply()

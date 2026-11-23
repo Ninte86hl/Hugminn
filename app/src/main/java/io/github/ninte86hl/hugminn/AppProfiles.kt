@@ -107,7 +107,7 @@ object AppProfiles {
     private fun evaluate(svc: HugminnService, pkg: String?, title: String?) {
         // the home screen: Normal · Quiet, if switched on (and the device has these profiles)
         val hit = pkg?.let { find(all(svc), it, title) }
-            ?: if (pkg == null && svc.prefs.launcherProfile && Device.sys(svc, "performance_mode") != null) HOME to Profile("0", if (Device.sys(svc, "fan_mode") != null) "1" else null) else null
+            ?: if (pkg == null && svc.prefs.launcherProfile && Device.sys(svc, "performance_mode") != null) HOME to Profile(svc.prefs.launcherPerf, if (Device.sys(svc, "fan_mode") != null) svc.prefs.launcherFan else null) else null
         if (hit != null) {
             if (activeKey == hit.first) return
             if (activeKey == null) remember(svc)

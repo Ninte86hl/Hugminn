@@ -502,8 +502,8 @@ class ControlCenter(private val svc: HugminnService) {
 
     /**
      * D-pad in the grid: always to the neighbouring cell in that direction, staying on the same row
-     * (or column) where possible; empty cells are skipped; past the edge: next page, above the top row:
-     * the settings button.
+     * (or column) where possible; empty cells are skipped; the edge is the end (pages only with L/R –
+     * edit mode moves across them), above the top row: the settings button.
      */
     private fun gridNav(dx: Int, dy: Int) {
         val gearIdx = gearItem?.let { items.indexOf(it) } ?: -1
@@ -533,7 +533,7 @@ class ControlCenter(private val svc: HugminnService) {
                 }
                 x += dx
             }
-            if (pages() > 1) {
+            if (false && pages() > 1) {
                 changePage(dx)
                 val target = placed.withIndex().filter { it.value.page == gridPage }
                     .minByOrNull { (if (dx > 0) it.value.x else gridCols - it.value.x) * 10 + abs(it.value.y - ry) }
