@@ -734,7 +734,7 @@ class ControlCenter(private val svc: HugminnService) {
         }
         val big = e.w >= 2 && e.h >= 2
         if (id == "system") return systemElement(e)
-        if (big && (id == "perf" || id == "fan") && rootOk) return profileElement(e)
+        if (big && (id == "perf" || id == "fan") && (rootOk || Device.canWrite(svc))) return profileElement(e)
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
         if (id == "media" && big) return mediaElement(e, t)
@@ -1389,7 +1389,7 @@ class ControlCenter(private val svc: HugminnService) {
             "fps" -> InfoSpec(IconView.Kind.REFRESH, "FPS", { s -> if (s.fps >= 0) "${s.fps}" else "–" },
                 { _ -> t("${Math.round(display?.refreshRate ?: 60f)} Hz Modus", "${Math.round(display?.refreshRate ?: 60f)} Hz mode") }, onA = { overlayMenu() })
             "perf" -> InfoSpec(IconView.Kind.BOLT, tr("LEISTUNG"), { _ -> Device.perfLabel(svc) }, { s -> t("CPU bis %.2f GHz", "CPU up to %.2f GHz").format(s.cpuMhz / 1000f) },
-                onA = { profileMenu(tr("Leistungsprofil"), "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } } })
+                onA = { profileMenu(tr("Leistungsprofil"), Device.perfKey, Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } } })
             "fan" -> InfoSpec(IconView.Kind.FAN, tr("LÜFTER"), { _ -> Device.fanLabel(svc) },
                 { _ -> if (FanCurve.isRunning()) t("${FanCurve.currentPct} % bei ${FanCurve.currentTemp.toInt()} °C", "${FanCurve.currentPct} % at ${FanCurve.currentTemp.toInt()} °C") else tr("Profil") },
                 onA = { profileMenu(tr("Lüfterprofil"), "fan_mode", Device.fanProfiles) { v -> chooseFan(v) } })
@@ -1605,7 +1605,7 @@ class ControlCenter(private val svc: HugminnService) {
                 ).joinToString(" · ")
             }
             CcBlock.PERF -> info(IconView.Kind.BOLT, tr("LEISTUNG"), onA = {
-                profileMenu(tr("Leistungsprofil"), "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
+                profileMenu(tr("Leistungsprofil"), Device.perfKey, Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
             }) { big, sub, s ->
                 big.text = Device.perfLabel(svc)
                 sub.text = t("CPU bis %.2f GHz", "CPU up to %.2f GHz").format(s.cpuMhz / 1000f)
@@ -1661,10 +1661,10 @@ class ControlCenter(private val svc: HugminnService) {
         }, { Device.btOn(svc) }, { btMenu(rootOk) }) {
             if (rootOk) Device.setBt(!Device.btOn(svc)) { refreshAll() } else btMenu(false)
         }
-        "perf" -> if (rootOk && Device.sys(svc, "performance_mode") != null) Tile(tr("Leistung"), IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
-            profileMenu(tr("Leistung"), "performance_mode", Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
+        "perf" -> if ((rootOk || Device.canWrite(svc)) && Device.sys(svc, Device.perfKey) != null) Tile(tr("Leistung"), IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
+            profileMenu(tr("Leistung"), Device.perfKey, Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
         } else null
-        "fan" -> if (rootOk && Device.sys(svc, "fan_mode") != null) Tile(tr("Lüfter"), IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
+        "fan" -> if ((rootOk || Device.canWrite(svc)) && Device.sys(svc, "fan_mode") != null) Tile(tr("Lüfter"), IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
             profileMenu(tr("Lüfter"), "fan_mode", Device.fanProfiles) { v -> chooseFan(v) }
         } else null
         "refresh" -> {
@@ -1674,7 +1674,13 @@ class ControlCenter(private val svc: HugminnService) {
                     Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
                 } else null
         }
-        "leds" -> if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
+        // Anbernic: its own lighting – on/off, effect from the menu
+        "leds" -> if (Device.isAnbernic && (rootOk || Device.canWrite(svc)) && Device.sys(svc, "led_enable") != null)
+            Tile(tr("Beleuchtung"), IconView.Kind.LED, { if (Device.sysOn(svc, "led_enable")) Device.anbernicEffects[Device.sys(svc, "led_effect")] ?: tr("An") else tr("Aus") },
+                { Device.sysOn(svc, "led_enable") }, {
+                    profileMenu(tr("Beleuchtung"), "led_effect", Device.anbernicEffects) { v -> Device.put("led_effect", v) { Device.put("led_enable", "1") { refreshAll() } } }
+                }) { Device.put("led_enable", if (Device.sysOn(svc, "led_enable")) "0" else "1") { refreshAll() } }
+        else if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
         "dnd" -> if (rootOk) Tile(tr("Nicht stören"), IconView.Kind.MOON, { if (Device.dnd(svc)) tr("An") else tr("Aus") }, { Device.dnd(svc) }) {
             Device.setDnd(!Device.dnd(svc)) { refreshAll() }
         } else null
@@ -1971,7 +1977,7 @@ class ControlCenter(private val svc: HugminnService) {
         val app = svc.foregroundPkg
         val kind = if (key == "fan_mode") "fan" else "perf"
         // only for games and emulators (not for e.g. a file manager or Obtainium that happens to be open)
-        if (app != null && !svc.homeInFront && Apps.isGameLike(svc, app) && Root.available() && (key == "fan_mode" || key == "performance_mode")) {
+        if (app != null && !svc.homeInFront && Apps.isGameLike(svc, app) && (Root.available() || Device.canWrite(svc)) && (key == "fan_mode" || key == Device.perfKey)) {
             val name = Apps.label(svc, app)
             val saved = AppProfiles.of(svc, app)?.let { if (kind == "fan") it.fan else it.perf }
             val now = if (kind == "fan" && svc.prefs.fanCustom) "6" else cur

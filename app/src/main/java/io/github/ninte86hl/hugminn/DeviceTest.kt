@@ -478,7 +478,7 @@ object DeviceReport {
         // the handheld's own settings
         val fw = if (Device.isAyn) t("AYN-Funktionen", "AYN features") else t("Retroid-Funktionen", "Retroid features")
         listOf(
-            "performance_mode" to t("Leistungsprofile", "Performance profiles"),
+            Device.perfKey to t("Leistungsprofile", "Performance profiles"),
             "fan_mode" to t("Lüfterprofile", "Fan profiles"),
             Device.controllerKey(this) to t("Tastenlayout / eingebaute Steuerung aus", "Button layout / built-in controls off"),
             "trigger_input_mode" to t("Trigger-Modus", "Trigger mode"),
