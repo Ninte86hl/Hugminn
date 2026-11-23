@@ -306,6 +306,12 @@ object Feedback {
             Root.exec("grep -E '^N: Name|^H: Handlers' /proc/bus/input/devices 2>/dev/null", 3_000)?.lines()?.filter { it.isNotBlank() }?.forEach { all += "  input ${it.trim()}" }
             if (all.isNotEmpty()) { appendLine(); appendLine("Alle Einstellungen (${all.size}):"); all.sorted().forEach { appendLine(it) } }
         }
+        // Anbernic helper: what it found out about the hardware (LEDs, temperatures, fan), and its log
+        if (Device.isAnbernic) runCatching {
+            val d = AnbernicHelper.dir()
+            java.io.File(d, "hw.txt").takeIf { it.exists() }?.let { appendLine(); appendLine("Anbernic-Hardware (Helfer):"); appendLine(it.readText().take(12_000)) }
+            java.io.File(d, "log").takeIf { it.exists() }?.let { appendLine(); appendLine("Helfer-Log:"); it.readLines().takeLast(30).forEach { l -> appendLine("  $l") } }
+        }
         runCatching { svc.own.diag + svc.own.removeDiag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
         appendLine(); appendLine("Spieltitel: ${GameTitle.titles}"); if (GameTitle.diag.isNotEmpty()) appendLine(GameTitle.diag)
         appendLine(); appendLine("Musik: Listener ${Media.listenerInfo} · spielt=${Media.playing} · app=${Media.app} · titel=${Media.title} · cover=${Media.art != null}"); if (Media.diag.isNotEmpty()) appendLine(Media.diag)
