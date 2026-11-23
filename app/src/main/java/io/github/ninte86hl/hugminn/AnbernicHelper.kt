@@ -39,7 +39,7 @@ object AnbernicHelper {
     fun report(ctx: Context): String {
         val diag = setting(ctx, "hugminn_helper_diag") ?: "no note"
         val beat = setting(ctx, "hugminn_helper_alive")?.toLongOrNull()?.let { "${System.currentTimeMillis() / 1000 - it} s ago" } ?: "none"
-        val files = dir().listFiles()?.joinToString { it.name } ?: "–"
+        val files = dir().listFiles()?.joinToString { it.name + (if (it.name.startsWith("id")) "=" + runCatching { it.readText().trim().take(80) }.getOrDefault("?") else "") } ?: "–"
         return "note: $diag · heartbeat: $beat · folder: $files".take(900)
     }
 
@@ -48,8 +48,21 @@ object AnbernicHelper {
         val d = dir()
         File(d, "helper.sh").writeText(helper(pkg))
         File(d, "hugminn-anbernic.sh").writeText(launcher())
+        File(d, "hugminn-test.sh").writeText(probe())
         return d
     }
+
+    /**
+     * Test: which kinds of command Anbernic's runner really carries out – each line leaves a
+     * different visible trace (custom_fan_speed 37, led_effect 1, a file, the fan on Turbo).
+     */
+    private fun probe() = """
+settings put system custom_fan_speed 37
+cmd settings put system led_effect 1
+/system/bin/settings put system fan_mode 2
+id > /sdcard/Download/Hugminn/id.txt
+sh -c "id > /sdcard/Download/Hugminn/id2.txt"
+""".trimStart()
 
     /** What Anbernic imports: single plain commands only (it runs them one by one). */
     private fun launcher() = """
