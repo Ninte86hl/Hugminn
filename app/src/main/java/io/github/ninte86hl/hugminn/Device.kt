@@ -40,8 +40,9 @@ object Device {
         if (isAnbernic) AnbernicHelper.trace("put $key=$value root=${Root.available()} app=${c != null} helper=${c?.let { canWrite(it) }}")
         if (!Root.available() && c != null && canWrite(c)) {
             AnbernicHelper.put(c, key, value)
-            // the helper looks every 0.3 s
+            // the helper looks every 0.3 s; "settings put" itself takes a moment: refresh twice
             main.postDelayed(then, 700)
+            main.postDelayed(then, 1800)
         } else Root.run(Root.putSetting("system", key, value), then = then)
     }
     /** Trigger modes; AYN numbers analog and digital the other way round than Retroid. */

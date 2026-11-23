@@ -43,8 +43,18 @@ object AnbernicHelper {
         }.getOrNull()
     }
 
+    /** Ends an app through the helper (the switcher's "close" without root). */
+    fun stop(ctx: Context, pkg: String): Boolean {
+        if (!pkg.matches(Regex("[a-zA-Z0-9._]+"))) return false
+        return write("stop $pkg")
+    }
+
     fun put(ctx: Context, key: String, value: String): Boolean {
         if (key !in allowed || !value.all { it.isDigit() }) { trace("refused $key=$value"); return false }
+        return write("$key $value")
+    }
+
+    private fun write(line: String): Boolean {
         val d = dir()
         // tidy up wishes the helper has long done (it may not delete them itself)
         d.listFiles { f -> f.name.startsWith("cmd-") && System.currentTimeMillis() - f.lastModified() > 10_000 }?.forEach { it.delete() }
@@ -52,10 +62,10 @@ object AnbernicHelper {
             val name = "cmd-${System.currentTimeMillis()}-${(Math.random() * 1000).toInt()}"
             // written whole first, then renamed: the helper never sees half a wish
             val tmp = File(d, ".$name")
-            tmp.writeText("$key $value\n")
+            tmp.writeText("$line\n")
             if (!tmp.renameTo(File(d, name))) error("rename failed")
         }
-        trace("$key=$value " + (r.exceptionOrNull()?.let { "FAILED ${it.javaClass.simpleName}: ${it.message}" } ?: "→ cmd file"))
+        trace("$line " + (r.exceptionOrNull()?.let { "FAILED ${it.javaClass.simpleName}: ${it.message}" } ?: "→ cmd file"))
         return r.isSuccess
     }
 
@@ -185,6 +195,11 @@ while true; do
     case "${'$'}seen" in *" ${'$'}b "*) continue ;; esac
     [ -r "${'$'}c" ] || { note "cannot read ${'$'}b"; continue; }
     cat "${'$'}c" 2>/dev/null | while read k v; do
+      # ending an app (the switcher's "close"): package names only
+      if [ "${'$'}k" = "stop" ]; then
+        case "${'$'}v" in *[!a-zA-Z0-9._]*|'') note "ignored stop ${'$'}v" ;; *) am force-stop "${'$'}v" && note "stopped ${'$'}v" ;; esac
+        continue
+      fi
       case "${'$'}k" in ${allowed.joinToString("|")}) ;; *) note "ignored ${'$'}k"; continue ;; esac
       case "${'$'}v" in ''|*[!0-9]*) note "ignored ${'$'}k=${'$'}v"; continue ;; esac
       if settings put system "${'$'}k" "${'$'}v"; then note "${'$'}k=${'$'}v"; else note "failed ${'$'}k=${'$'}v"; fi
