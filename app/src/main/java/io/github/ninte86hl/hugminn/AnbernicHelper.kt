@@ -2,7 +2,6 @@ package io.github.ninte86hl.hugminn
 
 import android.content.Context
 import android.os.Environment
-import android.provider.Settings
 import java.io.File
 
 /**
@@ -19,14 +18,19 @@ object AnbernicHelper {
     /** Settings the helper accepts (everything else is ignored by the helper too). */
     val allowed = setOf("cpu_mode", "fan_mode", "custom_fan_speed", "led_enable", "led_effect", "trigger_mode", "trigger_type", "abxy_mode")
 
+    /** With "all files access": its own folder "hugminn" in internal storage; otherwise Download/Hugminn. */
     @Suppress("DEPRECATION")
-    fun dir(): File = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Hugminn").also { it.mkdirs() }
+    fun dir(): File = (if (Environment.isExternalStorageManager()) File(Environment.getExternalStorageDirectory(), "hugminn")
+        else File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Hugminn")).also { it.mkdirs() }
 
-    private fun setting(ctx: Context, key: String) = runCatching { Settings.System.getString(ctx.contentResolver, key) }.getOrNull()
+    /** The same folder as root sees it (for the scripts). */
+    private fun rootPath(): String = if (Environment.isExternalStorageManager()) "/sdcard/hugminn" else "/sdcard/Download/Hugminn"
 
-    /** Helper alive: its heartbeat (seconds) is at most 30 s old. */
+    private fun read(name: String) = runCatching { File(dir(), name).readText().trim() }.getOrNull()
+
+    /** Helper alive: its heartbeat (seconds, in the file "alive") is at most 30 s old. */
     fun alive(ctx: Context): Boolean {
-        val t = setting(ctx, "hugminn_helper_alive")?.trim()?.toLongOrNull() ?: return false
+        val t = read("alive")?.toLongOrNull() ?: return false
         return System.currentTimeMillis() / 1000 - t < 30
     }
 
@@ -37,8 +41,8 @@ object AnbernicHelper {
 
     /** For the device test. */
     fun report(ctx: Context): String {
-        val diag = setting(ctx, "hugminn_helper_diag") ?: "no note"
-        val beat = setting(ctx, "hugminn_helper_alive")?.toLongOrNull()?.let { "${System.currentTimeMillis() / 1000 - it} s ago" } ?: "none"
+        val diag = read("log")?.lines()?.takeLast(4)?.joinToString(" / ") ?: "no log"
+        val beat = read("alive")?.toLongOrNull()?.let { "${System.currentTimeMillis() / 1000 - it} s ago" } ?: "none"
         val files = dir().listFiles()?.joinToString { it.name + (if (it.name.startsWith("id")) "=" + runCatching { it.readText().trim().take(80) }.getOrDefault("?") else "") } ?: "–"
         return "note: $diag · heartbeat: $beat · folder: $files".take(900)
     }
@@ -48,27 +52,14 @@ object AnbernicHelper {
         val d = dir()
         File(d, "helper.sh").writeText(helper(pkg))
         File(d, "hugminn-anbernic.sh").writeText(launcher())
-        File(d, "hugminn-test.sh").writeText(probe())
+        File(d, "hugminn-test.sh").delete()
+        File(d, "id.txt").delete(); File(d, "id2.txt").delete()
         return d
     }
 
-    /**
-     * Test: which kinds of command Anbernic's runner really carries out – each line leaves a
-     * different visible trace (custom_fan_speed 37, led_effect 1, a file, the fan on Turbo).
-     */
-    private fun probe() = """
-settings put system custom_fan_speed 37
-cmd settings put system led_effect 1
-/system/bin/settings put system fan_mode 2
-id > /sdcard/Download/Hugminn/id.txt
-sh -c "id > /sdcard/Download/Hugminn/id2.txt"
-""".trimStart()
-
     /** What Anbernic imports: single plain commands only (it runs them one by one). */
     private fun launcher() = """
-settings put system hugminn_helper_diag launcher-started
-sh /sdcard/Download/Hugminn/helper.sh
-sh /data/media/0/Download/Hugminn/helper.sh
+sh ${rootPath()}/helper.sh
 """.trimStart()
 
     private fun helper(pkg: String): String = """
@@ -77,11 +68,13 @@ sh /data/media/0/Download/Hugminn/helper.sh
 # Accepts only these settings, only numbers: ${allowed.joinToString(" ")}
 P=$pkg
 D=${'$'}(dirname "${'$'}0")
-note() { settings put system hugminn_helper_diag "${'$'}*"; }
+note() { echo "${'$'}(date +%H:%M:%S) ${'$'}*" >> "${'$'}D/log"; chmod 666 "${'$'}D/log"; }
+beat() { date +%s > "${'$'}D/alive"; chmod 666 "${'$'}D/alive"; }
 # already running from the other path: nothing to do
 if [ "${'$'}1" != "loop" ]; then
   pkill -f "helper.sh loop" 2>/dev/null
-  note "uid=${'$'}(id -u) folder=${'$'}D read=${'$'}([ -r "${'$'}D/helper.sh" ] && echo ok) t=${'$'}(date +%s)"
+  note "start uid=${'$'}(id -u) folder=${'$'}D"
+  beat
   dumpsys deviceidle whitelist +${'$'}P >/dev/null 2>&1
   setsid sh "${'$'}0" loop </dev/null >/dev/null 2>&1 &
   exit 0
@@ -93,13 +86,13 @@ while true; do
     while read k v; do
       case "${'$'}k" in ${allowed.joinToString("|")}) ;; *) continue ;; esac
       case "${'$'}v" in ''|*[!0-9]*) continue ;; esac
-      settings put system "${'$'}k" "${'$'}v"
+      settings put system "${'$'}k" "${'$'}v" && note "${'$'}k=${'$'}v"
     done < "${'$'}D/cmd.run"
     rm -f "${'$'}D/cmd.run"
   fi
   n=${'$'}((n+1))
   # heartbeat every ~9 s
-  if [ ${'$'}n -ge 30 ]; then n=0; settings put system hugminn_helper_alive ${'$'}(date +%s); fi
+  if [ ${'$'}n -ge 30 ]; then n=0; beat; fi
   sleep 0.3
 done
 """.trimStart()
