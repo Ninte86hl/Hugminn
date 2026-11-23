@@ -613,10 +613,34 @@ class MainActivity : Activity() {
                         "it then always starts with that profile, afterwards the previous setting comes back. A game's profile beats the emulator's."),
                 12f, pal.onSurfaceVariant,
             ).apply { setPadding(0, d(6), 0, d(6)) })
-            row(ap, t("Im Launcher: Normal · Leise", "In the launcher: Normal · Quiet"),
-                t("Auf dem Startbildschirm laufen Leistung Normal und Lüfter Leise – spart Akku zwischen den Spielen. Beim Start einer App ohne Profil kommt die vorige Einstellung zurück.",
-                    "On the home screen performance runs Normal and the fan Quiet – saves battery between games. An app without a profile gets the previous setting back."),
-                { if (svc.prefs.launcherProfile) tr("An") else tr("Aus") }) { svc.prefs.launcherProfile = !svc.prefs.launcherProfile }
+            row(ap, t("Profil im Launcher", "Profile in the launcher"),
+                t("Im Launcher laufen immer die Leistung und der Lüfter unten – spart Akku zwischen den Spielen. Beim Start einer App ohne Profil kommt die vorige Einstellung zurück.",
+                    "In the launcher the performance and fan below always apply – saves battery between games. An app without a profile gets the previous setting back."),
+                { if (svc.prefs.launcherProfile) tr("An") else tr("Aus") }) { svc.prefs.launcherProfile = !svc.prefs.launcherProfile; content.post { build() } }
+            if (svc.prefs.launcherProfile) {
+                val sysHome = runCatching {
+                    packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                        ?.activityInfo?.packageName?.takeIf { it != "android" }
+                }.getOrNull()
+                row(ap, t("Launcher", "Launcher"), t("Die App, die als Startbildschirm zählt", "The app that counts as the home screen"),
+                    { svc.prefs.launcherPkg.ifBlank { null }?.let { Apps.label(this, it) }
+                        ?: t("Automatisch", "Automatic") + (sysHome?.let { " (${Apps.label(this, it)})" } ?: "") }) {
+                    val apps = Apps.labels(this).entries.map { it.key to it.value }.filter { it.second != packageName }
+                        .distinctBy { it.second }.sortedBy { it.first.lowercase() }
+                    val names = listOf(t("Automatisch", "Automatic") + (sysHome?.let { " (${Apps.label(this, it)})" } ?: "")) + apps.map { it.first }
+                    android.app.AlertDialog.Builder(this).setTitle(t("Launcher wählen", "Choose launcher"))
+                        .setItems(names.toTypedArray()) { _, i -> svc.prefs.launcherPkg = if (i == 0) "" else apps[i - 1].second; content.post { build() } }
+                        .setNegativeButton(t("Abbrechen", "Cancel"), null).show()
+                }
+                if (Device.sys(svc, "performance_mode") != null) row(ap, t("Leistung im Launcher", "Performance in the launcher"), null,
+                    { Device.perfProfiles[svc.prefs.launcherPerf] ?: svc.prefs.launcherPerf }) {
+                    svc.prefs.launcherPerf = cycle(Device.perfProfiles.keys.toList(), svc.prefs.launcherPerf)
+                }
+                if (Device.sys(svc, "fan_mode") != null) row(ap, t("Lüfter im Launcher", "Fan in the launcher"), null,
+                    { Device.fanProfiles[svc.prefs.launcherFan] ?: svc.prefs.launcherFan }) {
+                    svc.prefs.launcherFan = cycle(Device.fanProfiles.keys.toList(), svc.prefs.launcherFan)
+                }
+            }
             if (profiles.isEmpty()) ap.addView(text(t("Noch keine gespeichert", "None saved yet"), 14f, pal.onSurface))
             fun parts(p: AppProfiles.Profile) = listOfNotNull(
                 p.perf?.let { Device.perfProfiles[it] ?: it },
