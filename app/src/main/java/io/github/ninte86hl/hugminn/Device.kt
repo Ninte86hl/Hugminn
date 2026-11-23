@@ -13,7 +13,8 @@ object Device {
 
     /** Known profiles (value → name). Values not listed yet are shown raw and can still be picked. */
     // Values as used by the shared Retroid/AYN firmware (fan 6 = custom speed from fan_speed).
-    val isAnbernic get() = android.os.Build.MANUFACTURER.contains("Anbernic", true) || android.os.Build.MODEL.startsWith("RG", true)
+    /** Anbernic support comes with 1.14.2 – until then only in test builds. */
+    val isAnbernic get() = (android.os.Build.MANUFACTURER.contains("Anbernic", true) || android.os.Build.MODEL.startsWith("RG", true)) && Prefs.testBuild()
 
     /** Anbernic stores its performance mode as cpu_mode (0 Balance, 1 Game). */
     val perfKey get() = if (isAnbernic) "cpu_mode" else "performance_mode"

@@ -352,7 +352,7 @@ class HugminnService : AccessibilityService() {
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
         if (Device.isAynKey(event)) return false
         // Anbernic (RG 406H): its Home button sends F10 from the built-in pad
-        val anbernicHome = event.keyCode == KeyEvent.KEYCODE_F10 && event.device?.name == "retrogame_joypad"
+        val anbernicHome = event.keyCode == KeyEvent.KEYCODE_F10 && event.device?.name == "retrogame_joypad" && Device.isAnbernic
         // the device test asks for the Home button: it goes there instead of opening anything
         keyProbe?.let { probe ->
             if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || anbernicHome) {

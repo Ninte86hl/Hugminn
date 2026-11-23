@@ -97,6 +97,11 @@ class Prefs(private val ctx: Context) {
         fun dualReady(ctx: Context): Boolean = dual ?: runCatching {
             ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName?.contains("test") == true
         }.getOrDefault(false).also { dual = it }
+
+        /** Test build, without a context at hand (the app's own one through Android). */
+        fun testBuild(): Boolean = dual ?: runCatching {
+            dualReady(Class.forName("android.app.ActivityThread").getMethod("currentApplication").invoke(null) as Context)
+        }.getOrDefault(false)
     }
 
     private val p: SharedPreferences = ctx.getSharedPreferences("hugminn", Context.MODE_PRIVATE)
