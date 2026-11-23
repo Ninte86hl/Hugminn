@@ -472,6 +472,7 @@ object DeviceReport {
         if (!root) add(perm, t("Systemeinstellungen schreiben", "Write system settings"), if (Device.canWrite(this)) CheckState.OK else CheckState.WARN,
             if (Device.canWrite(this)) t("Helfer läuft – Leistung, Lüfter, Beleuchtung ohne Root", "Helper running – performance, fan, lighting without root")
             else t("Helfer läuft nicht (Anbernic: Skript von der Startseite, nach Neustart ▶)", "Helper not running (Anbernic: script from the start page, ▶ after a restart)"))
+        if (!root && Device.isAnbernic) add(perm, t("Helfer-Protokoll", "Helper log"), CheckState.OK, AnbernicHelper.report(this))
         add(perm, t("Hintergrund-Erlaubnis", "Background whitelist"), if (Device.whitelisted(this)) CheckState.OK else CheckState.WARN, if (!Device.whitelisted(this)) t("Das System könnte Hugminn beenden", "The system might end Hugminn") else "")
         val listeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners").orEmpty()
         add(perm, t("Musik-Zugriff", "Music access"), if (listeners.contains(packageName)) CheckState.OK else CheckState.WARN, if (!listeners.contains(packageName)) t("Musikkachel zeigt evtl. keine Titel", "Music tile may show no titles") else "")
