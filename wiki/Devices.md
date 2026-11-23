@@ -12,7 +12,8 @@ Hugminn is made for Android handhelds from **Retroid** and **AYN**. It detects t
 | --- | --- |
 | Retroid Pocket 6 | ✅ tested – primary device |
 | Retroid Pocket Nova | ✅ tested |
-| Retroid Pocket 5 | ✅ works (tested by the community) |
+| Retroid Pocket 5 | ✅ tested |
+| Retroid Pocket Classic (both models) | ✅ tested – from 1.14.1 |
 | G2 | ❔ a tester has announced a report |
 | AYN Odin 2 | ✅ tested |
 | AYN Odin 2 Mini / Odin 2 Portal | ❔ not tested yet – should behave like the Odin 2 |
@@ -60,14 +61,28 @@ Snapdragon 865 · 5.5" 16:9, 1080p
 | --- | --- |
 | Game switcher | ✅ |
 | Control Center | ✅ |
-| Home button | ✅ |
-| Performance and fan profiles | ❔ |
-| Stick LEDs and effects | ❔ |
-| Performance overlay (FPS) | ❔ |
-| Capture | ❔ |
-| Turning off the built-in controls | ❔ |
+| Home button (once, twice, hold) | ✅ |
+| Performance and fan profiles | ✅ |
+| Stick LEDs and effects | ✅ – each stick on its own |
+| Performance overlay (FPS) | ✅ |
+| Capture | ✅ – 1080p, 60 FPS, with game sound |
+| Turning off the built-in controls | ✅ |
+| Setup wizard and device test | ✅ |
 
-Open: a detail about the volume buttons while the notification shade is open – waiting for the tester's answer.
+### Retroid Pocket Classic (Classic and six-button model)
+Snapdragon G1 Gen 2 · 3.92" near-square (1240×1080)
+
+| Area | |
+| --- | --- |
+| Game switcher | ✅ |
+| Control Center | ✅ – compact hint bar for the narrow screen |
+| Home button | ✅ – the button below the screen: once Home, twice Game Switcher, hold Control Center. The firmware detects the double press itself; Back is on B and touch |
+| Extra buttons C and Z (six-button model) | ✅ – freely assignable |
+| Performance and fan profiles | ✅ |
+| Performance overlay (FPS) | ✅ |
+| Capture | ✅ – 1080p, 60 FPS |
+| Stick LEDs | – no sticks, no LEDs |
+| Setup wizard and device test | ✅ |
 
 ### AYN Odin 2
 Snapdragon 8 Gen 2 · 6" 16:9, 1080p
