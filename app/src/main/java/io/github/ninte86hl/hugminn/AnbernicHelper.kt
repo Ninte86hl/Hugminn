@@ -142,7 +142,8 @@ if [ "${'$'}1" != "loop" ]; then
   pkill -f "helper.sh loop" 2>/dev/null
   note "start uid=${'$'}(id -u) folder=${'$'}D low=${'$'}([ -d /data/media/0/${'$'}(basename "${'$'}D") ] && echo ok)"
   beat
-  dumpsys deviceidle whitelist +${'$'}P >/dev/null 2>&1
+  dumpsys deviceidle whitelist +${'$'}P >/dev/null 2>&1 || note "background whitelist failed"
+  appops set ${'$'}P WRITE_SETTINGS allow 2>/dev/null || note "write settings failed"
   hw; note "hardware report: ${'$'}(wc -l < "${'$'}D/hw.txt") lines"
   setsid sh "${'$'}0" loop </dev/null >/dev/null 2>&1 &
   exit 0
