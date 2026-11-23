@@ -548,6 +548,23 @@ class HugminnService : AccessibilityService() {
         }
     }
 
+    private var keymapPaused = false
+
+    /**
+     * An overlay opened or closed. Anbernic: its key mapper is paused meanwhile (as its own panel
+     * does it), otherwise it turns B into Back and the like inside Hugminn's windows.
+     */
+    fun overlayState() {
+        if (!Device.isAnbernic) return
+        val open = (::controlCenter.isInitialized && controlCenter.isOpen) || anySwitcherOpen
+        if (open == keymapPaused) return
+        keymapPaused = open
+        Thread {
+            runCatching { android.provider.Settings.Global.putString(contentResolver, "keymap_paused_by_panel", if (open) "1" else "0") }
+                .onFailure { AnbernicHelper.trace("keymap pause failed: ${it.message}") }
+        }.start()
+    }
+
     fun closeOverlays() {
         if (::controlCenter.isInitialized) controlCenter.close()
         if (::switcher.isInitialized && switcher.isOpen) switcher.close(goBack = false)

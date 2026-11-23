@@ -192,6 +192,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         Displays.snapshot(svc, svc, "Switcher")
         if (isOpen) return
         isOpen = true
+        svc.overlayState()
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
         fromSwipe = swipe
         val front = svc.windowPkg // from the window events: no waiting for the app in front
@@ -253,6 +254,7 @@ class OwnSwitcher(private val svc: HugminnService) {
     fun close(back: Boolean) {
         if (!isOpen) return
         isOpen = false
+        svc.overlayState()
         closedAt = SystemClock.uptimeMillis()
         hat.stop()
         menu = null

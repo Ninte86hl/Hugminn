@@ -96,6 +96,7 @@ class ControlCenter(private val svc: HugminnService) {
         Displays.snapshot(svc, svc, "Control Center")
         Device.refreshLayout(svc)
         isOpen = true
+        svc.overlayState()
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("cc") } }
         pal = Palette(svc)
         items.clear()
@@ -190,6 +191,7 @@ class ControlCenter(private val svc: HugminnService) {
     fun close() {
         if (!isOpen) return
         isOpen = false
+        svc.overlayState()
         hat.stop()
         stopBtScan()
         if (editing) {
