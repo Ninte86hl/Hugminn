@@ -28,7 +28,7 @@ object AnbernicHelper {
         val d = dir(ctx) ?: return "no folder"
         val files = d.listFiles()?.joinToString { "${it.name} (${(System.currentTimeMillis() - it.lastModified()) / 1000} s)" } ?: "–"
         val log = runCatching { File(d, "log").readLines().take(14).joinToString(" | ") }.getOrDefault("no log")
-        return "files: $files · log: $log"
+        return "files: $files · log: $log".take(900)
     }
 
     fun put(ctx: Context, key: String, value: String): Boolean {

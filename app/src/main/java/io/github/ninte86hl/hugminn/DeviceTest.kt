@@ -545,8 +545,8 @@ object DeviceReport {
         // other makers (Anbernic …): which of their own settings exist – the way to their performance, fan and lights
         if (!Device.isRetroid && !android.os.Build.MANUFACTURER.contains("AYN", true)) {
             val words = Regex("perf|fan|cpu|gpu|gov|freq|light|led|rgb|joy|stick|key|button|home|charg|power|mode|anbernic|rg_", RegexOption.IGNORE_CASE)
-            listOf("system" to android.provider.Settings.System.CONTENT_URI, "global" to android.provider.Settings.Global.CONTENT_URI,
-                "secure" to android.provider.Settings.Secure.CONTENT_URI).forEach { (name, uri) ->
+            // only "system": that is where the makers keep theirs (global/secure made the report too long for GitHub's link)
+            listOf("system" to android.provider.Settings.System.CONTENT_URI).forEach { (name, uri) ->
                 val found = runCatching {
                     contentResolver.query(uri, arrayOf("name", "value"), null, null, null)?.use { c ->
                         buildList { while (c.moveToNext()) { val k = c.getString(0) ?: continue; if (words.containsMatchIn(k)) add("$k=${c.getString(1)}") } }
