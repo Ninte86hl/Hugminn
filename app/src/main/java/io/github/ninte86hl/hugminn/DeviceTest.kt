@@ -537,6 +537,21 @@ object DeviceReport {
                 add(pad, e.name, if (b != null) CheckState.OK else CheckState.WARN, if (b != null) t("Akku", "Battery") + " ${b.second} %" else t("Meldet keinen Akkustand", "Reports no battery level"))
             }
         } else add(pad, t("Externer Controller", "External controller"), CheckState.OK, t("Keiner verbunden", "None connected"))
+
+        // other makers (Anbernic …): which of their own settings exist – the way to their performance, fan and lights
+        if (!Device.isRetroid && !android.os.Build.MANUFACTURER.contains("AYN", true)) {
+            val words = Regex("perf|fan|cpu|gpu|gov|freq|light|led|rgb|joy|stick|key|button|home|charg|power|mode|anbernic|rg_", RegexOption.IGNORE_CASE)
+            listOf("system" to android.provider.Settings.System.CONTENT_URI, "global" to android.provider.Settings.Global.CONTENT_URI,
+                "secure" to android.provider.Settings.Secure.CONTENT_URI).forEach { (name, uri) ->
+                val found = runCatching {
+                    contentResolver.query(uri, arrayOf("name", "value"), null, null, null)?.use { c ->
+                        buildList { while (c.moveToNext()) { val k = c.getString(0) ?: continue; if (words.containsMatchIn(k)) add("$k=${c.getString(1)}") } }
+                    }
+                }.getOrNull()
+                add(t("Systemeinstellungen", "System settings"), name, if (found.isNullOrEmpty()) CheckState.WARN else CheckState.OK,
+                    found?.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(" · ") ?: t("nicht lesbar oder leer", "not readable or empty"))
+            }
+        }
     }
 
 

@@ -345,9 +345,11 @@ class HugminnService : AccessibilityService() {
         }
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
         if (Device.isAynKey(event)) return false
+        // Anbernic (RG 406H): its Home button sends F10 from the built-in pad
+        val anbernicHome = event.keyCode == KeyEvent.KEYCODE_F10 && event.device?.name == "retrogame_joypad"
         // the device test asks for the Home button: it goes there instead of opening anything
         keyProbe?.let { probe ->
-            if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME) {
+            if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || anbernicHome) {
                 if (event.action == KeyEvent.ACTION_UP) ui.post { probe(KeyEvent.KEYCODE_HOME) }
                 return true
             }
@@ -358,6 +360,7 @@ class HugminnService : AccessibilityService() {
         if (Device.noSticks && event.keyCode == KeyEvent.KEYCODE_BACK && event.device?.name?.contains("Retroid", true) == true) return onClassicKey(event, false)
         if (Device.noSticks && (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME)) return onClassicKey(event, true)
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
+        if (anbernicHome) return onHome(event, forced = true)
         // extra buttons (paddles, M1/M2) – only once the person gave them something to do
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_C || event.keyCode == KeyEvent.KEYCODE_BUTTON_Z) onExtraKey(event)?.let { return it }
         // an external controller (e.g. 8BitDo over Bluetooth): its Home/Guide button counts as Home
