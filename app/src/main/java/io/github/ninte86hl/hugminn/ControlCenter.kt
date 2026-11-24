@@ -2721,7 +2721,8 @@ class ControlCenter(private val svc: HugminnService) {
         if (Device.isAnbernic) return anbLedPicker()
         val r = root ?: return
         val reuse = (menuView as? LinearLayout)?.takeIf { it.tag == "led" }
-        if (reuse == null) { closeMenu(); ledWheelView = false; ledFxIdx = -1; ledEditing = null; ledViaNorth = false; ledCombo = svc.prefs.ledComboSel }
+        // a fresh window starts on "Alle": the simple way, single lights are one step away
+        if (reuse == null) { closeMenu(); ledWheelView = false; ledFxIdx = -1; ledEditing = null; ledViaNorth = false; ledCombo = svc.prefs.ledComboSel; ledEl = ledN() }
         if (ledTab > 2) ledTab = 0
         val names = Device.ledElNames(svc)
         val n = names.size
