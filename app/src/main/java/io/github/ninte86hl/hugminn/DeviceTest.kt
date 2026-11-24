@@ -374,14 +374,21 @@ class DeviceTestActivity : Activity() {
         // Anbernic's own light service steers the LEDs all the time (led_level reads back changing values):
         // with its lighting switched off in the settings it should leave them to us
         val off = listOf("set:led_enable" to 0)
-        // round 4: one clear colour (red, through the shared colour), then each unclear mode with concrete answers
-        val red = listOf("led_switch" to 1, "led_sync_colour" to 1, "custum_rgb_r" to 255, "custum_rgb_g" to 0, "custum_rgb_b" to 0, "led_level" to 200)
+        // round 5: Anbernic's own "Steady" is led_mode 1 with speed 0, its colour in custum_rgb and in both
+        // sticks' Led_rgb. So: steady with a different colour per stick, then breathing through the speed
         val what = t("Was siehst du?", "What do you see?")
-        val answers = listOf(t("Rot, ruhig", "Red, steady"), t("Rot, atmet / pulsiert", "Red, breathes / pulses"), t("Rot, blinkt", "Red, blinks"),
-            t("Regenbogen / Farbwechsel", "Rainbow / colour change"), t("Läuft im Kreis", "Runs round"), t("Andere Farbe", "Another colour"), t("Aus", "Off"))
-        val steps = mutableListOf<AStep>()
-        for (m in listOf(1, 2, 5, 7, 8, 9)) steps += AStep("led_mode = $m",
-            (if (steps.isEmpty()) off + red else emptyList()) + listOf("led_mode" to m, "led_set" to 1), what, answers)
+        val answers = listOf(t("Links rot, rechts blau – ruhig", "Left red, right blue – steady"), t("Links rot, rechts blau – atmet", "Left red, right blue – breathes"),
+            t("Beide rot", "Both red"), t("Beide blau", "Both blue"), t("Beide grün", "Both green"), t("Andere Farbe", "Another colour"), t("Aus", "Off"))
+        val split = listOf("led_sync_colour" to 0, "custum_rgb_r" to 255, "custum_rgb_g" to 0, "custum_rgb_b" to 0,
+            "Led_rgb_r1" to 255, "Led_rgb_g1" to 0, "Led_rgb_b1" to 0, "Led_rgb_r2" to 0, "Led_rgb_g2" to 0, "Led_rgb_b2" to 255)
+        val steps = mutableListOf(
+            AStep(t("Ruhig, je Stick eine Farbe", "Steady, a colour per stick"), off + listOf("led_switch" to 1, "led_level" to 200, "led_mode" to 1, "led_speed" to 0) + split + ("led_set" to 1), what, answers),
+            AStep(t("Ruhig, beide grün", "Steady, both green"), listOf("custum_rgb_r" to 0, "custum_rgb_g" to 255, "custum_rgb_b" to 0, "Led_rgb_r1" to 0, "Led_rgb_g1" to 255,
+                "Led_rgb_b1" to 0, "Led_rgb_r2" to 0, "Led_rgb_g2" to 255, "Led_rgb_b2" to 0, "led_set" to 1), what, answers),
+            AStep(t("Atmen, Tempo 3", "Breathing, speed 3"), listOf("led_speed" to 3) + split + ("led_set" to 1), what, answers),
+            AStep(t("Atmen, Tempo 8", "Breathing, speed 8"), listOf("led_speed" to 8, "led_set" to 1), t("Schneller als eben?", "Faster than before?"),
+                listOf(t("Schneller", "Faster"), t("Langsamer", "Slower"), t("Gleich", "The same"))),
+        )
         aStep(steps, 0, before)
     }
 
