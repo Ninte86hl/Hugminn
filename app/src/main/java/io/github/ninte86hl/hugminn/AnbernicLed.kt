@@ -32,18 +32,21 @@ object AnbernicLed {
             if (last != "off") { last = "off"; Device.put("led_enable", "0") {} }
             return
         }
-        val fx = if (wantMode == 3) Device.elFx(ctx, 0) else LedEffect.NONE
+        // Kombi: Anbernic's chasing light with the combination's two colours (first and second channel)
+        val fx = when (wantMode) { 3 -> Device.elFx(ctx, 0); 2 -> LedEffect.CHASE; else -> LedEffect.NONE }
         val eff = effect[fx] ?: "0"
-        val colour = Device.elOutColor(ctx, 0, wantMode)
+        val colour = if (wantMode == 2) Device.comboColor(ctx, 0) else Device.elOutColor(ctx, 0, wantMode)
+        val colour2 = if (wantMode == 2) Device.comboColor(ctx, 1) else colour
         val level = Device.elBright(ctx, 0).coerceIn(5, 100)
-        val key = "$eff/$colour/$level"
+        val key = "$eff/$colour/$colour2/$level"
         if (key == last) return
         val effectChanged = last.substringBefore('/') != eff || last == "off" || last.isEmpty()
         last = key
         val write = {
             val r = Color.red(colour); val g = Color.green(colour); val b = Color.blue(colour)
+            val r2 = Color.red(colour2); val g2 = Color.green(colour2); val b2 = Color.blue(colour2)
             listOf("led_sync_colour" to 0, "custum_rgb_r" to r, "custum_rgb_g" to g, "custum_rgb_b" to b,
-                "Led_rgb_r1" to r, "Led_rgb_g1" to g, "Led_rgb_b1" to b, "Led_rgb_r2" to r, "Led_rgb_g2" to g, "Led_rgb_b2" to b,
+                "Led_rgb_r1" to r, "Led_rgb_g1" to g, "Led_rgb_b1" to b, "Led_rgb_r2" to r2, "Led_rgb_g2" to g2, "Led_rgb_b2" to b2,
                 "led_level" to level, "led_set" to 1).forEach { (k, v) -> AnbernicHelper.joypad(k, v) }
         }
         if (effectChanged) {
