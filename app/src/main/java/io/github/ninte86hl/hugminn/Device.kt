@@ -24,7 +24,7 @@ object Device {
     val fanProfiles get() = if (isAnbernic) linkedMapOf("0" to tr("Leise"), "1" to tr("Ausgewogen"), "2" to "Turbo", "3" to tr("Fest"))
         else linkedMapOf("0" to tr("Aus"), "1" to tr("Leise"), "4" to "Smart", "5" to "Sport", "6" to tr("Eigene Kurve"))
     /** Anbernic lighting effects (led_effect). */
-    val anbernicEffects get() = linkedMapOf("0" to tr("Leuchten"), "1" to tr("Atmen"), "2" to tr("Farbwechsel"), "3" to tr("Regenbogen"), "4" to tr("Lauflicht"), "5" to "Gaming")
+    val anbernicEffects get() = linkedMapOf("0" to tr("Leuchten"), "1" to tr("Atmen"), "2" to tr("Farbwechsel"), "3" to tr("Regenbogen"), "4" to tr("Lauflicht"))
 
     /** App context, for writing settings without root. */
     @Volatile var app: Context? = null
