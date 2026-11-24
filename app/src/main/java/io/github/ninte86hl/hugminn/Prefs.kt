@@ -433,6 +433,14 @@ class Prefs(private val ctx: Context) {
         get() = p.getString("launcherFan", "1") ?: "1"
         set(v) = p.edit().putString("launcherFan", v).apply()
 
+    /** Anbernic: Hugminn's own colour for the stick lights (0 = Anbernic's) and their brightness. */
+    var anbLedColor: Int
+        get() = p.getInt("anbLedColor", 0)
+        set(v) = p.edit().putInt("anbLedColor", v).apply()
+    var anbLedLevel: Int
+        get() = p.getInt("anbLedLevel", 127)
+        set(v) = p.edit().putInt("anbLedLevel", v).apply()
+
     var launcherProfile: Boolean
         get() = p.getBoolean("launcherProfile", true)
         set(v) = p.edit().putBoolean("launcherProfile", v).apply()
