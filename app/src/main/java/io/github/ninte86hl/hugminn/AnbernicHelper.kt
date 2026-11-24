@@ -30,8 +30,9 @@ object AnbernicHelper {
 
     /** Helper alive: its heartbeat (seconds, in the file "alive") is at most 30 s old. */
     fun alive(ctx: Context): Boolean {
-        val t = read("alive")?.toLongOrNull()
-        val now = t != null && System.currentTimeMillis() / 1000 - t < 30
+        // a heartbeat that can't be read this moment (being written) keeps the last good one
+        read("alive")?.toLongOrNull()?.let { lastBeat = it }
+        val now = lastBeat > 0 && System.currentTimeMillis() / 1000 - lastBeat < 30
         // the helper (re)started – e.g. after a restart Anbernic's app has put its own colour back: ours again
         if (now && !wasAlive) android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ AnbernicLed.reapply(ctx.applicationContext) }, 1500)
         wasAlive = now
@@ -39,6 +40,7 @@ object AnbernicHelper {
     }
 
     @Volatile private var wasAlive = false
+    @Volatile private var lastBeat = 0L
 
     /** The helper's live values (CPU/GPU °C, GPU MHz and load, fan PWM 0–255); null when it isn't running. */
     fun stats(): Map<String, Float>? {
@@ -134,7 +136,8 @@ sh ${rootPath()}/helper.sh
 P=$pkg
 D=${'$'}(dirname "${'$'}0")
 note() { echo "${'$'}(date +%H:%M:%S) ${'$'}*" >> "${'$'}D/log"; chmod 666 "${'$'}D/log"; }
-beat() { date +%s > "${'$'}D/alive"; chmod 666 "${'$'}D/alive"; }
+# written whole, then renamed: Hugminn never reads a half-written heartbeat (an empty one looked like "helper gone")
+beat() { date +%s > "${'$'}D/.alive"; chmod 666 "${'$'}D/.alive"; mv -f "${'$'}D/.alive" "${'$'}D/alive"; }
 # once per start: what the hardware offers (LED drivers, temperature sensors, fan) – read-only
 hw() {
   {
@@ -210,8 +213,8 @@ stats() {
   g=0; [ -n "${'$'}GZ" ] && read g < "${'$'}GZ" 2>/dev/null
   m=0; l=""; [ -n "${'$'}GF" ] && { read m < "${'$'}GF/cur_freq" 2>/dev/null; read l < "${'$'}GF/load" 2>/dev/null; }
   p=""; read p < /sys/class/hwmon/hwmon0/pwm1 2>/dev/null
-  echo "cpu=${'$'}c gpu=${'$'}g gpumhz=${'$'}m gpuload=${'$'}{l%%@*} pwm=${'$'}p" > "${'$'}D/stats"
-  chmod 666 "${'$'}D/stats"
+  echo "cpu=${'$'}c gpu=${'$'}g gpumhz=${'$'}m gpuload=${'$'}{l%%@*} pwm=${'$'}p" > "${'$'}D/.stats"
+  chmod 666 "${'$'}D/.stats"; mv -f "${'$'}D/.stats" "${'$'}D/stats"
 }
 # every wish is its own file cmd-<time> from Hugminn; the helper only reads them (Hugminn tidies up)
 # wishes still lying there from before (an earlier helper): not again
