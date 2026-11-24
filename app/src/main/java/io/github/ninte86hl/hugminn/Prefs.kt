@@ -438,7 +438,7 @@ class Prefs(private val ctx: Context) {
         get() = p.getInt("anbLedColor", 0)
         set(v) = p.edit().putInt("anbLedColor", v).apply()
     var anbLedLevel: Int
-        get() = p.getInt("anbLedLevel", 127)
+        get() = p.getInt("anbLedLevel", 50).let { if (it > 100) 50 else it }
         set(v) = p.edit().putInt("anbLedLevel", v).apply()
 
     var launcherProfile: Boolean

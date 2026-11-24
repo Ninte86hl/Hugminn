@@ -382,7 +382,7 @@ class DeviceTestActivity : Activity() {
         val split = listOf("led_sync_colour" to 0, "custum_rgb_r" to 255, "custum_rgb_g" to 0, "custum_rgb_b" to 0,
             "Led_rgb_r1" to 255, "Led_rgb_g1" to 0, "Led_rgb_b1" to 0, "Led_rgb_r2" to 0, "Led_rgb_g2" to 0, "Led_rgb_b2" to 255)
         val steps = mutableListOf(
-            AStep(t("Ruhig, je Stick eine Farbe", "Steady, a colour per stick"), off + listOf("led_switch" to 1, "led_level" to 200, "led_mode" to 1, "led_speed" to 0) + split + ("led_set" to 1), what, answers),
+            AStep(t("Ruhig, je Stick eine Farbe", "Steady, a colour per stick"), off + listOf("led_switch" to 1, "led_level" to 80, "led_mode" to 1, "led_speed" to 0) + split + ("led_set" to 1), what, answers),
             AStep(t("Ruhig, beide grün", "Steady, both green"), listOf("custum_rgb_r" to 0, "custum_rgb_g" to 255, "custum_rgb_b" to 0, "Led_rgb_r1" to 0, "Led_rgb_g1" to 255,
                 "Led_rgb_b1" to 0, "Led_rgb_r2" to 0, "Led_rgb_g2" to 255, "Led_rgb_b2" to 0, "led_set" to 1), what, answers),
             AStep(t("Atmen, Tempo 3", "Breathing, speed 3"), listOf("led_speed" to 3) + split + ("led_set" to 1), what, answers),

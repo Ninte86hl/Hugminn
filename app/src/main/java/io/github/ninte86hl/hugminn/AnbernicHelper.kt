@@ -54,7 +54,9 @@ object AnbernicHelper {
     fun joypadNow(): Map<String, Int> = runCatching {
         File(dir(), "hw.txt").readLines().dropWhile { !it.startsWith("## joypad values") }.drop(1).takeWhile { !it.startsWith("## ") }
             .mapNotNull { l -> l.substringBefore(' ').split('=').takeIf { it.size == 2 }?.let { (k, v) -> v.toIntOrNull()?.let { k to it } } }
-            .filter { it.first in joypadLed }.toMap()
+            .filter { it.first in joypadLed }
+            // led_level reads back 0–255 but is written in percent
+            .map { (k, v) -> if (k == "led_level") k to Math.round(v / 2.55f).coerceIn(0, 100) else k to v }.toMap()
     }.getOrDefault(emptyMap())
 
     /** Ends an app through the helper (the switcher's "close" without root). */
