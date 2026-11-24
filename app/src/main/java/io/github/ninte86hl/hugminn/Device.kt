@@ -358,18 +358,16 @@ object Device {
         "Retro " + tr("Lila") to (0xFF8800FF.toInt() to 0xFFFF00FF.toInt()),
         tr("Sonnenuntergang") to (0xFFFF6600.toInt() to 0xFFFF00FF.toInt()),
         "Neon" to (0xFF99FF00.toInt() to 0xFFFF00FF.toInt()),
-        // console presets
-        "NES" to (0xFF808080.toInt() to 0xFFFF0000.toInt()),
-        "SNES" to (0xFF7A2BFF.toInt() to 0xFF808080.toInt()),
-        "Game Boy" to (0xFF8BAC0F.toInt() to 0xFF8BAC0F.toInt()),
-        "Game Boy Advance" to (0xFF3A1AFF.toInt() to 0xFF9B30FF.toInt()),
-        "N64" to (0xFF00C030.toInt() to 0xFFFFD000.toInt()),
-        "GameCube" to (0xFF4B2BFF.toInt() to 0xFF4B2BFF.toInt()),
-        "Switch" to (0xFF00C3E3.toInt() to 0xFFFF4554.toInt()),
-        "Mega Drive" to (0xFF0050FF.toInt() to 0xFFFF0000.toInt()),
-        "Dreamcast" to (0xFFFF6A00.toInt() to 0xFFFFFFFF.toInt()),
-        "PlayStation" to (0xFF0040FF.toInt() to 0xFFFF0000.toInt()),
-        "Xbox" to (0xFF10C010.toInt() to 0xFF10C010.toInt()),
+        // retro presets – neutral names, no brands
+        "8-Bit" to (0xFF808080.toInt() to 0xFFFF0000.toInt()),
+        "16-Bit" to (0xFF7A2BFF.toInt() to 0xFF808080.toInt()),
+        tr("Retro-Grün") to (0xFF8BAC0F.toInt() to 0xFF8BAC0F.toInt()),
+        tr("Mitternacht") to (0xFF3A1AFF.toInt() to 0xFF9B30FF.toInt()),
+        "Indigo" to (0xFF4B2BFF.toInt() to 0xFF4B2BFF.toInt()),
+        tr("Wiese") to (0xFF00C030.toInt() to 0xFFFFD000.toInt()),
+        "Neon Duo" to (0xFF00C3E3.toInt() to 0xFFFF4554.toInt()),
+        "Sorbet" to (0xFFFF6A00.toInt() to 0xFFFFFFFF.toInt()),
+        tr("Smaragd") to (0xFF10C010.toInt() to 0xFF10C010.toInt()),
     )
 
     fun comboColor(ctx: Context, i: Int): Int {
