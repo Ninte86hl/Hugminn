@@ -68,12 +68,15 @@ object AnbernicHelper {
         return write("$key $value")
     }
 
+    private val seq = java.util.concurrent.atomic.AtomicInteger()
+
     private fun write(line: String): Boolean {
         val d = dir()
         // tidy up wishes the helper has long done (it may not delete them itself)
         d.listFiles { f -> f.name.startsWith("cmd-") && System.currentTimeMillis() - f.lastModified() > 10_000 }?.forEach { it.delete() }
         val r = runCatching {
-            val name = "cmd-${System.currentTimeMillis()}-${(Math.random() * 1000).toInt()}"
+            // time and a running number: the helper goes through them in name order, so in the order sent
+            val name = "cmd-${System.currentTimeMillis()}-${"%06d".format(seq.incrementAndGet() % 1_000_000)}"
             // written whole first, then renamed: the helper never sees half a wish
             val tmp = File(d, ".$name")
             tmp.writeText("$line\n")
