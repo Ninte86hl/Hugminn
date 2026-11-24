@@ -2463,6 +2463,8 @@ class ControlCenter(private val svc: HugminnService) {
         LedFxItem(LedEffect.MARQUEE, "Marquee", tr("Anbernics Lauflicht-Effekt.")),
         LedFxItem(LedEffect.CHASE, tr("Lauflicht"), tr("Ein Licht jagt im Kreis um den Stick.")),
         LedFxItem(LedEffect.GAMING, "Gaming", tr("Anbernics Gaming-Effekt.")),
+        LedFxItem(LedEffect.BATTERY, tr("Akku"), tr("Die Farbe zeigt den Ladestand – ein Blick genügt."), true),
+        LedFxItem(LedEffect.TEMP, tr("Temperatur"), tr("Die Farbe zeigt, wie warm das Gerät gerade ist."), true),
     ) else listOf(
         LedFxItem(LedEffect.NONE, tr("Statisch"), tr("Leuchtet ruhig in der gewählten Farbe.")),
         LedFxItem(LedEffect.BREATHE, tr("Atmen"), tr("Wird langsam heller und dunkler, wie ruhiges Atmen.")),
@@ -2715,7 +2717,8 @@ class ControlCenter(private val svc: HugminnService) {
                     }, lp(0, WRAP, 1f))
                 }
                 cp.addView(sw2, lp(MATCH, WRAP))
-                cp.addView(text(tr("A schaltet alle eingeschalteten Lichter auf diese Kombi: links die erste, rechts die zweite Farbe"), 11f, pal.onSurfaceVariant).apply { setPadding(0, 3 * d, 0, 0) })
+                cp.addView(text(if (Device.isAnbernic) tr("Lauflicht in beiden Farben – folgt der Bewegung des Sticks. A übernimmt")
+                    else tr("A schaltet alle eingeschalteten Lichter auf diese Kombi: links die erste, rechts die zweite Farbe"), 11f, pal.onSurfaceVariant).apply { setPadding(0, 3 * d, 0, 0) })
                 pairRow(cSel, cp)
             }
             2 -> {

@@ -280,6 +280,7 @@ object Lang {
         "Farbwechsel" to "Colour cycle",
         "Regenbogen versetzt" to "Rainbow ring",
         "Regenbogen" to "Rainbow",
+        "Lauflicht in beiden Farben – folgt der Bewegung des Sticks. A übernimmt" to "Chasing light in both colours – follows the stick's movement. A applies",
         "Der Anbernic-Helfer läuft nicht – in Anbernics Skriptverwaltung ▶ drücken" to "Anbernic helper isn't running – press ▶ in Anbernic's script management",
         "Ausgewogen" to "Balanced",
         "Fest" to "Fixed",
