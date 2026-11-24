@@ -126,14 +126,15 @@ object Glyphs {
     data class Glyph(val text: String?, val shape: Shape?, val color: Int)
 
     /** True when the handheld runs in Retroid/Nintendo layout (A on the right). */
-    fun nintendoLayout(): Boolean = Device.aynNintendo ?: InputDevice.getDeviceIds().any { id ->
+    fun nintendoLayout(): Boolean = anbernicNs() ?: Device.aynNintendo ?: InputDevice.getDeviceIds().any { id ->
         InputDevice.getDevice(id)?.name?.contains("Retroid Pocket Controller", ignoreCase = true) == true
     }
 
     /**
      * Anbernic: its own "Trigger Setting" – abxy_mode 0 "Ns mode", 1 "Xbox mode". Tested on the RG 406H: both send the
-     * same key codes by position (bottom A, right B, left X, top Y), so only the glyphs follow it – Ns mode shows the
-     * printed retro letters. Read live, it can change any time.
+     * same key codes by position (bottom A, right B, left X, top Y). In Ns mode Hugminn treats the printed letters as
+     * meant – A (right) confirms, B (bottom) goes back – by swapping A and B on the way in (see [logical]).
+     * Read live, it can change any time.
      */
     private fun anbernicNs(): Boolean? {
         if (!Device.isAnbernic) return null
@@ -155,7 +156,11 @@ object Glyphs {
     }
 
     /** The key code Hugminn works with: in the retro layout the north button (X) becomes Y, the west one (Y) X. */
-    fun logical(code: Int): Int = if (!nintendoLayout()) code else when (code) {
+    fun logical(code: Int): Int = if (anbernicNs() == true) when (code) {
+        KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_BUTTON_B
+        KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BUTTON_A
+        else -> code
+    } else if (!nintendoLayout()) code else when (code) {
         KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
         KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
         else -> code
@@ -167,7 +172,7 @@ object Glyphs {
     }
 
     private fun styleFor(prefs: Prefs, nintendo: Boolean) = when (prefs.glyphStyle) {
-        GlyphStyle.AUTO -> if (anbernicNs() ?: nintendo) GlyphStyle.NINTENDO else GlyphStyle.XBOX
+        GlyphStyle.AUTO -> if (nintendo) GlyphStyle.NINTENDO else GlyphStyle.XBOX
         else -> prefs.glyphStyle
     }
 
