@@ -2582,7 +2582,7 @@ class ControlCenter(private val svc: HugminnService) {
                     if (col == c) addView(text("✓", 16f, onColor(c), bold = true).apply { gravity = Gravity.CENTER },
                         FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                 }
-                val act = { anbColour(c, "c$j") }
+                val act: () -> Unit = { anbColour(c, "c$j") }
                 v.setOnClickListener { act() }
                 place(j, v)
                 cells += LedCell("c$j", v, act)
@@ -2597,7 +2597,7 @@ class ControlCenter(private val svc: HugminnService) {
                 addView(text("+", 20f, android.graphics.Color.WHITE, bold = true).apply { gravity = Gravity.CENTER },
                     FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             }
-            val wAct = { ledWheelView = true; again("wheel") }
+            val wAct: () -> Unit = { ledWheelView = true; again("wheel") }
             wt.setOnClickListener { wAct() }
             place(15, wt)
             cells += LedCell("c15", wt, wAct)
