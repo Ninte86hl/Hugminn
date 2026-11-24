@@ -12,10 +12,26 @@ import android.os.Looper
  */
 object AnbernicLed {
     /** Hugminn's effect → Anbernic's led_effect. */
-    private val effect = mapOf(LedEffect.NONE to "0", LedEffect.BREATHE to "1", LedEffect.RING to "2",
+    private val effect = mapOf(LedEffect.BATTERY to "0", LedEffect.TEMP to "0", LedEffect.NONE to "0", LedEffect.BREATHE to "1", LedEffect.RING to "2",
         LedEffect.MARQUEE to "3", LedEffect.CHASE to "4", LedEffect.GAMING to "5")
 
-    val effects = listOf(LedEffect.NONE, LedEffect.BREATHE, LedEffect.RING, LedEffect.MARQUEE, LedEffect.CHASE, LedEffect.GAMING)
+    val effects = listOf(LedEffect.NONE, LedEffect.BREATHE, LedEffect.RING, LedEffect.MARQUEE, LedEffect.CHASE, LedEffect.GAMING, LedEffect.BATTERY, LedEffect.TEMP)
+
+    /** Battery or temperature as a colour (steady light, renewed every 30 s): green, yellow, red. */
+    private fun indicator(ctx: Context, e: LedEffect): Int {
+        val green = 0xFF00E040.toInt(); val yellow = 0xFFFFC000.toInt(); val red = 0xFFFF1000.toInt()
+        return if (e == LedEffect.BATTERY) {
+            val pct = (ctx.getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager).getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            if (pct in 0..20) red else if (pct in 21..50) yellow else green
+        } else {
+            val t = AnbernicHelper.stats()?.get("cpu")?.let { if (it > 1000) it / 1000f else it } ?: 0f
+            if (t >= 75f) red else if (t >= 60f) yellow else green
+        }
+    }
+
+    private val tick = object : Runnable {
+        override fun run() { Device.app?.let { apply(it) }; main.postDelayed(this, 30_000) }
+    }
 
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var last = ""
@@ -35,7 +51,10 @@ object AnbernicLed {
         // Kombi: Anbernic's chasing light with the combination's two colours (first and second channel)
         val fx = when (wantMode) { 3 -> Device.elFx(ctx, 0); 2 -> LedEffect.CHASE; else -> LedEffect.NONE }
         val eff = effect[fx] ?: "0"
-        val colour = if (wantMode == 2) Device.comboColor(ctx, 0) else Device.elOutColor(ctx, 0, wantMode)
+        // the displays: steady light in the colour of the battery / temperature, looked at again every 30 s
+        main.removeCallbacks(tick)
+        if (fx.indicator) main.postDelayed(tick, 30_000)
+        val colour = if (fx.indicator) indicator(ctx, fx) else if (wantMode == 2) Device.comboColor(ctx, 0) else Device.elOutColor(ctx, 0, wantMode)
         val colour2 = if (wantMode == 2) Device.comboColor(ctx, 1) else colour
         val level = Device.elBright(ctx, 0).coerceIn(5, 100)
         val key = "$eff/$colour/$colour2/$level"
