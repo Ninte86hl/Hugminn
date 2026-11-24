@@ -187,6 +187,10 @@ if [ "${'$'}1" != "loop" ]; then
   note "start uid=${'$'}(id -u) folder=${'$'}D low=${'$'}([ -d /data/media/0/${'$'}(basename "${'$'}D") ] && echo ok)"
   beat
   dumpsys deviceidle whitelist +${'$'}P >/dev/null 2>&1 || note "background whitelist failed"
+  # Android 12+ ends "phantom processes" started by apps – this helper is one (Anbernic's app starts it)
+  settings put global settings_enable_monitor_phantom_procs false 2>/dev/null
+  device_config set_sync_disabled_for_tests persistent 2>/dev/null
+  device_config put activity_manager max_phantom_processes 2147483647 2>/dev/null || note "phantom limit failed"
   appops set ${'$'}P WRITE_SETTINGS allow 2>/dev/null || note "write settings failed"
   # lets Hugminn pause Anbernic's key mapper while its windows are open (a global setting)
   pm grant ${'$'}P android.permission.WRITE_SECURE_SETTINGS 2>/dev/null || note "secure settings failed"
@@ -210,7 +214,9 @@ stats() {
   chmod 666 "${'$'}D/stats"
 }
 # every wish is its own file cmd-<time> from Hugminn; the helper only reads them (Hugminn tidies up)
+# wishes still lying there from before (an earlier helper): not again
 seen=" "
+for c in "${'$'}D"/cmd-*; do [ -f "${'$'}c" ] && seen="${'$'}seen${'$'}(basename "${'$'}c") "; done
 n=100
 while true; do
   now=" "
