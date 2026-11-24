@@ -12,10 +12,12 @@ import android.os.Looper
  */
 object AnbernicLed {
     /** Hugminn's effect → Anbernic's led_effect. */
-    private val effect = mapOf(LedEffect.BATTERY to "0", LedEffect.TEMP to "0", LedEffect.NONE to "0", LedEffect.BREATHE to "1", LedEffect.RING to "2",
-        LedEffect.MARQUEE to "3", LedEffect.CHASE to "4", LedEffect.GAMING to "5")
+    private val effect = mapOf(LedEffect.BATTERY to "0", LedEffect.TEMP to "0", LedEffect.NONE to "0", LedEffect.BREATHE to "1",
+        // Anbernic's "Rainbow" changes all colours together (Hugminn's Farbwechsel), its "Cycle" runs the
+        // colours round the stick (Hugminn's Regenbogen) – the same names as on Retroid and AYN
+        LedEffect.RAINBOW to "2", LedEffect.RING to "3", LedEffect.MARQUEE to "3", LedEffect.CHASE to "4", LedEffect.GAMING to "5")
 
-    val effects = listOf(LedEffect.NONE, LedEffect.BREATHE, LedEffect.RING, LedEffect.MARQUEE, LedEffect.CHASE, LedEffect.GAMING, LedEffect.BATTERY, LedEffect.TEMP)
+    val effects = listOf(LedEffect.NONE, LedEffect.BREATHE, LedEffect.RAINBOW, LedEffect.RING, LedEffect.CHASE, LedEffect.GAMING, LedEffect.BATTERY, LedEffect.TEMP)
 
     /** Battery or temperature as a colour (steady light, renewed every 30 s): green, yellow, red. */
     private fun indicator(ctx: Context, e: LedEffect): Int {
@@ -49,7 +51,12 @@ object AnbernicLed {
             return
         }
         // Kombi: Anbernic's chasing light with the combination's two colours (first and second channel)
-        val fx = when (wantMode) { 3 -> Device.elFx(ctx, 0); 2 -> LedEffect.CHASE; else -> LedEffect.NONE }
+        // Kombi: two colours – breathing when that is the chosen effect, otherwise the chasing light
+        val fx = when (wantMode) {
+            3 -> Device.elFx(ctx, 0)
+            2 -> if (Device.elFx(ctx, 0) == LedEffect.BREATHE) LedEffect.BREATHE else LedEffect.CHASE
+            else -> LedEffect.NONE
+        }
         val eff = effect[fx] ?: "0"
         // the displays: steady light in the colour of the battery / temperature, looked at again every 30 s
         main.removeCallbacks(tick)
