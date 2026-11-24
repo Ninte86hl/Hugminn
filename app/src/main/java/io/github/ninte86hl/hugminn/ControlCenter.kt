@@ -2009,7 +2009,8 @@ class ControlCenter(private val svc: HugminnService) {
         }
         entries += MenuEntry(t("Helligkeit", "Brightness"), header = true, run = null)
         val lvl = p.anbLedLevel
-        listOf(40 to t("Niedrig", "Low"), 127 to t("Mittel", "Medium"), 255 to t("Hoch", "High")).forEach { (v, name) ->
+        // led_level takes percent (0–100) and reads back 0–255: 127 or 255 wrapped round (127 % → 67)
+        listOf(20 to t("Niedrig", "Low"), 50 to t("Mittel", "Medium"), 100 to t("Hoch", "High")).forEach { (v, name) ->
             entries += MenuEntry(name, checked = lvl == v) {
                 p.anbLedLevel = v
                 AnbernicHelper.joypad("led_level", v); AnbernicHelper.joypad("led_set", 1)
