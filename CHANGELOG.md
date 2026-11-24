@@ -2,6 +2,58 @@
 
 Each release on GitHub shows its section of this file. / Jede Version auf GitHub zeigt ihren Abschnitt aus dieser Datei.
 
+## 1.14.1
+
+### 🇬🇧 English
+**Retroid Pocket Classic (both models)**
+- Supported: the button below the screen is a full Home button – single press Home, double press Game Switcher, long press Control Center (Settings → Buttons). The firmware recognises the double press itself; Back stays on B and touch.
+- Six-button model: C and Z can be assigned like back paddles.
+- Control Center and switcher fit the near-square screen: compact button hints, Cocoon tiles with smaller badges, nothing cut off.
+- No stick LEDs and no L3/R3 on this device: the LED window and those test steps don't show.
+
+**Extra buttons**
+- Back paddles (Odin 2, Pocket 6), M1/M2 (Pocket Nova) and C/Z (Pocket Classic) can be assigned freely – short and long press, any Home-button action. Nothing is set by default; a button with an action no longer reaches the game. Settings → Buttons.
+
+**Launcher**
+- Choose the app that counts as your home screen (e.g. ES-DE, Daijisho) and its own performance and fan – applied whenever it's in front. Settings → Profiles per app.
+
+**Control Center and menus**
+- Tabs show only the current tab's name in full, with L1/R1 beside it and dots for how many there are.
+- Pages: outside edit mode the D-pad stays on its page – L1/R1 change pages. Empty pages disappear by themselves.
+- Liquid Glass: menus in neutral colours with the accent for the selection.
+- Performance and Fan cards: the big value gets smaller instead of cutting off the line below.
+- Dot matrix: the dots of the brightness and volume sliders no longer touch the icon.
+
+**Other**
+- Retroid: Hugminn puts itself on the firmware's background whitelist on every start (it could be missing, e.g. on a Pocket 5).
+- Brightness and similar sliders: Hugminn now asks for Android's "Modify system settings" itself.
+- Device test: the button test asks for one button after the other and notes what really arrives; Start held for a second or *Next* moves on early; the report shows the firmware version.
+
+### 🇩🇪 Deutsch
+**Retroid Pocket Classic (beide Modelle)**
+- Unterstützt: Die Taste unter dem Bildschirm ist eine vollwertige Home-Taste – einmal drücken Home, zweimal Game Switcher, lang Control Center (Einstellungen → Tasten). Den Doppelklick erkennt die Firmware selbst; Zurück bleibt auf B und Touch.
+- Sechs-Tasten-Modell: C und Z lassen sich wie Rückseitentasten belegen.
+- Control Center und Switcher passen auf den fast quadratischen Bildschirm: kompakte Tastenhinweise, Cocoon-Kacheln mit kleineren Symbolen, nichts abgeschnitten.
+- Keine Stick-LEDs und kein L3/R3 auf diesem Gerät: LED-Fenster und diese Testschritte erscheinen nicht.
+
+**Zusatztasten**
+- Rückseitentasten (Odin 2, Pocket 6), M1/M2 (Pocket Nova) und C/Z (Pocket Classic) frei belegbar – kurz und lang, jede Aktion der Home-Taste. Ab Werk ist nichts belegt; eine belegte Taste erreicht das Spiel nicht mehr. Einstellungen → Tasten.
+
+**Launcher**
+- Die App wählen, die als Startbildschirm zählt (z. B. ES-DE, Daijisho), mit eigener Leistung und eigenem Lüfter – gilt, sobald sie vorne ist. Einstellungen → Profile pro App.
+
+**Control Center und Menüs**
+- Reiter zeigen nur noch den Namen des aktuellen Reiters voll ausgeschrieben, mit L1/R1 daneben und Punkten für Anzahl und Position.
+- Seiten: Außerhalb des Bearbeitungsmodus bleibt das Steuerkreuz auf seiner Seite – L1/R1 wechseln die Seite. Leere Seiten verschwinden von selbst.
+- Liquid Glass: Menüs in neutralen Farben, die Auswahl in der Akzentfarbe.
+- Leistungs- und Lüfterkarte: Der große Wert wird kleiner, statt die Zeile darunter abzuschneiden.
+- Punktmatrix: Die Punkte von Helligkeit und Lautstärke berühren das Symbol nicht mehr.
+
+**Sonstiges**
+- Retroid: Hugminn trägt sich bei jedem Start in die Hintergrund-Liste der Firmware ein (sie konnte fehlen, z. B. auf einem Pocket 5).
+- Helligkeit und ähnliche Regler: Hugminn fragt Androids „Systemeinstellungen ändern“ jetzt selbst an.
+- Gerätetest: Der Tastentest fragt eine Taste nach der anderen ab und notiert, was wirklich ankommt; Start 1 Sekunde halten oder *Weiter* geht vorzeitig weiter; der Bericht zeigt die Firmware-Version.
+
 ## 1.14.0
 
 ### 🇬🇧 English
