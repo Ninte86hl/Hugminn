@@ -650,7 +650,7 @@ class ControlCenter(private val svc: HugminnService) {
                 return
             }
             fixed(if (ledEditing != null) tr("Ändern") else tr("Navigieren"),
-                if (ledFocus == "st" && ledTab == 0 && Device.elState(svc, ledEl) > 0) tr("Einstellen") else null,
+                if (ledFocus == "st" && ledTab == 0 && Device.elState(svc, ledShown()) > 0) tr("Einstellen") else null,
                 if (ledTab == 0 || ledTab == 1 || (ledTab == 2 && !ledWheelView && ledFocus.startsWith("c") && ledFocus != "c15")) tr("Auf alle") else null,
                 if (ledEditing != null) tr("Fertig") else tr("Auswählen"),
                 if (ledTab != 0) tr("Zurück") else tr("Schließen"))
@@ -2304,12 +2304,12 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** The light chosen in the Gerät tab gets [c]; Aus or Kombi switch to Farbe, an effect keeps running in it. */
     private fun applyLed(c: Int) {
-        val i = ledEl.coerceIn(0, Device.ledElNames(svc).lastIndex)
-        val cols = Device.elColors(svc).also { it[i] = c }
+        val t = ledTargets()
+        val cols = Device.elColors(svc).also { a -> t.forEach { a[it] = c } }
         val st = Device.elStates(svc)
         val redraw = { svc.ui.post { refreshAll(); if (root != null && ledCells != null) ledPicker() }; Unit }
         Device.setElColors(svc, cols) {
-            if (st[i] == 0 || st[i] == 2) Device.setElStates(svc, st.copyOf().also { it[i] = 1 }, redraw) else redraw()
+            if (t.any { st[it] == 0 || st[it] == 2 }) Device.setElStates(svc, st.copyOf().also { a -> t.forEach { if (a[it] == 0 || a[it] == 2) a[it] = 1 } }, redraw) else redraw()
         }
     }
 
@@ -2390,6 +2390,13 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** LED window state: the element in the Gerät tab, the effect shown in Modus, the wheel view in Farbe. */
     private var ledEl = 0
+    /** "Alle" sits after the single lights: ledEl == count. */
+    private fun ledN() = Device.ledElNames(svc).size
+    private fun ledAll() = !Device.isAnbernic && ledEl >= ledN()
+    /** The light whose values the window shows ("Alle": the first). */
+    private fun ledShown() = if (ledAll()) 0 else ledEl.coerceIn(0, ledN() - 1)
+    /** The lights a choice is written to. */
+    private fun ledTargets() = if (ledAll()) (0 until ledN()).toList() else listOf(ledShown())
     private var ledFxIdx = -1
     private var ledWheelView = false
     /** Gerät tab: what the bar sets – 0 brightness, 1 saturation. */
@@ -2417,7 +2424,7 @@ class ControlCenter(private val svc: HugminnService) {
     /** Mode, colour, effect and brightness of the chosen light for every light. */
     private fun copyLedToAll() {
         val n = Device.ledElNames(svc).size
-        val i = ledEl.coerceIn(0, n - 1)
+        val i = ledShown()
         val st = Device.elStates(svc)
         val p = svc.prefs
         val c = Device.elColor(svc, i)
@@ -2718,13 +2725,16 @@ class ControlCenter(private val svc: HugminnService) {
         if (ledTab > 2) ledTab = 0
         val names = Device.ledElNames(svc)
         val n = names.size
-        ledEl = ((ledEl % n) + n) % n
+        // the single lights, then "Alle"
+        val nn = if (n > 1) n + 1 else n
+        ledEl = ((ledEl % nn) + nn) % nn
         val st = Device.elStates(svc)
         val cols = Device.elColors(svc)
         val kb = IntArray(n) { Device.elBright(svc, it) }
         val sat = IntArray(n) { i -> (FloatArray(3).also { android.graphics.Color.colorToHSV(cols[i], it) }[1] * 20).roundToInt() * 5 }
         // Modus and Farbe set the light chosen in the Gerät tab
-        val sel = listOf(ledEl)
+        val sel = ledTargets()
+        val elName = if (ledAll()) tr("Alle") else names[ledShown()]
         val fx = IntArray(n) { Device.elFx(svc, it).ordinal }
         val commonFx = sel.map { fx[it] }.distinct().singleOrNull()?.let { LedEffect.values()[it] }
         val cells = mutableListOf<LedCell>()
@@ -2840,15 +2850,15 @@ class ControlCenter(private val svc: HugminnService) {
         fun target(extra: String?) {
             body.addView(LinearLayout(svc).apply {
                 gravity = Gravity.CENTER
-                addView(dot(cols[ledEl]), lp(12 * d, 12 * d).apply { marginEnd = 8 * d })
-                addView(text(tr("Für") + ": " + names[ledEl], 12f, pal.onSurface, bold = true))
+                addView(dot(cols[ledShown()]), lp(12 * d, 12 * d).apply { marginEnd = 8 * d })
+                addView(text(tr("Für") + ": " + elName, 12f, pal.onSurface, bold = true))
             }, lp(MATCH, WRAP))
             body.addView(desc(extra ?: tr("Ein anderes Licht wählst du im Tab Gerät.")), lp(MATCH, WRAP))
         }
 
         when (ledTab) {
             0 -> {
-                val i = ledEl
+                val i = ledShown()
                 val selW = if (twoCol) halfW else minOf(colW, 360 * d)
                 /** One row: the choice on the left, what it shows on the right (stacked on 4:3). */
                 fun pairRow(left: View, right: View) {
@@ -2871,10 +2881,10 @@ class ControlCenter(private val svc: HugminnService) {
 
                 // row 1: which light | its status
                 val elCard = card(dot(if (st[i] == 0) android.graphics.Color.BLACK else Device.elOutColor(svc, i, st[i])).also { it.layoutParams = lp(14 * d, 14 * d).apply { marginEnd = 10 * d } },
-                    text(names[i], 14f, pal.onSurface, bold = true))
+                    text(elName, 14f, pal.onSurface, bold = true))
                 val elSel = chooser("el", elCard, tr("Welches Licht du gerade einstellst"), { dir -> ledEl += dir; again("el") }) {}
                 fun pick(k: Int) {
-                    val ns = st.copyOf().also { it[i] = k.coerceIn(0, 3) }
+                    val ns = st.copyOf().also { a -> sel.forEach { a[it] = k.coerceIn(0, 3) } }
                     Device.setElStates(svc, ns) { svc.ui.post { refreshAll() }; again("st") }
                 }
                 val modeNames = listOf(tr("Aus"), tr("Farbe"), tr("Kombi"), tr("Effekt"))
@@ -2912,12 +2922,18 @@ class ControlCenter(private val svc: HugminnService) {
                 val pName = if (ledParam == 0) tr("Helligkeit") else tr("Sättigung")
                 val pSel = chooser("param", card(text(pName, 14f, pal.onSurface, bold = true)), tr("Was der Balken rechts einstellt"), { ledParam = 1 - ledParam; again("param") }) {}
                 val bar = if (ledParam == 0) barPanel("bar", tr("Helligkeit"), kb[i] / 5, "${kb[i]} %", pal.primary, st[i] == 0, tr("Leuchtstärke der LED"), 20) { v ->
-                    Device.setElBright(svc, i, (v * 5).coerceIn(5, 100)) { again("bar") }
+                    val x = (v * 5).coerceIn(5, 100)
+                    sel.dropLast(1).forEach { svc.prefs.setLedElB(it, x) }
+                    Device.setElBright(svc, sel.last(), x) { again("bar") }
                 } else barPanel("bar", tr("Sättigung"), sat[i] / 5, "${sat[i]} %", cols[i], st[i] == 0, tr("Farbkraft der LED"), 20) { v ->
-                    val h = FloatArray(3).also { android.graphics.Color.colorToHSV(cols[i], it) }
-                    h[1] = (v * 5).coerceIn(0, 100) / 100f
-                    if (h[2] < 0.05f) h[2] = 1f
-                    Device.setElColors(svc, cols.copyOf().also { it[i] = android.graphics.Color.HSVToColor(h) }) { svc.ui.post { refreshAll() }; again("bar") }
+                    val nc = cols.copyOf()
+                    sel.forEach { k ->
+                        val h = FloatArray(3).also { android.graphics.Color.colorToHSV(cols[k], it) }
+                        h[1] = (v * 5).coerceIn(0, 100) / 100f
+                        if (h[2] < 0.05f) h[2] = 1f
+                        nc[k] = android.graphics.Color.HSVToColor(h)
+                    }
+                    Device.setElColors(svc, nc) { svc.ui.post { refreshAll() }; again("bar") }
                 }
                 pairRow(pSel, bar)
 
@@ -2999,7 +3015,7 @@ class ControlCenter(private val svc: HugminnService) {
                     wheelBox.addView(wheel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                     body.addView(LinearLayout(svc).apply { gravity = Gravity.CENTER; addView(wheelBox, lp(wheelSize, wheelSize)) }, lp(MATCH, WRAP))
                     fun previewWheel(c: Int) {
-                        val z = IntArray(n) { if (it == ledEl) scaled(c, kb[it]) else if (st[it] == 0) 0 else scaled(Device.elOutColor(svc, it, st[it]), kb[it]) }
+                        val z = IntArray(n) { if (it in sel) scaled(c, kb[it]) else if (st[it] == 0) 0 else scaled(Device.elOutColor(svc, it, st[it]), kb[it]) }
                         LedFx.previewEls(z, 1f)
                     }
                     val done: (Int) -> Unit = { c -> ledWheelView = false; ledTab = 0; ledFocus = if (ledViaNorth) "st" else "el"; ledViaNorth = false; applyLed(c) }
@@ -3028,12 +3044,12 @@ class ControlCenter(private val svc: HugminnService) {
             }
             else -> {
                 target(null)
-                val tgt = listOf(ledEl)
-                val tFx = LedEffect.values()[fx[ledEl]]
+                val tgt = sel
+                val tFx = LedEffect.values()[fx[ledShown()]]
                 val items = ledFxItems
                 if (ledFxIdx !in items.indices) ledFxIdx = items.indexOfFirst { it.e == tFx }.coerceAtLeast(0)
                 val it0 = items[ledFxIdx]
-                val active = tFx == it0.e && st[ledEl] == 3
+                val active = tFx == it0.e && tgt.all { st[it] == 3 && fx[it] == it0.e.ordinal }
                 val tag = text(if (it0.info) tr("Info") else tr("Effekt"), 10f, pal.primary).apply {
                     setPadding(6 * d, 0, 6 * d, 0)
                     background = shape(0, 8f * d, 1 * d, pal.primary)
@@ -3046,7 +3062,7 @@ class ControlCenter(private val svc: HugminnService) {
                     val back = ledViaNorth
                     ledViaNorth = false
                     if (back) ledTab = 0
-                    Device.setElStates(svc, st.copyOf().also { it[ledEl] = 3 }) { svc.ui.post { refreshAll() }; again(if (back) "st" else "fx") }
+                    Device.setElStates(svc, st.copyOf().also { a -> tgt.forEach { a[it] = 3 } }) { svc.ui.post { refreshAll() }; again(if (back) "st" else "fx") }
                 }, lp(MATCH, WRAP))
                 body.addView(desc(it0.desc), lp(MATCH, WRAP))
                 when (it0.e) {
@@ -3087,7 +3103,7 @@ class ControlCenter(private val svc: HugminnService) {
                 // the same effect on every light that is on
                 val all = chip(tr("Für alle eingeschalteten Lichter"), false)
                 val allAct: () -> Unit = {
-                    val on = (0 until n).filter { st[it] > 0 }.ifEmpty { listOf(ledEl) }
+                    val on = (0 until n).filter { st[it] > 0 }.ifEmpty { listOf(ledShown()) }
                     LedFx.setEls(svc, on, it0.e)
                     Device.setElStates(svc, st.copyOf().also { a -> on.forEach { a[it] = 3 } }) { svc.ui.post { refreshAll() }; again("fxall") }
                 }
@@ -3185,7 +3201,7 @@ class ControlCenter(private val svc: HugminnService) {
         }
         // north button on "Zeigt": straight to the setting of what the light shows
         if (code == northKey()) {
-            if (cur.key == "st" && ledTab == 0) when (Device.elState(svc, ledEl)) {
+            if (cur.key == "st" && ledTab == 0) when (Device.elState(svc, ledShown())) {
                 1 -> { ledViaNorth = true; ledTab = 2; ledWheelView = false; ledFocus = "c0"; ledPicker() }
                 2 -> { ledViaNorth = true; ledEditing = "combo"; ledFocus = "combo"; showLedSel() }
                 3 -> { ledViaNorth = true; ledTab = 1; ledFocus = "fx"; ledEditing = "fx"; ledPicker() }
