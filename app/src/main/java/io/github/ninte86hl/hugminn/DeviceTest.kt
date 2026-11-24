@@ -371,22 +371,19 @@ class DeviceTestActivity : Activity() {
         val look = t("Was macht das Licht?", "What does the light do?")
         val looks = listOf(t("Leuchtet ruhig", "Steady"), t("Atmet / pulsiert", "Breathes / pulses"), t("Regenbogen / Farbwechsel", "Rainbow / colour change"),
             t("Läuft im Kreis", "Runs round"), t("Aus", "Off"), t("Etwas anderes", "Something else"))
+        // Anbernic's own light service steers the LEDs all the time (led_level reads back changing values):
+        // with its lighting switched off in the settings it should leave them to us
+        val off = listOf("set:led_enable" to 0)
         val steps = mutableListOf(
-            AStep(t("Farbe je Stick", "Colour per stick"), listOf("led_switch" to 1, "Led_rgb_r1" to 255, "Led_rgb_g1" to 0, "Led_rgb_b1" to 0,
-                "Led_rgb_r2" to 0, "Led_rgb_g2" to 0, "Led_rgb_b2" to 255), colour, colours),
-            AStep(t("Farbe je Stick + led_set", "Colour per stick + led_set"), listOf("led_set" to 1), colour, colours),
-            AStep(t("Eigene Farbe (grün)", "Custom colour (green)"), listOf("custum_rgb_r" to 0, "custum_rgb_g" to 255, "custum_rgb_b" to 0),
+            AStep(t("Anbernic-Licht aus, eigene Farben", "Anbernic light off, own colours"), off + listOf("led_switch" to 1, "led_mode" to 0,
+                "Led_rgb_r1" to 255, "Led_rgb_g1" to 0, "Led_rgb_b1" to 0, "Led_rgb_r2" to 0, "Led_rgb_g2" to 0, "Led_rgb_b2" to 255, "led_set" to 1), colour, colours),
+            AStep(t("… mit voller Helligkeit", "… at full brightness"), listOf("led_level" to 255, "led_set" to 1), colour, colours),
+            AStep(t("… eigene Farbe grün", "… custom colour green"), listOf("custum_rgb_r" to 0, "custum_rgb_g" to 255, "custum_rgb_b" to 0, "led_set" to 1),
                 colour, listOf(t("Beide grün", "Both green"), t("Keine Änderung", "No change"), t("Etwas anderes", "Something else"))),
         )
-        for (m in 0..7) steps += AStep("led_mode = $m", listOf("led_mode" to m), look, looks)
-        steps += AStep(t("Helligkeit hoch", "Brightness high"), listOf("led_level" to 255), t("Wie hell?", "How bright?"),
-            listOf(t("Heller als vorher", "Brighter than before"), t("Dunkler", "Dimmer"), t("Keine Änderung", "No change")))
-        steps += AStep(t("Helligkeit niedrig", "Brightness low"), listOf("led_level" to 20), t("Wie hell?", "How bright?"),
-            listOf(t("Heller als vorher", "Brighter than before"), t("Dunkler", "Dimmer"), t("Keine Änderung", "No change")))
-        steps += AStep(t("Tempo langsam", "Speed slow"), listOf("led_level" to 200, "led_mode" to (before["led_mode"] ?: 5), "led_speed" to 1),
-            t("Wie schnell?", "How fast?"), listOf(t("Langsamer", "Slower"), t("Schneller", "Faster"), t("Keine Änderung", "No change")))
-        steps += AStep(t("Tempo schnell", "Speed fast"), listOf("led_speed" to 9), t("Wie schnell?", "How fast?"),
-            listOf(t("Langsamer", "Slower"), t("Schneller", "Faster"), t("Keine Änderung", "No change")))
+        for (m in 0..6) steps += AStep(t("Anbernic-Licht aus, ", "Anbernic light off, ") + "led_mode = $m", listOf("led_mode" to m, "led_set" to 1), look, looks)
+        steps += AStep(t("Licht aus (led_switch 0)", "Light off (led_switch 0)"), listOf("led_switch" to 0, "led_set" to 1), t("Sind die Sticks aus?", "Are the sticks off?"),
+            listOf(t("Ja, aus", "Yes, off"), t("Nein, leuchten noch", "No, still lit")))
         aStep(steps, 0, before)
     }
 
@@ -394,11 +391,13 @@ class DeviceTestActivity : Activity() {
         if (i >= steps.size) {
             // back as it was (the order matters little: everything is written once more)
             before.forEach { (k, v) -> AnbernicHelper.joypad(k, v) }
+            // Anbernic's own lighting back on: it takes over again
+            AnbernicHelper.put(this, "led_enable", "1")
             showSummary()
             return
         }
         val s = steps[i]
-        s.writes.forEach { (k, v) -> AnbernicHelper.joypad(k, v) }
+        s.writes.forEach { (k, v) -> if (k.startsWith("set:")) AnbernicHelper.put(this, k.removePrefix("set:"), "$v") else AnbernicHelper.joypad(k, v) }
         list.removeAllViews()
         list.addView(text(t("LED-Tester · ${i + 1}/${steps.size}", "LED tester · ${i + 1}/${steps.size}"), 18f, fg, true))
         list.addView(text(s.name + " – " + s.writes.joinToString { "${it.first}=${it.second}" }, 13f, dim).apply { setPadding(0, d(4), 0, 0) })
