@@ -20,7 +20,11 @@ object AnbernicLed {
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var last = ""
 
+    /** Hugminn steers the lights only once they were set in its LED window – until then Anbernic's app keeps them. */
+    fun inUse(ctx: Context) = Prefs(ctx).let { it.ledElMode.isNotEmpty() || it.ledElColor(0) != 0 }
+
     fun apply(ctx: Context) {
+        if (!inUse(ctx) || !AnbernicHelper.alive(ctx)) return
         val mode = Device.elState(ctx, 0).let { if (it == 0 && Device.sysOn(ctx, "led_enable")) 0 else it }
         val p = Prefs(ctx)
         val wantMode = p.ledElMode.getOrNull(0)?.digitToIntOrNull() ?: mode
