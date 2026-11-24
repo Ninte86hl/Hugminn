@@ -2382,16 +2382,7 @@ class ControlCenter(private val svc: HugminnService) {
     /** LED window: the combination shown in the colour tab (D-pad left/right). */
     private var ledCombo = 0
 
-    private val ledCombos get() = listOf(
-        "Duo Rot/Blau" to (0xFFFF0000.toInt() to 0xFF0000FF.toInt()),
-        tr("Feuer") to (0xFFFF0000.toInt() to 0xFFFF6600.toInt()),
-        tr("Eisblau") to (0xFF00FFFF.toInt() to 0xFFFFFFFF.toInt()),
-        tr("Ozean") to (0xFF0000FF.toInt() to 0xFF00FF99.toInt()),
-        tr("Wald") to (0xFF00FF00.toInt() to 0xFF99FF00.toInt()),
-        "Retro " + tr("Lila") to (0xFF8800FF.toInt() to 0xFFFF00FF.toInt()),
-        tr("Sonnenuntergang") to (0xFFFF6600.toInt() to 0xFFFF00FF.toInt()),
-        "Neon" to (0xFF99FF00.toInt() to 0xFFFF00FF.toInt()),
-    )
+    private val ledCombos get() = Device.ledCombos
 
     /** LED window state: the element in the Gerät tab, the effect shown in Modus, the wheel view in Farbe. */
     private var ledEl = 0
