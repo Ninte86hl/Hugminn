@@ -333,6 +333,7 @@ class DeviceTestActivity : Activity() {
     private val prefs by lazy { Prefs(this) }
 
     private fun startLedTest() {
+        if (Device.isAnbernic && !Root.available() && AnbernicHelper.alive(this)) { anbernicLed(); return }
         if (!Root.available() || !Device.hasStickLeds(this)) { showSummary(); return }
         list.removeAllViews()
         list.addView(text(t("Stick-LEDs", "Stick LEDs"), 18f, fg, true))
@@ -351,6 +352,64 @@ class DeviceTestActivity : Activity() {
             startLedProbe()
         }
         setButtons(button(t("Nein", "No")) { answer(false) }, button(t("Ja", "Yes"), primary = true) { answer(true) })
+    }
+
+    // ---- LED tester for Anbernic (through its helper: the controller's own light settings) ----
+
+    private class AStep(val name: String, val writes: List<Pair<String, Int>>, val ask: String, val answers: List<String>)
+
+    /**
+     * Anbernic: the stick lights hang on the controller driver (singleadc-joypad) – colour per stick,
+     * mode, speed, brightness. Each step writes some of them and asks what changed, so Hugminn learns
+     * how to drive them itself (own colours per stick instead of Anbernic's six effects).
+     */
+    private fun anbernicLed() {
+        val before = AnbernicHelper.joypadNow()
+        val colour = t("Was zeigen die Sticks?", "What do the sticks show?")
+        val colours = listOf(t("Links rot, rechts blau", "Left red, right blue"), t("Beide dieselbe Farbe", "Both the same colour"),
+            t("Keine Änderung", "No change"), t("Etwas anderes", "Something else"))
+        val look = t("Was macht das Licht?", "What does the light do?")
+        val looks = listOf(t("Leuchtet ruhig", "Steady"), t("Atmet / pulsiert", "Breathes / pulses"), t("Regenbogen / Farbwechsel", "Rainbow / colour change"),
+            t("Läuft im Kreis", "Runs round"), t("Aus", "Off"), t("Etwas anderes", "Something else"))
+        val steps = mutableListOf(
+            AStep(t("Farbe je Stick", "Colour per stick"), listOf("led_switch" to 1, "Led_rgb_r1" to 255, "Led_rgb_g1" to 0, "Led_rgb_b1" to 0,
+                "Led_rgb_r2" to 0, "Led_rgb_g2" to 0, "Led_rgb_b2" to 255), colour, colours),
+            AStep(t("Farbe je Stick + led_set", "Colour per stick + led_set"), listOf("led_set" to 1), colour, colours),
+            AStep(t("Eigene Farbe (grün)", "Custom colour (green)"), listOf("custum_rgb_r" to 0, "custum_rgb_g" to 255, "custum_rgb_b" to 0),
+                colour, listOf(t("Beide grün", "Both green"), t("Keine Änderung", "No change"), t("Etwas anderes", "Something else"))),
+        )
+        for (m in 0..7) steps += AStep("led_mode = $m", listOf("led_mode" to m), look, looks)
+        steps += AStep(t("Helligkeit hoch", "Brightness high"), listOf("led_level" to 255), t("Wie hell?", "How bright?"),
+            listOf(t("Heller als vorher", "Brighter than before"), t("Dunkler", "Dimmer"), t("Keine Änderung", "No change")))
+        steps += AStep(t("Helligkeit niedrig", "Brightness low"), listOf("led_level" to 20), t("Wie hell?", "How bright?"),
+            listOf(t("Heller als vorher", "Brighter than before"), t("Dunkler", "Dimmer"), t("Keine Änderung", "No change")))
+        steps += AStep(t("Tempo langsam", "Speed slow"), listOf("led_level" to 200, "led_mode" to (before["led_mode"] ?: 5), "led_speed" to 1),
+            t("Wie schnell?", "How fast?"), listOf(t("Langsamer", "Slower"), t("Schneller", "Faster"), t("Keine Änderung", "No change")))
+        steps += AStep(t("Tempo schnell", "Speed fast"), listOf("led_speed" to 9), t("Wie schnell?", "How fast?"),
+            listOf(t("Langsamer", "Slower"), t("Schneller", "Faster"), t("Keine Änderung", "No change")))
+        aStep(steps, 0, before)
+    }
+
+    private fun aStep(steps: List<AStep>, i: Int, before: Map<String, Int>) {
+        if (i >= steps.size) {
+            // back as it was (the order matters little: everything is written once more)
+            before.forEach { (k, v) -> AnbernicHelper.joypad(k, v) }
+            showSummary()
+            return
+        }
+        val s = steps[i]
+        s.writes.forEach { (k, v) -> AnbernicHelper.joypad(k, v) }
+        list.removeAllViews()
+        list.addView(text(t("LED-Tester · ${i + 1}/${steps.size}", "LED tester · ${i + 1}/${steps.size}"), 18f, fg, true))
+        list.addView(text(s.name + " – " + s.writes.joinToString { "${it.first}=${it.second}" }, 13f, dim).apply { setPadding(0, d(4), 0, 0) })
+        list.addView(text(s.ask, 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
+        s.answers.forEach { a ->
+            list.addView(button(a) {
+                add(t("LED-Tester", "LED tester"), s.name, if (a.startsWith(t("Keine", "No"))) CheckState.WARN else CheckState.OK, "→ $a")
+                aStep(steps, i + 1, before)
+            }, LinearLayout.LayoutParams(-1, d(44)).apply { bottomMargin = d(6) })
+        }
+        setButtons(button(t("Abbrechen", "Cancel")) { aStep(steps, steps.size, before) })
     }
 
     // ---- LED tester (AYN Odin 2: sticks and side lights) ----

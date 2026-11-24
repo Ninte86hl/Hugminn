@@ -43,6 +43,20 @@ object AnbernicHelper {
         }.getOrNull()
     }
 
+    /** The controller's light settings the helper may write (singleadc-joypad, numbers only). */
+    val joypadLed = setOf("led_switch", "led_mode", "led_speed", "led_level", "led_set", "led_sync_colour",
+        "custum_rgb_r", "custum_rgb_g", "custum_rgb_b", "Led_rgb_r1", "Led_rgb_g1", "Led_rgb_b1", "Led_rgb_r2", "Led_rgb_g2", "Led_rgb_b2")
+
+    /** Writes one of the controller's light settings through the helper. */
+    fun joypad(name: String, value: Int): Boolean = name in joypadLed && write("sys $name $value")
+
+    /** The light settings as the helper found them at its start (hw.txt), to put them back. */
+    fun joypadNow(): Map<String, Int> = runCatching {
+        File(dir(), "hw.txt").readLines().dropWhile { !it.startsWith("## joypad values") }.drop(1).takeWhile { !it.startsWith("## ") }
+            .mapNotNull { l -> l.substringBefore(' ').split('=').takeIf { it.size == 2 }?.let { (k, v) -> v.toIntOrNull()?.let { k to it } } }
+            .filter { it.first in joypadLed }.toMap()
+    }.getOrDefault(emptyMap())
+
     /** Ends an app through the helper (the switcher's "close" without root). */
     fun stop(ctx: Context, pkg: String): Boolean {
         if (!pkg.matches(Regex("[a-zA-Z0-9._]+"))) return false
@@ -195,6 +209,14 @@ while true; do
     case "${'$'}seen" in *" ${'$'}b "*) continue ;; esac
     [ -r "${'$'}c" ] || { note "cannot read ${'$'}b"; continue; }
     cat "${'$'}c" 2>/dev/null | while read k v; do
+      # the controller's lights: only these names, only numbers
+      if [ "${'$'}k" = "sys" ]; then
+        set -- ${'$'}v; nm=${'$'}1; val=${'$'}2
+        case "${'$'}nm" in ${joypadLed.joinToString("|")}) ;; *) note "ignored sys ${'$'}nm"; continue ;; esac
+        case "${'$'}val" in ''|*[!0-9]*) note "ignored sys ${'$'}nm=${'$'}val"; continue ;; esac
+        echo "${'$'}val" > /sys/devices/platform/singleadc-joypad/${'$'}nm 2>/dev/null && note "${'$'}nm=${'$'}val (now ${'$'}(cat /sys/devices/platform/singleadc-joypad/${'$'}nm 2>/dev/null))" || note "failed ${'$'}nm=${'$'}val"
+        continue
+      fi
       # ending an app (the switcher's "close"): package names only
       if [ "${'$'}k" = "stop" ]; then
         case "${'$'}v" in *[!a-zA-Z0-9._]*|'') note "ignored stop ${'$'}v" ;; *) am force-stop "${'$'}v" && note "stopped ${'$'}v" ;; esac
