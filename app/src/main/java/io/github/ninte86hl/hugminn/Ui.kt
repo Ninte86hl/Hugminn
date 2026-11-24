@@ -161,7 +161,7 @@ object Glyphs {
     /** The key code Hugminn works with: in the retro layout the north button (X) becomes Y, the west one (Y) X. */
     fun logical(code: Int): Int = logicalRaw(code).also { out ->
         if (code in KeyEvent.KEYCODE_BUTTON_A..KeyEvent.KEYCODE_BUTTON_Z) {
-            val where = Throwable().stackTrace.getOrNull(2)?.let { "${it.fileName}:${it.lineNumber}" }
+            val where = Throwable().stackTrace.drop(1).take(2).joinToString(" < ") { "${it.fileName}:${it.lineNumber}" }
             trace.addLast("${java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.ROOT).format(java.util.Date())} " +
                 "${KeyEvent.keyCodeToString(code)} → ${KeyEvent.keyCodeToString(out)} · ns=${anbernicNs()} nin=${nintendoLayout()} · $where")
             while (trace.size > 30) trace.pollFirst()
