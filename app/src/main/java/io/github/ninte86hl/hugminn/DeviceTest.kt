@@ -374,22 +374,14 @@ class DeviceTestActivity : Activity() {
         // Anbernic's own light service steers the LEDs all the time (led_level reads back changing values):
         // with its lighting switched off in the settings it should leave them to us
         val off = listOf("set:led_enable" to 0)
-        val rb = listOf("Led_rgb_r1" to 255, "Led_rgb_g1" to 0, "Led_rgb_b1" to 0, "Led_rgb_r2" to 0, "Led_rgb_g2" to 0, "Led_rgb_b2" to 255)
-        val speed = listOf(t("Langsamer", "Slower"), t("Schneller", "Faster"), t("Keine Änderung", "No change"))
-        val bright = listOf(t("Heller", "Brighter"), t("Dunkler", "Dimmer"), t("Keine Änderung", "No change"))
-        // round 2 showed: with Anbernic's lighting off, led_mode drives the sticks (0/6 off, 1–3/5 colour change,
-        // 4 runs round). Now the colours – first a mode that lights, then the colours
+        // round 4: one clear colour (red, through the shared colour), then each unclear mode with concrete answers
+        val red = listOf("led_switch" to 1, "led_sync_colour" to 1, "custum_rgb_r" to 255, "custum_rgb_g" to 0, "custum_rgb_b" to 0, "led_level" to 200)
+        val what = t("Was siehst du?", "What do you see?")
+        val answers = listOf(t("Rot, ruhig", "Red, steady"), t("Rot, atmet / pulsiert", "Red, breathes / pulses"), t("Rot, blinkt", "Red, blinks"),
+            t("Regenbogen / Farbwechsel", "Rainbow / colour change"), t("Läuft im Kreis", "Runs round"), t("Andere Farbe", "Another colour"), t("Aus", "Off"))
         val steps = mutableListOf<AStep>()
-        for (m in listOf(1, 2, 3, 5)) steps += AStep("led_mode = $m + " + t("links rot, rechts blau", "left red, right blue"),
-            (if (steps.isEmpty()) off else emptyList()) + listOf("led_switch" to 1, "led_mode" to m) + rb + ("led_set" to 1), colour, colours + looks.take(3))
-        steps += AStep("led_sync_colour = 1 + " + t("grün", "green"), listOf("led_mode" to 1, "led_sync_colour" to 1, "custum_rgb_r" to 0, "custum_rgb_g" to 255,
-            "custum_rgb_b" to 0, "led_set" to 1), colour, listOf(t("Beide grün", "Both green"), t("Keine Änderung", "No change"), t("Etwas anderes", "Something else")))
-        steps += AStep("led_sync_colour = 0", listOf("led_sync_colour" to 0, "led_set" to 1) + rb + ("led_set" to 1), colour, colours)
-        for (m in 7..9) steps += AStep("led_mode = $m", listOf("led_mode" to m, "led_set" to 1), look, looks)
-        steps += AStep(t("Tempo 1 (Modus 1)", "Speed 1 (mode 1)"), listOf("led_mode" to 1, "led_speed" to 1, "led_set" to 1), t("Wie schnell?", "How fast?"), speed)
-        steps += AStep(t("Tempo 9", "Speed 9"), listOf("led_speed" to 9, "led_set" to 1), t("Wie schnell?", "How fast?"), speed)
-        steps += AStep(t("Helligkeit 255", "Brightness 255"), listOf("led_level" to 255, "led_set" to 1), t("Wie hell?", "How bright?"), bright)
-        steps += AStep(t("Helligkeit 20", "Brightness 20"), listOf("led_level" to 20, "led_set" to 1), t("Wie hell?", "How bright?"), bright)
+        for (m in listOf(1, 2, 5, 7, 8, 9)) steps += AStep("led_mode = $m",
+            (if (steps.isEmpty()) off + red else emptyList()) + listOf("led_mode" to m, "led_set" to 1), what, answers)
         aStep(steps, 0, before)
     }
 
