@@ -646,7 +646,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (ledCells != null && (menuView as? View)?.tag == "led") {
             hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, "Tab")
             if (Device.isAnbernic) {
-                fixed(tr("Navigieren"), tr("An/Aus"), null, tr("Auswählen"), if (ledTab != 0 || ledWheelView) tr("Zurück") else tr("Schließen"))
+                fixed(tr("Navigieren"), tr("An/Aus"), if (ledTab == 1) tr("Übernehmen") else null, tr("Auswählen"), if (ledTab != 0 || ledWheelView) tr("Zurück") else tr("Schließen"))
                 return
             }
             fixed(if (ledEditing != null) tr("Ändern") else tr("Navigieren"),
@@ -2472,7 +2472,6 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** Anbernic: one light for both sticks – its own small window with two tabs, Farbe (15 colours + wheel) and Effekt. */
     private val anbLevels = intArrayOf(20, 50, 100)
-    private val anbFxApply = Runnable { anbApplyFx() }
 
     /** What the Anbernic light shows (0 off, otherwise on) – from Hugminn's own choice, so it does not lag behind the helper. */
     private fun anbMode() = svc.prefs.ledElMode.getOrNull(0)?.digitToIntOrNull() ?: Device.elState(svc, 0)
@@ -2631,12 +2630,12 @@ class ControlCenter(private val svc: HugminnService) {
             if (ledFxIdx !in items.indices) ledFxIdx = items.indexOfFirst { it.e == Device.elFx(svc, 0) }.coerceAtLeast(0)
             val it0 = items[ledFxIdx]
             body.addView(stepper("fx", tr("Effekt"), it0.name, null, { dir ->
+                // ◀ ▶ only browse; A or X takes the effect – simple and predictable
                 ledFxIdx = (ledFxIdx + dir + items.size) % items.size
-                // live, but only once the choice rests – no flood of writes while stepping through
-                svc.ui.removeCallbacks(anbFxApply)
-                svc.ui.postDelayed(anbFxApply, 600)
                 again("fx")
-            }) { svc.ui.removeCallbacks(anbFxApply); anbApplyFx() }, lp(MATCH, 40 * d))
+            }) { anbApplyFx() }, lp(MATCH, 40 * d))
+            val running = anbMode() == 3 && Device.elFx(svc, 0) == it0.e
+            body.addView(text(if (running) tr("✓ läuft gerade") else tr("A oder X übernimmt den Effekt"), 12f, if (running) pal.primary else pal.onSurface, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, 6 * d, 0, 0) }, lp(MATCH, WRAP))
             body.addView(desc(it0.desc), lp(MATCH, WRAP))
             if (it0.info) body.addView(desc(if (it0.e == LedEffect.BATTERY) tr("Grün über 50 % · Gelb 20–50 % · Rot unter 20 %") else tr("Grün unter 60 °C · Gelb 60–75 °C · Rot ab 75 °C")), lp(MATCH, WRAP))
             else if (it0.e != LedEffect.RAINBOW && it0.e != LedEffect.RING) body.addView(desc(tr("Läuft in der Farbe aus dem Tab Farbe.")), lp(MATCH, WRAP))
@@ -2666,6 +2665,8 @@ class ControlCenter(private val svc: HugminnService) {
         val cur = cells.firstOrNull { it.key == ledFocus } ?: cells.first()
         val (dx, dy) = when (code) {
             KeyEvent.KEYCODE_BUTTON_Y -> { anbToggle(); return }
+            // Effekt tab: X takes the effect shown, like A
+            KeyEvent.KEYCODE_BUTTON_X -> { if (ledTab == 1) anbApplyFx(); return }
             KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> { ledTab = 1 - ledTab; ledWheelView = false; ledFocus = ""; ledPicker(); return }
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { cur.act(); return }
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> {

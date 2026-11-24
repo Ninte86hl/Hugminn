@@ -254,6 +254,7 @@ object Lang {
         "Übernehmen" to "Apply",
         "Effekte" to "Effects",
         "Kombis" to "Combos",
+        "A oder X übernimmt den Effekt" to "A or X applies the effect",
         "Licht" to "Light",
         "Niedrig" to "Low",
         "Mittel" to "Medium",
