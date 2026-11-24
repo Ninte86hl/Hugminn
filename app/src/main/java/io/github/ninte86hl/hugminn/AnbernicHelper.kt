@@ -201,6 +201,15 @@ if [ "${'$'}1" != "loop" ]; then
   setsid sh "${'$'}0" loop </dev/null >/dev/null 2>&1 &
   exit 0
 fi
+# Started from Anbernic's app, the helper sits in that app's process group – when Android ends the app
+# (standby, memory), it takes the whole group along. Move out into the root group and away from the
+# low-memory killer, so the helper keeps running after standby.
+for g in /sys/fs/cgroup/cgroup.procs /dev/cpuctl/tasks /dev/cpuset/tasks /dev/stune/tasks /dev/blkio/tasks; do
+  [ -w "${'$'}g" ] && echo ${'$'}${'$'} > "${'$'}g" 2>/dev/null
+done
+echo -1000 > /proc/${'$'}${'$'}/oom_score_adj 2>/dev/null
+note "loop pid=${'$'}${'$'} group=${'$'}(head -1 /proc/${'$'}${'$'}/cgroup 2>/dev/null)"
+trap 'note "ended by signal"; exit 0' TERM INT HUP
 # live values for Hugminn (Android doesn't let apps read them here): CPU/GPU temperature, GPU clock and load
 CZ=""; GZ=""
 for z in /sys/class/thermal/thermal_zone*; do
