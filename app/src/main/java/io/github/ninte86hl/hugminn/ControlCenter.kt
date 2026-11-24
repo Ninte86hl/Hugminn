@@ -2462,7 +2462,7 @@ class ControlCenter(private val svc: HugminnService) {
         LedFxItem(LedEffect.RAINBOW, tr("Farbwechsel"), tr("Beide Sticks wechseln gemeinsam durch alle Farben.")),
         LedFxItem(LedEffect.RING, tr("Regenbogen"), tr("Die Farben wandern wie ein Regenbogen rund um den Stick.")),
         LedFxItem(LedEffect.CHASE, tr("Lauflicht"), tr("Ein Licht jagt im Kreis um den Stick.")),
-        LedFxItem(LedEffect.GAMING, "Gaming", tr("Anbernics Gaming-Effekt.")),
+        // Anbernic's "Game" looked no different from steady light in every test: left out
         LedFxItem(LedEffect.BATTERY, tr("Akku"), tr("Die Farbe zeigt den Ladestand – ein Blick genügt."), true),
         LedFxItem(LedEffect.TEMP, tr("Temperatur"), tr("Die Farbe zeigt, wie warm das Gerät gerade ist."), true),
     ) else listOf(
