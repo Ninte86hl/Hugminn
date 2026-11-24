@@ -141,7 +141,8 @@ class ControlCenter(private val svc: HugminnService) {
                 // a window left behind by a close that went wrong: remove it instead of swallowing keys
                 if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(this) }; false } else
                 if (volumeKey(event)) true else
-                onKey(event)
+                // keys that reach the window directly go by position too, like those through the service
+                onKey(Glyphs.logical(event))
             } catch (t: Throwable) {
                 Crash.note(svc, t)
                 close()
