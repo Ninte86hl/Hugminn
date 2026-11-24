@@ -1680,7 +1680,7 @@ class ControlCenter(private val svc: HugminnService) {
         "leds" -> if (Device.isAnbernic && (rootOk || Device.canWrite(svc)) && Device.sys(svc, "led_enable") != null)
             Tile(tr("Beleuchtung"), IconView.Kind.LED, { if (Device.sysOn(svc, "led_enable")) Device.anbernicEffects[Device.sys(svc, "led_effect")] ?: tr("An") else tr("Aus") },
                 { Device.sysOn(svc, "led_enable") }, {
-                    profileMenu(tr("Beleuchtung"), "led_effect", Device.anbernicEffects) { v -> Device.put("led_effect", v) { Device.put("led_enable", "1") { refreshAll() } } }
+                    anbernicLedMenu()
                 }) { Device.put("led_enable", if (Device.sysOn(svc, "led_enable")) "0" else "1") { refreshAll() } }
         else if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
         "dnd" -> if (rootOk) Tile(tr("Nicht stören"), IconView.Kind.MOON, { if (Device.dnd(svc)) tr("An") else tr("Aus") }, { Device.dnd(svc) }) {
@@ -1969,6 +1969,62 @@ class ControlCenter(private val svc: HugminnService) {
                 KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> closeMenu()
             }
         }
+    }
+
+    /**
+     * Anbernic's stick lights: its own effects (through its setting), plus a colour of our own and the
+     * brightness – written into the controller by the helper. One colour for both sticks: the RG 406H
+     * has no colour per stick (LED tester, rounds 1–5).
+     */
+    private fun anbernicLedMenu(select: Int = -1) {
+        val p = svc.prefs
+        val cur = Device.sys(svc, "led_effect")
+        val own = p.anbLedColor
+        val entries = mutableListOf<MenuEntry>()
+        entries += MenuEntry(t("Effekt", "Effect"), header = true, run = null)
+        Device.anbernicEffects.forEach { (v, name) ->
+            entries += MenuEntry(name, checked = v == cur && Device.sysOn(svc, "led_enable")) {
+                Device.put("led_effect", v) { Device.put("led_enable", "1") {
+                    // Anbernic puts its own colour back with the effect: ours over it again
+                    if (own != 0) svc.ui.postDelayed({ anbernicColour(own) }, 800)
+                    refreshAll()
+                } }
+            }
+        }
+        entries += MenuEntry(t("Farbe (beide Sticks)", "Colour (both sticks)"), header = true, run = null)
+        val names = listOf(t("Weiß", "White"), t("Rot", "Red"), t("Rotorange", "Red orange"), "Orange", t("Gelb", "Yellow"), t("Limette", "Lime"),
+            t("Hellgrün", "Light green"), t("Grün", "Green"), t("Mint", "Mint"), t("Türkis", "Cyan"), t("Himmelblau", "Sky blue"), t("Blau", "Blue"),
+            t("Violett", "Violet"), "Magenta", t("Pink", "Pink"))
+        ledColours15.forEachIndexed { i, c ->
+            entries += MenuEntry(names.getOrElse(i) { "#%06X".format(c and 0xFFFFFF) }, checked = own == c, swatch = c) {
+                p.anbLedColor = c
+                anbernicColour(c)
+                svc.ui.post { anbernicLedMenu(entries.indexOfFirst { it.swatch == c }) }
+            }
+        }
+        entries += MenuEntry(t("Anbernics Farbe", "Anbernic's colour"), checked = own == 0, hint = t("Die Farbe aus Anbernics App", "The colour from Anbernic's app")) {
+            p.anbLedColor = 0
+            // re-applying the effect makes Anbernic write its colour again
+            cur?.let { Device.put("led_effect", it) { refreshAll() } }
+        }
+        entries += MenuEntry(t("Helligkeit", "Brightness"), header = true, run = null)
+        val lvl = p.anbLedLevel
+        listOf(40 to t("Niedrig", "Low"), 127 to t("Mittel", "Medium"), 255 to t("Hoch", "High")).forEach { (v, name) ->
+            entries += MenuEntry(name, checked = lvl == v) {
+                p.anbLedLevel = v
+                AnbernicHelper.joypad("led_level", v); AnbernicHelper.joypad("led_set", 1)
+                svc.ui.post { anbernicLedMenu(entries.indexOfFirst { it.label == name }) }
+            }
+        }
+        showMenu(tr("Beleuchtung"), entries, select)
+    }
+
+    /** One colour into the controller: the shared colour and both sticks' channels, then applied. */
+    private fun anbernicColour(c: Int) {
+        val r = Color.red(c); val g = Color.green(c); val b = Color.blue(c)
+        listOf("led_sync_colour" to 0, "custum_rgb_r" to r, "custum_rgb_g" to g, "custum_rgb_b" to b,
+            "Led_rgb_r1" to r, "Led_rgb_g1" to g, "Led_rgb_b1" to b, "Led_rgb_r2" to r, "Led_rgb_g2" to g, "Led_rgb_b2" to b, "led_set" to 1)
+            .forEach { (k, v) -> AnbernicHelper.joypad(k, v) }
     }
 
     private fun profileMenu(title: String, key: String, table: Map<String, String>, sel: Int = -1, set: (String) -> Unit) {
