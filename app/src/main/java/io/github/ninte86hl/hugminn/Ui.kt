@@ -126,11 +126,15 @@ object Glyphs {
     data class Glyph(val text: String?, val shape: Shape?, val color: Int)
 
     /** True when the handheld runs in Retroid/Nintendo layout (A on the right). */
-    fun nintendoLayout(): Boolean = anbernicNs() ?: Device.aynNintendo ?: InputDevice.getDeviceIds().any { id ->
+    fun nintendoLayout(): Boolean = Device.aynNintendo ?: InputDevice.getDeviceIds().any { id ->
         InputDevice.getDevice(id)?.name?.contains("Retroid Pocket Controller", ignoreCase = true) == true
     }
 
-    /** Anbernic: its own "Trigger Setting" – abxy_mode 0 is "Ns mode" (A on the right), 1 "Xbox mode". Read live, it can change any time. */
+    /**
+     * Anbernic: its own "Trigger Setting" – abxy_mode 0 "Ns mode", 1 "Xbox mode". Tested on the RG 406H: both send the
+     * same key codes by position (bottom A, right B, left X, top Y), so only the glyphs follow it – Ns mode shows the
+     * printed retro letters. Read live, it can change any time.
+     */
     private fun anbernicNs(): Boolean? {
         if (!Device.isAnbernic) return null
         val ctx = Device.app ?: return null
@@ -163,7 +167,7 @@ object Glyphs {
     }
 
     private fun styleFor(prefs: Prefs, nintendo: Boolean) = when (prefs.glyphStyle) {
-        GlyphStyle.AUTO -> if (nintendo) GlyphStyle.NINTENDO else GlyphStyle.XBOX
+        GlyphStyle.AUTO -> if (anbernicNs() ?: nintendo) GlyphStyle.NINTENDO else GlyphStyle.XBOX
         else -> prefs.glyphStyle
     }
 
