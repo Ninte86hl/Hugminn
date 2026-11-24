@@ -32,12 +32,23 @@ object Device {
     /** Without root: Anbernic's helper (started by its "Root Scripts") writes the settings for Hugminn. */
     fun canWrite(ctx: Context) = isAnbernic && AnbernicHelper.alive(ctx)
 
+    /**
+     * Anbernic: show its tiles while the helper is down too (they used to vanish, and an open LED
+     * window with them – it flickered); an action then says how to start the helper.
+     */
+    fun anbernicKnown(ctx: Context) = isAnbernic && AnbernicHelper.dir().let { java.io.File(it, "helper.sh").exists() }
+
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
 
     /** One system setting: root if there is root, otherwise through Anbernic's helper. */
     fun put(key: String, value: String, then: () -> Unit) {
         val c = app
         if (isAnbernic) AnbernicHelper.trace("put $key=$value root=${Root.available()} app=${c != null} helper=${c?.let { canWrite(it) }}")
+        if (isAnbernic && !Root.available() && c != null && !canWrite(c)) {
+            main.post { android.widget.Toast.makeText(c, tr("Der Anbernic-Helfer läuft nicht – in Anbernics Skriptverwaltung ▶ drücken"), android.widget.Toast.LENGTH_LONG).show() }
+            main.post(then)
+            return
+        }
         if (!Root.available() && c != null && canWrite(c)) {
             AnbernicHelper.put(c, key, value)
             // the helper looks every 0.3 s; "settings put" itself takes a moment: refresh twice

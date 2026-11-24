@@ -280,6 +280,7 @@ object Lang {
         "Farbwechsel" to "Colour cycle",
         "Regenbogen versetzt" to "Rainbow ring",
         "Regenbogen" to "Rainbow",
+        "Der Anbernic-Helfer läuft nicht – in Anbernics Skriptverwaltung ▶ drücken" to "Anbernic helper isn't running – press ▶ in Anbernic's script management",
         "Ausgewogen" to "Balanced",
         "Fest" to "Fixed",
         "Leuchten" to "Steady",

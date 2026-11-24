@@ -736,7 +736,7 @@ class ControlCenter(private val svc: HugminnService) {
         }
         val big = e.w >= 2 && e.h >= 2
         if (id == "system") return systemElement(e)
-        if (big && (id == "perf" || id == "fan") && (rootOk || Device.canWrite(svc))) return profileElement(e)
+        if (big && (id == "perf" || id == "fan") && (rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc))) return profileElement(e)
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
         if (id == "media" && big) return mediaElement(e, t)
@@ -1663,10 +1663,10 @@ class ControlCenter(private val svc: HugminnService) {
         }, { Device.btOn(svc) }, { btMenu(rootOk) }) {
             if (rootOk) Device.setBt(!Device.btOn(svc)) { refreshAll() } else btMenu(false)
         }
-        "perf" -> if ((rootOk || Device.canWrite(svc)) && Device.sys(svc, Device.perfKey) != null) Tile(tr("Leistung"), IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
+        "perf" -> if ((rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc)) && Device.sys(svc, Device.perfKey) != null) Tile(tr("Leistung"), IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
             profileMenu(tr("Leistung"), Device.perfKey, Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
         } else null
-        "fan" -> if ((rootOk || Device.canWrite(svc)) && Device.sys(svc, "fan_mode") != null) Tile(tr("Lüfter"), IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
+        "fan" -> if ((rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc)) && Device.sys(svc, "fan_mode") != null) Tile(tr("Lüfter"), IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
             profileMenu(tr("Lüfter"), "fan_mode", Device.fanProfiles) { v -> chooseFan(v) }
         } else null
         "refresh" -> {
@@ -1677,7 +1677,7 @@ class ControlCenter(private val svc: HugminnService) {
                 } else null
         }
         // Anbernic: its own lighting – on/off, effect from the menu
-        "leds" -> if (Device.isAnbernic && (rootOk || Device.canWrite(svc)) && Device.sys(svc, "led_enable") != null)
+        "leds" -> if (Device.isAnbernic && (rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc)) && Device.sys(svc, "led_enable") != null)
             Tile(tr("Beleuchtung"), IconView.Kind.LED, { if (Device.sysOn(svc, "led_enable")) Device.anbernicEffects[Device.sys(svc, "led_effect")] ?: tr("An") else tr("Aus") },
                 { Device.sysOn(svc, "led_enable") }, {
                     ledPicker()
