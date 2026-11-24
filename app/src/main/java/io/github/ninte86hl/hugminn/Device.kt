@@ -272,7 +272,7 @@ object Device {
 
     // ---- LED elements: each stick (and on the Odin 2 each side) on its own ----
 
-    fun ledElNames(ctx: Context): List<String> = if (hasSideLights(ctx))
+    fun ledElNames(ctx: Context): List<String> = if (isAnbernic) listOf(tr("Sticks")) else if (hasSideLights(ctx))
         listOf(tr("Linker Stick"), tr("Rechter Stick"), tr("Linke Seite"), tr("Rechte Seite"))
         else listOf(tr("Linker Stick"), tr("Rechter Stick"))
 
@@ -281,6 +281,10 @@ object Device {
      * Colour, combination and effect are each set once; the mode picks which one lights.
      */
     fun elState(ctx: Context, i: Int): Int {
+        if (isAnbernic) {
+            if (!sysOn(ctx, "led_enable")) return 0
+            return Prefs(ctx).ledElMode.getOrNull(0)?.digitToIntOrNull()?.takeIf { it in 1..3 } ?: if (sys(ctx, "led_effect") == "0") 1 else 3
+        }
         val odin = hasSideLights(ctx)
         // switched off by AYN's/Retroid's own setting: off
         val powered = if (odin) (if (i < 2) stickLeds(ctx) else sideLights(ctx)) else stickOn(ctx, i == 0)
@@ -297,6 +301,7 @@ object Device {
     /** Sets all modes; the power switches (AYN: both sticks / both sides; Retroid: each stick) follow. */
     fun setElStates(ctx: Context, s: IntArray, then: () -> Unit) {
         Prefs(ctx).ledElMode = s.joinToString("")
+        if (isAnbernic) { LedFx.resume(ctx); main.postDelayed(then, 900); return }
         if (hasSideLights(ctx)) {
             val sticks = s[0] > 0 || s[1] > 0
             val sides = s[2] > 0 || s[3] > 0
@@ -312,6 +317,8 @@ object Device {
     /** The element's own colour (also the colour of breathing and pulsing). */
     fun elColor(ctx: Context, i: Int): Int {
         Prefs(ctx).ledElColor(i).takeIf { it != 0 }?.let { return it }
+        // Anbernic: the colour chosen in the quick menu before, otherwise its cyan
+        if (isAnbernic) return Prefs(ctx).anbLedColor.takeIf { it != 0 } ?: 0xFF00BCD4.toInt()
         if (hasSideLights(ctx)) {
             val (l, r) = areaColors(ctx, side = i >= 2)
             return if (i % 2 == 0) l else r
@@ -353,6 +360,7 @@ object Device {
 
     /** Brightness of an element in percent (Odin 2: each its own; Retroid: the one value of both sticks). */
     fun elBright(ctx: Context, i: Int): Int {
+        if (isAnbernic) return Prefs(ctx).ledElB(0).takeIf { it in 1..100 } ?: Prefs(ctx).anbLedLevel
         val global = (ledBrightness(ctx) * 100).toInt().coerceIn(5, 100)
         return Prefs(ctx).ledElB(i).takeIf { it in 1..100 } ?: global
     }
