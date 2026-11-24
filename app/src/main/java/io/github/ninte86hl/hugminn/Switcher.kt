@@ -504,7 +504,7 @@ class Switcher(private val svc: HugminnService) {
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
                 if (event.action == KeyEvent.ACTION_DOWN) try {
                     val lr = event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-                    if (menu == null && lr) navigate(event.keyCode) else handleKey(event.keyCode)
+                    if (menu == null && lr) navigate(event.keyCode) else handleKey(Glyphs.logical(event.keyCode))
                 } catch (t: Throwable) {
                     Crash.note(svc, t)
                 }
