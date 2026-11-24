@@ -328,6 +328,7 @@ object Feedback {
         appendLine("Eingabegeräte jetzt: ${Device.padList()}")
         runCatching { Bt.batteries(svc) }.getOrNull()?.let { appendLine(); appendLine("Geräte-Akku: $it"); appendLine("  ${Bt.batteryDiag}") }
         if (keys.isNotEmpty()) { appendLine(); appendLine("Letzte Tasten (Hugminn sieht sie):"); keys.forEach { appendLine("  $it") } }
+        Glyphs.trace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Tasten-Umrechnung (roh → Hugminn):"); t.forEach { appendLine("  $it") } }
         val opened = synchronized(svc.windowLog) { svc.windowLog.toList() }
         if (opened.isNotEmpty()) { appendLine(); appendLine("Zuletzt geöffnete Fenster:"); opened.forEach { appendLine("  $it") } }
         appendLine()
