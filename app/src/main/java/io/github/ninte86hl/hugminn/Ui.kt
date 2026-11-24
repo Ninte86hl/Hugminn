@@ -131,10 +131,9 @@ object Glyphs {
     }
 
     /**
-     * Anbernic: its own "Trigger Setting" – abxy_mode 0 "Ns mode", 1 "Xbox mode". Tested on the RG 406H: both send the
-     * same key codes by position (bottom A, right B, left X, top Y). In Ns mode Hugminn treats the printed letters as
-     * meant – A (right) confirms, B (bottom) goes back – by swapping A and B on the way in (see [logical]).
-     * Read live, it can change any time.
+     * Anbernic: its own "Trigger Setting" – abxy_mode 0 "Ns mode", 1 "Xbox mode". Inside Hugminn's windows the
+     * buttons arrive as printed (tested on the RG 406H, see [logicalRaw]); the mode decides which one confirms
+     * and which glyphs "Automatisch" shows. Read live, it can change any time.
      */
     private fun anbernicNs(): Boolean? {
         if (!Device.isAnbernic) return null
@@ -168,11 +167,18 @@ object Glyphs {
         }
     }
 
-    private fun logicalRaw(code: Int): Int = if (anbernicNs() == true) when (code) {
-        KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_BUTTON_B
-        KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BUTTON_A
-        else -> code
-    } else if (!nintendoLayout()) code else when (code) {
+    private fun logicalRaw(code: Int): Int = anbernicNs()?.let { ns ->
+        // Anbernic: while Hugminn is open its key mapper is paused, so the buttons arrive as printed
+        // (A right, B bottom, X top, Y left) whatever the mode. North/west always by position;
+        // Ns mode keeps A/B as printed, Xbox mode makes the bottom button confirm.
+        when (code) {
+            KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
+            KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
+            KeyEvent.KEYCODE_BUTTON_A -> if (ns) code else KeyEvent.KEYCODE_BUTTON_B
+            KeyEvent.KEYCODE_BUTTON_B -> if (ns) code else KeyEvent.KEYCODE_BUTTON_A
+            else -> code
+        }
+    } ?: if (!nintendoLayout()) code else when (code) {
         KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
         KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
         else -> code
