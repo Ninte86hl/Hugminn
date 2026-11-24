@@ -1680,7 +1680,7 @@ class ControlCenter(private val svc: HugminnService) {
         "leds" -> if (Device.isAnbernic && (rootOk || Device.canWrite(svc)) && Device.sys(svc, "led_enable") != null)
             Tile(tr("Beleuchtung"), IconView.Kind.LED, { if (Device.sysOn(svc, "led_enable")) Device.anbernicEffects[Device.sys(svc, "led_effect")] ?: tr("An") else tr("Aus") },
                 { Device.sysOn(svc, "led_enable") }, {
-                    anbernicLedMenu()
+                    ledPicker()
                 }) { Device.put("led_enable", if (Device.sysOn(svc, "led_enable")) "0" else "1") { refreshAll() } }
         else if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
         "dnd" -> if (rootOk) Tile(tr("Nicht stören"), IconView.Kind.MOON, { if (Device.dnd(svc)) tr("An") else tr("Aus") }, { Device.dnd(svc) }) {
@@ -2456,7 +2456,14 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** Effects of the Modus tab: effect, name, description, info (device display) or not. */
     private class LedFxItem(val e: LedEffect, val name: String, val desc: String, val info: Boolean = false)
-    private val ledFxItems get() = listOf(
+    private val ledFxItems get() = if (Device.isAnbernic) listOf(
+        LedFxItem(LedEffect.NONE, tr("Leuchten"), tr("Leuchtet ruhig in der gewählten Farbe.")),
+        LedFxItem(LedEffect.BREATHE, tr("Atmen"), tr("Wird langsam heller und dunkler, in der gewählten Farbe.")),
+        LedFxItem(LedEffect.RING, tr("Regenbogen"), tr("Läuft durch alle Farben – Anbernics eigener Effekt.")),
+        LedFxItem(LedEffect.MARQUEE, "Marquee", tr("Anbernics Lauflicht-Effekt.")),
+        LedFxItem(LedEffect.CHASE, tr("Lauflicht"), tr("Ein Licht jagt im Kreis um den Stick.")),
+        LedFxItem(LedEffect.GAMING, "Gaming", tr("Anbernics Gaming-Effekt.")),
+    ) else listOf(
         LedFxItem(LedEffect.NONE, tr("Statisch"), tr("Leuchtet ruhig in der gewählten Farbe.")),
         LedFxItem(LedEffect.BREATHE, tr("Atmen"), tr("Wird langsam heller und dunkler, wie ruhiges Atmen.")),
         LedFxItem(LedEffect.PULSE, tr("Pulsieren"), tr("Kurzer Doppelschlag, dann Pause – wie ein Herzschlag.")),

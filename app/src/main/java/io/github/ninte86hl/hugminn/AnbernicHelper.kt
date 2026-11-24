@@ -30,9 +30,15 @@ object AnbernicHelper {
 
     /** Helper alive: its heartbeat (seconds, in the file "alive") is at most 30 s old. */
     fun alive(ctx: Context): Boolean {
-        val t = read("alive")?.toLongOrNull() ?: return false
-        return System.currentTimeMillis() / 1000 - t < 30
+        val t = read("alive")?.toLongOrNull()
+        val now = t != null && System.currentTimeMillis() / 1000 - t < 30
+        // the helper (re)started – e.g. after a restart Anbernic's app has put its own colour back: ours again
+        if (now && !wasAlive) android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ AnbernicLed.reapply(ctx.applicationContext) }, 1500)
+        wasAlive = now
+        return now
     }
+
+    @Volatile private var wasAlive = false
 
     /** The helper's live values (CPU/GPU °C, GPU MHz and load, fan PWM 0–255); null when it isn't running. */
     fun stats(): Map<String, Float>? {
