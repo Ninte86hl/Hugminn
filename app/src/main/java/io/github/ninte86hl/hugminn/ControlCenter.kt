@@ -206,9 +206,8 @@ class ControlCenter(private val svc: HugminnService) {
         val r = root ?: return
         r.animate().cancel()
         r.alpha = 1f
-        // dimmed with a dark veil (not transparency: what lies underneath must not shine through)
-        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) }
-            else android.graphics.drawable.ColorDrawable(0x99000000.toInt())
+        // only a frame marks where the buttons work; the other one stays as it is
+        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) } else null
     }
 
     /** Nothing more to go to in this direction (so the D-pad may leave for the other screen). */

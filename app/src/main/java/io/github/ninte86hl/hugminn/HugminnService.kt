@@ -355,6 +355,8 @@ class HugminnService : AccessibilityService() {
         keyTap?.let { l ->
             if (event.keyCode != KeyEvent.KEYCODE_POWER) { val copy = KeyEvent(event); ui.post { l(copy) }; return true }
         }
+        // Homes Hugminn sent on to the firmware itself (Retroid's double press)
+        if ((event.keyCode == KeyEvent.KEYCODE_HOME) && android.os.SystemClock.uptimeMillis() < passHomeUntil) return false
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
         if (Device.isAynKey(event)) return false
         // Anbernic (RG 406H): its Home button sends F10 from the built-in pad
@@ -496,6 +498,7 @@ class HugminnService : AccessibilityService() {
 
     private fun extraToken(code: Int) = "extra$code"
 
+    private var passHomeUntil = 0L
     private var backHeld = false
     private val backLongPress = Runnable { backHeld = true; perform(prefs.backLong) }
 
@@ -543,6 +546,8 @@ class HugminnService : AccessibilityService() {
                     if (prefs.ownSwitcher) own.open(swipe = false) else switcher.open()
                 }
             }
+            // Hugminn holds the Home button, so Retroid's firmware never saw the double press: send it two Homes it may keep
+            Action.RETROID -> { closeOverlays(); passHomeUntil = android.os.SystemClock.uptimeMillis() + 1500; Root.run("input keyevent 3 3") }
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
             Action.CONTROL_CENTER -> if (controlCenter.isOpen) controlCenter.close() else controlCenter.open()
             Action.RECENTS -> {
@@ -590,9 +595,17 @@ class HugminnService : AccessibilityService() {
         comboMode = true
         comboCc = false
         val ccLow = prefs.ccLower
+        comboCcDisplay = if (ccLow) low else android.view.Display.DEFAULT_DISPLAY
         own.open(swipe = false, display = if (ccLow) android.view.Display.DEFAULT_DISPLAY else low)
-        controlCenter.open(display = if (ccLow) low else android.view.Display.DEFAULT_DISPLAY)
-        ui.postDelayed({ comboLook() }, 200)
+    }
+
+    private var comboCcDisplay = android.view.Display.DEFAULT_DISPLAY
+
+    /** The switcher's window is up (its list takes a moment): now the Control Center, so both appear together. */
+    fun comboBuilt() {
+        if (!comboMode) return
+        if (!controlCenter.isOpen) controlCenter.open(display = comboCcDisplay)
+        comboLook()
     }
 
     fun comboLook() {
@@ -614,9 +627,10 @@ class HugminnService : AccessibilityService() {
         if (e.action == KeyEvent.ACTION_DOWN) {
             val toCc = if (ccLow) KeyEvent.KEYCODE_DPAD_DOWN else KeyEvent.KEYCODE_DPAD_UP
             val toSw = if (ccLow) KeyEvent.KEYCODE_DPAD_UP else KeyEvent.KEYCODE_DPAD_DOWN
-            if (!comboCc && e.keyCode == toCc) { comboFocus(true); return true }
-            if (comboCc && e.keyCode == toSw && controlCenter.atEdge(if (ccLow) -1 else 1)) { comboFocus(false); return true }
+            if (!comboCc && e.keyCode == toCc) { Glyphs.note("combo → cc"); comboFocus(true); return true }
+            if (comboCc && e.keyCode == toSw && controlCenter.atEdge(if (ccLow) -1 else 1)) { Glyphs.note("combo → switcher"); comboFocus(false); return true }
         }
+        if (e.action == KeyEvent.ACTION_DOWN) Glyphs.note("combo ${KeyEvent.keyCodeToString(e.keyCode)} → ${if (comboCc) "cc" else "switcher"}")
         if (comboCc) controlCenter.onKey(e) else own.onKey(e)
         return true
     }
