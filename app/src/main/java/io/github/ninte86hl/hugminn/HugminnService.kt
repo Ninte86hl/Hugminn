@@ -638,6 +638,7 @@ class HugminnService : AccessibilityService() {
         if (!comboMode || comboCc == cc) return
         comboCc = cc
         comboLook()
+        if (cc) controlCenter.activate()
     }
 
     /** A button while both are open: the D-pad crosses over to the other screen at the edge, everything else goes to the active one. */

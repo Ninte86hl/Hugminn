@@ -210,6 +210,13 @@ class ControlCenter(private val svc: HugminnService) {
         r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) } else null
     }
 
+    /** The buttons came over from the switcher: show at once which tile they are on. */
+    fun activate() {
+        if (!isOpen) return
+        focusVisible = true
+        showFocus()
+    }
+
     /** Nothing more to go to in this direction (so the D-pad may leave for the other screen). */
     fun atEdge(dy: Int): Boolean = menuView == null && !editing && editView == null && gridEdit == null && inside == null && !adjusting && nearest(0, dy) < 0
 
