@@ -81,6 +81,16 @@ object AnbernicLed {
         } else write()
     }
 
+    /**
+     * After standby the controller's lights stay dark although everything says "on": switch them off and
+     * on again, so Anbernic's service sets them up anew, then our effect and colour over it.
+     */
+    fun wake(ctx: Context) {
+        if (!inUse(ctx) || !AnbernicHelper.alive(ctx)) return
+        if ((Prefs(ctx).ledElMode.getOrNull(0)?.digitToIntOrNull() ?: Device.elState(ctx, 0)) == 0) return
+        Device.put("led_enable", "0") { main.postDelayed({ reapply(ctx) }, 600) }
+    }
+
     /** After a restart of the helper: our colour again (Anbernic's app put its own back). */
     fun reapply(ctx: Context) { last = ""; apply(ctx) }
 }

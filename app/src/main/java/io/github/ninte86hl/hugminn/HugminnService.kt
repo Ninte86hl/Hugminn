@@ -213,6 +213,8 @@ class HugminnService : AccessibilityService() {
                 // AYN with two stick colours: the firmware puts its one colour back on waking
                 if (Device.aynSplit(this@HugminnService) && LedFx.current() == LedEffect.NONE && Device.stickLeds(this@HugminnService))
                     LedFx.restoreStatic(this@HugminnService, delayMs = 1500)
+                // Anbernic: the controller's lights stay dark after standby – switch them fully on again
+                if (Device.isAnbernic) ui.postDelayed({ AnbernicLed.wake(this@HugminnService) }, 1200)
                 ui.postDelayed({
                     Thread {
                         if (Root.available() && Device.builtinOff(this@HugminnService) && !Device.externalPad())
