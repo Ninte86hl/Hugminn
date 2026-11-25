@@ -328,6 +328,9 @@ object Feedback {
         appendLine("Eingabegeräte jetzt: ${Device.padList()}")
         runCatching { Bt.batteries(svc) }.getOrNull()?.let { appendLine(); appendLine("Geräte-Akku: $it"); appendLine("  ${Bt.batteryDiag}") }
         if (keys.isNotEmpty()) { appendLine(); appendLine("Letzte Tasten (Hugminn sieht sie):"); keys.forEach { appendLine("  $it") } }
+        // Retroid's assistant (its control center on a double Home): how it can be called
+        if (Root.available() && runCatching { svc.packageManager.getPackageInfo("com.rp.gameassistant", 0) }.isSuccess)
+            Root.exec("dumpsys package com.rp.gameassistant | grep -E 'Action:|com.rp.gameassistant/|com.ro.gameassistant' | head -80", 6_000)?.let { appendLine(); appendLine("Retroid-Assistent:"); appendLine(it) }
         AnbernicAutostart.trace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Anbernic-Autostart:"); t.forEach { appendLine("  $it") } }
         Glyphs.trace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Tasten-Umrechnung (roh → Hugminn):"); t.forEach { appendLine("  $it") } }
         val opened = synchronized(svc.windowLog) { svc.windowLog.toList() }
