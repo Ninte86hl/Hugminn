@@ -101,6 +101,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (isOpen) return
         wm = Displays.wmFor(svc, display)
         otherScreen = display != android.view.Display.DEFAULT_DISPLAY
+        svc.prefs.ccOther = otherScreen
         Displays.snapshot(svc, svc, "Control Center")
         Device.refreshLayout(svc)
         isOpen = true
@@ -246,6 +247,7 @@ class ControlCenter(private val svc: HugminnService) {
         root = null
         window = null
         PauseActivity.release(svc, "cc")
+        svc.prefs.ccOther = false
     }
 
     // ---------- layout helpers ----------

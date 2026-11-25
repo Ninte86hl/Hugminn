@@ -286,9 +286,16 @@ class Prefs(private val ctx: Context) {
         set(v) = p.edit().putString("ccSizes", v.entries.joinToString(",") { "${it.key}:${it.value}" }).apply()
 
     /** Control Center grid: elements in order with their size in cells. */
+    /**
+     * The Control Center is open on the second screen (switcher + Control Center): its grid – tiles, rows,
+     * columns – is kept apart from the main screen's, as the screens differ in shape. Starts as a copy.
+     */
+    @Volatile var ccOther = false
+    private val gridSuffix get() = if (ccOther) "_2" else ""
+
     var ccGrid: List<GridEntry>
-        get() = GridLayout.parse(p.getString("ccGrid", null)) ?: GridLayout.defaults
-        set(v) = p.edit().putString("ccGrid", GridLayout.format(v)).apply()
+        get() = GridLayout.parse(p.getString("ccGrid$gridSuffix", null) ?: p.getString("ccGrid", null)) ?: GridLayout.defaults
+        set(v) = p.edit().putString("ccGrid$gridSuffix", GridLayout.format(v)).apply()
 
     /** Back to the default Control Center (layout, tiles, sizes, colours). */
     fun resetControlCenter() = p.edit()
@@ -389,11 +396,11 @@ class Prefs(private val ctx: Context) {
 
     /** Control Center grid: rows (2–6) and columns (0 = as many as fit). */
     var gridRows: Int
-        get() = p.getInt("gridRows", if (fourThree) 5 else 4)
-        set(v) = p.edit().putInt("gridRows", v).apply()
+        get() = p.getInt("gridRows$gridSuffix", if (ccOther) 5 else p.getInt("gridRows", if (fourThree) 5 else 4))
+        set(v) = p.edit().putInt("gridRows$gridSuffix", v).apply()
     var gridCols: Int
-        get() = p.getInt("gridCols", 0)
-        set(v) = p.edit().putInt("gridCols", v).apply()
+        get() = p.getInt("gridCols$gridSuffix", if (ccOther) 0 else p.getInt("gridCols", 0))
+        set(v) = p.edit().putInt("gridCols$gridSuffix", v).apply()
 
     /** Pause the app in front while the Control Center is open. */
     var pauseInCc: Boolean
