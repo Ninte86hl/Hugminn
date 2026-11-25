@@ -58,6 +58,12 @@ object AnbernicHelper {
     /** Writes one of the controller's light settings through the helper. */
     fun joypad(name: String, value: Int): Boolean = name in joypadLed && write("sys $name $value")
 
+    /** Several light values in one wish: one file instead of a dozen, the helper sets them in this order. */
+    fun joypad(values: List<Pair<String, Int>>): Boolean {
+        val ok = values.filter { it.first in joypadLed }
+        return ok.isNotEmpty() && write(ok.joinToString("\n") { (k, v) -> "sys $k $v" })
+    }
+
     /** The light settings as the helper found them at its start (hw.txt), to put them back. */
     fun joypadNow(): Map<String, Int> = runCatching {
         File(dir(), "hw.txt").readLines().dropWhile { !it.startsWith("## joypad values") }.drop(1).takeWhile { !it.startsWith("## ") }
@@ -80,7 +86,15 @@ object AnbernicHelper {
 
     private val seq = java.util.concurrent.atomic.AtomicInteger()
 
+    /** Files are written one after the other, away from the main thread (storage can be slow right after standby). */
+    private val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
+
     private fun write(line: String): Boolean {
+        writer.execute { writeNow(line) }
+        return true
+    }
+
+    private fun writeNow(line: String): Boolean {
         val d = dir()
         // tidy up wishes the helper has long done (it may not delete them itself)
         d.listFiles { f -> f.name.startsWith("cmd-") && System.currentTimeMillis() - f.lastModified() > 10_000 }?.forEach { it.delete() }

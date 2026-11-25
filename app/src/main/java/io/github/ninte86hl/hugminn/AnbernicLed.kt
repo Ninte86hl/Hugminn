@@ -73,7 +73,7 @@ object AnbernicLed {
             val r2 = Color.red(colour2); val g2 = Color.green(colour2); val b2 = Color.blue(colour2)
             listOf("led_sync_colour" to 0, "custum_rgb_r" to r, "custum_rgb_g" to g, "custum_rgb_b" to b,
                 "Led_rgb_r1" to r, "Led_rgb_g1" to g, "Led_rgb_b1" to b, "Led_rgb_r2" to r2, "Led_rgb_g2" to g2, "Led_rgb_b2" to b2,
-                "led_level" to level, "led_set" to 1).forEach { (k, v) -> AnbernicHelper.joypad(k, v) }
+                "led_level" to level, "led_set" to 1).let { AnbernicHelper.joypad(it) }
         }
         if (effectChanged) {
             // Anbernic paints its own colour with a new effect: ours over it a moment later
