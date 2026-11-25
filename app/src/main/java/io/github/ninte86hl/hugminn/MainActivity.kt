@@ -391,9 +391,12 @@ class MainActivity : Activity() {
         if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch. Den Doppelklick erkennt die Firmware selbst.",
             "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch. The firmware detects the double click itself."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
-        row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
+        if (Device.isDuo) g.addView(text(t("Pocket Duo: Zweimal drücken öffnet Retroids eigenes Kontrollcenter – das erkennt die Firmware selbst. Den Spielwechsler gibt es dafür über Zurück lange drücken.",
+            "Pocket Duo: a double press opens Retroid's own control center – the firmware detects it itself. The game switcher is on Back held instead."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
+        else row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
-        if (!Device.noSticks) row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
+        if (Device.isRetroid && !Device.noSticks) row(g, t("Zurück lange drücken", "Back held"), t("Kurz gedrückt bleibt es Zurück", "A short press stays Back"), { prefs.backLong.label }) { prefs.backLong = cycle(actions, prefs.backLong) }
+        if (!Device.noSticks && !Device.isDuo) row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
             prefs.doubleMs = cycle(listOf(220, 260, 300, 350, 400), prefs.doubleMs)
         }
         row(g, tr("Zeit für langen Druck"), null, { "${prefs.longMs} ms" }) {

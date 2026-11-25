@@ -386,6 +386,9 @@ class HugminnService : AccessibilityService() {
         if (anbernicHome) return onHome(event, forced = true)
         // extra buttons (paddles, M1/M2) – only once the person gave them something to do
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_C || event.keyCode == KeyEvent.KEYCODE_BUTTON_Z) onExtraKey(event)?.let { return it }
+        // Retroid's Back button held: an action of its own (switcher on the Duo); a short press stays Back
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && !Device.noSticks && prefs.backLong != Action.NONE &&
+            event.device?.name?.contains("Retroid", true) == true && !controlCenter.isOpen && !anySwitcherOpen) return onBackKey(event)
         // an external controller (e.g. 8BitDo over Bluetooth): its Home/Guide button counts as Home
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE && prefs.padHome && event.device?.isExternal == true) return onHome(event, forced = true)
         // the power key closes everything of Hugminn first, so Android's power menu is never hidden behind it
@@ -510,6 +513,21 @@ class HugminnService : AccessibilityService() {
     }
 
     private fun extraToken(code: Int) = "extra$code"
+
+    private var backHeld = false
+    private val backLongPress = Runnable { backHeld = true; perform(prefs.backLong) }
+
+    private fun onBackKey(e: KeyEvent): Boolean {
+        when (e.action) {
+            KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) { backHeld = false; ui.postDelayed(backLongPress, prefs.longMs.toLong()) }
+            KeyEvent.ACTION_UP -> {
+                ui.removeCallbacks(backLongPress)
+                if (!backHeld) performGlobalAction(GLOBAL_ACTION_BACK)
+                backHeld = false
+            }
+        }
+        return true
+    }
 
     private fun extraLongPress(code: Int): Runnable = Runnable { extraLong[code] = true; perform(prefs.extraKey(code, true)) }.also { r ->
         // tagged, so the release can take it back

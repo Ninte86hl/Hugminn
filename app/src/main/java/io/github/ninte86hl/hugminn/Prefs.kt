@@ -109,13 +109,19 @@ class Prefs(private val ctx: Context) {
      * Not set unless the person sets them: a set one no longer reaches the game.
      */
     fun extraKey(code: Int, long: Boolean): Action = enumOr(p.getString("extra${code}_${if (long) "L" else "S"}", null), Action.NONE)
+    /** Retroid's Back button held: free for an action (the Duo's double Home belongs to Retroid, so the switcher goes here). */
+    var backLong: Action
+        get() = enumOr(p.getString("backLong", null), if (Device.isDuo) Action.SWITCHER else Action.NONE)
+        set(v) = p.edit().putString("backLong", v.name).apply()
+
     fun setExtraKey(code: Int, long: Boolean, a: Action) = p.edit().putString("extra${code}_${if (long) "L" else "S"}", a.name).apply()
 
     var single: Action
         get() = enumOr(p.getString("single", null), Action.HOME)
         set(v) = p.edit().putString("single", v.name).apply()
     var double: Action
-        get() = enumOr(p.getString("double", null), Action.SWITCHER)
+        // Pocket Duo: the firmware takes the double press itself (Retroid's control center) – Hugminn never sees it
+        get() = if (Device.isDuo) Action.NONE else enumOr(p.getString("double", null), Action.SWITCHER)
         set(v) = p.edit().putString("double", v.name).apply()
     var long: Action
         get() = enumOr(p.getString("long", null), Action.CONTROL_CENTER)
