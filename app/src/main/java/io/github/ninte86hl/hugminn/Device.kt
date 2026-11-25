@@ -8,6 +8,8 @@ object Device {
     fun sys(ctx: Context, key: String): String? = Settings.System.getString(ctx.contentResolver, key)
 
     val isRetroid get() = android.os.Build.MODEL.contains("Retroid", ignoreCase = true)
+    /** Retroid Pocket Duo (two screens, Android 16): trigger modes numbered like AYN, settings only written once changed. */
+    val isDuo get() = isRetroid && android.os.Build.MODEL.contains("Duo", ignoreCase = true)
 
     fun performance(ctx: Context) = (sys(ctx, perfKey) ?: "0") != "0"
 
@@ -58,7 +60,7 @@ object Device {
         } else Root.run(Root.putSetting("system", key, value), then = then)
     }
     /** Trigger modes; AYN numbers analog and digital the other way round than Retroid. */
-    val triggerModes get() = if (isAyn) linkedMapOf("2" to tr("Analog + Digital"), "0" to tr("Nur analog"), "1" to tr("Nur digital"))
+    val triggerModes get() = if (isAyn || isDuo) linkedMapOf("2" to tr("Analog + Digital"), "0" to tr("Nur analog"), "1" to tr("Nur digital"))
         else linkedMapOf("2" to tr("Analog + Digital"), "1" to tr("Nur analog"), "0" to tr("Nur digital"))
 
     /** Simple on/off system settings of the firmware (1 = on). */
@@ -70,7 +72,7 @@ object Device {
      * (1 = Xbox, 0 = Nintendo) and "Disconnect" is no_create_gamepad_button_layout = 1.
      */
     private fun aynPad(ctx: Context) = isAyn && sys(ctx, "temp_abxy_layout_mode") == null && sys(ctx, "flip_button_layout") != null
-    fun hasControllerSetting(ctx: Context) = sys(ctx, "temp_abxy_layout_mode") != null || aynPad(ctx)
+    fun hasControllerSetting(ctx: Context) = sys(ctx, "temp_abxy_layout_mode") != null || aynPad(ctx) || isDuo
     /** The setting the device test shows for the button layout. */
     fun controllerKey(ctx: Context) = if (aynPad(ctx)) "flip_button_layout" else "temp_abxy_layout_mode"
 
@@ -143,7 +145,7 @@ object Device {
      */
     fun isAynKey(e: android.view.KeyEvent) = isAyn && e.keyCode == android.view.KeyEvent.KEYCODE_HOME && e.device?.name == "gpio-keys"
 
-    fun lazySetting(key: String) = isAyn && key == "trigger_input_mode"
+    fun lazySetting(key: String) = ((isAyn || isDuo) && key == "trigger_input_mode") || (isDuo && key == "temp_abxy_layout_mode")
 
     fun profileLabel(ctx: Context, key: String, table: Map<String, String>): String {
         val v = sys(ctx, key) ?: return if (lazySetting(key)) t("Standard", "Default") else "–"
