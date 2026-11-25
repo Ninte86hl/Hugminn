@@ -566,7 +566,15 @@ class HugminnService : AccessibilityService() {
                 }
             }
             // Hugminn holds the Home button, so Retroid's firmware never saw the double press: send it two Homes it may keep
-            Action.RETROID -> { closeOverlays(); passHomeUntil = android.os.SystemClock.uptimeMillis() + 1500; Root.run("input keyevent 3 3") }
+            Action.RETROID -> {
+                closeOverlays()
+                passHomeUntil = android.os.SystemClock.uptimeMillis() + 2000
+                // a double tap as a gamepad's (Retroid's assistant may only count those), Android's own double-tap timing
+                Thread {
+                    val out = Root.exec("input gamepad keyevent --doubletap 3 2>&1 || input keyevent --doubletap 3 2>&1; echo rc=\$?", 5_000)
+                    Glyphs.note("retroid double → ${out?.trim()?.take(120)}")
+                }.start()
+            }
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
             Action.CONTROL_CENTER -> if (controlCenter.isOpen) controlCenter.close() else controlCenter.open()
             Action.RECENTS -> {
