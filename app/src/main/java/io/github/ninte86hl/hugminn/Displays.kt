@@ -57,14 +57,16 @@ object Displays {
     fun fitted(ctx: Context, content: android.view.View, mainW: Int, mainH: Int, wm: android.view.WindowManager, ground: Int): android.view.View {
         @Suppress("DEPRECATION") val size = android.graphics.Point().also { wm.defaultDisplay.getRealSize(it) }
         val b = android.graphics.Rect(0, 0, size.x, size.y)
-        val s = minOf(b.width() / mainW.toFloat(), b.height() / mainH.toFloat())
+        // the layout keeps the main screen's size on one side and takes the other screen's shape on the
+        // other (4:3 below a 16:9 top: taller), so it fills the screen without black bars
+        val s = if (b.height() * mainW >= b.width() * mainH) b.width() / mainW.toFloat() else b.height() / mainH.toFloat()
+        val w = (b.width() / s).toInt()
+        val h = (b.height() / s).toInt()
         return android.widget.FrameLayout(ctx).apply {
             setBackgroundColor(ground)
-            addView(content, android.widget.FrameLayout.LayoutParams(mainW, mainH))
+            addView(content, android.widget.FrameLayout.LayoutParams(w, h))
             content.pivotX = 0f; content.pivotY = 0f
             content.scaleX = s; content.scaleY = s
-            content.translationX = (b.width() - mainW * s) / 2f
-            content.translationY = (b.height() - mainH * s) / 2f
         }
     }
 
