@@ -131,8 +131,10 @@ object AnbernicHelper {
     /** Writes helper.sh and the script to import into Download/Hugminn; returns the folder. */
     fun install(pkg: String): File {
         val d = dir()
-        File(d, "helper.sh").writeText(helper(pkg))
-        File(d, "hugminn-anbernic.sh").writeText(launcher())
+        // only when it changed: a running helper takes a new helper.sh over by itself (see the loop)
+        fun put(name: String, text: String) = File(d, name).let { f -> if (runCatching { f.readText() }.getOrNull() != text) f.writeText(text) }
+        put("helper.sh", helper(pkg))
+        put("hugminn-anbernic.sh", launcher())
         File(d, "hugminn-test.sh").delete()
         File(d, "id.txt").delete(); File(d, "id2.txt").delete()
         return d
@@ -241,6 +243,7 @@ stats() {
 }
 # every wish is its own file cmd-<time> from Hugminn; the helper only reads them (Hugminn tidies up)
 # wishes still lying there from before (an earlier helper): not again
+M0=${'$'}(stat -c %Y "${'$'}0" 2>/dev/null)
 seen=" "
 for c in "${'$'}D"/cmd-*; do [ -f "${'$'}c" ] && seen="${'$'}seen${'$'}(basename "${'$'}c") "; done
 n=100
@@ -275,7 +278,12 @@ while true; do
   n=${'$'}((n+1))
   # live values every ~2 s, heartbeat every ~9 s
   [ ${'$'}((n % 6)) -eq 0 ] && stats
-  if [ ${'$'}n -ge 30 ]; then n=0; beat; fi
+  if [ ${'$'}n -ge 30 ]; then
+    n=0; beat
+    # Hugminn was updated and put down a new helper.sh: start it – it ends this one, no script run needed
+    m=${'$'}(stat -c %Y "${'$'}0" 2>/dev/null)
+    if [ -n "${'$'}m" ] && [ "${'$'}m" != "${'$'}M0" ]; then note "new helper version – restarting"; setsid sh "${'$'}0" </dev/null >/dev/null 2>&1 & exit 0; fi
+  fi
   sleep 0.3
 done
 """.trimStart()
