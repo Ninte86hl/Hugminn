@@ -49,6 +49,24 @@ object Displays {
     /** A built-in second screen, if there is one (not the main one, not a private/virtual one). */
     fun second(ctx: Context): Info? = list(ctx).firstOrNull { !it.isDefault && !it.isPrivate }
 
+    /**
+     * Hugminn's windows are laid out for the main screen. On the other screen (smaller, other shape) the
+     * content keeps that layout and is scaled to fit, centred; the edges get [ground].
+     * Returns the view to add to the window manager.
+     */
+    fun fitted(ctx: Context, content: android.view.View, mainW: Int, mainH: Int, wm: android.view.WindowManager, ground: Int): android.view.View {
+        val b = wm.currentWindowMetrics.bounds
+        val s = minOf(b.width() / mainW.toFloat(), b.height() / mainH.toFloat())
+        return android.widget.FrameLayout(ctx).apply {
+            setBackgroundColor(ground)
+            addView(content, android.widget.FrameLayout.LayoutParams(mainW, mainH))
+            content.pivotX = 0f; content.pivotY = 0f
+            content.scaleX = s; content.scaleY = s
+            content.translationX = (b.width() - mainW * s) / 2f
+            content.translationY = (b.height() - mainH * s) / 2f
+        }
+    }
+
     /** Window manager for overlays on a screen (the accessibility service's display context may add them there). */
     fun wmFor(ctx: Context, id: Int): android.view.WindowManager {
         if (id != android.view.Display.DEFAULT_DISPLAY) runCatching {

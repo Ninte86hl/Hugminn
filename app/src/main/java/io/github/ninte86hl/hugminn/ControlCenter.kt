@@ -43,6 +43,11 @@ class ControlCenter(private val svc: HugminnService) {
     var isOpen = false
         private set
     private var wm = svc.getSystemService(WindowManager::class.java)
+    /** The main screen's window manager: the layout always goes by the main screen (see [Displays.fitted]). */
+    private val mainWm = svc.getSystemService(WindowManager::class.java)
+    /** What is in the window manager: the root itself, or on another screen a frame that scales it. */
+    private var window: View? = null
+    private var otherScreen = false
     private val audio = svc.getSystemService(AudioManager::class.java)
     private lateinit var pal: Palette
     private var root: FrameLayout? = null
@@ -95,6 +100,7 @@ class ControlCenter(private val svc: HugminnService) {
     fun open(display: Int = android.view.Display.DEFAULT_DISPLAY) {
         if (isOpen) return
         wm = Displays.wmFor(svc, display)
+        otherScreen = display != android.view.Display.DEFAULT_DISPLAY
         Displays.snapshot(svc, svc, "Control Center")
         Device.refreshLayout(svc)
         isOpen = true
@@ -112,7 +118,7 @@ class ControlCenter(private val svc: HugminnService) {
         // the running game (for "Remember for <game>" in the profile menus)
         svc.foregroundPkg?.takeIf { Root.available() && Apps.typeOf(it) != AppType.APP }?.let { pkg -> thread { runCatching { GameTitle.current(pkg) } } }
         // Full window over everything; the status bar is covered unless the user wants to keep it.
-        val metrics = wm.currentWindowMetrics
+        val metrics = mainWm.currentWindowMetrics
         val bounds = metrics.bounds
         val statusH = metrics.windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top
         // The window takes input focus: the D-pad of these handhelds is a joystick hat, which Android
@@ -141,7 +147,7 @@ class ControlCenter(private val svc: HugminnService) {
 
             override fun dispatchKeyEvent(event: KeyEvent): Boolean = try {
                 // a window left behind by a close that went wrong: remove it instead of swallowing keys
-                if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(this) }; false } else
+                if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(window ?: this) }; false } else
                 if (volumeKey(event)) true else
                 // keys that reach the window directly go by position too, like those through the service
                 if (svc.comboMode) svc.comboKey(Glyphs.logical(event)) else onKey(Glyphs.logical(event))
@@ -181,7 +187,11 @@ class ControlCenter(private val svc: HugminnService) {
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
         r.alpha = 0f
-        wm.addView(r, lp)
+        val w: View = if (!otherScreen) r else Displays.fitted(svc, r, bounds.width(), bounds.height() - sysTop, wm, 0xFF000000.toInt()).also {
+            lp.width = WindowManager.LayoutParams.MATCH_PARENT; lp.height = WindowManager.LayoutParams.MATCH_PARENT; lp.y = 0
+        }
+        wm.addView(w, lp)
+        window = w
         // a game under the Control Center pauses (covered like by Android's own overview) and goes on afterwards
         if (svc.prefs.pauseInCc && !svc.homeInFront && svc.foregroundPkg != null && !Media.playsIn(svc, svc.foregroundPkg)) PauseActivity.hold(svc, "cc")
         r.animate().alpha(1f).setDuration(120).start()
@@ -195,8 +205,10 @@ class ControlCenter(private val svc: HugminnService) {
     fun look(active: Boolean) {
         val r = root ?: return
         r.animate().cancel()
-        r.alpha = if (active) 1f else 0.55f
-        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) } else null
+        r.alpha = 1f
+        // dimmed with a dark veil (not transparency: what lies underneath must not shine through)
+        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) }
+            else android.graphics.drawable.ColorDrawable(0x99000000.toInt())
     }
 
     /** Nothing more to go to in this direction (so the D-pad may leave for the other screen). */
@@ -219,13 +231,14 @@ class ControlCenter(private val svc: HugminnService) {
         gridEdit = null
         svc.ui.removeCallbacks(tick)
         // removed at once; if that fails, at least hidden and without focus, so it can never trap anyone
-        root?.let { v ->
+        (window ?: root)?.let { v ->
             if (runCatching { wm.removeViewImmediate(v) }.isFailure) {
                 v.visibility = View.GONE
                 runCatching { svc.ui.postDelayed({ runCatching { wm.removeViewImmediate(v) } }, 300) }
             }
         }
         root = null
+        window = null
         PauseActivity.release(svc, "cc")
     }
 
@@ -385,7 +398,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun computeCols(): Int {
         svc.prefs.gridCols.takeIf { it > 0 }?.let { return it.coerceIn(3, 12) }
-        val m = wm.currentWindowMetrics.bounds
+        val m = mainWm.currentWindowMetrics.bounds
         val gap = 10 * d
         val bodyH = m.height() - topInset - (14 + 12 + 44 + 34 + 12 + 8) * d
         val cell = (bodyH - gap * (GridLayout.ROWS - 1)) / GridLayout.ROWS

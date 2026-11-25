@@ -100,6 +100,11 @@ class OwnSwitcher(private val svc: HugminnService) {
     var closedAt = 0L
         private set
     private var wm = svc.getSystemService(WindowManager::class.java)
+    /** The main screen's window manager: the layout always goes by the main screen (see [Displays.fitted]). */
+    private val mainWm = svc.getSystemService(WindowManager::class.java)
+    /** What is in the window manager: the root itself, or on another screen a frame that scales it. */
+    private var window: View? = null
+    private var otherScreen = false
     private var root: FrameLayout? = null
     private var carousel: Carousel? = null
     private var bar: LinearLayout? = null
@@ -192,6 +197,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         Displays.snapshot(svc, svc, "Switcher")
         if (isOpen) return
         wm = Displays.wmFor(svc, display)
+        otherScreen = display != android.view.Display.DEFAULT_DISPLAY
         isOpen = true
         svc.overlayState()
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
@@ -256,8 +262,10 @@ class OwnSwitcher(private val svc: HugminnService) {
     fun look(active: Boolean) {
         val r = root ?: return
         r.animate().cancel()
-        r.alpha = if (active) 1f else 0.55f
-        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) } else null
+        r.alpha = 1f
+        // dimmed with a dark veil (not transparency: what lies underneath must not shine through)
+        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) }
+            else android.graphics.drawable.ColorDrawable(0x99000000.toInt())
     }
 
     fun close(back: Boolean) {
@@ -275,7 +283,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         titleView = null
         bar = null
         // removed at once: a fade-out left a ghost of the cards over the home screen
-        r?.let { runCatching { wm.removeViewImmediate(it) } }
+        (window ?: r)?.let { runCatching { wm.removeViewImmediate(it) } }
+        window = null
         closeLower()
         val under = recentsUnder
         recentsUnder = false
@@ -534,14 +543,14 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     private fun build() {
         pal = Palette(svc)
-        val m = wm.currentWindowMetrics
+        val m = mainWm.currentWindowMetrics
         val statusH = m.windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top.takeIf { it > 0 } ?: svc.dp(24)
         val mode = svc.prefs.statusBar
         val r = object : FrameLayout(svc) {
             override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean = hat.onMotion(event) || super.dispatchGenericMotionEvent(event)
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
                 // left behind by a close that went wrong: remove it instead of swallowing keys
-                if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(this) }; return false }
+                if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(window ?: this) }; return false }
                 if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT) return false
                 if (svc.comboMode) { svc.comboKey(Glyphs.logical(event)); return true }
                 if (event.action == KeyEvent.ACTION_DOWN) runCatching { key(Glyphs.logical(event.keyCode)) }.onFailure { Crash.note(svc, it) }
@@ -625,7 +634,11 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
         // opened by swipe: appear at once (Android's view is underneath); otherwise a very short fade
         r.alpha = if (fromSwipe) 1f else 0f
-        wm.addView(r, lp)
+        val w: View = if (!otherScreen) r else Displays.fitted(svc, r, m.bounds.width(), m.bounds.height() - sysTop, wm, 0xFF000000.toInt()).also {
+            lp.width = WindowManager.LayoutParams.MATCH_PARENT; lp.height = WindowManager.LayoutParams.MATCH_PARENT; lp.y = 0
+        }
+        wm.addView(w, lp)
+        window = w
         if (!fromSwipe) r.animate().alpha(1f).setDuration(90).start()
         r.requestFocus()
         root = r
