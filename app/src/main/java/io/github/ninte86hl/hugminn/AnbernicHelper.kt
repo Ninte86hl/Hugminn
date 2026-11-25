@@ -233,8 +233,9 @@ if [ "${'$'}1" != "loop" ]; then
   appops set ${'$'}P WRITE_SETTINGS allow 2>/dev/null || note "write settings failed"
   # lets Hugminn pause Anbernic's key mapper while its windows are open (a global setting)
   pm grant ${'$'}P android.permission.WRITE_SECURE_SETTINGS 2>/dev/null || note "secure settings failed"
-  hw; note "hardware report: ${'$'}(wc -l < "${'$'}D/hw.txt") lines"
+  # the loop first (Hugminn can steer at once), the slow hardware report afterwards
   setsid sh "${'$'}0" loop </dev/null >/dev/null 2>&1 &
+  hw; note "hardware report: ${'$'}(wc -l < "${'$'}D/hw.txt") lines"
   exit 0
 fi
 # Started from Anbernic's app, the helper sits in that app's process group – when Android ends the app
@@ -246,6 +247,8 @@ done
 echo -1000 > /proc/${'$'}${'$'}/oom_score_adj 2>/dev/null
 note "loop pid=${'$'}${'$'} group=${'$'}(head -1 /proc/${'$'}${'$'}/cgroup 2>/dev/null)"
 trap 'note "ended by signal"; exit 0' TERM INT HUP
+# only one loop: the newest writes its number, older ones see it and end (started twice by hand, for example)
+echo ${'$'}${'$'} > "${'$'}D/pid"
 # live values for Hugminn (Android doesn't let apps read them here): CPU/GPU temperature, GPU clock and load
 CZ=""; GZ=""
 for z in /sys/class/thermal/thermal_zone*; do
@@ -268,6 +271,8 @@ seen=" "
 for c in "${'$'}D"/cmd-*; do [ -f "${'$'}c" ] && seen="${'$'}seen${'$'}(basename "${'$'}c") "; done
 n=100
 while true; do
+  read me < "${'$'}D/pid" 2>/dev/null
+  [ "${'$'}me" = "${'$'}${'$'}" ] || { note "loop ${'$'}${'$'} replaced by ${'$'}me"; exit 0; }
   now=" "
   for c in "${'$'}D"/cmd-*; do
     [ -f "${'$'}c" ] || continue
