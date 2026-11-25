@@ -13,7 +13,9 @@ enum class Action(private val labelDe: String) {
     LAST_APP("Letzte App"),
     SCREENSHOT("Screenshot"),
     RECORD("Video aufnehmen / stoppen"),
-    REPLAY("Letzte Sekunden speichern");
+    REPLAY("Letzte Sekunden speichern"),
+    /** Dual-screen handhelds: switcher and Control Center at once, one on each screen. */
+    BOTH("Spielwechsler + Control Center");
 
     val label get() = tr(labelDe)
 }
@@ -116,7 +118,7 @@ class Prefs(private val ctx: Context) {
     fun extraKey(code: Int, long: Boolean): Action = enumOr(p.getString("extra${code}_${if (long) "L" else "S"}", null), Action.NONE)
     /** Retroid's Back button held: free for an action (the Duo's double Home belongs to Retroid, so the switcher goes here). */
     var backLong: Action
-        get() = enumOr(p.getString("backLong", null), if (Device.isDuo) Action.SWITCHER else Action.NONE)
+        get() = enumOr(p.getString("backLong", null), Action.NONE)
         set(v) = p.edit().putString("backLong", v.name).apply()
 
     fun setExtraKey(code: Int, long: Boolean, a: Action) = p.edit().putString("extra${code}_${if (long) "L" else "S"}", a.name).apply()
@@ -129,7 +131,7 @@ class Prefs(private val ctx: Context) {
         get() = if (Device.isDuo) Action.NONE else enumOr(p.getString("double", null), Action.SWITCHER)
         set(v) = p.edit().putString("double", v.name).apply()
     var long: Action
-        get() = enumOr(p.getString("long", null), Action.CONTROL_CENTER)
+        get() = enumOr(p.getString("long", null), if (Device.isDuo) Action.BOTH else Action.CONTROL_CENTER)
         set(v) = p.edit().putString("long", v.name).apply()
 
     var statusBar: StatusBar
@@ -216,6 +218,11 @@ class Prefs(private val ctx: Context) {
     var glassLevel: Int
         get() = p.getInt("glassLevel", 3).coerceIn(1, 5)
         set(v) = p.edit().putInt("glassLevel", v.coerceIn(1, 5)).apply()
+
+    /** Dual-screen handhelds, "switcher + Control Center": the Control Center on the lower screen (else on the top one). */
+    var ccLower: Boolean
+        get() = p.getBoolean("ccLower", true)
+        set(v) = p.edit().putBoolean("ccLower", v).apply()
 
     /** Dual-screen handhelds (AYN Thor): the switcher shows name, hints and shortcuts on the second screen. */
     var dualSwitcher: Boolean

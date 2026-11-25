@@ -387,12 +387,13 @@ class MainActivity : Activity() {
 
         // Gestures
         val g = section(tr("Home-Taste"))
-        val actions = Action.values().toList()
+        // "switcher + Control Center" only where there are two screens
+        val actions = Action.values().filter { it != Action.BOTH || Displays.second(this) != null }
         if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch. Den Doppelklick erkennt die Firmware selbst.",
             "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch. The firmware detects the double click itself."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
-        if (Device.isDuo) g.addView(text(t("Pocket Duo: Zweimal drücken öffnet Retroids eigenes Kontrollcenter – das erkennt die Firmware selbst. Den Spielwechsler gibt es dafür über Zurück lange drücken.",
-            "Pocket Duo: a double press opens Retroid's own control center – the firmware detects it itself. The game switcher is on Back held instead."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
+        if (Device.isDuo) g.addView(text(t("Pocket Duo: Zweimal drücken öffnet Retroids eigenes Kontrollcenter – das erkennt die Firmware selbst. Lange drücken öffnet Spielwechsler und Control Center zusammen, je einer pro Bildschirm.",
+            "Pocket Duo: a double press opens Retroid's own control center – the firmware detects it itself. Holding opens switcher and Control Center together, one on each screen."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         else row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
         if (Device.isRetroid && !Device.noSticks) row(g, t("Zurück lange drücken", "Back held"), t("Kurz gedrückt bleibt es Zurück", "A short press stays Back"), { prefs.backLong.label }) { prefs.backLong = cycle(actions, prefs.backLong) }
@@ -544,6 +545,10 @@ class MainActivity : Activity() {
         row(sw, tr("Auch bei Wischgeste"), tr("Hugminn legt sich automatisch über die Android-Übersicht, egal wie sie geöffnet wird"), { if (prefs.autoSwitcher) tr("An") else tr("Aus") }) {
             prefs.autoSwitcher = !prefs.autoSwitcher
         }
+        if (Displays.second(this) != null) row(sw, t("Spielwechsler + Control Center", "Switcher + Control Center"),
+            t("Öffnen beide zusammen (Aktion für die Home-Taste): wo das Control Center hinkommt – der Spielwechsler nimmt den anderen Bildschirm. Steuerkreuz über den Rand wechselt zwischen beiden",
+                "Open together (an action for the Home button): where the Control Center goes – the switcher takes the other screen. The D-pad past the edge moves between them"),
+            { if (prefs.ccLower) t("Control Center unten", "Control Center below") else t("Control Center oben", "Control Center on top") }) { prefs.ccLower = !prefs.ccLower }
         if (Displays.second(this) != null && Prefs.dualReady(this)) {
             row(sw, t("Zweiter Bildschirm", "Second screen"),
                 t("Name, Spiel, Tastenhinweise und Tastenkürzel des Emulators unten auf dem zweiten Bildschirm – oben bleibt mehr Platz für die Vorschaubilder",
