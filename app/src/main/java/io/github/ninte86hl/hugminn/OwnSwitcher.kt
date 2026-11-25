@@ -263,9 +263,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         val r = root ?: return
         r.animate().cancel()
         r.alpha = 1f
-        // dimmed with a dark veil (not transparency: what lies underneath must not shine through)
-        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) }
-            else android.graphics.drawable.ColorDrawable(0x99000000.toInt())
+        // only a frame marks where the buttons work; the other one stays as it is
+        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) } else null
     }
 
     fun close(back: Boolean) {
@@ -643,7 +642,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         r.requestFocus()
         root = r
         carousel = c
-        if (svc.comboMode) svc.ui.post { svc.comboLook() }
+        if (svc.comboMode) svc.comboBuilt()
         bar = b
         // dual screen: name, hints and shortcuts move to the second screen, the cards get the room
         if (openLower()) {

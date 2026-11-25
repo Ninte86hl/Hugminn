@@ -55,7 +55,8 @@ object Displays {
      * Returns the view to add to the window manager.
      */
     fun fitted(ctx: Context, content: android.view.View, mainW: Int, mainH: Int, wm: android.view.WindowManager, ground: Int): android.view.View {
-        val b = wm.currentWindowMetrics.bounds
+        @Suppress("DEPRECATION") val size = android.graphics.Point().also { wm.defaultDisplay.getRealSize(it) }
+        val b = android.graphics.Rect(0, 0, size.x, size.y)
         val s = minOf(b.width() / mainW.toFloat(), b.height() / mainH.toFloat())
         return android.widget.FrameLayout(ctx).apply {
             setBackgroundColor(ground)

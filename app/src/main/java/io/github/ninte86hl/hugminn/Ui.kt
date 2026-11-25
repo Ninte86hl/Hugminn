@@ -157,6 +157,11 @@ object Glyphs {
     /** Last conversions (face buttons only), for the feedback: shows how a press was read. */
     val trace = java.util.concurrent.ConcurrentLinkedDeque<String>()
 
+    fun note(s: String) {
+        trace.addLast("${java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.ROOT).format(java.util.Date())} $s")
+        while (trace.size > 30) trace.pollFirst()
+    }
+
     /** The key code Hugminn works with: in the retro layout the north button (X) becomes Y, the west one (Y) X. */
     fun logical(code: Int): Int = logicalRaw(code).also { out ->
         if (code in KeyEvent.KEYCODE_BUTTON_A..KeyEvent.KEYCODE_BUTTON_Z) {

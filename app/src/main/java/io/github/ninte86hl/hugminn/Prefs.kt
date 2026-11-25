@@ -15,7 +15,9 @@ enum class Action(private val labelDe: String) {
     RECORD("Video aufnehmen / stoppen"),
     REPLAY("Letzte Sekunden speichern"),
     /** Dual-screen handhelds: switcher and Control Center at once, one on each screen. */
-    BOTH("Spielwechsler + Control Center");
+    BOTH("Spielwechsler + Control Center"),
+    /** Pocket Duo: the double press handed on to Retroid's firmware (its control center). */
+    RETROID("Retroid-Kontrollcenter");
 
     val label get() = tr(labelDe)
 }
@@ -123,7 +125,7 @@ class Prefs(private val ctx: Context) {
         set(v) = p.edit().putString("single", v.name).apply()
     var double: Action
         // Pocket Duo: the firmware takes the double press itself (Retroid's control center) – Hugminn never sees it
-        get() = if (Device.isDuo) Action.NONE else enumOr(p.getString("double", null), Action.SWITCHER)
+        get() = if (Device.isDuo) Action.RETROID else enumOr(p.getString("double", null), Action.SWITCHER)
         set(v) = p.edit().putString("double", v.name).apply()
     var long: Action
         get() = enumOr(p.getString("long", null), if (Device.isDuo) Action.BOTH else Action.CONTROL_CENTER)
