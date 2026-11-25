@@ -437,6 +437,11 @@ class Prefs(private val ctx: Context) {
     var anbLedColor: Int
         get() = p.getInt("anbLedColor", 0)
         set(v) = p.edit().putInt("anbLedColor", v).apply()
+    /** Anbernic: after a restart Hugminn starts its helper itself through Anbernic's script management. */
+    var anbAutostart: Boolean
+        get() = p.getBoolean("anbAutostart", true)
+        set(v) = p.edit().putBoolean("anbAutostart", v).apply()
+
     var anbLedLevel: Int
         get() = p.getInt("anbLedLevel", 50).let { if (it > 100) 50 else it }
         set(v) = p.edit().putInt("anbLedLevel", v).apply()
