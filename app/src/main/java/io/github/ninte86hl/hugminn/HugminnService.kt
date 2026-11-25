@@ -126,6 +126,8 @@ class HugminnService : AccessibilityService() {
         prefs.keepOldStyle()
         Apps.chosenHome = prefs.launcherPkg.ifBlank { null }
         Device.app = applicationContext
+        // Anbernic: after an update the new helper.sh goes down at once – the running helper picks it up itself
+        if (Device.isAnbernic && android.os.Environment.isExternalStorageManager()) Thread { runCatching { AnbernicHelper.install(packageName) } }.start()
         prefs.forgetOld()
         // the Android wallpaper may have changed while Hugminn was off: copy it again in the background
         if (prefs.backdrop == BackdropSource.WALLPAPER) ui.postDelayed({ if (Root.available()) Backdrop.fetchWallpaper(this) { } }, 8_000)
