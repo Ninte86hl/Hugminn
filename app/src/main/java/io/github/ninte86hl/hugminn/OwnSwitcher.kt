@@ -263,8 +263,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         val r = root ?: return
         r.animate().cancel()
         r.alpha = 1f
-        // only a frame marks where the buttons work; the other one stays as it is
-        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) } else null
+        r.foreground = null
+        // no extra frame: the active one shows its selection and the button hints, the other one neither
+        carousel?.marked = active
+        bar?.visibility = if (active) View.VISIBLE else View.INVISIBLE
     }
 
     fun close(back: Boolean) {
@@ -909,6 +911,9 @@ class OwnSwitcher(private val svc: HugminnService) {
     ) : View(ctx) {
         private var apps: List<RecentApp> = emptyList()
         private var pos = 0f
+        /** Switcher + Control Center: the selection only shows where the buttons are. */
+        var marked = true
+            set(v) { field = v; invalidate() }
         private var anim: android.animation.ValueAnimator? = null
         private val style = Prefs(ctx).uiStyle
         private val pixel = style == UiStyle.PIXEL
@@ -1087,7 +1092,8 @@ class OwnSwitcher(private val svc: HugminnService) {
                 }
                 c.restore()
                 if (abs(i - pos) < 0.5f) {
-                    if (pal.focusCorners) {
+                    if (!marked) {}
+                    else if (pal.focusCorners) {
                         // corner brackets just outside the card (outside the white frame in Cocoon)
                         val g = context.dp(7).toFloat() + framePad
                         drawMark(c, i, RectF(r).apply { inset(-g, -g) }, radius + g)

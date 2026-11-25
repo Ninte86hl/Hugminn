@@ -207,8 +207,11 @@ class ControlCenter(private val svc: HugminnService) {
         val r = root ?: return
         r.animate().cancel()
         r.alpha = 1f
-        // only a frame marks where the buttons work; the other one stays as it is
-        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) } else null
+        r.foreground = null
+        // no extra frame: the active one shows its selection and the button hints, the other one neither
+        focusVisible = active
+        showFocus()
+        footerView?.visibility = if (active) View.VISIBLE else View.INVISIBLE
     }
 
     /** The buttons came over from the switcher: show at once which tile they are on. */
@@ -219,7 +222,15 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     /** Nothing more to go to in this direction (so the D-pad may leave for the other screen). */
-    fun atEdge(dy: Int): Boolean = menuView == null && !editing && editView == null && gridEdit == null && inside == null && !adjusting && nearest(0, dy) < 0
+    fun atEdge(dy: Int): Boolean {
+        if (menuView != null || editing || editView != null || gridEdit != null || inside != null || adjusting) return false
+        val cur = items.getOrNull(focus)?.view ?: return true
+        val a = IntArray(2).also(cur::getLocationOnScreen)
+        val top = a[1]; val bottom = a[1] + cur.height
+        // tall tiles (brightness, volume) reach past their neighbours: only what lies wholly beyond counts
+        return items.none { it.view !== cur && IntArray(2).also(it.view::getLocationOnScreen).let { b ->
+            if (dy > 0) b[1] >= bottom - 4 else b[1] + it.view.height <= top + 4 } }
+    }
 
     fun close() {
         if (!isOpen) return
