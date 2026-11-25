@@ -381,14 +381,20 @@ class DeviceTestActivity : Activity() {
             t("Beide rot", "Both red"), t("Beide blau", "Both blue"), t("Beide grün", "Both green"), t("Andere Farbe", "Another colour"), t("Aus", "Off"))
         val split = listOf("led_sync_colour" to 0, "custum_rgb_r" to 255, "custum_rgb_g" to 0, "custum_rgb_b" to 0,
             "Led_rgb_r1" to 255, "Led_rgb_g1" to 0, "Led_rgb_b1" to 0, "Led_rgb_r2" to 0, "Led_rgb_g2" to 0, "Led_rgb_b2" to 255)
-        val steps = mutableListOf(
-            AStep(t("Ruhig, je Stick eine Farbe", "Steady, a colour per stick"), off + listOf("led_switch" to 1, "led_level" to 80, "led_mode" to 1, "led_speed" to 0) + split + ("led_set" to 1), what, answers),
-            AStep(t("Ruhig, beide grün", "Steady, both green"), listOf("custum_rgb_r" to 0, "custum_rgb_g" to 255, "custum_rgb_b" to 0, "Led_rgb_r1" to 0, "Led_rgb_g1" to 255,
-                "Led_rgb_b1" to 0, "Led_rgb_r2" to 0, "Led_rgb_g2" to 255, "Led_rgb_b2" to 0, "led_set" to 1), what, answers),
-            AStep(t("Atmen, Tempo 3", "Breathing, speed 3"), listOf("led_speed" to 3) + split + ("led_set" to 1), what, answers),
-            AStep(t("Atmen, Tempo 8", "Breathing, speed 8"), listOf("led_speed" to 8, "led_set" to 1), t("Schneller als eben?", "Faster than before?"),
-                listOf(t("Schneller", "Faster"), t("Langsamer", "Slower"), t("Gleich", "The same"))),
-        )
+        // round 6: every mode of the controller itself, so Hugminn can run Anbernic's effects without its service.
+        // Two colours (red / blue) and a middle speed, so colour changes and movement both show.
+        val modeLooks = listOf(t("Leuchtet ruhig", "Steady"), t("Atmet / pulsiert", "Breathes / pulses"),
+            t("Wechselt zwischen Rot und Blau", "Changes between red and blue"), t("Regenbogen – alle Farben", "Rainbow – all colours"),
+            t("Läuft im Kreis – Rot/Blau", "Runs round – red/blue"), t("Läuft im Kreis – Regenbogen", "Runs round – rainbow"),
+            t("Blinkt", "Flashes"), t("Aus", "Off"), t("Etwas anderes", "Something else"))
+        val steps = mutableListOf<AStep>()
+        for (m in 0..10) {
+            val w = (if (m == 0) off + listOf("led_switch" to 1, "led_level" to 80) + split else emptyList()) +
+                listOf("led_mode" to m, "led_speed" to 3, "led_set" to 1)
+            steps += AStep(t("Modus $m", "Mode $m"), w, look, modeLooks)
+        }
+        steps += AStep(t("Modus 1, Tempo 8", "Mode 1, speed 8"), listOf("led_mode" to 1, "led_speed" to 8, "led_set" to 1),
+            t("Schneller als bei Modus 1 vorhin?", "Faster than mode 1 before?"), listOf(t("Schneller", "Faster"), t("Langsamer", "Slower"), t("Gleich", "The same")))
         aStep(steps, 0, before)
     }
 
