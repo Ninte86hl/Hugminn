@@ -181,7 +181,10 @@ hw() {
     echo "scripts folder:"; ls -la "${'$'}C" 2>&1 | head -20
     for f in "${'$'}C"/*; do [ -f "${'$'}f" ] && { echo " file ${'$'}f:"; head -c 600 "${'$'}f" | tr '\n' ' '; echo; }; done
     a=${'$'}(pm path com.anbernic.control 2>/dev/null | head -1 | cut -d: -f2)
-    [ -f "${'$'}a" ] && unzip -p "${'$'}a" 'classes*.dex' 2>/dev/null | grep -a -o -E '[A-Za-z_./]{0,30}([Ss]cript|SCRIPT)[A-Za-z_./]{0,30}' | sort -u | head -80 | tr '\n' ' '; echo
+    [ -f "${'$'}a" ] && unzip -p "${'$'}a" 'classes*.dex' 2>/dev/null | grep -a -o -E '[A-Za-z_./]{0,30}([Ss]cript|SCRIPT)[A-Za-z_./]{0,30}' | grep -vi descript | sort -u | head -80 | tr '\n' ' '; echo
+    # can another app ask it to run a script? (its components, which are open to others, and their actions)
+    echo "control components:"
+    dumpsys package com.anbernic.control 2>/dev/null | sed -n '/Activity Resolver Table/,/Permissions:/p' | grep -E 'com.anbernic.control/|Action:|Scheme:' | head -60
     echo "## leds"
     for l in /sys/class/leds/*; do
       echo "${'$'}(basename "${'$'}l"): max=${'$'}(cat "${'$'}l/max_brightness" 2>/dev/null) now=${'$'}(cat "${'$'}l/brightness" 2>/dev/null) trigger=${'$'}(grep -o '\[[^]]*\]' "${'$'}l/trigger" 2>/dev/null) files=${'$'}(ls "${'$'}l" | tr '\n' ' ')"
