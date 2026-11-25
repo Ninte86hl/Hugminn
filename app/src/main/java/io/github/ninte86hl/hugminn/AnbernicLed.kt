@@ -47,7 +47,8 @@ object AnbernicLed {
         val p = Prefs(ctx)
         val wantMode = p.ledElMode.getOrNull(0)?.digitToIntOrNull() ?: mode
         if (wantMode == 0) {
-            if (last != "off") { last = "off"; Device.put("led_enable", "0") {} }
+            // Anbernic's service switches off through its setting; the controller itself through a mode without light (6)
+            if (last != "off") { last = "off"; Device.put("led_enable", "0") {}; AnbernicHelper.joypad(listOf("led_mode" to 6, "led_set" to 1)) }
             return
         }
         // Kombi: Anbernic's chasing light with the combination's two colours (first and second channel)
@@ -73,6 +74,9 @@ object AnbernicLed {
             val r2 = Color.red(colour2); val g2 = Color.green(colour2); val b2 = Color.blue(colour2)
             listOf("led_sync_colour" to 0, "custum_rgb_r" to r, "custum_rgb_g" to g, "custum_rgb_b" to b,
                 "Led_rgb_r1" to r, "Led_rgb_g1" to g, "Led_rgb_b1" to b, "Led_rgb_r2" to r2, "Led_rgb_g2" to g2, "Led_rgb_b2" to b2,
+                // the controller's own mode as well (tested: led_mode = led_effect + 1) – so the effect runs
+                // even with Anbernic's control center switched off
+                "led_switch" to 1, "led_mode" to (eff.toIntOrNull() ?: 0) + 1,
                 "led_level" to level, "led_set" to 1).let { AnbernicHelper.joypad(it) }
         }
         if (effectChanged) {
