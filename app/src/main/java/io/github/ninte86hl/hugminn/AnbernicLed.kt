@@ -82,13 +82,21 @@ object AnbernicLed {
     }
 
     /**
-     * After standby the controller's lights stay dark although everything says "on": switch them off and
-     * on again, so Anbernic's service sets them up anew, then our effect and colour over it.
+     * After standby: our colour again, twice (Anbernic's service may paint its own while waking up).
+     * No switching off and on – that showed Anbernic's colour for a moment.
      */
     fun wake(ctx: Context) {
         if (!inUse(ctx) || !AnbernicHelper.alive(ctx)) return
         if ((Prefs(ctx).ledElMode.getOrNull(0)?.digitToIntOrNull() ?: Device.elState(ctx, 0)) == 0) return
-        Device.put("led_enable", "0") { main.postDelayed({ reapply(ctx) }, 600) }
+        main.postDelayed({ forceColour(ctx) }, 300)
+        main.postDelayed({ forceColour(ctx) }, 2800)
+    }
+
+    /** Colour, brightness and set again, even if Hugminn thinks they are already there. */
+    private fun forceColour(ctx: Context) {
+        val e = last.substringBefore('/')
+        last = if (e.isNotEmpty() && e != "off") "$e/x" else last
+        apply(ctx)
     }
 
     /** After a restart of the helper: our colour again (Anbernic's app put its own back). */
