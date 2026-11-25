@@ -367,7 +367,10 @@ class HugminnService : AccessibilityService() {
             if (event.keyCode != KeyEvent.KEYCODE_POWER) { val copy = KeyEvent(event); ui.post { l(copy) }; return true }
         }
         // Homes Hugminn sent on to the firmware itself (Retroid's double press)
-        if ((event.keyCode == KeyEvent.KEYCODE_HOME) && android.os.SystemClock.uptimeMillis() < passHomeUntil) return false
+        // only the injected ones (no real device): the release of the real second press must not reach the firmware,
+        // it took it for one more Home and closed Retroid's control center again at once
+        if (event.keyCode == KeyEvent.KEYCODE_HOME && android.os.SystemClock.uptimeMillis() < passHomeUntil &&
+            (event.deviceId <= 0 || event.device?.isVirtual == true)) return false
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
         if (Device.isAynKey(event)) return false
         // Anbernic (RG 406H): its Home button sends F10 from the built-in pad
