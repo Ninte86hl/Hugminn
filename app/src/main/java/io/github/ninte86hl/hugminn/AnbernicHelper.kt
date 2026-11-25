@@ -162,6 +162,21 @@ hw() {
     for x in led_switch led_mode led_speed led_level led_set led_sync_colour custum_rgb_r custum_rgb_g custum_rgb_b Led_rgb_r1 Led_rgb_g1 Led_rgb_b1 Led_rgb_r2 Led_rgb_g2 Led_rgb_b2 mcu_info adc_deadzone remapkey_switch remapkey_xbox_switch enable poll_interval; do
       [ -e "${'$'}J/${'$'}x" ] && echo "${'$'}x=${'$'}(head -c 300 "${'$'}J/${'$'}x" 2>&1 | tr '\n' ' ') (${'$'}(stat -c %a "${'$'}J/${'$'}x"))"
     done
+    # who runs the scripts, and does it know a "run at boot"? (so the helper could come back by itself after a restart)
+    echo "## script runner"
+    q=${'$'}PPID; for i in 1 2 3 4; do
+      [ -z "${'$'}q" ] || [ "${'$'}q" -le 1 ] && break
+      echo "parent ${'$'}q: ${'$'}(cat /proc/${'$'}q/cmdline 2>/dev/null | tr '\0' ' ' | head -c 200) uid=${'$'}(awk '/^Uid/{print ${'$'}2}' /proc/${'$'}q/status 2>/dev/null)"
+      q=${'$'}(awk '/^PPid/{print ${'$'}2}' /proc/${'$'}q/status 2>/dev/null)
+    done
+    for pk in ${'$'}(pm list packages 2>/dev/null | grep -iE 'anbernic|rgsetting|script|rgcontrol' | cut -d: -f2); do
+      echo "pkg ${'$'}pk ${'$'}(pm path ${'$'}pk 2>/dev/null | head -1)"
+      for f in /data/data/${'$'}pk/shared_prefs/*.xml; do [ -f "${'$'}f" ] && { echo " prefs ${'$'}f:"; head -c 1500 "${'$'}f" | tr '\n' ' '; echo; }; done
+      ls /data/data/${'$'}pk/databases /data/data/${'$'}pk/files 2>/dev/null | tr '\n' ' ' | head -c 600; echo
+      a=${'$'}(pm path ${'$'}pk 2>/dev/null | head -1 | cut -d: -f2)
+      [ -f "${'$'}a" ] && unzip -p "${'$'}a" 'classes*.dex' 2>/dev/null | grep -a -o -E '[A-Za-z_./]{0,30}([Bb]oot|BOOT|[Aa]uto[Rr]un|AUTO_RUN|[Ss]tartup|[Aa]utostart)[A-Za-z_./]{0,30}' | sort -u | head -40 | tr '\n' ' '; echo
+    done
+    ls -la /data/adb /data/adb/service.d /data/local/tmp 2>&1 | head -20
     echo "## leds"
     for l in /sys/class/leds/*; do
       echo "${'$'}(basename "${'$'}l"): max=${'$'}(cat "${'$'}l/max_brightness" 2>/dev/null) now=${'$'}(cat "${'$'}l/brightness" 2>/dev/null) trigger=${'$'}(grep -o '\[[^]]*\]' "${'$'}l/trigger" 2>/dev/null) files=${'$'}(ls "${'$'}l" | tr '\n' ' ')"
