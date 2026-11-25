@@ -99,7 +99,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         private set
     var closedAt = 0L
         private set
-    private val wm = svc.getSystemService(WindowManager::class.java)
+    private var wm = svc.getSystemService(WindowManager::class.java)
     private var root: FrameLayout? = null
     private var carousel: Carousel? = null
     private var bar: LinearLayout? = null
@@ -122,7 +122,7 @@ class OwnSwitcher(private val svc: HugminnService) {
     /** Recently used apps, newest first; updated as apps come to the front and from Android's task list. */
     private var known: MutableList<RecentApp> = mutableListOf()
 
-    private val hat = HatInput(svc.ui) { code -> runCatching { key(code) }.onFailure { Crash.note(svc, it) } }
+    private val hat = HatInput(svc.ui) { code -> runCatching { if (svc.comboMode) svc.comboKey(KeyEvent(KeyEvent.ACTION_DOWN, code)) else key(code) }.onFailure { Crash.note(svc, it) } }
 
     /** An app came to the front: it moves to the start of the list. */
     fun touch(pkg: String) {
@@ -188,9 +188,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         return res
     }
 
-    fun open(swipe: Boolean) {
+    fun open(swipe: Boolean, display: Int = android.view.Display.DEFAULT_DISPLAY) {
         Displays.snapshot(svc, svc, "Switcher")
         if (isOpen) return
+        wm = Displays.wmFor(svc, display)
         isOpen = true
         svc.overlayState()
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
@@ -251,9 +252,18 @@ class OwnSwitcher(private val svc: HugminnService) {
         if (f != null && !swipe) Snapshots.capture(svc, f) { pauseIt(); afterList() } else { pauseIt(); afterList() }
     }
 
+    /** Switcher + Control Center on two screens: the one the buttons work in is clear, the other one dimmed. */
+    fun look(active: Boolean) {
+        val r = root ?: return
+        r.animate().cancel()
+        r.alpha = if (active) 1f else 0.55f
+        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) } else null
+    }
+
     fun close(back: Boolean) {
         if (!isOpen) return
         isOpen = false
+        svc.ui.post { svc.comboClosed() }
         svc.overlayState()
         closedAt = SystemClock.uptimeMillis()
         hat.stop()
@@ -533,8 +543,13 @@ class OwnSwitcher(private val svc: HugminnService) {
                 // left behind by a close that went wrong: remove it instead of swallowing keys
                 if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(this) }; return false }
                 if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT) return false
+                if (svc.comboMode) { svc.comboKey(Glyphs.logical(event)); return true }
                 if (event.action == KeyEvent.ACTION_DOWN) runCatching { key(Glyphs.logical(event.keyCode)) }.onFailure { Crash.note(svc, it) }
                 return true
+            }
+            override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+                if (ev.actionMasked == MotionEvent.ACTION_DOWN) svc.comboFocus(cc = false)
+                return super.dispatchTouchEvent(ev)
             }
         }.apply {
             background = Look.ground(svc, pal)
@@ -615,6 +630,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         r.requestFocus()
         root = r
         carousel = c
+        if (svc.comboMode) svc.ui.post { svc.comboLook() }
         bar = b
         // dual screen: name, hints and shortcuts move to the second screen, the cards get the room
         if (openLower()) {
@@ -631,7 +647,8 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     /** Opens the window on the second screen; false if there is none (or it may not be used). */
     private fun openLower(): Boolean {
-        if (!svc.prefs.dualSwitcher) return false
+        // together with the Control Center the other screen is taken
+        if (!svc.prefs.dualSwitcher || svc.comboMode) return false
         val info = Displays.second(svc) ?: return false
         val display = svc.getSystemService(android.hardware.display.DisplayManager::class.java)?.getDisplay(info.id) ?: return false
         return runCatching {

@@ -42,7 +42,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     var isOpen = false
         private set
-    private val wm = svc.getSystemService(WindowManager::class.java)
+    private var wm = svc.getSystemService(WindowManager::class.java)
     private val audio = svc.getSystemService(AudioManager::class.java)
     private lateinit var pal: Palette
     private var root: FrameLayout? = null
@@ -85,14 +85,16 @@ class ControlCenter(private val svc: HugminnService) {
 
     private val hat = HatInput(svc.ui) { code ->
         try {
-            onKey(KeyEvent(KeyEvent.ACTION_DOWN, code))
+            val e = KeyEvent(KeyEvent.ACTION_DOWN, code)
+            if (svc.comboMode) svc.comboKey(e) else onKey(e)
         } catch (t: Throwable) {
             Crash.note(svc, t)
         }
     }
 
-    fun open() {
+    fun open(display: Int = android.view.Display.DEFAULT_DISPLAY) {
         if (isOpen) return
+        wm = Displays.wmFor(svc, display)
         Displays.snapshot(svc, svc, "Control Center")
         Device.refreshLayout(svc)
         isOpen = true
@@ -125,7 +127,7 @@ class ControlCenter(private val svc: HugminnService) {
             private var edgeY = -1f
             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
                 when (ev.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> edgeY = if (ev.rawY < svc.dp(40)) ev.rawY else -1f
+                    MotionEvent.ACTION_DOWN -> { edgeY = if (ev.rawY < svc.dp(40)) ev.rawY else -1f; svc.comboFocus(cc = true) }
                     MotionEvent.ACTION_MOVE -> if (edgeY >= 0 && ev.rawY - edgeY > svc.dp(60)) {
                         edgeY = -1f
                         close()
@@ -142,7 +144,7 @@ class ControlCenter(private val svc: HugminnService) {
                 if (!isOpen || root !== this) { runCatching { wm.removeViewImmediate(this) }; false } else
                 if (volumeKey(event)) true else
                 // keys that reach the window directly go by position too, like those through the service
-                onKey(Glyphs.logical(event))
+                if (svc.comboMode) svc.comboKey(Glyphs.logical(event)) else onKey(Glyphs.logical(event))
             } catch (t: Throwable) {
                 Crash.note(svc, t)
                 close()
@@ -189,9 +191,21 @@ class ControlCenter(private val svc: HugminnService) {
         svc.ui.post(tick)
     }
 
+    /** Switcher + Control Center on two screens: the one the buttons work in is clear, the other one dimmed. */
+    fun look(active: Boolean) {
+        val r = root ?: return
+        r.animate().cancel()
+        r.alpha = if (active) 1f else 0.55f
+        r.foreground = if (active) android.graphics.drawable.GradientDrawable().apply { setStroke(svc.dp(3), pal.primary) } else null
+    }
+
+    /** Nothing more to go to in this direction (so the D-pad may leave for the other screen). */
+    fun atEdge(dy: Int): Boolean = menuView == null && !editing && editView == null && gridEdit == null && inside == null && !adjusting && nearest(0, dy) < 0
+
     fun close() {
         if (!isOpen) return
         isOpen = false
+        svc.ui.post { svc.comboClosed() }
         svc.overlayState()
         hat.stop()
         stopBtScan()

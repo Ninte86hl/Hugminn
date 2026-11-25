@@ -407,6 +407,7 @@ class HugminnService : AccessibilityService() {
         val ev = Glyphs.logical(event)
         return try {
             when {
+                comboMode -> comboKey(ev)
                 controlCenter.isOpen -> controlCenter.onKey(ev)
                 own.isOpen -> own.onKey(ev)
                 switcher.isOpen -> switcher.onKey(ev)
@@ -561,6 +562,7 @@ class HugminnService : AccessibilityService() {
                     if (prefs.ownSwitcher) own.open(swipe = false) else switcher.open()
                 }
             }
+            Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
             Action.CONTROL_CENTER -> if (controlCenter.isOpen) controlCenter.close() else controlCenter.open()
             Action.RECENTS -> {
                 closeOverlays()
@@ -594,7 +596,59 @@ class HugminnService : AccessibilityService() {
         }.start()
     }
 
+    // ---------- switcher + Control Center on two screens ----------
+
+    /** Both are open together, one per screen; the buttons go to one of them ([comboCc]). */
+    var comboMode = false
+        private set
+    private var comboCc = false
+
+    private fun openCombo() {
+        val low = Displays.second(this)?.id ?: return perform(Action.SWITCHER)
+        closeOverlays()
+        comboMode = true
+        comboCc = false
+        val ccLow = prefs.ccLower
+        own.open(swipe = false, display = if (ccLow) android.view.Display.DEFAULT_DISPLAY else low)
+        controlCenter.open(display = if (ccLow) low else android.view.Display.DEFAULT_DISPLAY)
+        ui.postDelayed({ comboLook() }, 200)
+    }
+
+    fun comboLook() {
+        if (!comboMode) return
+        controlCenter.look(comboCc)
+        own.look(!comboCc)
+    }
+
+    /** A touch on one of the two windows: the buttons go there. */
+    fun comboFocus(cc: Boolean) {
+        if (!comboMode || comboCc == cc) return
+        comboCc = cc
+        comboLook()
+    }
+
+    /** A button while both are open: the D-pad crosses over to the other screen at the edge, everything else goes to the active one. */
+    fun comboKey(e: KeyEvent): Boolean {
+        val ccLow = prefs.ccLower
+        if (e.action == KeyEvent.ACTION_DOWN) {
+            val toCc = if (ccLow) KeyEvent.KEYCODE_DPAD_DOWN else KeyEvent.KEYCODE_DPAD_UP
+            val toSw = if (ccLow) KeyEvent.KEYCODE_DPAD_UP else KeyEvent.KEYCODE_DPAD_DOWN
+            if (!comboCc && e.keyCode == toCc) { comboFocus(true); return true }
+            if (comboCc && e.keyCode == toSw && controlCenter.atEdge(if (ccLow) -1 else 1)) { comboFocus(false); return true }
+        }
+        if (comboCc) controlCenter.onKey(e) else own.onKey(e)
+        return true
+    }
+
+    /** One of the two closed (game started, B, …): the other one goes too. */
+    fun comboClosed() {
+        if (!comboMode) return
+        comboMode = false
+        closeOverlays()
+    }
+
     fun closeOverlays() {
+        comboMode = false
         if (::controlCenter.isInitialized) controlCenter.close()
         if (::switcher.isInitialized && switcher.isOpen) switcher.close(goBack = false)
         if (::own.isInitialized && own.isOpen) own.close(back = false)

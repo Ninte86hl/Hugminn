@@ -49,6 +49,14 @@ object Displays {
     /** A built-in second screen, if there is one (not the main one, not a private/virtual one). */
     fun second(ctx: Context): Info? = list(ctx).firstOrNull { !it.isDefault && !it.isPrivate }
 
+    /** Window manager for overlays on a screen (the accessibility service's display context may add them there). */
+    fun wmFor(ctx: Context, id: Int): android.view.WindowManager {
+        if (id != android.view.Display.DEFAULT_DISPLAY) runCatching {
+            ctx.getSystemService(DisplayManager::class.java)?.getDisplay(id)?.let { return ctx.createDisplayContext(it).getSystemService(android.view.WindowManager::class.java) }
+        }
+        return ctx.getSystemService(android.view.WindowManager::class.java)
+    }
+
     @Volatile private var dual: Boolean? = null
 
     /**
