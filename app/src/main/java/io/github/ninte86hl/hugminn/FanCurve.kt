@@ -89,6 +89,8 @@ object FanCurve {
                 while (running) {
                     val temp = cpuTemp()
                     currentTemp = temp
+                    // the curve test holds the fan where it wants it meanwhile
+                    if (forced != null) { Thread.sleep(500); continue }
                     val want = percentFor(Prefs(app).fanCurve, temp, Prefs(app).fanHot)
                     // change gently (max 5 % per step) so the fan doesn't jump audibly; faster when it gets hot
                     pct = if (want > pct) minOf(want, pct + if (temp >= 80) 20 else 5) else maxOf(want, pct - 3)
@@ -103,6 +105,43 @@ object FanCurve {
             }
         }.apply { isDaemon = true; name = "hugminn-fan"; start() }
     }
+
+    /** Set while the curve test runs: the loop leaves the fan alone. */
+    @Volatile private var forced: Int? = null
+    @Volatile var testing = false
+        private set
+
+    /**
+     * Curve test: the fan runs each point's speed for a moment, one after the other, so you hear the
+     * curve. [step] is told which point (main thread not guaranteed); the fan then goes back to what it did.
+     */
+    fun test(points: List<Int>, step: (Int) -> Unit, done: () -> Unit) {
+        if (testing) return
+        testing = true
+        Thread {
+            try {
+                val period = Root.exec("cat $PERIOD 2>/dev/null")?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: 50_000
+                val mode = Root.exec("settings get system fan_mode")?.trim()
+                points.forEachIndexed { i, p ->
+                    if (!testing) return@forEachIndexed
+                    forced = p
+                    step(i)
+                    Root.exec("settings put system fan_mode 6; echo ${period * p.coerceIn(MIN, 100) / 100} > $DUTY")
+                    Thread.sleep(1_800)
+                }
+                forced = null
+                // back to what ran before: our curve (its loop takes over again) or the firmware's mode
+                if (!running && mode != null && mode != "6" && mode != "null") Root.exec("settings put system fan_mode $mode")
+            } catch (_: Throwable) {
+            } finally {
+                forced = null
+                testing = false
+                done()
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
+    fun stopTest() { testing = false }
 
     /** Stops the curve; [restoreSmart] hands the fan back to the firmware (Smart). */
     fun stop(restoreSmart: Boolean) {

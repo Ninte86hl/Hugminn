@@ -2118,7 +2118,8 @@ class ControlCenter(private val svc: HugminnService) {
         var limit = svc.prefs.fanHot
         val view = FanCurveView(svc, pal).apply { points = pts.toList(); selected = 4; this.limit = limit }
         box.addView(view, lp(600 * d, 250 * d))
-        box.addView(text(t("◀ ▶ Punkt oder Grenze · ▲ ▼ ändern · A aktivieren · B zurück", "◀ ▶ point or limit · ▲ ▼ change · A activate · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
+        box.addView(text(t("◀ ▶ Punkt oder Grenze · ▲ ▼ ändern · A aktivieren · X Retroid-Standard · Y Test · B zurück",
+            "◀ ▶ point or limit · ▲ ▼ change · A activate · X Retroid default · Y test · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
         /** Point [i] to [pct] %, or (i = past the points) the limit to [pct] °C. */
         fun change(i: Int, pct: Int) {
             if (i >= pts.size) {
@@ -2136,6 +2137,7 @@ class ControlCenter(private val svc: HugminnService) {
         }
         view.onTouchChange = { i, v -> change(i, v) }
         fun refreshInfo() {
+            if (FanCurve.testing) return
             val t = FanCurve.currentTemp.takeIf { it > 0 } ?: 0f
             view.liveTemp = t
             info.text = if (FanCurve.isRunning()) t("Aktiv · jetzt ${t.toInt()} °C → ${FanCurve.currentPct} %", "Active · now ${t.toInt()} °C → ${FanCurve.currentPct} %") else
@@ -2171,7 +2173,34 @@ class ControlCenter(private val svc: HugminnService) {
                     }.start()
                     closeMenu()
                 }
-                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> closeMenu()
+                // back to Retroid: its own Smart mode drives the fan again, the curve returns to its start shape
+                KeyEvent.KEYCODE_BUTTON_X -> {
+                    FanCurve.stopTest()
+                    FanCurve.stop(restoreSmart = true)
+                    svc.prefs.fanCustom = false
+                    val def = listOf(25, 25, 30, 35, 45, 55, 65, 75, 85, 95)
+                    for (i in pts.indices) pts[i] = def.getOrElse(i) { 95 }
+                    limit = 90
+                    view.points = pts.toList()
+                    view.limit = limit
+                    svc.prefs.fanCurve = pts.toList()
+                    svc.prefs.fanHot = limit
+                    FanCurve.hot = limit
+                    Toast.makeText(svc, t("Lüfter wieder bei Retroid (Smart)", "Fan back with Retroid (Smart)"), Toast.LENGTH_SHORT).show()
+                    svc.ui.postDelayed({ refreshInfo(); refreshAll() }, 600)
+                }
+                // test: the fan runs every point for a moment, the point shown as it plays
+                KeyEvent.KEYCODE_BUTTON_Y -> if (FanCurve.testing) FanCurve.stopTest() else Thread {
+                    if (!FanCurve.available()) {
+                        svc.ui.post { Toast.makeText(svc, tr("Dieses Gerät erlaubt keine eigene Lüftersteuerung"), Toast.LENGTH_LONG).show() }
+                        return@Thread
+                    }
+                    FanCurve.test(pts.toList(), { i -> svc.ui.post {
+                        view.selected = i
+                        info.text = t("Test · Punkt ${i + 1}/${pts.size}: ${FanCurve.temps[i]} °C → ${pts[i]} % · Y stoppt", "Test · point ${i + 1}/${pts.size}: ${FanCurve.temps[i]} °C → ${pts[i]} % · Y stops")
+                    } }) { svc.ui.post { refreshInfo() } }
+                }.start()
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> { FanCurve.stopTest(); closeMenu() }
             }
         }
     }
