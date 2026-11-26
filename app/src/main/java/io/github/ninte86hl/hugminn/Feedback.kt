@@ -44,16 +44,20 @@ object Feedback {
         busy = true
         busySince = android.os.SystemClock.uptimeMillis()
         toast(svc, "Feedback wird aufgenommen …")
-        val info = describe(svc, where)
+        // the screenshot first, the (slow) description afterwards in the background: it used to block the
+        // main thread for seconds, and the screenshot then failed
+        val info: () -> String = { runCatching { describe(svc, where) }.getOrElse { "Beschreibung fehlgeschlagen: $it" } }
         svc.takeScreenshot(Display.DEFAULT_DISPLAY, svc.mainExecutor, object : AccessibilityService.TakeScreenshotCallback {
             override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
                 val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
                 val bmp = hw?.copy(Bitmap.Config.ARGB_8888, false)
                 result.hardwareBuffer.close()
                 val go: (Bitmap?) -> Unit = { full ->
-                    val p = Pending(token, where, full, info)
-                    // no comment box any more: every report goes straight out
-                    pending = p; sendPending(svc, if (quick) "[Schnellbericht aus dem Overlay]" else "–")
+                    Thread {
+                        val p = Pending(token, where, full, info())
+                        // no comment box any more: every report goes straight out
+                        pending = p; sendPending(svc, if (quick) "[Schnellbericht aus dem Overlay]" else "–")
+                    }.start()
                 }
                 // dual screen: the second screen too, drawn below the first like on the device
                 // (Android allows one screenshot per second, hence the short wait)
@@ -72,8 +76,10 @@ object Feedback {
             }
 
             override fun onFailure(errorCode: Int) {
-                val p = Pending(token, where, null, "$info\n\nScreenshot fehlgeschlagen (Code $errorCode)")
-                if (quick) { pending = p; sendPending(svc, "[Schnellbericht aus dem Overlay]") } else ask(svc, p)
+                Thread {
+                    val p = Pending(token, where, null, "${info()}\n\nScreenshot fehlgeschlagen (Code $errorCode)")
+                    pending = p; sendPending(svc, if (quick) "[Schnellbericht aus dem Overlay]" else "–")
+                }.start()
             }
         })
     }
