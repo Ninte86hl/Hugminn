@@ -623,8 +623,9 @@ class HugminnService : AccessibilityService() {
                     // the moment and out again afterwards
                     val tiles = Root.execLong("settings get secure sysui_qs_tiles", 3_000).orEmpty()
                     val present = tiles.contains(RETROID_TILE) || tiles.contains("FloatingWindowTileService")
+                    // the click only lands while the quick settings are shown: open them, click, close again
                     val out = Root.execLong((if (present) "" else "cmd statusbar add-tile $RETROID_TILE 2>&1; sleep 0.6; ") +
-                        "cmd statusbar click-tile $RETROID_TILE 2>&1; echo rc=\$?", 5_000)
+                        "cmd statusbar expand-settings 2>&1; sleep 0.5; cmd statusbar click-tile $RETROID_TILE 2>&1; echo rc=\$?; sleep 0.4; cmd statusbar collapse 2>&1", 6_000)
                     Glyphs.note("retroid tile (in QS: $present) → ${out?.trim()?.take(160)}")
                     if (!present) ui.postDelayed({ Root.run("cmd statusbar remove-tile $RETROID_TILE") }, 3_000)
                 }.start()
