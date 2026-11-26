@@ -237,6 +237,10 @@ class Prefs(private val ctx: Context) {
         set(v) = p.edit().putInt("glassLevel", v.coerceIn(1, 5)).apply()
 
     /** Dual-screen handhelds, "switcher + Control Center": the Control Center on the lower screen (else on the top one). */
+    /** Control Center: a page of notifications left of the first page (L1). */
+    var ccNotifications: Boolean
+        get() = p.getBoolean("ccNotifications", true)
+        set(v) = p.edit().putBoolean("ccNotifications", v).apply()
     var ccLower: Boolean
         get() = p.getBoolean("ccLower", true)
         set(v) = p.edit().putBoolean("ccLower", v).apply()
