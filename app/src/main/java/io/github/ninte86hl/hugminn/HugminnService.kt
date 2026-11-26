@@ -99,6 +99,8 @@ class HugminnService : AccessibilityService() {
     private var pendingSingle = false
     /** When Home went down (uptime ms) – the double press is timed from here. */
     private var homeDownAt = 0L
+    /** Pocket Duo: scan code of the controller's own double press (F24, Android turns it into Home). */
+    private val DUO_DOUBLE = 194
     /** When Hugminn received that Home down (uptime ms). */
     private var homeDownSeen = 0L
     private var longFired = false
@@ -385,7 +387,6 @@ class HugminnService : AccessibilityService() {
         // the double tap Hugminn hands on to Retroid's firmware (sent through the controller itself, see RETROID)
         // A time window, not a count: some events arrive here twice, the count ran out early and the second tap's
         // release was held back – Retroid then took Home as held and switched the lower screen off.
-        if (Device.isDuo && event.keyCode == KeyEvent.KEYCODE_HOME && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) captureHome()
         if (event.keyCode == KeyEvent.KEYCODE_HOME && android.os.SystemClock.uptimeMillis() < passHomeUntil) {
             Glyphs.note("pass HOME ${if (event.action == KeyEvent.ACTION_DOWN) "down" else "up"} dev=${event.deviceId} ${event.device?.name} t=${event.eventTime}")
             return false
@@ -463,7 +464,16 @@ class HugminnService : AccessibilityService() {
                 if (!overlayOpen && p.ownSwitcher && !pendingSingle) foregroundPkg?.let { fg ->
                     if (windowPkg == fg && onTopScreen(fg)) Snapshots.capture(this, fg)
                 }
-                Glyphs.note("home down · wartet auf zweiten=$pendingSingle · zweimal=${p.double} lange=${p.long} (${p.doubleMs} ms)")
+                Glyphs.note("home down · scan=${e.scanCode} · wartet auf zweiten=$pendingSingle · zweimal=${p.double} lange=${p.long} (${p.doubleMs} ms)")
+                // Pocket Duo: its controller tells single and double apart itself – a single press arrives as
+                // Home (scan code 102) right away, a double press as one short tap of F24 (scan code 194)
+                if (Device.isDuo && e.scanCode == DUO_DOUBLE) {
+                    ui.removeCallbacks(singlePress)
+                    pendingSingle = false
+                    ignoreUp = true
+                    perform(p.double)
+                    return true
+                }
                 if (pendingSingle) {
                     ui.removeCallbacks(singlePress)
                     pendingSingle = false
@@ -478,21 +488,11 @@ class HugminnService : AccessibilityService() {
             }
             KeyEvent.ACTION_UP -> {
                 ui.removeCallbacks(longPress)
-                // Pocket Duo: its firmware holds Home back and turns a double press into ONE press, handed on
-                // only when the second one is let go – down and up arrive together, but span both presses.
-                val span = e.eventTime - homeDownAt
-                val together = android.os.SystemClock.uptimeMillis() - homeDownSeen < 40
-                if (Device.isDuo && !ignoreUp && !longFired && together && span >= 60 && p.double != Action.NONE) {
-                    Glyphs.note("home up · Duo-Doppeldruck erkannt ($span ms)")
-                    ui.removeCallbacks(singlePress)
-                    pendingSingle = false
-                    perform(p.double)
-                    return true
-                }
                 when {
                     ignoreUp -> { ignoreUp = false; afterHomeUp?.let { afterHomeUp = null; ui.postDelayed(it, 60) } }
                     longFired -> {}
-                    p.double == Action.NONE -> perform(p.single)
+                    // Duo: the double press comes as a key of its own, a single one needn't wait for a second
+                    p.double == Action.NONE || (Device.isDuo && e.scanCode != DUO_DOUBLE) -> perform(p.single)
                     else -> {
                         // The wait for a second press counts from pressing down, not from letting go: some
                         // firmwares (Pocket Duo) hand the release on late, which ate up the time for the second press.
