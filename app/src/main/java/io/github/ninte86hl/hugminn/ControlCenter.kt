@@ -846,8 +846,6 @@ class ControlCenter(private val svc: HugminnService) {
         val sliders = listOf(top, bottom)
         sliders.forEach {
             if (pal.cocoon && svc.prefs.tileColor == 0) it.setAccent(if (bright) 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
-            // dot matrix: the style's red (or the chosen colour), like its curves and gauges
-            else if (pal.dots) it.setAccent(pal.primary, pal.onPrimary)
             else it.setAccent(tileOn(), tileOnFg())
             box.addView(it, lp(440 * d, 56 * d).apply { topMargin = 12 * d })
         }
@@ -1624,7 +1622,14 @@ class ControlCenter(private val svc: HugminnService) {
             val f = sp.fraction?.invoke(s)
             val color = if (f != null) GaugeColors.of(pal, gp, f) else pal.primary
             value.text = sp.value(s)
-            value.setTextColor(if (sp.colorValue && gp != GaugePalette.MONO && f != null) color else pal.onSurface)
+            // dot style: white numbers; a warning (hot, nearly empty) turns number and frame red
+            val warn = pal.dots && f != null && (e.id == "temp" || e.id == "battery") && f >= 0.85f
+            value.setTextColor(if (pal.dots) (if (warn) pal.primary else pal.onSurface)
+                else if (sp.colorValue && gp != GaugePalette.MONO && f != null) color else pal.onSurface)
+            if (pal.dots && warn != (c.tag == "warn")) {
+                c.tag = if (warn) "warn" else null
+                c.background = if (warn) shape(pal.tile, cardRadius, 2 * d, pal.primary) else tileFill(false, cardRadius)
+            }
             sub.text = sp.sub(s)
             if (f != null) bar?.set(f, color)
             ring?.let { r ->
@@ -1687,9 +1692,12 @@ class ControlCenter(private val svc: HugminnService) {
         return v
     }
 
+    /** Corner radius of cards: the dot style has Nothing's large, soft corners. */
+    private val cardRadius get() = (if (pal.dots) 28f else 22f) * d
+
     private fun card() = LinearLayout(svc).apply {
         orientation = LinearLayout.VERTICAL
-        background = tileFill(false, 22f * d)
+        background = tileFill(false, cardRadius)
         setPadding(14 * d, 10 * d, 14 * d, 10 * d)
     }
 
