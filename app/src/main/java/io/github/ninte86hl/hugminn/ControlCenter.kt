@@ -808,34 +808,77 @@ class ControlCenter(private val svc: HugminnService) {
         return box to Item(box, null, { dir -> both[active].step(5 * dir); mark() }, vertical, onSide = { dir -> active = (active + dir).coerceIn(0, 1); mark() })
     }
 
+    /** Pocket Duo: brightness or volume of each screen on its own (Y on the slider). ▲ ▼ screen, ◀ ▶ value. */
+    private fun screensPopup(bright: Boolean) {
+        val r = root ?: return
+        closeMenu()
+        val box = LinearLayout(svc).apply {
+            orientation = LinearLayout.VERTICAL
+            background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
+            setPadding(22 * d, 16 * d, 22 * d, 14 * d)
+            elevation = 12f * d
+            isClickable = true
+        }
+        box.addView(text(if (bright) tr("Helligkeit") else tr("Lautstärke"), 18f, pal.onSurface, bold = true))
+        val icon = if (bright) IconView.Kind.SUN else IconView.Kind.SPEAKER
+        val top = if (bright) BigSlider(svc, pal, icon, t("Oben", "Top"), 255, Device.brightness(svc), pixel) { Device.setBrightness(svc, it) }
+            else BigSlider(svc, pal, icon, t("Oben", "Top"), 100, mainVolumePct(), pixel) { setMainVolumePct(it) }
+        val bottom = if (bright) BigSlider(svc, pal, icon, t("Unten", "Bottom"), 100, svc.prefs.bottomBrightness, pixel) {
+                svc.prefs.bottomBrightness = it
+                Device.setBottomBrightness(it)
+            } else BigSlider(svc, pal, icon, t("Unten", "Bottom"), 15, Device.bottomVolume(svc), pixel) { Device.setBottomVolume(it) }
+        val sliders = listOf(top, bottom)
+        sliders.forEach {
+            if (pal.cocoon && svc.prefs.tileColor == 0) it.setAccent(if (bright) 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
+            else it.setAccent(tileOn(), tileOnFg())
+            box.addView(it, lp(440 * d, 56 * d).apply { topMargin = 12 * d })
+        }
+        box.addView(text(t("▲ ▼ Bildschirm · ◀ ▶ ändern · B zurück", "▲ ▼ screen · ◀ ▶ change · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 10 * d, 0, 0) })
+        var active = 0
+        fun mark() = sliders.forEachIndexed { i, sl -> sl.alpha = if (i == active) 1f else 0.5f }
+        mark()
+        r.addView(box, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        menuView = box
+        popupKeys = { code ->
+            when (code) {
+                KeyEvent.KEYCODE_DPAD_UP -> { active = 0; mark() }
+                KeyEvent.KEYCODE_DPAD_DOWN -> { active = 1; mark() }
+                KeyEvent.KEYCODE_DPAD_LEFT -> sliders[active].step(-5)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> sliders[active].step(5)
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_Y -> { closeMenu(); renderGrid() }
+            }
+        }
+    }
+
     /** View for one grid element at its size, plus what A does on it. */
     private fun element(e: GridEntry, rootOk: Boolean): Pair<View, Item?> {
         val id = e.id
         if (GridLayout.isDouble(id)) return doubleSlider(e)
         if (GridLayout.isSlider(id)) {
             val vertical = e.h > e.w
-            val v = if (id == "brightnessAll") BigSlider(svc, pal, IconView.Kind.SUN, t("Helligkeit beide", "Brightness both"), 100, Device.brightness(svc) * 100 / 255, pixel, vertical) {
-                Device.setBrightness(svc, Math.round(it * 255 / 100f))
-                if (Device.isDuo && Root.available()) { svc.prefs.bottomBrightness = it; Device.setBottomBrightness(it) }
+            // Pocket Duo: brightness and volume work on both screens; Y opens one slider per screen
+            val both = Device.isDuo && Root.available()
+            val v = if (id == "brightness" || id == "brightnessAll") BigSlider(svc, pal, IconView.Kind.SUN, tr("Helligkeit"), 255, Device.brightness(svc), pixel, vertical) {
+                Device.setBrightness(svc, it)
+                if (both) { val p = Math.round(it * 100 / 255f); svc.prefs.bottomBrightness = p; Device.setBottomBrightness(p) }
             }
-            else if (id == "volumeAll") BigSlider(svc, pal, IconView.Kind.SPEAKER, t("Lautstärke beide", "Volume both"), 100, mainVolumePct(), pixel, vertical) {
+            else if (id == "volume" || id == "volumeAll") BigSlider(svc, pal, IconView.Kind.SPEAKER, tr("Lautstärke"), 100, mainVolumePct(), pixel, vertical) {
                 setMainVolumePct(it)
-                if (Device.isDuo && Root.available()) Device.setBottomVolume(Math.round(it * 15 / 100f))
+                if (both) Device.setBottomVolume(Math.round(it * 15 / 100f))
             }.also { volumeSliders += it }
-            else if (id == "brightness") BigSlider(svc, pal, IconView.Kind.SUN, tr("Helligkeit"), 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
             else if (id == "brightness2") BigSlider(svc, pal, IconView.Kind.SUN, t("Helligkeit unten", "Brightness below"), 100, svc.prefs.bottomBrightness, pixel, vertical) {
                 svc.prefs.bottomBrightness = it
                 Device.setBottomBrightness(it)
             }
-            else if (id == "volume2") BigSlider(svc, pal, IconView.Kind.SPEAKER, t("Lautstärke unten", "Volume below"), 15, Device.bottomVolume(svc), pixel, vertical) { Device.setBottomVolume(it) }
-            else BigSlider(svc, pal, IconView.Kind.SPEAKER, tr("Lautstärke"), 100, mainVolumePct(), pixel, vertical) { setMainVolumePct(it) }.also { volumeSliders += it }
+            else BigSlider(svc, pal, IconView.Kind.SPEAKER, t("Lautstärke unten", "Volume below"), 15, Device.bottomVolume(svc), pixel, vertical) { Device.setBottomVolume(it) }
             // Cocoon: brightness yellow, volume purple (unless a tile colour was chosen)
             if (pal.cocoon && svc.prefs.tileColor == 0) v.setAccent(if (id.startsWith("brightness")) 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
             else v.setAccent(tileOn(), tileOnFg())
             val wrap = FrameLayout(svc)
             wrap.addView(v, if (vertical) FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             else FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 56 * d, Gravity.CENTER_VERTICAL))
-            return wrap to Item(v, null, { dir -> v.step(5 * dir) }, vertical)
+            val split = if (both && (id == "brightness" || id == "volume" || id.endsWith("All"))) ({ screensPopup(id.startsWith("brightness")) }) else null
+            return wrap to Item(v, null, { dir -> v.step(5 * dir) }, vertical, onY = split)
         }
         val big = e.w >= 2 && e.h >= 2
         if (id == "system") return systemElement(e)

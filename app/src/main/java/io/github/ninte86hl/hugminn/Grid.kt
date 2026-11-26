@@ -39,7 +39,6 @@ object GridLayout {
         // Pocket Duo: the lower screen has its own brightness and volume
         if (Device.isDuo) {
             put("brightness2", t("Helligkeit unten", "Brightness below")); put("volume2", t("Lautstärke unten", "Volume below"))
-            put("brightnessAll", t("Helligkeit beide", "Brightness both")); put("volumeAll", t("Lautstärke beide", "Volume both"))
             put("brightnessDuo", t("Helligkeit oben + unten", "Brightness top + bottom")); put("volumeDuo", t("Lautstärke oben + unten", "Volume top + bottom"))
         }
     }
