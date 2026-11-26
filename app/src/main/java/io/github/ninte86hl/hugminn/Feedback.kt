@@ -263,6 +263,7 @@ object Feedback {
         appendLine("Statusleiste: ${svc.prefs.statusBar}")
         appendLine()
         append(Displays.describe(svc, svc))
+        if (svc.packageManager.getLaunchIntentForPackage("com.rp.settings") != null) runCatching { appendLine(); appendLine(ExternalDisplay.describe()) }
         Displays.beforeOpen.takeIf { it.isNotEmpty() }?.let { appendLine(); append(it) }
         Crash.last(svc)?.let { appendLine(); appendLine("Letzter Fehler:"); appendLine(it) }
         runCatching {
@@ -312,7 +313,7 @@ object Feedback {
             java.io.File(d, "hw.txt").takeIf { it.exists() }?.let { appendLine(); appendLine("Anbernic-Hardware (Helfer):"); appendLine(it.readText().take(40_000)) }
             java.io.File(d, "log").takeIf { it.exists() }?.let { appendLine(); appendLine("Helfer-Log:"); it.readLines().takeLast(30).forEach { l -> appendLine("  $l") } }
         }
-        runCatching { svc.own.diag + svc.own.removeDiag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
+        runCatching { svc.own.diag + svc.own.removeDiag + svc.own.moveDiag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
         appendLine(); appendLine("Spieltitel: ${GameTitle.titles}"); if (GameTitle.diag.isNotEmpty()) appendLine(GameTitle.diag)
         appendLine(); appendLine("Musik: Listener ${Media.listenerInfo} · spielt=${Media.playing} · app=${Media.app} · titel=${Media.title} · cover=${Media.art != null}"); if (Media.diag.isNotEmpty()) appendLine(Media.diag)
         if (FrameRate.diag.isNotEmpty()) { appendLine(); appendLine("FPS (${svc.foregroundPkg}):"); appendLine(FrameRate.diag) }
