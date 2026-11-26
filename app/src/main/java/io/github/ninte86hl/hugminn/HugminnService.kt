@@ -561,10 +561,16 @@ class HugminnService : AccessibilityService() {
                     passHome = 2
                     passHomeUntil = android.os.SystemClock.uptimeMillis() + 2000
                     Thread {
-                        val out = Root.exec("d=\$(awk '/^N:.*Retroid Pocket Controller/{f=1} f&&/^H:/{for(i=1;i<=NF;i++) if(\$i~/^event/){print \$i; exit}}' /proc/bus/input/devices); " +
-                            "if [ -n \"\$d\" ]; then for k in 1 2; do sendevent /dev/input/\$d 1 102 1; sendevent /dev/input/\$d 0 0 0; sendevent /dev/input/\$d 1 102 0; sendevent /dev/input/\$d 0 0 0; sleep 0.06; done; echo dev=\$d; " +
-                            "else input keyevent --doubletap 3; echo no-device; fi 2>&1", 5_000)
-                        Glyphs.note("retroid double → ${out?.trim()?.take(120)}")
+                        // the controller's input device, found in Kotlin – no shell tricks the root service might not take
+                        val devs = Root.exec("cat /proc/bus/input/devices").orEmpty()
+                        val node = devs.split("\n\n").firstOrNull { it.contains("Retroid Pocket Controller") }
+                            ?.lineSequence()?.firstOrNull { it.startsWith("H:") }?.split(" ", "=")?.firstOrNull { it.startsWith("event") }
+                        val out = if (node != null) {
+                            val d = "/dev/input/$node"
+                            val tap = "sendevent $d 1 102 1; sendevent $d 0 0 0; sendevent $d 1 102 0; sendevent $d 0 0 0"
+                            Root.exec("$tap; sleep 0.06; $tap; echo sent $node")
+                        } else Root.exec("input keyevent --doubletap 3; echo no-device")
+                        Glyphs.note("retroid double → ${out?.trim()?.take(120)} (devices ${devs.length} chars)")
                     }.start()
                 }, 250)
             }
