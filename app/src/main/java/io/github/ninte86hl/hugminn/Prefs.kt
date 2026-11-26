@@ -125,6 +125,18 @@ class Prefs(private val ctx: Context) {
     var single: Action
         get() = enumOr(p.getString("single", null), Action.HOME)
         set(v) = p.edit().putString("single", v.name).apply()
+    /**
+     * Pocket Duo, once: a test build briefly left Home to Retroid (double and long on "Nothing"). Home is
+     * Hugminn's again – what was left on "Nothing" from then goes back to the defaults.
+     */
+    fun duoHomeBack() {
+        if (!Device.isDuo || p.getBoolean("duoHomeBack", false)) return
+        val e = p.edit().putBoolean("duoHomeBack", true)
+        if (p.getString("double", null) == Action.NONE.name) e.remove("double")
+        if (p.getString("long", null) == Action.NONE.name) e.remove("long")
+        e.apply()
+    }
+
     var double: Action
         // Pocket Duo: the firmware takes the double press itself (Retroid's control center) – Hugminn never sees it
         get() = enumOr(p.getString("double", null), Action.SWITCHER).let { if (it == Action.RETROID) Action.SWITCHER else it }
