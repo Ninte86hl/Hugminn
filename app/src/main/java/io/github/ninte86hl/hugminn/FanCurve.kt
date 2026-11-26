@@ -21,18 +21,20 @@ object FanCurve {
     @Volatile var hot = 90
     private const val DUTY = "/sys/class/gpio5_pwm2/duty"
     private const val PERIOD = "/sys/class/gpio5_pwm2/period"
-    /** Temperatures of the eight curve points (°C). */
-    val temps = listOf(35, 42, 49, 56, 63, 70, 77, 84)
-    /** The four points of earlier versions (for taking over an old curve). */
-    val oldTemps = listOf(40, 55, 70, 85)
+    /** Temperatures of the ten curve points (°C): every 5 degrees. */
+    val temps = listOf(40, 45, 50, 55, 60, 65, 70, 75, 80, 85)
+    /** The points of earlier versions (for taking over an old curve): four, then eight. */
+    private val oldTemps = mapOf(4 to listOf(40, 55, 70, 85), 8 to listOf(35, 42, 49, 56, 63, 70, 77, 84))
 
-    /** An old curve of four points as eight (same shape). */
-    fun widen(old: List<Int>): List<Int> = temps.map { t ->
-        val f = oldTemps
-        when {
-            t <= f.first() -> old.first()
-            t >= f.last() -> old.last()
-            else -> { val i = (0 until f.lastIndex).first { t < f[it + 1] }; (old[i] + (old[i + 1] - old[i]) * (t - f[i]) / (f[i + 1] - f[i])) }
+    /** An old curve as ten points (same shape); null if its size is unknown. */
+    fun widen(old: List<Int>): List<Int>? {
+        val f = oldTemps[old.size] ?: return null
+        return temps.map { t ->
+            when {
+                t <= f.first() -> old.first()
+                t >= f.last() -> old.last()
+                else -> { val i = (0 until f.lastIndex).first { t < f[it + 1] }; (old[i] + (old[i + 1] - old[i]) * (t - f[i]) / (f[i + 1] - f[i])) }
+            }.let { (Math.round(it / 5f) * 5).coerceIn(MIN, 100) }
         }
     }
 
@@ -160,7 +162,7 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
         textAlign = Paint.Align.CENTER
     }
 
-    private val tMin = 30f
+    private val tMin = 35f
     private val tMax = 95f
 
     override fun onTouchEvent(e: android.view.MotionEvent): Boolean {
@@ -178,7 +180,7 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
         if (e.action == android.view.MotionEvent.ACTION_DOWN || e.action == android.view.MotionEvent.ACTION_MOVE) {
             if (selected >= points.size) {
                 val t = tMin + (e.x - pad) / w * (tMax - tMin)
-                onTouchChange?.invoke(selected, Math.round(t).coerceIn(FanCurve.HOT_MIN, FanCurve.HOT_MAX))
+                onTouchChange?.invoke(selected, (Math.round(t / 5f) * 5).coerceIn(FanCurve.HOT_MIN, FanCurve.HOT_MAX))
             } else {
                 val p = ((pad + h - e.y) / h * 100f).coerceIn(0f, 100f)
                 onTouchChange?.invoke(selected, (Math.round(p / 5f) * 5).coerceIn(FanCurve.MIN, 100))

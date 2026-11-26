@@ -330,16 +330,16 @@ class Prefs(private val ctx: Context) {
     /** Fan speed (%) at 40, 55, 70 and 85 °C for Hugminn's own fan curve. */
     /** Fan curve: full speed from this temperature (°C). */
     var fanHot: Int
-        get() = p.getInt("fanHot", 90).coerceIn(FanCurve.HOT_MIN, FanCurve.HOT_MAX)
+        get() = (Math.round(p.getInt("fanHot", 90) / 5f) * 5).coerceIn(FanCurve.HOT_MIN, FanCurve.HOT_MAX)
         set(v) = p.edit().putInt("fanHot", v).apply()
     var fanCurve: List<Int>
         get() {
             val l = p.getString("fanCurve", null)?.split(',')?.mapNotNull { it.toIntOrNull() }
-            return when (l?.size) {
-                FanCurve.temps.size -> l
-                4 -> FanCurve.widen(l)
-                else -> listOf(25, 25, 30, 38, 50, 62, 78, 90)
-            }
+            return when {
+                l == null -> null
+                l.size == FanCurve.temps.size -> l
+                else -> FanCurve.widen(l)
+            } ?: listOf(25, 25, 30, 35, 45, 55, 65, 75, 85, 95)
         }
         set(v) = p.edit().putString("fanCurve", v.joinToString(",")).apply()
 
