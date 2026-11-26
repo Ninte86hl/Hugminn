@@ -50,19 +50,19 @@ object GridLayout {
 
     /** Sizes an element can have, smallest first. */
     fun sizes(id: String, cols: Int): List<Pair<Int, Int>> = when {
-        // vertical (1×2 … 1×4) or horizontal (2×1 … 4×1)
-        isSlider(id) -> (2..ROWS).map { 1 to it } + (2..minOf(4, cols)).map { it to 1 }
-        isDouble(id) -> listOf(2 to 2, 2 to 3, 2 to 4, 3 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
-        // music: also large, with cover and buttons; FPS: a wider and larger frame time graph
-        id == "media" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }
+        // standing (1×2, 1×3) or lying (2×1, full row 4×1)
+        isSlider(id) -> listOf(1 to 2, 1 to 3, 2 to 1, 4 to 1).filter { it.first <= cols && it.second <= ROWS }
+        isDouble(id) -> listOf(2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
+        // music: also large, with cover and buttons
+        id == "media" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
         // all live values in one large card
-        id == "system" -> listOf(4 to 2, 4 to 4).filter { it.first <= cols && it.second <= ROWS }.ifEmpty { listOf(cols to 2) }
+        id == "system" -> listOf(4 to 2).filter { it.first <= cols && it.second <= ROWS }.ifEmpty { listOf(cols to 2) }
         // Wi-Fi and Bluetooth with their lists, profiles with their choices, battery with all details
-        id == "wifi" || id == "bt" -> listOf(1 to 1, 2 to 1, 2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
-        id == "perf" || id == "fan" -> listOf(2 to 1, 2 to 2, 3 to 2).filter { it.first <= cols && it.second <= ROWS }
+        id == "wifi" || id == "bt" -> listOf(1 to 1, 2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
+        id == "perf" || id == "fan" -> listOf(2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
         id == "battery" -> listOf(1 to 1, 2 to 1, 2 to 2)
-        id == "fps" -> listOf(2 to 1, 2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
-        isInfo(id) -> listOf(1 to 1, 2 to 1, 2 to 2)
+        id == "fps" -> listOf(2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
+        isInfo(id) -> listOf(1 to 1, 2 to 1)
         else -> listOf(1 to 1, 2 to 1)
     }
 
