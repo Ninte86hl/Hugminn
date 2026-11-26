@@ -103,6 +103,8 @@ class HugminnService : AccessibilityService() {
     private val DUO_DOUBLE = 194
     /** The Duo's double press went on to Retroid: its release goes there too. */
     private var passDuoDouble = false
+    /** The Duo's double-press key is down (its release decides: double press, or long press if held). */
+    private var duoF24 = false
     /** When Hugminn received that Home down (uptime ms). */
     private var homeDownSeen = 0L
     private var longFired = false
@@ -477,10 +479,12 @@ class HugminnService : AccessibilityService() {
                     return false
                 }
                 if (Device.isDuo && e.scanCode == DUO_DOUBLE) {
+                    // decided on release: held, it is still a long press
                     ui.removeCallbacks(singlePress)
                     pendingSingle = false
-                    ignoreUp = true
-                    perform(p.double)
+                    duoF24 = true
+                    longFired = false
+                    if (p.long != Action.NONE) ui.postDelayed(longPress, p.longMs.toLong())
                     return true
                 }
                 if (pendingSingle) {
@@ -498,6 +502,13 @@ class HugminnService : AccessibilityService() {
             KeyEvent.ACTION_UP -> {
                 if (passDuoDouble && e.scanCode == DUO_DOUBLE) { passDuoDouble = false; return false }
                 ui.removeCallbacks(longPress)
+                Glyphs.note("home up · scan=${e.scanCode} · lang=$longFired")
+                if (duoF24) {
+                    duoF24 = false
+                    if (!longFired) perform(p.double)
+                    longFired = false
+                    return true
+                }
                 when {
                     ignoreUp -> { ignoreUp = false; afterHomeUp?.let { afterHomeUp = null; ui.postDelayed(it, 60) } }
                     longFired -> {}

@@ -159,7 +159,7 @@ object Glyphs {
 
     fun note(s: String) {
         trace.addLast("${java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.ROOT).format(java.util.Date())} $s")
-        while (trace.size > 30) trace.pollFirst()
+        while (trace.size > 120) trace.pollFirst()
     }
 
     /** The key code Hugminn works with: in the retro layout the north button (X) becomes Y, the west one (Y) X. */
