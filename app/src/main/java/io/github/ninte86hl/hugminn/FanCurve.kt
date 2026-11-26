@@ -207,9 +207,12 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
     override fun onTouchEvent(e: android.view.MotionEvent): Boolean {
         if (points.size != FanCurve.temps.size) return false
         val pad = context.dp(28).toFloat()
-        val w = width - pad * 2
+        // room on the left for "100 %", on the right for the limit's label
+        val padL = context.dp(52).toFloat()
+        val padR = context.dp(40).toFloat()
+        val w = width - padL - padR
         val h = height - pad * 2
-        fun x(t: Float) = pad + (t - tMin) / (tMax - tMin) * w
+        fun x(t: Float) = padL + (t - tMin) / (tMax - tMin) * w
         if (e.action == android.view.MotionEvent.ACTION_DOWN) {
             parent?.requestDisallowInterceptTouchEvent(true)
             // nearest point, or the limit line
@@ -218,7 +221,7 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
         }
         if (e.action == android.view.MotionEvent.ACTION_DOWN || e.action == android.view.MotionEvent.ACTION_MOVE) {
             if (selected >= points.size) {
-                val t = tMin + (e.x - pad) / w * (tMax - tMin)
+                val t = tMin + (e.x - padL) / w * (tMax - tMin)
                 onTouchChange?.invoke(selected, (Math.round(t / 5f) * 5).coerceIn(FanCurve.HOT_MIN, FanCurve.HOT_MAX))
             } else {
                 val p = ((pad + h - e.y) / h * 100f).coerceIn(0f, 100f)
@@ -231,15 +234,18 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
     override fun onDraw(c: Canvas) {
         if (points.size != FanCurve.temps.size) return
         val pad = context.dp(28).toFloat()
-        val w = width - pad * 2
+        // room on the left for "100 %", on the right for the limit's label
+        val padL = context.dp(52).toFloat()
+        val padR = context.dp(40).toFloat()
+        val w = width - padL - padR
         val h = height - pad * 2
-        fun x(t: Float) = pad + (t - tMin) / (tMax - tMin) * w
+        fun x(t: Float) = padL + (t - tMin) / (tMax - tMin) * w
         fun y(p: Float) = pad + h - p / 100f * h
         // grid: 0/50/100 % and the temperatures
         for (p in listOf(0, 50, 100)) {
-            c.drawLine(pad, y(p.toFloat()), pad + w, y(p.toFloat()), grid)
+            c.drawLine(padL, y(p.toFloat()), padL + w, y(p.toFloat()), grid)
             text.textAlign = Paint.Align.RIGHT
-            c.drawText("$p %", pad - context.dp(4), y(p.toFloat()) + text.textSize / 3, text)
+            c.drawText("$p %", padL - context.dp(6), y(p.toFloat()) + text.textSize / 3, text)
         }
         text.textAlign = Paint.Align.CENTER
         for (t in FanCurve.temps.filterIndexed { i, _ -> i % 2 == 0 }) c.drawText("$t°", x(t.toFloat()), pad + h + text.textSize * 1.5f, text)
@@ -251,7 +257,9 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
             dot.strokeWidth = context.dp(if (sel) 3 else 2).toFloat()
             c.drawLine(lx, pad, lx, pad + h, dot)
             text.color = if (sel) pal.onSurface else pal.onSurfaceVariant
-            c.drawText(t("max ab $limit°", "max from $limit°"), lx, pad + h + text.textSize * 1.5f, text)
+            text.textAlign = Paint.Align.RIGHT
+            c.drawText(t("max ab $limit°", "max from $limit°"), minOf(lx + text.measureText("max ab 95°") / 2, width.toFloat() - 2), pad + h + text.textSize * 1.5f, text)
+            text.textAlign = Paint.Align.CENTER
             text.color = pal.onSurfaceVariant
         }
         // the curve (as the fan follows it)

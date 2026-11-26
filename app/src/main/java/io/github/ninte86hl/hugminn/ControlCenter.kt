@@ -2118,8 +2118,8 @@ class ControlCenter(private val svc: HugminnService) {
         var limit = svc.prefs.fanHot
         val view = FanCurveView(svc, pal).apply { points = pts.toList(); selected = 4; this.limit = limit }
         box.addView(view, lp(600 * d, 250 * d))
-        box.addView(text(t("◀ ▶ Punkt oder Grenze · ▲ ▼ ändern · A aktivieren · X Retroid-Standard · Y Test · B zurück",
-            "◀ ▶ point or limit · ▲ ▼ change · A activate · X Retroid default · Y test · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
+        box.addView(text(t("◀ ▶ Punkt oder Grenze · ▲ ▼ ändern · A aktivieren", "◀ ▶ point or limit · ▲ ▼ change · A activate"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
+        box.addView(text(t("X Retroid-Standard · Y Test · B zurück", "X Retroid default · Y test · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 2 * d, 0, 0) })
         /** Point [i] to [pct] %, or (i = past the points) the limit to [pct] °C. */
         fun change(i: Int, pct: Int) {
             if (i >= pts.size) {
