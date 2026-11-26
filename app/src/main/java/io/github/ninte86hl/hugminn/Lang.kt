@@ -254,6 +254,8 @@ object Lang {
         "Übernehmen" to "Apply",
         "Effekte" to "Effects",
         "Kombis" to "Combos",
+        "Spielwechsler + Control Center" to "Switcher + Control Center",
+        "Retroid-Kontrollcenter" to "Retroid control center",
         "Alle" to "All",
         "A oder X übernimmt den Effekt" to "A or X applies the effect",
         "Licht" to "Light",

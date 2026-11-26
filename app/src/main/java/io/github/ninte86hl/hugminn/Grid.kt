@@ -18,7 +18,7 @@ object GridLayout {
     @Volatile var ROWS = 4
 
     private val infoIds = setOf("system", "fps", "perf", "fan", "temp", "battery", "cpu", "gpu", "ram", "power")
-    private val sliderIds = setOf("brightness", "volume")
+    private val sliderIds = setOf("brightness", "volume", "brightness2", "volume2")
 
     val widgetNames get() = linkedMapOf(
         "system" to t("System-Übersicht", "System overview"),
@@ -33,7 +33,10 @@ object GridLayout {
         "power" to tr("Leistungsaufnahme"),
         "brightness" to tr("Helligkeit"),
         "volume" to tr("Lautstärke"),
-    )
+    ).apply {
+        // Pocket Duo: the lower screen has its own brightness and volume
+        if (Device.isDuo) { put("brightness2", t("Helligkeit unten", "Brightness below")); put("volume2", t("Lautstärke unten", "Volume below")) }
+    }
 
     fun name(id: String) = widgetNames[id] ?: TileCatalog.all[id] ?: id
     fun isSlider(id: String) = id in sliderIds

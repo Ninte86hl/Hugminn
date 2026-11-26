@@ -766,6 +766,11 @@ class ControlCenter(private val svc: HugminnService) {
         if (GridLayout.isSlider(id)) {
             val vertical = e.h > e.w
             val v = if (id == "brightness") BigSlider(svc, pal, IconView.Kind.SUN, tr("Helligkeit"), 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
+            else if (id == "brightness2") BigSlider(svc, pal, IconView.Kind.SUN, t("Helligkeit unten", "Brightness below"), 100, svc.prefs.bottomBrightness, pixel, vertical) {
+                svc.prefs.bottomBrightness = it
+                Device.setBottomBrightness(it)
+            }
+            else if (id == "volume2") BigSlider(svc, pal, IconView.Kind.SPEAKER, t("Lautstärke unten", "Volume below"), 15, Device.bottomVolume(svc), pixel, vertical) { Device.setBottomVolume(it) }
             else {
                 // Android has only 16 media steps: Hugminn keeps its own 0-100 % (5 % steps) and sets the nearest one
                 val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
@@ -778,7 +783,7 @@ class ControlCenter(private val svc: HugminnService) {
                 }.also { volumeSliders += it }
             }
             // Cocoon: brightness yellow, volume purple (unless a tile colour was chosen)
-            if (pal.cocoon && svc.prefs.tileColor == 0) v.setAccent(if (id == "brightness") 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
+            if (pal.cocoon && svc.prefs.tileColor == 0) v.setAccent(if (id.startsWith("brightness")) 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
             else v.setAccent(tileOn(), tileOnFg())
             val wrap = FrameLayout(svc)
             wrap.addView(v, if (vertical) FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
@@ -1758,6 +1763,22 @@ class ControlCenter(private val svc: HugminnService) {
         "mouse" -> sysTile(rootOk, tr("Mausmodus"), IconView.Kind.MOUSE, "global_gamepad_to_mouse_mode")
         "homelock" -> sysTile(rootOk, tr("Home-Sperre"), IconView.Kind.LOCK, "prevent_press_home_accidentally")
         "chargesep" -> sysTile(rootOk, tr("Direkte Stromversorgung"), IconView.Kind.PLUG, "is_charging_separation")
+        // Pocket Duo: what Retroid's own control center offers (settings only appear once used, so not checked)
+        "chargelimit" -> if (rootOk && (Device.isDuo || Device.sys(svc, "percent_80_charge_limit") != null))
+            Tile(t("Laden bis 80 %", "Charge to 80 %"), IconView.Kind.BATTERY, { if (Device.sysOn(svc, "percent_80_charge_limit")) tr("An") else tr("Aus") }, { Device.sysOn(svc, "percent_80_charge_limit") }) {
+                Device.setSys("percent_80_charge_limit", if (Device.sysOn(svc, "percent_80_charge_limit")) "0" else "1") { refreshAll() }
+            } else null
+        "focuslock" -> if (rootOk && Device.isDuo) Tile(t("Bildschirm-Fokus", "Screen focus"), IconView.Kind.LOCK, {
+            if (Device.sys(svc, "screen_focus_lock") == null) Device.focusModes["0"] else Device.profileLabel(svc, "screen_focus_lock", Device.focusModes)
+        }, { (Device.sys(svc, "screen_focus_lock")?.trim() ?: "0") != "0" }) {
+            profileMenu(t("Bildschirm-Fokus", "Screen focus"), "screen_focus_lock", Device.focusModes) { v -> Device.setSys("screen_focus_lock", v) { refreshAll() } }
+        } else null
+        "bottomscreen" -> if (rootOk && Device.isDuo) Tile(t("Unterer Bildschirm", "Lower screen"), IconView.Kind.SCREEN, {
+            if (Device.bottomScreenOn(svc)) tr("An") else tr("Aus")
+        }, { Device.bottomScreenOn(svc) }) { Device.setBottomScreen(!Device.bottomScreenOn(svc)) { refreshAll() } } else null
+        "rpcc" -> if (rootOk && Device.isDuo) Tile(t("Retroid-Kontrollcenter", "Retroid control center"), IconView.Kind.GEAR, { null }, { false }) {
+            svc.perform(Action.RETROID)
+        } else null
         "trigger" -> if (rootOk && (Device.sys(svc, "trigger_input_mode") != null || Device.lazySetting("trigger_input_mode"))) Tile(tr("Trigger-Modus"), IconView.Kind.GAMEPAD, {
             Device.profileLabel(svc, "trigger_input_mode", Device.triggerModes)
         }, { false }) {

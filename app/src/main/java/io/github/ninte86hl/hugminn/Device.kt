@@ -67,6 +67,35 @@ object Device {
     fun sysOn(ctx: Context, key: String) = sys(ctx, key)?.trim() == "1"
     fun setSys(key: String, value: String, then: () -> Unit) = put(key, value, then)
 
+    // ---------- Retroid Pocket Duo: what its own control center offers for the two screens ----------
+
+    /** Which screen the controller works on: screen_focus_lock 0 = where you last touched, 1 = top, 2 = bottom. */
+    val focusModes get() = linkedMapOf("0" to t("Folgt Touch", "Follows touch"), "1" to t("Oben", "Top"), "2" to t("Unten", "Bottom"))
+
+    /** Lower screen on (dual_screen_display_mode 0) or off (1, top only). */
+    fun bottomScreenOn(ctx: Context) = sys(ctx, "dual_screen_display_mode")?.trim() != "1"
+
+    /**
+     * Lower screen off/on like Retroid does it: the mode setting, the backlight's power rail and touch.
+     * (Brightness alone does not bring a panel back whose backlight power was switched off.)
+     */
+    fun setBottomScreen(on: Boolean, then: () -> Unit) = Root.run(
+        "settings put system dual_screen_display_mode ${if (on) 0 else 1}",
+        "echo ${if (on) 0 else 1} > /sys/class/backlight/panel1-backlight/bl_power",
+        "setprop sys.temp.disabled.touch ${if (on) "0,0" else "0,1"}",
+        then = then,
+    )
+
+    /** Volume of apps on the lower screen, 0..15 (Retroid scales them by this). */
+    fun bottomVolume(ctx: Context) = sys(ctx, "secondary_screen_volume_level")?.trim()?.toIntOrNull() ?: 7
+    fun setBottomVolume(v: Int) = Root.run("settings put system secondary_screen_volume_level ${v.coerceIn(0, 15)}")
+
+    /** Lower screen's backlight in % (straight on the panel, as the system offers no setting for it). */
+    fun setBottomBrightness(pct: Int) {
+        val p = pct.coerceIn(3, 100)
+        Root.run("b=/sys/class/backlight/panel1-backlight; m=\$(cat \$b/max_brightness); echo \$(( m * $p / 100 )) > \$b/brightness")
+    }
+
     /**
      * AYN (Odin 2) has no temp_abxy_layout_mode: its "Controller style" is flip_button_layout
      * (1 = Xbox, 0 = Nintendo) and "Disconnect" is no_create_gamepad_button_layout = 1.
