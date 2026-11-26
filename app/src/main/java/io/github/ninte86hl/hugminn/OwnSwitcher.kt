@@ -508,13 +508,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         // two screens: the app to the other one, or the apps of both screens swapped
         val other = Displays.second(svc)
         if (other != null && Root.available()) {
-            items += t("Auf anderen Bildschirm", "To the other screen") to {
-                close(back = false)
-                thread {
-                    val onOther = screenTasks()[a.pkg]?.second == other.id
-                    moveToDisplay(a, if (onOther) android.view.Display.DEFAULT_DISPLAY else other.id)
-                }
-            }
+            items += t("Auf anderen Bildschirm", "To the other screen") to { toOtherScreen(a) }
             items += t("Bildschirme tauschen", "Swap screens") to {
                 close(back = false)
                 thread {
@@ -579,7 +573,20 @@ class OwnSwitcher(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> openSelected()
             KeyEvent.KEYCODE_BUTTON_X -> closeSelected()
             KeyEvent.KEYCODE_BUTTON_Y -> openMenu()
+            // R3: the selected app to the other screen (two screens)
+            KeyEvent.KEYCODE_BUTTON_THUMBR -> apps.getOrNull(sel)?.let { toOtherScreen(it) }
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close(back = true)
+        }
+    }
+
+    /** The app to the other screen (menu, or R3 on the selected app). */
+    private fun toOtherScreen(a: RecentApp) {
+        val other = Displays.second(svc) ?: return
+        if (!Root.available()) return
+        close(back = false)
+        thread {
+            val onOther = screenTasks()[a.pkg]?.second == other.id
+            moveToDisplay(a, if (onOther) android.view.Display.DEFAULT_DISPLAY else other.id)
         }
     }
 
