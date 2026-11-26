@@ -170,10 +170,15 @@ class BigSlider(
         val fw = (h + (w - h) * value / max.coerceAtLeast(1).toFloat())
         if (pal.dots) {
             body(c, w, h, r)
-            val n = 24
-            val step = (w - h) / n
+            // the dots end before the label, so they never run under the text
+            text.textSize = h * 0.36f
+            text.typeface = Look.font(context, pixel, true)
+            val labelW = text.measureText("$label  100 %") + h * 0.45f + h * 0.4f
+            val avail = (w - h * 0.3f - labelW).coerceAtLeast(w * 0.3f)
+            val n = (avail / (h * 0.42f)).toInt().coerceIn(6, 24)
+            val step = avail / n
             val lit = Math.round(value.toFloat() / max.coerceAtLeast(1) * n)
-            for (i in 0 until n) c.drawCircle(h / 2 + i * step + step / 2, h / 2, h * 0.11f, if (i < lit) fill else dim)
+            for (i in 0 until n) c.drawCircle(h * 0.3f + i * step + step / 2, h / 2, h * 0.11f, if (i < lit) fill else dim)
             drawLabel(c, w, h, 0f)
             return
         } else if (pixel) {
