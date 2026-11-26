@@ -23,6 +23,13 @@ object FanCurve {
     private const val PERIOD = "/sys/class/gpio5_pwm2/period"
     /** Temperatures of the ten curve points (°C): every 5 degrees. */
     val temps = listOf(40, 45, 50, 55, 60, 65, 70, 75, 80, 85)
+    /**
+     * Hugminn's own default: quiet while the handheld is cool, rising evenly from 50 °C where games
+     * start to heat it up, full speed from 90 °C.
+     */
+    val DEFAULT = listOf(20, 20, 25, 30, 40, 50, 60, 75, 90, 100)
+    const val DEFAULT_HOT = 90
+
     /** The points of earlier versions (for taking over an old curve): four, then eight. */
     private val oldTemps = mapOf(4 to listOf(40, 55, 70, 85), 8 to listOf(35, 42, 49, 56, 63, 70, 77, 84))
 

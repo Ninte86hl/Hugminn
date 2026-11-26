@@ -2119,7 +2119,7 @@ class ControlCenter(private val svc: HugminnService) {
         val view = FanCurveView(svc, pal).apply { points = pts.toList(); selected = 4; this.limit = limit }
         box.addView(view, lp(600 * d, 250 * d))
         box.addView(text(t("◀ ▶ Punkt oder Grenze · ▲ ▼ ändern · A aktivieren", "◀ ▶ point or limit · ▲ ▼ change · A activate"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
-        box.addView(text(t("X Retroid-Standard · Y Test · B zurück", "X Retroid default · Y test · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 2 * d, 0, 0) })
+        box.addView(text(t("X Standard · Y Test · B zurück", "X default · Y test · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 2 * d, 0, 0) })
         /** Point [i] to [pct] %, or (i = past the points) the limit to [pct] °C. */
         fun change(i: Int, pct: Int) {
             if (i >= pts.size) {
@@ -2173,21 +2173,15 @@ class ControlCenter(private val svc: HugminnService) {
                     }.start()
                     closeMenu()
                 }
-                // back to Retroid: its own Smart mode drives the fan again, the curve returns to its start shape
+                // back to Hugminn's default curve (applied at once if the curve is running)
                 KeyEvent.KEYCODE_BUTTON_X -> {
-                    FanCurve.stopTest()
-                    FanCurve.stop(restoreSmart = true)
-                    svc.prefs.fanCustom = false
-                    val def = listOf(25, 25, 30, 35, 45, 55, 65, 75, 85, 95)
-                    for (i in pts.indices) pts[i] = def.getOrElse(i) { 95 }
-                    limit = 90
+                    FanCurve.DEFAULT.forEachIndexed { i, v -> if (i < pts.size) pts[i] = v }
+                    limit = FanCurve.DEFAULT_HOT
                     view.points = pts.toList()
                     view.limit = limit
-                    svc.prefs.fanCurve = pts.toList()
-                    svc.prefs.fanHot = limit
-                    FanCurve.hot = limit
-                    Toast.makeText(svc, t("Lüfter wieder bei Retroid (Smart)", "Fan back with Retroid (Smart)"), Toast.LENGTH_SHORT).show()
-                    svc.ui.postDelayed({ refreshInfo(); refreshAll() }, 600)
+                    if (FanCurve.isRunning()) { svc.prefs.fanCurve = pts.toList(); svc.prefs.fanHot = limit; FanCurve.hot = limit }
+                    Toast.makeText(svc, t("Standardkurve – A aktiviert sie", "Default curve – A activates it"), Toast.LENGTH_SHORT).show()
+                    refreshInfo()
                 }
                 // test: the fan runs every point for a moment, the point shown as it plays
                 KeyEvent.KEYCODE_BUTTON_Y -> if (FanCurve.testing) FanCurve.stopTest() else Thread {

@@ -339,7 +339,7 @@ class Prefs(private val ctx: Context) {
                 l == null -> null
                 l.size == FanCurve.temps.size -> l
                 else -> FanCurve.widen(l)
-            } ?: listOf(25, 25, 30, 35, 45, 55, 65, 75, 85, 95)
+            } ?: FanCurve.DEFAULT
         }
         set(v) = p.edit().putString("fanCurve", v.joinToString(",")).apply()
 
