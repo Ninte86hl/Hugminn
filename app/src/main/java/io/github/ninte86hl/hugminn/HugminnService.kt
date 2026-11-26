@@ -385,6 +385,7 @@ class HugminnService : AccessibilityService() {
         // the double tap Hugminn hands on to Retroid's firmware (sent through the controller itself, see RETROID)
         // A time window, not a count: some events arrive here twice, the count ran out early and the second tap's
         // release was held back – Retroid then took Home as held and switched the lower screen off.
+        if (Device.isDuo && event.keyCode == KeyEvent.KEYCODE_HOME && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) captureHome()
         if (event.keyCode == KeyEvent.KEYCODE_HOME && android.os.SystemClock.uptimeMillis() < passHomeUntil) {
             Glyphs.note("pass HOME ${if (event.action == KeyEvent.ACTION_DOWN) "down" else "up"} dev=${event.deviceId} ${event.device?.name} t=${event.eventTime}")
             return false
@@ -610,19 +611,44 @@ class HugminnService : AccessibilityService() {
             ?.also { retroidNode = it }
     }
 
-    /** Duo diagnosis: raw Home events (getevent) for 3 s after a press, the last three captures. */
+    /** Duo diagnosis: the last capture of the raw input devices around a Home press (see [captureHome]). */
     val homeTrace = java.util.concurrent.ConcurrentLinkedDeque<String>()
-    @Volatile private var capturing = false
+    @Volatile private var captureUntil = 0L
+
+    /**
+     * Duo diagnosis: for 5 s after a Home press, every input device is read raw (root, in the background),
+     * to see what the hardware sends before Retroid's firmware turns presses into the Home Hugminn gets.
+     */
     private fun captureHome() {
-        if (capturing || !Root.available()) return
-        capturing = true
-        val at = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.ROOT).format(java.util.Date())
-        Thread {
-            val out = Root.execLong("timeout 3 getevent -lt 2>&1 | grep -E 'KEY_HOME|KEY_HOMEPAGE|BTN_MODE|0066|00ac' | head -40", 6_000)
-            homeTrace.addLast("ab $at:\n${out?.trim().orEmpty()}")
-            while (homeTrace.size > 3) homeTrace.pollFirst()
-            capturing = false
-        }.start()
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now < captureUntil || !Root.available()) return
+        captureUntil = now + 8_000
+        val script = java.io.File(filesDir, "hraw.sh")
+        script.writeText("""
+            d=/data/local/tmp/hraw; rm -rf ${'$'}d; mkdir -p ${'$'}d
+            for f in /dev/input/event*; do n=${'$'}{f##*/}; timeout 5 cat ${'$'}f > ${'$'}d/${'$'}n.bin & done
+            sleep 5.5
+            for b in ${'$'}d/*.bin; do n=${'$'}(basename ${'$'}b .bin); nm=${'$'}(cat /sys/class/input/${'$'}n/device/name | tr ' ' _)
+              od -An -tx1 -w24 -v ${'$'}b | grep -E '^( [0-9a-f]{2}){16} 01 00' | sed "s/^/${'$'}n ${'$'}nm/"; done > ${'$'}d/out.txt
+            rm ${'$'}d/*.bin
+        """.trimIndent())
+        script.setReadable(true, false)
+        Root.run("sh ${script.absolutePath} >/dev/null 2>&1 &")
+        ui.postDelayed({ Thread { homeTrace.clear(); homeTrace.addLast(rawHomeReport()) }.start() }, 6_500)
+    }
+
+    private fun rawHomeReport(): String {
+        val out = Root.execLong("cat /data/local/tmp/hraw/out.txt 2>&1 | tail -80", 5_000) ?: return "keine Antwort"
+        val fmt = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.ROOT)
+        val names = mapOf(102 to "HOME", 172 to "HOMEPAGE", 158 to "BACK", 139 to "MENU", 316 to "BTN_MODE", 114 to "VOL-", 115 to "VOL+", 116 to "POWER")
+        return out.lines().filter { it.isNotBlank() }.joinToString("\n") { line ->
+            val parts = line.trim().split(Regex("\\s+"))
+            if (parts.size < 26) return@joinToString line
+            val b = parts.drop(2).map { it.toInt(16) }
+            fun le(from: Int, n: Int): Long { var v = 0L; for (i in n - 1 downTo 0) v = (v shl 8) or b[from + i].toLong(); return v }
+            val sec = le(0, 8); val usec = le(8, 8); val code = le(18, 2).toInt(); val value = le(20, 4).toInt()
+            "${fmt.format(java.util.Date(sec * 1000 + usec / 1000))} ${parts[0]} ${parts[1]} ${names[code] ?: "Taste $code"} ${when (value) { 1 -> "down"; 0 -> "up"; else -> "wdh" }}"
+        }.ifEmpty { "(keine Tasten)" }
     }
     private var backHeld = false
     private val backLongPress = Runnable { backHeld = true; perform(prefs.backLong) }
