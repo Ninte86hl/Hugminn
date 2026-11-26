@@ -581,13 +581,14 @@ class HugminnService : AccessibilityService() {
                     passHomeUntil = android.os.SystemClock.uptimeMillis() + 2000
                     Thread {
                         // the controller's input device, found in Kotlin – no shell tricks the root service might not take
-                        val devs = Root.exec("cat /proc/bus/input/devices").orEmpty()
+                        // (the root service hands back only a short answer; the long way goes through a file)
+                        val devs = Root.execLong("cat /proc/bus/input/devices", 4_000).orEmpty()
                         val node = devs.split("\n\n").firstOrNull { it.contains("Retroid Pocket Controller") }
                             ?.lineSequence()?.firstOrNull { it.startsWith("H:") }?.split(" ", "=")?.firstOrNull { it.startsWith("event") }
                         val out = if (node != null) {
                             val d = "/dev/input/$node"
                             val tap = "sendevent $d 1 102 1; sendevent $d 0 0 0; sendevent $d 1 102 0; sendevent $d 0 0 0"
-                            Root.exec("$tap; sleep 0.06; $tap; echo sent $node")
+                            Root.exec("$tap; sleep 0.12; $tap; echo sent $node")
                         } else Root.exec("input keyevent --doubletap 3; echo no-device")
                         Glyphs.note("retroid double → ${out?.trim()?.take(120)} (devices ${devs.length} chars)")
                     }.start()
