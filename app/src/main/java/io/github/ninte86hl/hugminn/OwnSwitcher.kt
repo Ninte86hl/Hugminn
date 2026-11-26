@@ -436,7 +436,13 @@ class OwnSwitcher(private val svc: HugminnService) {
             log.append(" system → ").append(r)
             Thread.sleep(400)
         }
-        Thread.sleep(300)
+        // where it is over the next seconds (something may pull it back)
+        val track = StringBuilder()
+        for (ms in listOf(300L, 700L, 1000L, 1500L)) {
+            Thread.sleep(ms)
+            track.append(" ").append(screenTasks()[a.pkg]?.second ?: "?")
+        }
+        log.append(" | Verlauf:").append(track)
         val ok = arrived(a.pkg, display)
         log.append(if (ok) " → ok" else " → nicht dort angekommen").append(" (Task danach ${screenTasks()[a.pkg]?.first})")
         moveDiag = (moveDiag + "\n" + log).takeLast(1500)
@@ -598,6 +604,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         close(back = false)
         thread {
             val where = screenTasks()
+            moveDiag = (moveDiag + "\nTauschen: " + where.entries.joinToString { "${it.key}@${it.value.second}" }).takeLast(3000)
             // the front app of each screen (Android's own list, in order)
             val top = where.entries.firstOrNull { it.value.second == android.view.Display.DEFAULT_DISPLAY }
             val bottom = where.entries.firstOrNull { it.value.second == other.id }
