@@ -46,8 +46,14 @@ object Snapshots {
 
     private fun file(ctx: Context, pkg: String) = File(File(ctx.cacheDir, "snaps").apply { mkdirs() }, "$pkg.jpg")
 
+    /** Apps without a stored picture: not looked for again on every frame (that slowed the switcher down). */
+    private val missing = HashSet<String>()
+
     fun get(ctx: Context, pkg: String): Bitmap? = synchronized(mem) {
-        mem[pkg] ?: runCatching { BitmapFactory.decodeFile(file(ctx, pkg).path) }.getOrNull()?.also { mem[pkg] = it }
+        mem[pkg] ?: if (pkg in missing) null else {
+            val f = file(ctx, pkg)
+            (if (f.exists()) runCatching { BitmapFactory.decodeFile(f.path) }.getOrNull() else null)?.also { mem[pkg] = it } ?: run { missing += pkg; null }
+        }
     }
 
     fun remove(ctx: Context, pkg: String) {
@@ -76,7 +82,7 @@ object Snapshots {
                     }
                     result.hardwareBuffer.close()
                     if (small != null) {
-                        synchronized(mem) { mem[pkg] = small }
+                        synchronized(mem) { mem[pkg] = small; missing -= pkg }
                         thread { runCatching { file(svc, pkg).outputStream().use { small.compress(Bitmap.CompressFormat.JPEG, 80, it) } } }
                     }
                     finish()
@@ -689,6 +695,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         r.requestFocus()
         root = r
         carousel = c
+        Glyphs.note("switcher sichtbar")
         if (svc.comboMode) svc.comboBuilt()
         bar = b
         // dual screen: name, hints and shortcuts move to the second screen, the cards get the room
