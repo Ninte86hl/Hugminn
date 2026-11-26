@@ -240,6 +240,8 @@ class HugminnService : AccessibilityService() {
                 if (level >= 0) Thread { runCatching { LedFx.battery(this@HugminnService, level * 100 / scale, charging) } }.start()
             }
         }, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        // monitor on USB-C (Retroid Connect TV): its tile only shows while one is connected
+        if (packageManager.getLaunchIntentForPackage("com.rp.settings") != null) ExternalDisplay.watch(this)
         // own fan curve chosen last time keeps running
         if (prefs.fanCustom) Thread { if (FanCurve.available()) FanCurve.start(this) }.start()
         // LED effect chosen last time keeps running
@@ -627,6 +629,12 @@ class HugminnService : AccessibilityService() {
                 openRetroidPanel()
             }
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
+            Action.BOTTOM_SCREEN -> if (Device.isDuo && Root.available()) Thread {
+                val on = !Device.bottomScreenOn(this)
+                Device.setBottomScreen(on) {
+                    Notice.show(this, if (on) t("Unterer Bildschirm an", "Lower screen on") else t("Unterer Bildschirm aus", "Lower screen off"), corner = true)
+                }
+            }.start()
             Action.CONTROL_CENTER -> if (controlCenter.isOpen) controlCenter.close() else controlCenter.open()
             Action.RECENTS -> {
                 closeOverlays()

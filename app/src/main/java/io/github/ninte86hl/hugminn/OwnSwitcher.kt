@@ -347,6 +347,29 @@ class OwnSwitcher(private val svc: HugminnService) {
         renderBar()
     }
 
+    /** What moving apps between the screens did (for feedback reports). */
+    @Volatile var moveDiag = ""
+
+    /**
+     * Moves an app's task to screen [display] as it is (the game keeps running): the system's own
+     * "move stack"; if Android refuses, the app is started on that screen (which takes its task along).
+     */
+    private fun moveToDisplay(a: RecentApp, display: Int) {
+        val id = a.taskId.takeIf { it > 0 } ?: loadTasks()?.firstOrNull { it.pkg == a.pkg }?.taskId ?: -1
+        val log = StringBuilder("${a.pkg} (Task $id) → Bildschirm $display:")
+        if (id > 0) log.append(" move-stack → ").append(Root.exec("am display move-stack $id $display 2>&1")?.trim()?.take(200) ?: "-")
+        Thread.sleep(500)
+        if (svc.topAppOn(display) != a.pkg) {
+            val launch = svc.packageManager.getLaunchIntentForPackage(a.pkg)?.component
+            if (launch != null) log.append(" | am start --display → ").append(Root.exec("am start --display $display -n ${launch.flattenToShortString()} -f 0x10200000 2>&1")?.trim()?.take(200) ?: "-")
+            Thread.sleep(600)
+        }
+        val ok = svc.topAppOn(display) == a.pkg
+        log.append(if (ok) " → ok" else " → nicht dort angekommen")
+        moveDiag = (moveDiag + "\n" + log).takeLast(1500)
+        if (!ok) Notice.show(svc, t("Verschieben hat nicht geklappt", "Moving did not work"), corner = true)
+    }
+
     /** Android's recents view was opened underneath (to remove cards): leave it like after a swipe. */
     private var recentsUnder = false
     /** What removing apps did (for feedback reports). */
@@ -427,6 +450,27 @@ class OwnSwitcher(private val svc: HugminnService) {
         items += tr("App-Info") to {
             close(back = false)
             svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
+        }
+        // two screens: the app to the other one, or the apps of both screens swapped
+        val other = Displays.second(svc)
+        if (other != null && Root.available()) {
+            items += t("Auf anderen Bildschirm", "To the other screen") to {
+                val onOther = svc.topAppOn(other.id) == a.pkg
+                close(back = false)
+                thread { moveToDisplay(a, if (onOther) android.view.Display.DEFAULT_DISPLAY else other.id) }
+            }
+            items += t("Bildschirme tauschen", "Swap screens") to {
+                val top = svc.topAppOn(android.view.Display.DEFAULT_DISPLAY) ?: fromPkg
+                val bottom = svc.topAppOn(other.id)
+                close(back = false)
+                thread {
+                    val tasks = loadTasks().orEmpty()
+                    fun app(p: String) = tasks.firstOrNull { it.pkg == p } ?: RecentApp(p, -1)
+                    if (top != null) moveToDisplay(app(top), other.id)
+                    if (bottom != null) moveToDisplay(app(bottom), android.view.Display.DEFAULT_DISPLAY)
+                    if (top == null && bottom == null) Notice.show(svc, t("Keine App zum Tauschen", "No app to swap"), corner = true)
+                }
+            }
         }
         if (Root.available() && apps.size > 1) items += tr("Alle anderen schließen") to {
             val keep = Hotkeys.pinned(svc)

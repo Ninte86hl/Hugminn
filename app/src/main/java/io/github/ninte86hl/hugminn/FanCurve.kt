@@ -14,11 +14,27 @@ import java.io.File
  */
 object FanCurve {
     const val MIN = 20
-    const val HOT = 90
+    /** Range of the temperature limit (from there the fan runs at full speed). */
+    const val HOT_MIN = 70
+    const val HOT_MAX = 95
+    /** The temperature limit chosen in the curve editor. */
+    @Volatile var hot = 90
     private const val DUTY = "/sys/class/gpio5_pwm2/duty"
     private const val PERIOD = "/sys/class/gpio5_pwm2/period"
-    /** Temperatures of the four curve points (°C). */
-    val temps = listOf(40, 55, 70, 85)
+    /** Temperatures of the eight curve points (°C). */
+    val temps = listOf(35, 42, 49, 56, 63, 70, 77, 84)
+    /** The four points of earlier versions (for taking over an old curve). */
+    val oldTemps = listOf(40, 55, 70, 85)
+
+    /** An old curve of four points as eight (same shape). */
+    fun widen(old: List<Int>): List<Int> = temps.map { t ->
+        val f = oldTemps
+        when {
+            t <= f.first() -> old.first()
+            t >= f.last() -> old.last()
+            else -> { val i = (0 until f.lastIndex).first { t < f[it + 1] }; (old[i] + (old[i + 1] - old[i]) * (t - f[i]) / (f[i + 1] - f[i])) }
+        }
+    }
 
     @Volatile private var running = false
     private var thread: Thread? = null
@@ -42,8 +58,8 @@ object FanCurve {
     /** Whether this device has the fan's PWM node (Pocket 6, AYN devices). */
     fun available(): Boolean = Root.exec("cat $DUTY 2>/dev/null")?.trim()?.toIntOrNull() != null
 
-    fun percentFor(points: List<Int>, temp: Float): Int {
-        if (temp >= HOT) return 100
+    fun percentFor(points: List<Int>, temp: Float, limit: Int = hot): Int {
+        if (temp >= limit) return 100
         val t = temps
         val p = if (temp <= t.first()) points.first().toFloat()
         else if (temp >= t.last()) points.last().toFloat()
@@ -63,6 +79,7 @@ object FanCurve {
         thread = Thread {
             try {
                 val period = Root.exec("cat $PERIOD 2>/dev/null")?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: 50_000
+                hot = Prefs(app).fanHot
                 val first = percentFor(Prefs(app).fanCurve, cpuTemp())
                 // custom mode and the first duty in one go (the mode switch alone may spin the fan up)
                 Root.exec("settings put system fan_mode 6; echo ${period * first / 100} > $DUTY")
@@ -70,7 +87,7 @@ object FanCurve {
                 while (running) {
                     val temp = cpuTemp()
                     currentTemp = temp
-                    val want = percentFor(Prefs(app).fanCurve, temp)
+                    val want = percentFor(Prefs(app).fanCurve, temp, Prefs(app).fanHot)
                     // change gently (max 5 % per step) so the fan doesn't jump audibly; faster when it gets hot
                     pct = if (want > pct) minOf(want, pct + if (temp >= 80) 20 else 5) else maxOf(want, pct - 3)
                     currentPct = pct
@@ -118,6 +135,11 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
         set(v) { field = v; invalidate() }
     var liveTemp = 0f
         set(v) { field = v; invalidate() }
+    /** Full speed from here (°C); selected when [selected] is past the last point. */
+    var limit = FanCurve.hot
+        set(v) { field = v; invalidate() }
+    /** Touch: a point was dragged to a new speed (index, percent) or the limit moved (index = points.size, °C). */
+    var onTouchChange: ((Int, Int) -> Unit)? = null
 
     private val style = Prefs(ctx).uiStyle
     private val dots = style == UiStyle.DOTS
@@ -141,6 +163,30 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
     private val tMin = 30f
     private val tMax = 95f
 
+    override fun onTouchEvent(e: android.view.MotionEvent): Boolean {
+        if (points.size != FanCurve.temps.size) return false
+        val pad = context.dp(28).toFloat()
+        val w = width - pad * 2
+        val h = height - pad * 2
+        fun x(t: Float) = pad + (t - tMin) / (tMax - tMin) * w
+        if (e.action == android.view.MotionEvent.ACTION_DOWN) {
+            parent?.requestDisallowInterceptTouchEvent(true)
+            // nearest point, or the limit line
+            val xs = FanCurve.temps.map { x(it.toFloat()) } + x(limit.toFloat())
+            selected = xs.indices.minByOrNull { Math.abs(xs[it] - e.x) } ?: 0
+        }
+        if (e.action == android.view.MotionEvent.ACTION_DOWN || e.action == android.view.MotionEvent.ACTION_MOVE) {
+            if (selected >= points.size) {
+                val t = tMin + (e.x - pad) / w * (tMax - tMin)
+                onTouchChange?.invoke(selected, Math.round(t).coerceIn(FanCurve.HOT_MIN, FanCurve.HOT_MAX))
+            } else {
+                val p = ((pad + h - e.y) / h * 100f).coerceIn(0f, 100f)
+                onTouchChange?.invoke(selected, (Math.round(p / 5f) * 5).coerceIn(FanCurve.MIN, 100))
+            }
+        }
+        return true
+    }
+
     override fun onDraw(c: Canvas) {
         if (points.size != FanCurve.temps.size) return
         val pad = context.dp(28).toFloat()
@@ -155,20 +201,32 @@ class FanCurveView(ctx: Context, private val pal: Palette) : View(ctx) {
             c.drawText("$p %", pad - context.dp(4), y(p.toFloat()) + text.textSize / 3, text)
         }
         text.textAlign = Paint.Align.CENTER
-        for (t in FanCurve.temps + FanCurve.HOT) c.drawText("$t°", x(t.toFloat()), pad + h + text.textSize * 1.5f, text)
+        for (t in FanCurve.temps.filterIndexed { i, _ -> i % 2 == 0 }) c.drawText("$t°", x(t.toFloat()), pad + h + text.textSize * 1.5f, text)
+        // the limit: full speed from here
+        run {
+            val lx = x(limit.toFloat())
+            val sel = selected >= points.size
+            dot.color = if (sel) pal.onSurface else pal.primary
+            dot.strokeWidth = context.dp(if (sel) 3 else 2).toFloat()
+            c.drawLine(lx, pad, lx, pad + h, dot)
+            text.color = if (sel) pal.onSurface else pal.onSurfaceVariant
+            c.drawText(t("max ab $limit°", "max from $limit°"), lx, pad + h + text.textSize * 1.5f, text)
+            text.color = pal.onSurfaceVariant
+        }
         // the curve (as the fan follows it)
         val path = Path()
         var first = true
         var t = tMin
         while (t <= tMax) {
             val px = x(t)
-            val py = y(FanCurve.percentFor(points, t).toFloat())
+            val py = y(FanCurve.percentFor(points, t, limit).toFloat())
             if (first) { path.moveTo(px, py); first = false } else path.lineTo(px, py)
             t += 0.5f
         }
         c.drawPath(path, line)
-        // the four points
+        // the points (beyond the limit they no longer count)
         FanCurve.temps.forEachIndexed { i, temp ->
+            if (temp >= limit) return@forEachIndexed
             val px = x(temp.toFloat())
             val py = y(points[i].toFloat().coerceAtLeast(FanCurve.MIN.toFloat()))
             val r = context.dp(if (i == selected) 9 else 6).toFloat()

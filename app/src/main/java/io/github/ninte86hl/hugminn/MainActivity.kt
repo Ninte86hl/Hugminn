@@ -390,7 +390,7 @@ class MainActivity : Activity() {
         // "switcher + Control Center" only where there are two screens
         // Retroid's own control center: on the Duo (Hugminn presses its quick-settings tile, needs root)
         // (Retroid's control center can't be opened from outside: Retroid's system reacts to the real Home presses only)
-        val actions = Action.values().filter { (it != Action.BOTH || Displays.second(this) != null) && it != Action.RETROID }
+        val actions = Action.values().filter { (it != Action.BOTH || Displays.second(this) != null) && it != Action.RETROID && (it != Action.BOTTOM_SCREEN || Device.isDuo) }
         if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch. Den Doppelklick erkennt die Firmware selbst.",
             "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch. The firmware detects the double click itself."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
