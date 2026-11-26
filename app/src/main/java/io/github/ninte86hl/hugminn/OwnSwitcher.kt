@@ -467,7 +467,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             if (id > 0) {
                 val code = removeTaskCode()
                 if (code != null) log.append(" service call $code → ${Root.exec("service call activity_task $code i32 $id")}")
-                else log.append(" system → ${sysCall("remove $id")}")
+                else log.append(" (Android 16)")
                 if (stillListed(a.pkg) == true) log.append(" | am stack remove → ${Root.exec("am stack remove $id 2>&1")}")
             }
             Root.exec("am force-stop ${a.pkg}")
@@ -592,6 +592,7 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     /** The front apps of both screens swap places (menu, or L3). */
     private fun swapScreens() {
+        Glyphs.note("tauschen · zweiter=${Displays.second(svc)?.id}")
         val other = Displays.second(svc) ?: return
         if (!Root.available()) return
         close(back = false)
@@ -608,6 +609,7 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     /** The app to the other screen (menu, or R3 on the selected app). */
     private fun toOtherScreen(a: RecentApp) {
+        Glyphs.note("anderer Bildschirm: ${a.pkg} · zweiter=${Displays.second(svc)?.id} root=${Root.available()}")
         val other = Displays.second(svc) ?: return
         if (!Root.available()) return
         close(back = false)
