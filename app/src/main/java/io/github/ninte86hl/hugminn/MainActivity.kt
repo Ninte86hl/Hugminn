@@ -400,7 +400,7 @@ class MainActivity : Activity() {
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
         if (Device.isRetroid && !Device.noSticks) row(g, t("Zurück lange drücken", "Back held"), t("Kurz gedrückt bleibt es Zurück", "A short press stays Back"), { prefs.backLong.label }) { prefs.backLong = cycle(actions, prefs.backLong) }
         if (!Device.noSticks) row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
-            prefs.doubleMs = cycle(listOf(220, 260, 300, 350, 400), prefs.doubleMs)
+            prefs.doubleMs = cycle(listOf(220, 260, 300, 350, 400, 450, 500), prefs.doubleMs)
         }
         row(g, tr("Zeit für langen Druck"), null, { "${prefs.longMs} ms" }) {
             prefs.longMs = cycle(listOf(350, 450, 600, 800), prefs.longMs)
