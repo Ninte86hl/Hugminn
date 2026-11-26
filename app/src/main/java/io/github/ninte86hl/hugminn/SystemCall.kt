@@ -37,6 +37,10 @@ class SystemCall {
             } catch (t: Throwable) {
                 val c = (t as? java.lang.reflect.InvocationTargetException)?.targetException ?: t
                 println("Fehler: ${c.javaClass.simpleName}: ${c.message}")
+            } finally {
+                // the binder threads would keep this process (and with it Retroid's root service) waiting forever
+                System.out.flush()
+                System.exit(0)
             }
         }
     }

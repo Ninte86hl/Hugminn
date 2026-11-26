@@ -385,7 +385,7 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     /** Runs [SystemCall] as root (Hugminn's own code in a system process); its answer. */
     private fun sysCall(cmd: String): String =
-        Root.exec("CLASSPATH=${svc.applicationInfo.sourceDir} app_process /system/bin ${SystemCall::class.java.name} $cmd 2>&1")?.trim()?.take(200) ?: "-"
+        Root.exec("CLASSPATH=${svc.applicationInfo.sourceDir} timeout 8 app_process /system/bin ${SystemCall::class.java.name} $cmd 2>&1", 10_000)?.trim()?.take(200) ?: "-"
 
     /** What moving apps between the screens did (for feedback reports). */
     @Volatile var moveDiag = ""
