@@ -333,6 +333,17 @@ object Feedback {
             if (Root.available() && runCatching { svc.packageManager.getPackageInfo(pk, 0) }.isSuccess)
                 Root.execLong("dumpsys package $pk | grep -iE 'Action:|$pk/|Activity|Service|Receiver|exported' | head -120", 8_000)?.let { appendLine(); appendLine("Retroid-Assistent $pk:"); appendLine(it) }
         if (Device.isDuo) {
+            // its components straight from Android (no root needed)
+            runCatching {
+                val f = android.content.pm.PackageManager.GET_ACTIVITIES or android.content.pm.PackageManager.GET_SERVICES or android.content.pm.PackageManager.GET_RECEIVERS
+                for (pk in listOf("com.rp.gameassistant", "com.retroidpocket.dualscreen.assistant")) {
+                    val pi = svc.packageManager.getPackageInfo(pk, f)
+                    appendLine(); appendLine("Bausteine $pk:")
+                    pi.activities?.forEach { appendLine("  A ${it.name} exp=${it.exported}") }
+                    pi.services?.forEach { appendLine("  S ${it.name} exp=${it.exported} perm=${it.permission}") }
+                    pi.receivers?.forEach { appendLine("  R ${it.name} exp=${it.exported}") }
+                }
+            }
             // what Retroid's assistant consists of (how its floating window – the control center – could be started)
             Root.execLong("a=\$(pm path com.rp.gameassistant | head -1 | cut -d: -f2); unzip -p \$a 'classes*.dex' | grep -a -o -E 'Lcom/ro/gameassistant/[A-Za-z0-9_/]*(Float|Window|Panel|Service|Receiver|Activity)[A-Za-z0-9_]*;' | sort -u | head -80; settings get secure sysui_qs_tiles", 10_000)
                 ?.let { appendLine(); appendLine("Retroid-Assistent Klassen + QS:"); appendLine(it) }
