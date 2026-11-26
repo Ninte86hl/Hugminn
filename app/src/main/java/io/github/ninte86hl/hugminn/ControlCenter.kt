@@ -34,7 +34,7 @@ import kotlin.math.roundToInt
  * Controller: D-pad moves, A chooses, left/right change sliders, B goes back/closes.
  */
 class ControlCenter(private val svc: HugminnService) {
-    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false, val onY: (() -> Unit)? = null, val round: Boolean = false, val rows: Rows? = null)
+    private class Item(val view: View, val onA: (() -> Unit)?, val onAdjust: ((Int) -> Unit)? = null, val vertical: Boolean = false, val onY: (() -> Unit)? = null, val round: Boolean = false, val rows: Rows? = null, val onSide: ((Int) -> Unit)? = null)
 
     /** The lines of a large list card (networks, devices) that A steps into and the D-pad walks. */
     private class Rows { val list = mutableListOf<Pair<View, () -> Unit>>(); val keys = mutableListOf<String>() }
@@ -760,28 +760,75 @@ class ControlCenter(private val svc: HugminnService) {
         return true
     }
 
+    // Android has only 16 media steps: Hugminn keeps its own 0-100 % (5 % steps) and sets the nearest one
+    private fun mainVolumePct(): Int {
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val idx = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val saved = svc.prefs.volumePct
+        return if (saved >= 0 && Math.round(saved * max / 100f) == idx) saved else Math.round(idx * 100f / max)
+    }
+    private fun setMainVolumePct(p: Int) {
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        svc.prefs.volumePct = p
+        audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(p * max / 100f), 0)
+    }
+
+    /**
+     * Two sliders in one element, top and bottom screen (Pocket Duo). A starts changing like on a single
+     * slider; the D-pad along the sliders changes the value, across them it picks the other screen.
+     */
+    private fun doubleSlider(e: GridEntry): Pair<View, Item?> {
+        val bright = e.id == "brightnessDuo"
+        val vertical = e.h >= e.w
+        val icon = if (bright) IconView.Kind.SUN else IconView.Kind.SPEAKER
+        val top = if (bright) BigSlider(svc, pal, icon, t("Oben", "Top"), 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
+            else BigSlider(svc, pal, icon, t("Oben", "Top"), 100, mainVolumePct(), pixel, vertical) { setMainVolumePct(it) }.also { volumeSliders += it }
+        val bottom = if (bright) BigSlider(svc, pal, icon, t("Unten", "Bottom"), 100, svc.prefs.bottomBrightness, pixel, vertical) {
+                svc.prefs.bottomBrightness = it
+                Device.setBottomBrightness(it)
+            } else BigSlider(svc, pal, icon, t("Unten", "Bottom"), 15, Device.bottomVolume(svc), pixel, vertical) { Device.setBottomVolume(it) }
+        val both = listOf(top, bottom)
+        both.forEach {
+            if (pal.cocoon && svc.prefs.tileColor == 0) it.setAccent(if (bright) 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
+            else it.setAccent(tileOn(), tileOnFg())
+        }
+        val box = LinearLayout(svc).apply { orientation = if (vertical) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL }
+        both.forEachIndexed { i, s ->
+            val gap = if (i == 0) 0 else 8 * d
+            box.addView(s, if (vertical) LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { leftMargin = gap }
+                else LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = gap })
+        }
+        var active = 0
+        val undim = Runnable { both.forEach { it.alpha = 1f } }
+        fun mark() {
+            both.forEachIndexed { i, s -> s.alpha = if (i == active) 1f else 0.45f }
+            svc.ui.removeCallbacks(undim)
+            svc.ui.postDelayed(undim, 2500)
+        }
+        return box to Item(box, null, { dir -> both[active].step(5 * dir); mark() }, vertical, onSide = { dir -> active = (active + dir).coerceIn(0, 1); mark() })
+    }
+
     /** View for one grid element at its size, plus what A does on it. */
     private fun element(e: GridEntry, rootOk: Boolean): Pair<View, Item?> {
         val id = e.id
+        if (GridLayout.isDouble(id)) return doubleSlider(e)
         if (GridLayout.isSlider(id)) {
             val vertical = e.h > e.w
-            val v = if (id == "brightness") BigSlider(svc, pal, IconView.Kind.SUN, tr("Helligkeit"), 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
+            val v = if (id == "brightnessAll") BigSlider(svc, pal, IconView.Kind.SUN, t("Helligkeit beide", "Brightness both"), 100, Device.brightness(svc) * 100 / 255, pixel, vertical) {
+                Device.setBrightness(svc, Math.round(it * 255 / 100f))
+                if (Device.isDuo && Root.available()) { svc.prefs.bottomBrightness = it; Device.setBottomBrightness(it) }
+            }
+            else if (id == "volumeAll") BigSlider(svc, pal, IconView.Kind.SPEAKER, t("Lautstärke beide", "Volume both"), 100, mainVolumePct(), pixel, vertical) {
+                setMainVolumePct(it)
+                if (Device.isDuo && Root.available()) Device.setBottomVolume(Math.round(it * 15 / 100f))
+            }.also { volumeSliders += it }
+            else if (id == "brightness") BigSlider(svc, pal, IconView.Kind.SUN, tr("Helligkeit"), 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
             else if (id == "brightness2") BigSlider(svc, pal, IconView.Kind.SUN, t("Helligkeit unten", "Brightness below"), 100, svc.prefs.bottomBrightness, pixel, vertical) {
                 svc.prefs.bottomBrightness = it
                 Device.setBottomBrightness(it)
             }
             else if (id == "volume2") BigSlider(svc, pal, IconView.Kind.SPEAKER, t("Lautstärke unten", "Volume below"), 15, Device.bottomVolume(svc), pixel, vertical) { Device.setBottomVolume(it) }
-            else {
-                // Android has only 16 media steps: Hugminn keeps its own 0-100 % (5 % steps) and sets the nearest one
-                val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-                val idx = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
-                val saved = svc.prefs.volumePct
-                val pct = if (saved >= 0 && Math.round(saved * max / 100f) == idx) saved else Math.round(idx * 100f / max)
-                BigSlider(svc, pal, IconView.Kind.SPEAKER, tr("Lautstärke"), 100, pct, pixel, vertical) { p ->
-                    svc.prefs.volumePct = p
-                    audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(p * max / 100f), 0)
-                }.also { volumeSliders += it }
-            }
+            else BigSlider(svc, pal, IconView.Kind.SPEAKER, tr("Lautstärke"), 100, mainVolumePct(), pixel, vertical) { setMainVolumePct(it) }.also { volumeSliders += it }
             // Cocoon: brightness yellow, volume purple (unless a tile colour was chosen)
             if (pal.cocoon && svc.prefs.tileColor == 0) v.setAccent(if (id.startsWith("brightness")) 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
             else v.setAccent(tileOn(), tileOnFg())
@@ -1776,6 +1823,14 @@ class ControlCenter(private val svc: HugminnService) {
         "bottomscreen" -> if (rootOk && Device.isDuo) Tile(t("Unterer Bildschirm", "Lower screen"), IconView.Kind.SCREEN, {
             if (Device.bottomScreenOn(svc)) tr("An") else tr("Aus")
         }, { Device.bottomScreenOn(svc) }) { Device.setBottomScreen(!Device.bottomScreenOn(svc)) { refreshAll() } } else null
+        // Retroid's equalizer (its Handheld Settings page)
+        "equalizer" -> ExternalDisplay.equalizerIntent(svc)?.let { i ->
+            Tile(t("Equalizer", "Equalizer"), IconView.Kind.MUSIC, { null }, { false }) { close(); svc.startApp(i) }
+        }
+        // monitor or TV on USB-C: only while one is connected
+        "external" -> if (rootOk && ExternalDisplay.connected) Tile(t("Externer Bildschirm", "External display"), IconView.Kind.SCREEN, { tr("Verbunden") }, { true }) {
+            externalMenu()
+        } else null
         "rpcc" -> if (rootOk && Device.isDuo) Tile(t("Retroid-Kontrollcenter", "Retroid control center"), IconView.Kind.GEAR, { null }, { false }) {
             svc.perform(Action.RETROID)
         } else null
@@ -1979,6 +2034,19 @@ class ControlCenter(private val svc: HugminnService) {
         Device.setFan(v) { refreshAll() }
     }
 
+    /** Monitor on USB-C: Retroid's switches for video output, the resolution on its own page (for now). */
+    private fun externalMenu(select: Int = -1) {
+        val entries = mutableListOf<MenuEntry>()
+        ExternalDisplay.switches.forEach { (key, name) ->
+            val on = Device.sysOn(svc, key)
+            entries += MenuEntry(name, checked = on) { Device.setSys(key, if (on) "0" else "1") { svc.ui.post { externalMenu(entries.indexOfFirst { it.label == name }) } } }
+        }
+        ExternalDisplay.settingsIntent(svc)?.let { i ->
+            entries += MenuEntry(t("Auflösung …", "Resolution …"), hint = t("In Retroids Einstellungen › Connect TV", "In Retroid's settings › Connect TV")) { close(); svc.startApp(i) }
+        }
+        showMenu(t("Externer Bildschirm", "External display"), entries, select)
+    }
+
     /** Keys of a popup that handles the controller itself (fan curve). */
     private var popupKeys: ((Int) -> Unit)? = null
 
@@ -1998,14 +2066,31 @@ class ControlCenter(private val svc: HugminnService) {
         val info = text("", 12f, pal.onSurfaceVariant).apply { setPadding(0, 4 * d, 0, 4 * d) }
         box.addView(info)
         val pts = svc.prefs.fanCurve.toMutableList()
-        val view = FanCurveView(svc, pal).apply { points = pts.toList(); selected = 1 }
-        box.addView(view, lp(560 * d, 240 * d))
-        box.addView(text(tr("◀ ▶ Punkt · ▲ ▼ Drehzahl · A aktivieren · B zurück"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
+        var limit = svc.prefs.fanHot
+        val view = FanCurveView(svc, pal).apply { points = pts.toList(); selected = 2; this.limit = limit }
+        box.addView(view, lp(600 * d, 250 * d))
+        box.addView(text(t("◀ ▶ Punkt oder Grenze · ▲ ▼ ändern · A aktivieren · B zurück", "◀ ▶ point or limit · ▲ ▼ change · A activate · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
+        /** Point [i] to [pct] %, or (i = past the points) the limit to [pct] °C. */
+        fun change(i: Int, pct: Int) {
+            if (i >= pts.size) {
+                limit = pct.coerceIn(FanCurve.HOT_MIN, FanCurve.HOT_MAX)
+                view.limit = limit
+                if (FanCurve.isRunning()) svc.prefs.fanHot = limit
+                return
+            }
+            pts[i] = pct.coerceIn(FanCurve.MIN, 100)
+            // the curve never falls with rising temperature
+            for (j in 0 until i) pts[j] = minOf(pts[j], pts[i])
+            for (j in i + 1..pts.lastIndex) pts[j] = maxOf(pts[j], pts[i])
+            view.points = pts.toList()
+            if (FanCurve.isRunning()) svc.prefs.fanCurve = pts.toList()
+        }
+        view.onTouchChange = { i, v -> change(i, v) }
         fun refreshInfo() {
             val t = FanCurve.currentTemp.takeIf { it > 0 } ?: 0f
             view.liveTemp = t
             info.text = if (FanCurve.isRunning()) t("Aktiv · jetzt ${t.toInt()} °C → ${FanCurve.currentPct} %", "Active · now ${t.toInt()} °C → ${FanCurve.currentPct} %") else
-                t("Unter ${FanCurve.MIN} % geht es nie, ab ${FanCurve.HOT} °C läuft der Lüfter voll", "Never below ${FanCurve.MIN} %, from ${FanCurve.HOT} °C the fan runs at full speed")
+                t("Unter ${FanCurve.MIN} % geht es nie, ab $limit °C läuft der Lüfter voll", "Never below ${FanCurve.MIN} %, from $limit °C the fan runs at full speed")
         }
         refreshInfo()
         val tickInfo = object : Runnable { override fun run() { if (menuView === box) { refreshInfo(); svc.ui.postDelayed(this, 1000) } } }
@@ -2015,18 +2100,17 @@ class ControlCenter(private val svc: HugminnService) {
         popupKeys = { code ->
             when (code) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> view.selected = (view.selected - 1).coerceAtLeast(0)
-                KeyEvent.KEYCODE_DPAD_RIGHT -> view.selected = (view.selected + 1).coerceAtMost(pts.lastIndex)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> view.selected = (view.selected + 1).coerceAtMost(pts.size)
                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
                     val i = view.selected
-                    pts[i] = (pts[i] + if (code == KeyEvent.KEYCODE_DPAD_UP) 5 else -5).coerceIn(FanCurve.MIN, 100)
-                    // the curve never falls with rising temperature
-                    for (j in 0 until i) pts[j] = minOf(pts[j], pts[i])
-                    for (j in i + 1..pts.lastIndex) pts[j] = maxOf(pts[j], pts[i])
-                    view.points = pts.toList()
-                    if (FanCurve.isRunning()) svc.prefs.fanCurve = pts.toList()
+                    val dir = if (code == KeyEvent.KEYCODE_DPAD_UP) 1 else -1
+                    if (i >= pts.size) change(i, limit + dir) else change(i, pts[i] + 5 * dir)
+                    refreshInfo()
                 }
                 KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
                     svc.prefs.fanCurve = pts.toList()
+                    svc.prefs.fanHot = limit
+                    FanCurve.hot = limit
                     Thread {
                         if (!FanCurve.available()) {
                             svc.ui.post { Toast.makeText(svc, tr("Dieses Gerät erlaubt keine eigene Lüftersteuerung"), Toast.LENGTH_LONG).show() }
@@ -3804,7 +3888,7 @@ class ControlCenter(private val svc: HugminnService) {
             hint = if (id in present) t("Schon im Raster · noch einmal hinzufügen", "Already in the grid · add another") else null) { placeAtCursor(id) }
         val switches = TileCatalog.all.keys.filter { tileFor(it, rootOk) != null }
         val infos = GridLayout.widgetNames.keys.filter { GridLayout.isInfo(it) }
-        val sliders = GridLayout.widgetNames.keys.filter { GridLayout.isSlider(it) }
+        val sliders = GridLayout.widgetNames.keys.filter { GridLayout.isSlider(it) || GridLayout.isDouble(it) }
         // categories side by side: ◀ ▶ switches between them instead of scrolling through one long list
         val tabs = listOf(
             tr("Anzeigen") to infos.map { entryFor(it) },
@@ -3904,6 +3988,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun placeAtCursor(id: String) {
         if (!editing) entries = svc.prefs.ccGrid.toMutableList()
         val preferred = when {
+            GridLayout.isDouble(id) -> listOf(2 to 2, 2 to 3, 4 to 2, 3 to 2)
             GridLayout.isSlider(id) -> listOf(1 to 2, 2 to 1, 1 to 3, 3 to 1)
             id == "system" -> listOf(4 to 2, 4 to 4)
             id == "fps" -> listOf(2 to 2, 2 to 1)
@@ -4691,10 +4776,11 @@ class ControlCenter(private val svc: HugminnService) {
         }
         val vert = item?.vertical == true
         when (e.keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> if (adj != null && vert) adj(1) else { adjusting = false; gridNav(0, -1) }
-            KeyEvent.KEYCODE_DPAD_DOWN -> if (adj != null && vert) adj(-1) else { adjusting = false; gridNav(0, 1) }
-            KeyEvent.KEYCODE_DPAD_LEFT -> if (adj != null && !vert) adj(-1) else { adjusting = false; gridNav(-1, 0) }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> if (adj != null && !vert) adj(1) else { adjusting = false; gridNav(1, 0) }
+            // a double slider (top and bottom screen): across its sliders the D-pad picks one of them
+            KeyEvent.KEYCODE_DPAD_UP -> if (adj != null && vert) adj(1) else if (adj != null && item?.onSide != null) item.onSide.invoke(-1) else { adjusting = false; gridNav(0, -1) }
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (adj != null && vert) adj(-1) else if (adj != null && item?.onSide != null) item.onSide.invoke(1) else { adjusting = false; gridNav(0, 1) }
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (adj != null && !vert) adj(-1) else if (adj != null && item?.onSide != null) item.onSide.invoke(-1) else { adjusting = false; gridNav(-1, 0) }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (adj != null && !vert) adj(1) else if (adj != null && item?.onSide != null) item.onSide.invoke(1) else { adjusting = false; gridNav(1, 0) }
             KeyEvent.KEYCODE_BUTTON_L1 -> changePage(-1)
             KeyEvent.KEYCODE_BUTTON_R1 -> changePage(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()

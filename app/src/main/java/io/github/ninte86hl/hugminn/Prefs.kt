@@ -16,6 +16,8 @@ enum class Action(private val labelDe: String) {
     REPLAY("Letzte Sekunden speichern"),
     /** Dual-screen handhelds: switcher and Control Center at once, one on each screen. */
     BOTH("Spielwechsler + Control Center"),
+    /** Pocket Duo: the lower screen off and on again. */
+    BOTTOM_SCREEN("Unterer Bildschirm an/aus"),
     /** Pocket Duo: the double press handed on to Retroid's firmware (its control center). */
     RETROID("Retroid-Kontrollcenter");
 
@@ -314,8 +316,19 @@ class Prefs(private val ctx: Context) {
         set(v) = p.edit().putString("overlayPos", v.name).apply()
     /** true: values side by side in one line, false: below each other. */
     /** Fan speed (%) at 40, 55, 70 and 85 °C for Hugminn's own fan curve. */
+    /** Fan curve: full speed from this temperature (°C). */
+    var fanHot: Int
+        get() = p.getInt("fanHot", 90).coerceIn(FanCurve.HOT_MIN, FanCurve.HOT_MAX)
+        set(v) = p.edit().putInt("fanHot", v).apply()
     var fanCurve: List<Int>
-        get() = p.getString("fanCurve", null)?.split(',')?.mapNotNull { it.toIntOrNull() }?.takeIf { it.size == 4 } ?: listOf(25, 35, 60, 90)
+        get() {
+            val l = p.getString("fanCurve", null)?.split(',')?.mapNotNull { it.toIntOrNull() }
+            return when (l?.size) {
+                FanCurve.temps.size -> l
+                4 -> FanCurve.widen(l)
+                else -> listOf(25, 25, 30, 38, 50, 62, 78, 90)
+            }
+        }
         set(v) = p.edit().putString("fanCurve", v.joinToString(",")).apply()
 
     /** Hugminn's fan curve is in charge (custom fan mode). */

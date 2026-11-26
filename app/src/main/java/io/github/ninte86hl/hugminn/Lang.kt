@@ -255,6 +255,7 @@ object Lang {
         "Effekte" to "Effects",
         "Kombis" to "Combos",
         "Spielwechsler + Control Center" to "Switcher + Control Center",
+        "Unterer Bildschirm an/aus" to "Lower screen on/off",
         "Retroid-Kontrollcenter" to "Retroid control center",
         "Alle" to "All",
         "A oder X übernimmt den Effekt" to "A or X applies the effect",
