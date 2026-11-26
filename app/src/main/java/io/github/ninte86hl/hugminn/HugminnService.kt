@@ -619,8 +619,14 @@ class HugminnService : AccessibilityService() {
                 // Retroid's control center is its "floating window", which also has a quick-settings tile:
                 // Hugminn presses that tile (no imitated Home presses – Retroid didn't take those reliably)
                 Thread {
-                    val out = Root.execLong("cmd statusbar click-tile $RETROID_TILE 2>&1; echo rc=\$?", 4_000)
-                    Glyphs.note("retroid tile → ${out?.trim()?.take(160)}")
+                    // Android only "clicks" tiles that are in the quick settings: if Retroid's isn't, it goes in for
+                    // the moment and out again afterwards
+                    val tiles = Root.execLong("settings get secure sysui_qs_tiles", 3_000).orEmpty()
+                    val present = tiles.contains(RETROID_TILE) || tiles.contains("FloatingWindowTileService")
+                    val out = Root.execLong((if (present) "" else "cmd statusbar add-tile $RETROID_TILE 2>&1; sleep 0.6; ") +
+                        "cmd statusbar click-tile $RETROID_TILE 2>&1; echo rc=\$?", 5_000)
+                    Glyphs.note("retroid tile (in QS: $present) → ${out?.trim()?.take(160)}")
+                    if (!present) ui.postDelayed({ Root.run("cmd statusbar remove-tile $RETROID_TILE") }, 3_000)
                 }.start()
             }
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
