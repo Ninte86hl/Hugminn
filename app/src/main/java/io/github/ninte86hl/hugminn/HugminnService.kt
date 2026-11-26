@@ -356,9 +356,12 @@ class HugminnService : AccessibilityService() {
             if (event.keyCode != KeyEvent.KEYCODE_POWER) { val copy = KeyEvent(event); ui.post { l(copy) }; return true }
         }
         // Homes Hugminn sent on to the firmware itself (Retroid's double press)
+        // Duo diagnosis: what the kernel sees around a Home press (real and handed on), for the feedback
+        if (Device.isDuo && event.keyCode == KeyEvent.KEYCODE_HOME && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) captureHome()
         // the double tap Hugminn hands on to Retroid's firmware (sent through the controller itself, see RETROID)
         if (event.keyCode == KeyEvent.KEYCODE_HOME && passHome > 0 && android.os.SystemClock.uptimeMillis() < passHomeUntil) {
             if (event.action == KeyEvent.ACTION_UP) passHome--
+            Glyphs.note("pass HOME ${if (event.action == KeyEvent.ACTION_DOWN) "down" else "up"} dev=${event.deviceId} ${event.device?.name} t=${event.eventTime}")
             return false
         }
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
@@ -503,6 +506,21 @@ class HugminnService : AccessibilityService() {
     private fun extraToken(code: Int) = "extra$code"
 
     private var passHomeUntil = 0L
+
+    /** Duo diagnosis: raw Home events (getevent) for 3 s after a press, the last three captures. */
+    val homeTrace = java.util.concurrent.ConcurrentLinkedDeque<String>()
+    @Volatile private var capturing = false
+    private fun captureHome() {
+        if (capturing || !Root.available()) return
+        capturing = true
+        val at = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.ROOT).format(java.util.Date())
+        Thread {
+            val out = Root.execLong("timeout 3 getevent -lt 2>&1 | grep -E 'KEY_HOME|KEY_HOMEPAGE|BTN_MODE|0066|00ac' | head -40", 6_000)
+            homeTrace.addLast("ab $at:\n${out?.trim().orEmpty()}")
+            while (homeTrace.size > 3) homeTrace.pollFirst()
+            capturing = false
+        }.start()
+    }
     private var passHome = 0
     private var backHeld = false
     private val backLongPress = Runnable { backHeld = true; perform(prefs.backLong) }
