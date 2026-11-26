@@ -62,7 +62,7 @@ object Snapshots {
     }
 
     /** Screenshot of the screen as it is now, stored for [pkg]; [then] runs on the main thread in any case. */
-    fun capture(svc: HugminnService, pkg: String, then: (() -> Unit)? = null) {
+    fun capture(svc: HugminnService, pkg: String, display: Int = Display.DEFAULT_DISPLAY, then: (() -> Unit)? = null) {
         val now = SystemClock.uptimeMillis()
         // Android allows about one screenshot per second
         if (now - lastShot < 1050) { then?.invoke(); return }
@@ -72,7 +72,7 @@ object Snapshots {
         // never keep the user waiting for long
         svc.ui.postDelayed({ finish() }, 260)
         try {
-            svc.takeScreenshot(Display.DEFAULT_DISPLAY, svc.mainExecutor, object : AccessibilityService.TakeScreenshotCallback {
+            svc.takeScreenshot(display, svc.mainExecutor, object : AccessibilityService.TakeScreenshotCallback {
                 override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
                     val hw = runCatching { Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace) }.getOrNull()
                     val small = hw?.let { b ->
@@ -225,6 +225,7 @@ class OwnSwitcher(private val svc: HugminnService) {
                 }
                 sel = 0
                 build()
+                markScreens()
                 // complete the list with Android's tasks (ids for switching, apps opened elsewhere)
                 refresh {
                     if (!isOpen) return@refresh
@@ -264,6 +265,14 @@ class OwnSwitcher(private val svc: HugminnService) {
         // music and videos keep playing: pausing them would only break the flow
         val pauseIt = { if (isOpen && fromPkg != null && svc.prefs.pauseInSwitcher && !Media.playsIn(svc, fromPkg)) PauseActivity.hold(svc, "switcher") }
         if (f != null && !swipe) Snapshots.capture(svc, f) { pauseIt(); afterList() } else { pauseIt(); afterList() }
+        // two screens: the app on the lower screen gets a fresh picture too (a second later: Android allows
+        // one screenshot per second) – not when the Control Center lies over it
+        Displays.second(svc)?.let { other ->
+            if (Root.available() && !svc.comboMode) thread {
+                val low = screenTasks().entries.firstOrNull { it.value.second == other.id }?.key ?: return@thread
+                svc.ui.postDelayed({ if (isOpen && !svc.comboMode) Snapshots.capture(svc, low, other.id) { carousel?.invalidate() } }, 1_100)
+            }
+        }
     }
 
     /** Switcher + Control Center on two screens: the one the buttons work in is clear, the other one dimmed. */
@@ -445,6 +454,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
         log.append(" | Verlauf:").append(track)
         val ok = arrived(a.pkg, display)
+        // a fresh picture of the app on its new screen for the switcher
+        if (ok) svc.ui.postDelayed({ Snapshots.capture(svc, a.pkg, display) }, 1_100)
         log.append(if (ok) " → ok" else " → nicht dort angekommen").append(" (Task danach ${screenTasks()[a.pkg]?.first})")
         moveDiag = (moveDiag + "\n" + log).takeLast(1500)
         if (!ok) moveDiag = (moveDiag + "\nAufgaben:\n" + lastStacks).takeLast(3000)
