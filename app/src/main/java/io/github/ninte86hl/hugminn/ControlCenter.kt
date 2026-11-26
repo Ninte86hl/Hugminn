@@ -4057,12 +4057,16 @@ class ControlCenter(private val svc: HugminnService) {
         val switches = TileCatalog.all.keys.filter { tileFor(it, rootOk) != null }
         val infos = GridLayout.widgetNames.keys.filter { GridLayout.isInfo(it) }
         val sliders = GridLayout.widgetNames.keys.filter { GridLayout.isSlider(it) || GridLayout.isDouble(it) }
-        // categories side by side: ◀ ▶ switches between them instead of scrolling through one long list
-        val tabs = listOf(
-            tr("Anzeigen") to infos.map { entryFor(it) },
-            tr("Regler") to sliders.map { entryFor(it) },
-            tr("Schalter") to switches.map { entryFor(it) },
-        ).filter { it.second.isNotEmpty() }
+        // categories side by side: ◀ ▶ switches between them instead of scrolling through one long list;
+        // the switches in groups of their own, anything not in a group at the end
+        val grouped = TileCatalog.groups.map { (name, ids) -> name to ids.filter { it in switches } }
+        val rest = switches.filter { id -> grouped.none { id in it.second } }
+        val tabs = (listOf(
+            tr("Anzeigen") to infos,
+            tr("Regler") to sliders,
+        ) + grouped + listOf(t("Weitere", "More") to rest))
+            .map { (name, ids) -> name to ids.map { entryFor(it) } }
+            .filter { it.second.isNotEmpty() }
         tabMenu(tr("Hinzufügen"), tabs, addTab.coerceIn(0, (tabs.size - 1).coerceAtLeast(0)))
     }
 

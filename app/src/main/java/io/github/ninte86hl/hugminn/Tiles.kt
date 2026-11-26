@@ -37,6 +37,15 @@ object TileCatalog {
         "hugminn" to "Hugminn",
     )
     val defaults = listOf("wifi", "bt", "refresh", "leds", "dnd", "rotation", "clean", "screenshot")
+
+    /** Groups for the "add" picker, so no list gets too long (name → tile ids, in order). */
+    val groups get() = listOf(
+        t("Verbindung", "Connections") to listOf("wifi", "bt", "airplane", "dnd", "devbat"),
+        t("Bildschirm", "Display") to listOf("refresh", "rotation", "landscape", "screen", "sleep", "theme", "focuslock", "bottomscreen", "external"),
+        t("Leistung", "Power") to listOf("perf", "fan", "chargesep", "chargelimit", "clean"),
+        t("Steuerung", "Controls") to listOf("controller", "trigger", "keymapper", "mouse", "homelock", "vibration", "leds"),
+        t("Medien & Apps", "Media & apps") to listOf("media", "equalizer", "screenshot", "rpsettings", "settings", "hugminn"),
+    )
 }
 
 /** Building blocks of the Control Center; "small" ones sit side by side in a row. */
