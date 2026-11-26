@@ -418,8 +418,18 @@ class OwnSwitcher(private val svc: HugminnService) {
         Thread.sleep(700)
         val id = screenTasks()[a.pkg]?.first ?: a.taskId.takeIf { it > 0 } ?: -1
         val log = StringBuilder("${a.pkg} (Task $id) → Bildschirm $display:")
-        var sysOk = false
-        if (id > 0) {
+        // like Retroid's own launcher: the app is started on that screen, Android takes its running task
+        // along (same task, the game keeps its state) – no root needed
+        svc.packageManager.getLaunchIntentForPackage(a.pkg)?.let { i ->
+            i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+            val opts = android.app.ActivityOptions.makeBasic().setLaunchDisplayId(display).toBundle()
+            svc.ui.post { runCatching { svc.startActivity(i, opts) }.onFailure { log.append(" start → ${it.javaClass.simpleName}") } }
+            log.append(" start auf Bildschirm")
+            Thread.sleep(700)
+        }
+        var sysOk = arrived(a.pkg, display)
+        if (sysOk) log.append(" → dort")
+        if (!sysOk && id > 0) {
             // Android 16 has no "move-stack" any more: Hugminn asks the system itself (as root)
             val r = sysCall("move $id $display")
             sysOk = r.startsWith("ok")
@@ -428,7 +438,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
         Thread.sleep(300)
         val ok = arrived(a.pkg, display)
-        log.append(if (ok) " → ok" else " → nicht dort angekommen")
+        log.append(if (ok) " → ok" else " → nicht dort angekommen").append(" (Task danach ${screenTasks()[a.pkg]?.first})")
         moveDiag = (moveDiag + "\n" + log).takeLast(1500)
         if (!ok) moveDiag = (moveDiag + "\nAufgaben:\n" + lastStacks).takeLast(3000)
         if (!ok) Notice.show(svc, t("Verschieben hat nicht geklappt", "Moving did not work"), corner = true)
