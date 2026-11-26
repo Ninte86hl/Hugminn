@@ -97,6 +97,8 @@ class HugminnService : AccessibilityService() {
         private set
 
     private var pendingSingle = false
+    /** When Home went down (uptime ms) – the double press is timed from here. */
+    private var homeDownAt = 0L
     private var longFired = false
     private var ignoreUp = false
     private val longPress = Runnable {
@@ -459,6 +461,7 @@ class HugminnService : AccessibilityService() {
                     return true
                 }
                 longFired = false
+                homeDownAt = e.eventTime.takeIf { it > 0 } ?: android.os.SystemClock.uptimeMillis()
                 if (p.long != Action.NONE) ui.postDelayed(longPress, p.longMs.toLong())
             }
             KeyEvent.ACTION_UP -> {
@@ -468,8 +471,12 @@ class HugminnService : AccessibilityService() {
                     longFired -> {}
                     p.double == Action.NONE -> perform(p.single)
                     else -> {
+                        // The wait for a second press counts from pressing down, not from letting go: some
+                        // firmwares (Pocket Duo) hand the release on late, which ate up the time for the second press.
+                        val wait = (homeDownAt + p.doubleMs + 120 - android.os.SystemClock.uptimeMillis()).coerceAtLeast(80)
+                        Glyphs.note("home up nach ${android.os.SystemClock.uptimeMillis() - homeDownAt} ms · warte noch $wait ms")
                         pendingSingle = true
-                        ui.postDelayed(singlePress, p.doubleMs.toLong())
+                        ui.postDelayed(singlePress, wait)
                     }
                 }
             }
