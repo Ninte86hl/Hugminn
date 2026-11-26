@@ -424,7 +424,16 @@ class OwnSwitcher(private val svc: HugminnService) {
      * Moves an app's task to screen [display] as it is (the game keeps running): the system's own
      * call to move its task. Never a restart: a delayed one reopened apps that had been closed meanwhile.
      */
-    private fun moveToDisplay(a: RecentApp, display: Int): Boolean {
+    private fun moveToDisplay(a: RecentApp, display: Int): Boolean = try {
+        Glyphs.note("verschieben ${a.pkg} → $display …")
+        moveToDisplayInner(a, display).also { Glyphs.note("verschieben ${a.pkg} fertig: $it") }
+    } catch (t: Throwable) {
+        Glyphs.note("verschieben ${a.pkg} Fehler: $t")
+        moveDiag = (moveDiag + "\n${a.pkg} → $display: Fehler $t").takeLast(3000)
+        false
+    }
+
+    private fun moveToDisplayInner(a: RecentApp, display: Int): Boolean {
         // Hugminn's pause screen must be gone first: while it closes, Android brings the app under it
         // back to its old screen. The task number is read fresh (a restarted app has a new one).
         PauseActivity.release(svc, "switcher")
