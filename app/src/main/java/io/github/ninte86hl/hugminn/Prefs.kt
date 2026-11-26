@@ -120,7 +120,7 @@ class Prefs(private val ctx: Context) {
     fun extraKey(code: Int, long: Boolean): Action = enumOr(p.getString("extra${code}_${if (long) "L" else "S"}", null), Action.NONE)
     /** Retroid's Back button held: free for an action (the Duo's double Home belongs to Retroid, so the switcher goes here). */
     var backLong: Action
-        get() = enumOr(p.getString("backLong", null), Action.NONE)
+        get() = enumOr(p.getString("backLong", null), if (Device.isDuo) Action.BOTH else Action.NONE).let { if (it == Action.RETROID) Action.NONE else it }
         set(v) = p.edit().putString("backLong", v.name).apply()
 
     fun setExtraKey(code: Int, long: Boolean, a: Action) = p.edit().putString("extra${code}_${if (long) "L" else "S"}", a.name).apply()
@@ -130,10 +130,11 @@ class Prefs(private val ctx: Context) {
         set(v) = p.edit().putString("single", v.name).apply()
     var double: Action
         // Pocket Duo: the firmware takes the double press itself (Retroid's control center) – Hugminn never sees it
-        get() = enumOr(p.getString("double", null), if (Device.isDuo) Action.RETROID else Action.SWITCHER)
+        // Duo: Home belongs to Retroid (its double press opens its control center – only real presses reach it)
+        get() = enumOr(p.getString("double", null), if (Device.isDuo) Action.NONE else Action.SWITCHER).let { if (it == Action.RETROID) Action.NONE else it }
         set(v) = p.edit().putString("double", v.name).apply()
     var long: Action
-        get() = enumOr(p.getString("long", null), if (Device.isDuo) Action.BOTH else Action.CONTROL_CENTER)
+        get() = enumOr(p.getString("long", null), if (Device.isDuo) Action.NONE else Action.CONTROL_CENTER).let { if (it == Action.RETROID) Action.NONE else it }
         set(v) = p.edit().putString("long", v.name).apply()
 
     var statusBar: StatusBar

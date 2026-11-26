@@ -23,7 +23,6 @@ object TileCatalog {
         "chargelimit" to t("Laden bis 80 %", "Charge to 80 %"),
         "focuslock" to t("Bildschirm-Fokus", "Screen focus"),
         "bottomscreen" to t("Unterer Bildschirm", "Lower screen"),
-        "rpcc" to t("Retroid-Kontrollcenter", "Retroid control center"),
         "theme" to tr("Farbschema"),
         "screen" to tr("Bildschirm an"),
         "clean" to tr("Speicher leeren"),
