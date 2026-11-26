@@ -26,7 +26,11 @@ class SystemCall {
                             runCatching { atm.javaClass.getMethod(name, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType) }.getOrNull()
                         } ?: error("keine Methode zum Verschieben")
                         m.invoke(atm, task, display)
-                        println("ok ${m.name}")
+                        // in front on its new screen (else it waits behind that screen's home)
+                        val front = listOf("setFocusedTask", "setFocusedRootTask").firstNotNullOfOrNull { name ->
+                            runCatching { atm.javaClass.getMethod(name, Int::class.javaPrimitiveType).also { f -> f.invoke(atm, task) } }.getOrNull()
+                        }
+                        println("ok ${m.name}" + (front?.let { " + ${it.name}" } ?: ""))
                     }
                     "remove" -> {
                         val r = atm.javaClass.getMethod("removeTask", Int::class.javaPrimitiveType).invoke(atm, args[1].toInt())
