@@ -237,6 +237,7 @@ class OwnSwitcher(private val svc: HugminnService) {
                     sel = apps.indexOfFirst { it.pkg == cur }.takeIf { it >= 0 } ?: 0
                     carousel?.set(apps, sel, animate = false)
                     renderBar()
+                    markScreens()
                 }
             }
         }
@@ -594,6 +595,16 @@ class OwnSwitcher(private val svc: HugminnService) {
             // L3: the apps of both screens swap places
             KeyEvent.KEYCODE_BUTTON_THUMBL -> swapScreens()
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close(back = true)
+        }
+    }
+
+    /** Two screens: each card shows whether its app lies on the top or the bottom screen. */
+    private fun markScreens() {
+        val other = Displays.second(svc) ?: return
+        if (!Root.available()) return
+        thread {
+            val map = screenTasks().mapValues { it.value.second }
+            svc.ui.post { carousel?.screenOf = map.mapValues { if (it.value == other.id) 2 else 1 } }
         }
     }
 
@@ -1094,6 +1105,16 @@ class OwnSwitcher(private val svc: HugminnService) {
                 else -> { strokeWidth = ctx.dp(2).toFloat(); color = (pal.onSurface and 0x00FFFFFF) or 0xAA000000.toInt() }
             }
         }
+        /** Two screens: package → 1 top, 2 bottom (a small mark on the card). */
+        var screenOf: Map<String, Int> = emptyMap()
+            set(v) { field = v; invalidate() }
+        private val badgeFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC000000.toInt() }
+        private val badgeText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE
+            textSize = ctx.resources.displayMetrics.scaledDensity * 11f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+
         private val labelPaint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             color = if (Backdrop.active(ctx)) pal.onSurface else pal.onSurfaceVariant
             textAlign = Paint.Align.CENTER
@@ -1245,6 +1266,18 @@ class OwnSwitcher(private val svc: HugminnService) {
                     c.drawRect(r, dim)
                 }
                 c.restore()
+                // which screen the app lies on
+                screenOf[apps[i].pkg]?.let { sc ->
+                    val label = if (sc == 2) t("▼ Unten", "▼ Bottom") else t("▲ Oben", "▲ Top")
+                    val p = context.dp(6).toFloat()
+                    val w = badgeText.measureText(label) + p * 2
+                    val h = badgeText.textSize + p * 1.4f
+                    val br = RectF(r.left + p * 1.5f, r.top + p * 1.5f, r.left + p * 1.5f + w, r.top + p * 1.5f + h)
+                    if (br.right < r.right) {
+                        c.drawRoundRect(br, h / 2, h / 2, badgeFill)
+                        c.drawText(label, br.left + p, br.bottom - p * 0.9f, badgeText)
+                    }
+                }
                 if (abs(i - pos) < 0.5f) {
                     if (!marked) {}
                     else if (pal.focusCorners) {
