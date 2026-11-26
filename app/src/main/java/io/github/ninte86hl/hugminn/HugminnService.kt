@@ -622,25 +622,26 @@ class HugminnService : AccessibilityService() {
     private fun captureHome() {
         val now = android.os.SystemClock.uptimeMillis()
         if (now < captureUntil || !Root.available()) return
-        captureUntil = now + 8_000
+        captureUntil = now + 40_000
         val script = java.io.File(filesDir, "hraw.sh")
         script.writeText("""
             d=/data/local/tmp/hraw; rm -rf ${'$'}d; mkdir -p ${'$'}d
-            for f in /dev/input/event*; do n=${'$'}{f##*/}; timeout 5 cat ${'$'}f > ${'$'}d/${'$'}n.bin & done
-            sleep 5.5
+            for f in /dev/input/event*; do n=${'$'}{f##*/}; timeout 30 cat ${'$'}f > ${'$'}d/${'$'}n.bin & done
+            sleep 30.5
             for b in ${'$'}d/*.bin; do n=${'$'}(basename ${'$'}b .bin); nm=${'$'}(cat /sys/class/input/${'$'}n/device/name | tr ' ' _)
               od -An -tx1 -w24 -v ${'$'}b | grep -E '^( [0-9a-f]{2}){16} 01 00' | sed "s/^/${'$'}n ${'$'}nm/"; done > ${'$'}d/out.txt
             rm ${'$'}d/*.bin
         """.trimIndent())
         script.setReadable(true, false)
         Root.run("sh ${script.absolutePath} >/dev/null 2>&1 &")
-        ui.postDelayed({ Thread { homeTrace.clear(); homeTrace.addLast(rawHomeReport()) }.start() }, 6_500)
+        Notice.show(this, t("Home-Mitschrift läuft 30 s", "Recording Home for 30 s"), corner = true)
+        ui.postDelayed({ Thread { homeTrace.clear(); homeTrace.addLast(rawHomeReport()); Notice.show(this, t("Home-Mitschrift fertig – Bericht senden", "Home recording done – send the report"), corner = true) }.start() }, 32_000)
     }
 
     private fun rawHomeReport(): String {
-        val out = Root.execLong("cat /data/local/tmp/hraw/out.txt 2>&1 | tail -80", 5_000) ?: return "keine Antwort"
+        val out = Root.execLong("cat /data/local/tmp/hraw/out.txt 2>&1 | tail -120", 5_000) ?: return "keine Antwort"
         val fmt = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.ROOT)
-        val names = mapOf(102 to "HOME", 172 to "HOMEPAGE", 158 to "BACK", 139 to "MENU", 316 to "BTN_MODE", 114 to "VOL-", 115 to "VOL+", 116 to "POWER")
+        val names = mapOf(194 to "HOME(F24)", 102 to "HOME", 172 to "HOMEPAGE", 158 to "BACK", 139 to "MENU", 316 to "BTN_MODE", 114 to "VOL-", 115 to "VOL+", 116 to "POWER")
         return out.lines().filter { it.isNotBlank() }.joinToString("\n") { line ->
             val parts = line.trim().split(Regex("\\s+"))
             if (parts.size < 26) return@joinToString line
