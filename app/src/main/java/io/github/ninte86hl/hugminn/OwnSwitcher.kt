@@ -354,6 +354,28 @@ class OwnSwitcher(private val svc: HugminnService) {
         renderBar()
     }
 
+    /**
+     * Apps on the screens, front first: package → (task, display), from Android's own task list (the
+     * window list does not always know a moved app yet). Home screens and Hugminn are left out.
+     */
+    private fun screenTasks(): LinkedHashMap<String, Pair<Int, Int>> {
+        val out = LinkedHashMap<String, Pair<Int, Int>>()
+        val dump = Root.execLong("dumpsys activity activities | grep -E 'Display #|\\* Task\\{'") ?: return out
+        var display = 0
+        val disp = Regex("Display #(\\d+)")
+        val task = Regex("\\* Task\\{\\w+ #(\\d+) type=standard (?:A=\\d+:([\\w.]+)|I=([\\w.]+)/)")
+        for (line in dump.lines()) {
+            disp.find(line)?.let { display = it.groupValues[1].toInt(); return@let }
+            val m = task.find(line) ?: continue
+            val pkg = m.groupValues[2].ifEmpty { m.groupValues[3] }
+            if (pkg.startsWith(svc.packageName) || pkg in out) continue
+            out[pkg] = m.groupValues[1].toInt() to display
+        }
+        return out
+    }
+
+    private fun arrived(pkg: String, display: Int) = screenTasks()[pkg]?.second == display || svc.topAppOn(display) == pkg
+
     /** Runs [SystemCall] as root (Hugminn's own code in a system process); its answer. */
     private fun sysCall(cmd: String): String =
         Root.exec("CLASSPATH=${svc.applicationInfo.sourceDir} app_process /system/bin ${SystemCall::class.java.name} $cmd 2>&1")?.trim()?.take(200) ?: "-"
@@ -372,15 +394,15 @@ class OwnSwitcher(private val svc: HugminnService) {
             // Android 16 has no "move-stack" any more: Hugminn asks the system itself (as root)
             log.append(" system → ").append(sysCall("move $id $display"))
             Thread.sleep(400)
-            if (svc.topAppOn(display) != a.pkg) log.append(" | move-stack → ").append(Root.exec("am display move-stack $id $display 2>&1")?.trim()?.take(200) ?: "-")
+            if (!arrived(a.pkg, display)) log.append(" | move-stack → ").append(Root.exec("am display move-stack $id $display 2>&1")?.trim()?.take(200) ?: "-")
         }
-        Thread.sleep(500)
-        if (svc.topAppOn(display) != a.pkg) {
+        Thread.sleep(300)
+        if (!arrived(a.pkg, display)) {
             val launch = svc.packageManager.getLaunchIntentForPackage(a.pkg)?.component
             if (launch != null) log.append(" | am start --display → ").append(Root.exec("am start --display $display -n ${launch.flattenToShortString()} -f 0x10200000 2>&1")?.trim()?.take(200) ?: "-")
             Thread.sleep(600)
         }
-        val ok = svc.topAppOn(display) == a.pkg
+        val ok = arrived(a.pkg, display)
         log.append(if (ok) " → ok" else " → nicht dort angekommen")
         moveDiag = (moveDiag + "\n" + log).takeLast(1500)
         if (!ok) Notice.show(svc, t("Verschieben hat nicht geklappt", "Moving did not work"), corner = true)
@@ -471,19 +493,21 @@ class OwnSwitcher(private val svc: HugminnService) {
         val other = Displays.second(svc)
         if (other != null && Root.available()) {
             items += t("Auf anderen Bildschirm", "To the other screen") to {
-                val onOther = svc.topAppOn(other.id) == a.pkg
-                close(back = false)
-                thread { moveToDisplay(a, if (onOther) android.view.Display.DEFAULT_DISPLAY else other.id) }
-            }
-            items += t("Bildschirme tauschen", "Swap screens") to {
-                val top = svc.topAppOn(android.view.Display.DEFAULT_DISPLAY) ?: fromPkg
-                val bottom = svc.topAppOn(other.id)
                 close(back = false)
                 thread {
-                    val tasks = loadTasks().orEmpty()
-                    fun app(p: String) = tasks.firstOrNull { it.pkg == p } ?: RecentApp(p, -1)
-                    if (top != null) moveToDisplay(app(top), other.id)
-                    if (bottom != null) moveToDisplay(app(bottom), android.view.Display.DEFAULT_DISPLAY)
+                    val onOther = screenTasks()[a.pkg]?.second == other.id
+                    moveToDisplay(a, if (onOther) android.view.Display.DEFAULT_DISPLAY else other.id)
+                }
+            }
+            items += t("Bildschirme tauschen", "Swap screens") to {
+                close(back = false)
+                thread {
+                    val where = screenTasks()
+                    // the front app of each screen (Android's own list, in order)
+                    val top = where.entries.firstOrNull { it.value.second == android.view.Display.DEFAULT_DISPLAY }
+                    val bottom = where.entries.firstOrNull { it.value.second == other.id }
+                    top?.let { moveToDisplay(RecentApp(it.key, it.value.first), other.id) }
+                    bottom?.let { moveToDisplay(RecentApp(it.key, it.value.first), android.view.Display.DEFAULT_DISPLAY) }
                     if (top == null && bottom == null) Notice.show(svc, t("Keine App zum Tauschen", "No app to swap"), corner = true)
                 }
             }
