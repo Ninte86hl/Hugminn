@@ -530,6 +530,33 @@ class HugminnService : AccessibilityService() {
     /** Runs when the Home press Hugminn holds back is let go (see RETROID). */
     private var afterHomeUp: Runnable? = null
 
+    /**
+     * Retroid's control center is the "floating view" of its Game Assistant. Ways to bring it up, tried in turn
+     * until one of its windows shows (the first that works is remembered): its service started directly (root
+     * may start it although it isn't open to other apps), the broadcast its widget sends, its quick-settings tile.
+     */
+    private fun openRetroidPanel() {
+        val ways = listOf(
+            "service" to "am startservice -n com.rp.gameassistant/com.ro.gameassistant.service.FloatingViewService 2>&1",
+            "widget" to "am broadcast -a widget.provider.onclick.to.gameassistant 2>&1 | tail -1",
+            "tile" to "cmd statusbar expand-settings; sleep 0.5; cmd statusbar click-tile $RETROID_TILE 2>&1; sleep 0.4; cmd statusbar collapse",
+        )
+        val first = ways.indexOfFirst { it.first == prefs.retroidWay }.coerceAtLeast(0)
+        val order = ways.drop(first) + ways.take(first)
+        fun shown(since: Long) = synchronized(windowLog) { windowLog.firstOrNull() }?.let { it.contains("com.rp.gameassistant") } == true &&
+            System.currentTimeMillis() - since < 5_000
+        Thread {
+            for ((name, cmd) in order) {
+                val t0 = System.currentTimeMillis()
+                val out = Root.execLong(cmd, 5_000)
+                Thread.sleep(900)
+                val ok = shown(t0)
+                Glyphs.note("retroid $name → ${if (ok) "OPEN" else "–"} ${out?.trim()?.take(120)}")
+                if (ok) { prefs.retroidWay = name; return@Thread }
+            }
+        }.start()
+    }
+
     private val RETROID_TILE = "com.rp.gameassistant/com.ro.gameassistant.service.FloatingWindowTileService"
 
     /** Home pressed / let go as raw input events (struct input_event, 64-bit: time 16 bytes, type, code, value) + sync. */
@@ -616,19 +643,7 @@ class HugminnService : AccessibilityService() {
             // Hugminn holds the Home button, so Retroid's firmware never saw the double press: send it two Homes it may keep
             Action.RETROID -> {
                 closeOverlays()
-                // Retroid's control center is its "floating window", which also has a quick-settings tile:
-                // Hugminn presses that tile (no imitated Home presses – Retroid didn't take those reliably)
-                Thread {
-                    // Android only "clicks" tiles that are in the quick settings: if Retroid's isn't, it goes in for
-                    // the moment and out again afterwards
-                    val tiles = Root.execLong("settings get secure sysui_qs_tiles", 3_000).orEmpty()
-                    val present = tiles.contains(RETROID_TILE) || tiles.contains("FloatingWindowTileService")
-                    // the click only lands while the quick settings are shown: open them, click, close again
-                    val out = Root.execLong((if (present) "" else "cmd statusbar add-tile $RETROID_TILE 2>&1; sleep 0.6; ") +
-                        "cmd statusbar expand-settings 2>&1; sleep 0.5; cmd statusbar click-tile $RETROID_TILE 2>&1; echo rc=\$?; sleep 0.4; cmd statusbar collapse 2>&1", 6_000)
-                    Glyphs.note("retroid tile (in QS: $present) → ${out?.trim()?.take(160)}")
-                    if (!present) ui.postDelayed({ Root.run("cmd statusbar remove-tile $RETROID_TILE") }, 3_000)
-                }.start()
+                openRetroidPanel()
             }
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
             Action.CONTROL_CENTER -> if (controlCenter.isOpen) controlCenter.close() else controlCenter.open()
