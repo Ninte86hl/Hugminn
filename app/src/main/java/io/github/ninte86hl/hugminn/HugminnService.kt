@@ -371,8 +371,9 @@ class HugminnService : AccessibilityService() {
         // Duo diagnosis: what the kernel sees around a Home press (real and handed on), for the feedback
         if (Device.isDuo && event.keyCode == KeyEvent.KEYCODE_HOME && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) captureHome()
         // the double tap Hugminn hands on to Retroid's firmware (sent through the controller itself, see RETROID)
-        if (event.keyCode == KeyEvent.KEYCODE_HOME && passHome > 0 && android.os.SystemClock.uptimeMillis() < passHomeUntil) {
-            if (event.action == KeyEvent.ACTION_UP) passHome--
+        // A time window, not a count: some events arrive here twice, the count ran out early and the second tap's
+        // release was held back – Retroid then took Home as held and switched the lower screen off.
+        if (event.keyCode == KeyEvent.KEYCODE_HOME && android.os.SystemClock.uptimeMillis() < passHomeUntil) {
             Glyphs.note("pass HOME ${if (event.action == KeyEvent.ACTION_DOWN) "down" else "up"} dev=${event.deviceId} ${event.device?.name} t=${event.eventTime}")
             return false
         }
@@ -550,7 +551,6 @@ class HugminnService : AccessibilityService() {
             capturing = false
         }.start()
     }
-    private var passHome = 0
     private var backHeld = false
     private val backLongPress = Runnable { backHeld = true; perform(prefs.backLong) }
 
@@ -609,8 +609,8 @@ class HugminnService : AccessibilityService() {
                         val node = retroidNode ?: findRetroidNode()
                         // the window opens only now, right before sending: finding the device took a second or more
                         // before, the taps came after the window had closed and Hugminn took them for new presses
-                        passHome = 2
-                        passHomeUntil = android.os.SystemClock.uptimeMillis() + 1500
+                        // long enough for both taps (about 0.25 s), short enough to take no real press along
+                        passHomeUntil = android.os.SystemClock.uptimeMillis() + 700
                         val out = if (node != null) {
                             val d = "/dev/input/$node"
                             val tap = "sendevent $d 1 102 1; sendevent $d 0 0 0; sendevent $d 1 102 0; sendevent $d 0 0 0"
