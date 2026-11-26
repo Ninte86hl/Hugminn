@@ -2116,7 +2116,7 @@ class ControlCenter(private val svc: HugminnService) {
         box.addView(info)
         val pts = svc.prefs.fanCurve.toMutableList()
         var limit = svc.prefs.fanHot
-        val view = FanCurveView(svc, pal).apply { points = pts.toList(); selected = 2; this.limit = limit }
+        val view = FanCurveView(svc, pal).apply { points = pts.toList(); selected = 4; this.limit = limit }
         box.addView(view, lp(600 * d, 250 * d))
         box.addView(text(t("◀ ▶ Punkt oder Grenze · ▲ ▼ ändern · A aktivieren · B zurück", "◀ ▶ point or limit · ▲ ▼ change · A activate · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 6 * d, 0, 0) })
         /** Point [i] to [pct] %, or (i = past the points) the limit to [pct] °C. */
@@ -2153,7 +2153,7 @@ class ControlCenter(private val svc: HugminnService) {
                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
                     val i = view.selected
                     val dir = if (code == KeyEvent.KEYCODE_DPAD_UP) 1 else -1
-                    if (i >= pts.size) change(i, limit + dir) else change(i, pts[i] + 5 * dir)
+                    if (i >= pts.size) change(i, limit + 5 * dir) else change(i, pts[i] + 5 * dir)
                     refreshInfo()
                 }
                 KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
