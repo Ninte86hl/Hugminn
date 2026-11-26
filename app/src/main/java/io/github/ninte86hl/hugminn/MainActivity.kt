@@ -389,10 +389,13 @@ class MainActivity : Activity() {
         val g = section(tr("Home-Taste"))
         // "switcher + Control Center" only where there are two screens
         // Retroid's own control center: on the Duo (Hugminn presses its quick-settings tile, needs root)
-        val actions = Action.values().filter { (it != Action.BOTH || Displays.second(this) != null) && (it != Action.RETROID || Device.isDuo) }
+        // (Retroid's control center can't be opened from outside: Retroid's system reacts to the real Home presses only)
+        val actions = Action.values().filter { (it != Action.BOTH || Displays.second(this) != null) && it != Action.RETROID }
         if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch. Den Doppelklick erkennt die Firmware selbst.",
             "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch. The firmware detects the double click itself."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
+        if (Device.isDuo) g.addView(text(t("Pocket Duo: Lässt du „Zweimal“ und „Lange“ auf Nichts, bleibt Home ganz bei Retroid – zweimal drücken öffnet dann Retroids Kontrollcenter. Spielwechsler und Control Center liegen dafür auf Zurück lange drücken.",
+            "Pocket Duo: with Double and Hold on Nothing, Home stays Retroid's – a double press then opens Retroid's control center. Switcher and Control Center are on Back held instead."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
         if (Device.isRetroid && !Device.noSticks) row(g, t("Zurück lange drücken", "Back held"), t("Kurz gedrückt bleibt es Zurück", "A short press stays Back"), { prefs.backLong.label }) { prefs.backLong = cycle(actions, prefs.backLong) }
