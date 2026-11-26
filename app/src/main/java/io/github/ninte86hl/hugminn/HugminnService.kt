@@ -511,6 +511,17 @@ class HugminnService : AccessibilityService() {
     /** Runs when the Home press Hugminn holds back is let go (see RETROID). */
     private var afterHomeUp: Runnable? = null
 
+    /** Home pressed / let go as raw input events (struct input_event, 64-bit: time 16 bytes, type, code, value) + sync. */
+    private fun homeEventFiles(): Pair<String, String> {
+        fun ev(type: Int, code: Int, value: Int) = java.nio.ByteBuffer.allocate(24).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            .putLong(0).putLong(0).putShort(type.toShort()).putShort(code.toShort()).putInt(value).array()
+        fun file(name: String, value: Int) = java.io.File(filesDir, name).apply {
+            writeBytes(ev(1, 102, value) + ev(0, 0, 0))
+            setReadable(true, false)
+        }.absolutePath
+        return file("home_down.bin", 1) to file("home_up.bin", 0)
+    }
+
     /** The Retroid controller's input device (eventN), found once – reading the list takes a moment. */
     @Volatile private var retroidNode: String? = null
     private fun findRetroidNode(): String? {
@@ -597,9 +608,11 @@ class HugminnService : AccessibilityService() {
                         // long enough for both taps (about 0.25 s), short enough to take no real press along
                         passHomeUntil = android.os.SystemClock.uptimeMillis() + 700
                         val out = if (node != null) {
+                            // raw input events written in one go: with sendevent (a program per event) the second
+                            // tap was held for almost half a second – Retroid saw a long press, not a double tap
+                            val (down, up) = homeEventFiles()
                             val d = "/dev/input/$node"
-                            val tap = "sendevent $d 1 102 1; sendevent $d 0 0 0; sendevent $d 1 102 0; sendevent $d 0 0 0"
-                            Root.exec("$tap; sleep 0.12; $tap; echo sent $node")
+                            Root.exec("cat $down > $d; sleep 0.05; cat $up > $d; sleep 0.1; cat $down > $d; sleep 0.05; cat $up > $d; echo sent $node")
                         } else Root.exec("input keyevent --doubletap 3; echo no-device")
                         Glyphs.note("retroid double → ${out?.trim()?.take(120)} node=$node")
                     }.start()
