@@ -714,9 +714,18 @@ class HugminnService : AccessibilityService() {
                 // two screens: Android's Home acts on the screen with the focus – Hugminn's Home always
                 // brings the chosen launcher to the top screen
                 val top = if (prefs.homeOnTop) Displays.onTop(this) else null
-                if (top != null) runCatching {
-                    startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), top)
-                }.onFailure { performGlobalAction(GLOBAL_ACTION_HOME) }
+                if (top != null) {
+                    runCatching {
+                        startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), top)
+                    }.onFailure { performGlobalAction(GLOBAL_ACTION_HOME) }
+                    // the app on the lower screen goes into the background too (its own home screen comes up)
+                    Displays.second(this)?.let { other ->
+                        runCatching {
+                            startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_SECONDARY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                android.app.ActivityOptions.makeBasic().setLaunchDisplayId(other.id).toBundle())
+                        }
+                    }
+                }
                 else performGlobalAction(GLOBAL_ACTION_HOME)
             }
             Action.SWITCHER -> when {
