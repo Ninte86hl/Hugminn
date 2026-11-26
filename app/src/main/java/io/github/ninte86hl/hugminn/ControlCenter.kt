@@ -440,7 +440,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (!editing) entries = svc.prefs.ccGrid.toMutableList()
         placed = GridLayout.place(entries, gridCols)
         val pageCount = pages() + if (editing) 1 else 0 // one empty page to add more while editing
-        gridPage = gridPage.coerceIn(0, pageCount - 1)
+        gridPage = gridPage.coerceIn(if (notifPageOn()) -1 else 0, pageCount - 1)
         graphUpdates.removeAll { it is GridUpdate }
         refreshers.clear()
         sliderItems.clear()
@@ -453,6 +453,12 @@ class ControlCenter(private val svc: HugminnService) {
         editTiles.clear()
         editFree.clear()
         body.removeAllViews()
+        if (gridPage == -1) {
+            notificationsPage(body)
+            renderFooter()
+            body.post { showFocus() }
+            return
+        }
         val board = GridBoard(svc, gridCols, 10 * d)
         val viewIndex = HashMap<View, Int>()
         board.editing = { editing }
@@ -719,8 +725,12 @@ class ControlCenter(private val svc: HugminnService) {
                 if (!holding && onEl) tr("Entfernen") else null,
                 if (holding) tr("Ablegen") else tr("Fertig"),
                 if (holding) tr("Zurück") else tr("Abbrechen"))
+        } else if (gridPage == -1) {
+            hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
+            fixed(tr("Navigieren"), if (items.getOrNull(focus)?.onY != null) t("Entfernen", "Dismiss") else null,
+                if (items.isNotEmpty()) t("Alle löschen", "Clear all") else null, t("Öffnen", "Open"), tr("Zurück"))
         } else {
-            if (pages() > 1) hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
+            if (pages() > 1 || notifPageOn()) hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, tr("Seite"))
             val menuHere = focusVisible && items.getOrNull(focus)?.onY != null
             if (inside != null) fixed(tr("Navigieren"), if (menuHere) tr("Optionen") else null, null,
                 t("Verbinden/Trennen", "Connect/disconnect"), t("Liste verlassen", "Leave list"))
@@ -2069,10 +2079,94 @@ class ControlCenter(private val svc: HugminnService) {
 
     private fun changePage(dir: Int): Boolean {
         val n = pages() + if (editing) 1 else 0
-        if (n < 2) return false
-        gridPage = (gridPage + dir + n) % n
+        // the notifications sit left of the first page (not while editing)
+        val first = if (notifPageOn()) -1 else 0
+        val count = n - first
+        if (count < 2) return false
+        gridPage = ((gridPage - first + dir + count) % count) + first
+        focus = 0
         renderGrid()
         return true
+    }
+
+    // ---------- notifications (page left of the first) ----------
+
+    private fun notifPageOn() = !editing && svc.prefs.ccNotifications && MediaListener.instance != null
+    private var notifScroll: android.widget.ScrollView? = null
+
+    /** The notifications worth showing, newest first (no music players, no Hugminn, no group headers). */
+    private fun notifications(): List<android.service.notification.StatusBarNotification> {
+        val all = runCatching { MediaListener.instance?.activeNotifications?.toList() }.getOrNull().orEmpty()
+        return all.filter { n ->
+            val x = n.notification.extras
+            n.packageName != svc.packageName &&
+                !x.containsKey(android.app.Notification.EXTRA_MEDIA_SESSION) &&
+                !(n.notification.flags and android.app.Notification.FLAG_GROUP_SUMMARY != 0 && all.any { it !== n && it.groupKey == n.groupKey }) &&
+                (x.getCharSequence(android.app.Notification.EXTRA_TITLE) != null || x.getCharSequence(android.app.Notification.EXTRA_TEXT) != null)
+        }.sortedByDescending { it.postTime }
+    }
+
+    private fun notificationsPage(body: FrameLayout) {
+        val list = notifications()
+        val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 2 * d, 0, 2 * d) }
+        col.addView(text(t("Benachrichtigungen", "Notifications"), 17f, pal.onSurface, bold = true).apply { setPadding(4 * d, 0, 0, 8 * d) })
+        if (list.isEmpty()) col.addView(text(t("Keine Benachrichtigungen", "No notifications"), 14f, pal.onSurfaceVariant).apply { setPadding(4 * d, 16 * d, 0, 0) })
+        list.forEach { n ->
+            val x = n.notification.extras
+            val row = LinearLayout(svc).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                background = shape(pal.tile, 20f * d, if (pal.tileEdge != 0) 1 * d else 0, pal.tileEdge)
+                setPadding(14 * d, 10 * d, 14 * d, 10 * d)
+                isClickable = true
+            }
+            val icon = android.widget.ImageView(svc).apply {
+                runCatching { setImageDrawable(svc.packageManager.getApplicationIcon(n.packageName)) }
+            }
+            row.addView(icon, lp(36 * d, 36 * d).apply { rightMargin = 14 * d })
+            val texts = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+            val when_ = android.text.format.DateUtils.getRelativeTimeSpanString(n.postTime, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS)
+            texts.addView(text("${Apps.label(svc, n.packageName)} · $when_", 11f, pal.onSurfaceVariant))
+            x.getCharSequence(android.app.Notification.EXTRA_TITLE)?.let { texts.addView(text(it.toString(), 14f, pal.onSurface, bold = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }) }
+            (x.getCharSequence(android.app.Notification.EXTRA_BIG_TEXT) ?: x.getCharSequence(android.app.Notification.EXTRA_TEXT))?.let {
+                texts.addView(text(it.toString(), 13f, pal.onSurfaceVariant).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END })
+            }
+            row.addView(texts, lp(0, WRAP, 1f))
+            val open = {
+                val pi = n.notification.contentIntent
+                close()
+                if (pi != null) runCatching {
+                    val opts = android.app.ActivityOptions.makeBasic()
+                    if (android.os.Build.VERSION.SDK_INT >= 34) opts.setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                    pi.send(svc, 0, null, null, null, null, opts.toBundle())
+                    if (n.notification.flags and android.app.Notification.FLAG_AUTO_CANCEL != 0) MediaListener.instance?.cancelNotification(n.key)
+                } else svc.packageManager.getLaunchIntentForPackage(n.packageName)?.let { svc.startApp(it) }
+                Unit
+            }
+            val dismiss = {
+                if (n.isClearable) { runCatching { MediaListener.instance?.cancelNotification(n.key) }; svc.ui.postDelayed({ renderGrid() }, 150) }
+                Unit
+            }
+            row.setOnClickListener { open() }
+            col.addView(row, lp(MATCH, WRAP).apply { bottomMargin = 8 * d })
+            items += Item(row, open, onY = if (n.isClearable) dismiss else null)
+        }
+        val sc = android.widget.ScrollView(svc).apply { isVerticalScrollBarEnabled = false; addView(col) }
+        notifScroll = sc
+        body.addView(sc, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        focus = focus.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+    }
+
+    private fun notifMove(dir: Int) {
+        if (items.isEmpty()) return
+        focus = (focus + dir).coerceIn(0, items.lastIndex)
+        showFocus()
+        val v = items[focus].view
+        notifScroll?.let { sc -> if (v.top < sc.scrollY) sc.smoothScrollTo(0, v.top) else if (v.bottom > sc.scrollY + sc.height) sc.smoothScrollTo(0, v.bottom - sc.height) }
+    }
+
+    private fun clearNotifications() {
+        runCatching { MediaListener.instance?.cancelAllNotifications() }
+        svc.ui.postDelayed({ renderGrid() }, 200)
     }
 
     // ---------- sub menus ----------
@@ -4847,6 +4941,20 @@ class ControlCenter(private val svc: HugminnService) {
                 // sideways (and pages, edit, menu) leave the card first
                 else -> { inside = null; markRows() }
             }
+        }
+        // the notifications page: a plain list
+        if (gridPage == -1) {
+            when (e.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> notifMove(-1)
+                KeyEvent.KEYCODE_DPAD_DOWN -> notifMove(1)
+                KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_DPAD_LEFT -> changePage(-1)
+                KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_DPAD_RIGHT -> changePage(1)
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> item?.onA?.invoke()
+                KeyEvent.KEYCODE_BUTTON_Y -> item?.onY?.invoke()
+                KeyEvent.KEYCODE_BUTTON_X -> clearNotifications()
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close()
+            }
+            return true
         }
         val vert = item?.vertical == true
         when (e.keyCode) {
