@@ -271,10 +271,8 @@ class OwnSwitcher(private val svc: HugminnService) {
         // two screens: the app on the lower screen gets a fresh picture too (a second later: Android allows
         // one screenshot per second) – not when the Control Center lies over it
         Displays.second(svc)?.let { other ->
-            if (Root.available() && !svc.comboMode) thread {
-                val low = screenTasks().entries.firstOrNull { it.value.second == other.id }?.key ?: return@thread
-                svc.ui.postDelayed({ if (isOpen && !svc.comboMode) Snapshots.capture(svc, low, other.id) { carousel?.invalidate() } }, 1_100)
-            }
+            val low = svc.topAppOn(other.id)
+            if (low != null && !svc.comboMode) svc.ui.postDelayed({ if (isOpen && !svc.comboMode) Snapshots.capture(svc, low, other.id) { carousel?.invalidate() } }, 1_100)
         }
     }
 
@@ -391,10 +389,32 @@ class OwnSwitcher(private val svc: HugminnService) {
         return out
     }
 
+    /**
+     * The app in front on each screen, from the window list – instant, no root (the root task list made
+     * every move wait behind other root work). package → display.
+     */
+    private fun frontApps(): Map<String, Int> {
+        val other = Displays.second(svc) ?: return emptyMap()
+        val m = LinkedHashMap<String, Int>()
+        svc.topAppOn(android.view.Display.DEFAULT_DISPLAY)?.let { m[it] = android.view.Display.DEFAULT_DISPLAY }
+        svc.topAppOn(other.id)?.let { if (it !in m) m[it] = other.id }
+        return m
+    }
+
+    /** Only one move at a time; presses while one runs are ignored (they used to pile up and run late). */
+    @Volatile private var moving = false
+
     /** Android's task list as last read (for feedback reports). */
     @Volatile var lastStacks = ""
 
-    private fun arrived(pkg: String, display: Int) = screenTasks()[pkg]?.second == display || svc.topAppOn(display) == pkg
+    /** Whether [pkg] is in front on [display] (the window list may need a moment after a move). */
+    private fun arrived(pkg: String, display: Int): Boolean {
+        repeat(4) { i ->
+            if (svc.topAppOn(display) == pkg) return true
+            if (i < 3) Thread.sleep(250)
+        }
+        return false
+    }
 
     /**
      * Runs [SystemCall] as root (Hugminn's own code in a system process) and returns its answer. It runs
@@ -438,8 +458,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         // back to its old screen. The task number is read fresh (a restarted app has a new one).
         PauseActivity.release(svc, "switcher")
         Thread.sleep(700)
-        val id = screenTasks()[a.pkg]?.first ?: a.taskId.takeIf { it > 0 } ?: -1
-        val log = StringBuilder("${a.pkg} (Task $id) → Bildschirm $display:")
+        val log = StringBuilder("${a.pkg} → Bildschirm $display:")
         // like Retroid's own launcher: the app is started on that screen, Android takes its running task
         // along (same task, the game keeps its state) – no root needed
         svc.packageManager.getLaunchIntentForPackage(a.pkg)?.let { i ->
@@ -451,6 +470,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         }
         var sysOk = arrived(a.pkg, display)
         if (sysOk) log.append(" → dort")
+        val id = if (sysOk) -1 else screenTasks()[a.pkg]?.first ?: a.taskId.takeIf { it > 0 } ?: -1
         if (!sysOk && id > 0) {
             // Android 16 has no "move-stack" any more: Hugminn asks the system itself (as root)
             val r = sysCall("move $id $display")
@@ -459,18 +479,12 @@ class OwnSwitcher(private val svc: HugminnService) {
             Thread.sleep(400)
         }
         // where it is over the next seconds (something may pull it back)
-        val track = StringBuilder()
-        for (ms in listOf(300L, 700L, 1000L, 1500L)) {
-            Thread.sleep(ms)
-            track.append(" ").append(screenTasks()[a.pkg]?.second ?: "?")
-        }
-        log.append(" | Verlauf:").append(track)
+        Thread.sleep(300)
         val ok = arrived(a.pkg, display)
         // a fresh picture of the app on its new screen for the switcher
         if (ok) svc.ui.postDelayed({ Snapshots.capture(svc, a.pkg, display) }, 1_100)
-        log.append(if (ok) " → ok" else " → nicht dort angekommen").append(" (Task danach ${screenTasks()[a.pkg]?.first})")
+        log.append(if (ok) " → ok" else " → nicht dort angekommen")
         moveDiag = (moveDiag + "\n" + log).takeLast(1500)
-        if (!ok) moveDiag = (moveDiag + "\nAufgaben:\n" + lastStacks).takeLast(3000)
         if (!ok) Notice.show(svc, t("Verschieben hat nicht geklappt", "Moving did not work"), corner = true)
         return ok
     }
@@ -624,11 +638,7 @@ class OwnSwitcher(private val svc: HugminnService) {
     /** Two screens: each card shows whether its app lies on the top or the bottom screen. */
     private fun markScreens() {
         val other = Displays.second(svc) ?: return
-        if (!Root.available()) return
-        thread {
-            val map = screenTasks().mapValues { it.value.second }
-            svc.ui.post { carousel?.screenOf = map.mapValues { if (it.value == other.id) 2 else 1 } }
-        }
+        carousel?.screenOf = frontApps().mapValues { if (it.value == other.id) 2 else 1 }
     }
 
     /** The front apps of both screens swap places (menu, or L3). */
@@ -636,20 +646,24 @@ class OwnSwitcher(private val svc: HugminnService) {
         Glyphs.note("tauschen · zweiter=${Displays.second(svc)?.id}")
         val other = Displays.second(svc) ?: return
         if (!Root.available()) return
+        if (moving) { Notice.show(svc, t("Verschieben läuft noch …", "Still moving …"), corner = true); return }
+        val where = frontApps()
+        moving = true
         close(back = false)
         thread {
-            val where = screenTasks()
-            moveDiag = (moveDiag + "\nTauschen: " + where.entries.joinToString { "${it.key}@${it.value.second}" }).takeLast(3000)
+          try {
+            moveDiag = (moveDiag + "\nTauschen: " + where.entries.joinToString { "${it.key}@${it.value}" }).takeLast(3000)
             // the front app of each screen (Android's own list, in order)
-            val top = where.entries.firstOrNull { it.value.second == android.view.Display.DEFAULT_DISPLAY }
-            val bottom = where.entries.firstOrNull { it.value.second == other.id }
+            val top = where.entries.firstOrNull { it.value == android.view.Display.DEFAULT_DISPLAY }
+            val bottom = where.entries.firstOrNull { it.value == other.id }
             // only with an app on each screen; with just one, swapping would only move it (R3 does that)
             if (top == null || bottom == null) {
                 Notice.show(svc, t("Tauschen braucht oben und unten eine App", "Swapping needs an app on both screens"), corner = true)
                 return@thread
             }
-            moveToDisplay(RecentApp(top.key, top.value.first), other.id)
-            moveToDisplay(RecentApp(bottom.key, bottom.value.first), android.view.Display.DEFAULT_DISPLAY)
+            moveToDisplay(RecentApp(top.key, -1), other.id)
+            moveToDisplay(RecentApp(bottom.key, -1), android.view.Display.DEFAULT_DISPLAY)
+          } finally { moving = false }
         }
     }
 
@@ -658,15 +672,19 @@ class OwnSwitcher(private val svc: HugminnService) {
         Glyphs.note("anderer Bildschirm: ${a.pkg} · zweiter=${Displays.second(svc)?.id} root=${Root.available()}")
         val other = Displays.second(svc) ?: return
         if (!Root.available()) return
+        if (moving) { Notice.show(svc, t("Verschieben läuft noch …", "Still moving …"), corner = true); return }
+        moving = true
+        val onOther = frontApps()[a.pkg] == other.id
         close(back = false)
         thread {
-            val onOther = screenTasks()[a.pkg]?.second == other.id
+            try {
             val target = if (onOther) android.view.Display.DEFAULT_DISPLAY else other.id
             if (moveToDisplay(a, target) && Device.isDuo) {
                 // the controller follows the moved app, where the focus is fixed to one screen
                 val lock = Device.sys(svc, "screen_focus_lock")?.trim()
                 if (lock == "1" || lock == "2") Device.setSys("screen_focus_lock", if (target == android.view.Display.DEFAULT_DISPLAY) "1" else "2") {}
             }
+            } finally { moving = false }
         }
     }
 
