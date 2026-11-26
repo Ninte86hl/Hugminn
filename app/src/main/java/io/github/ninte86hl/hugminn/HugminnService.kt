@@ -99,6 +99,8 @@ class HugminnService : AccessibilityService() {
     private var pendingSingle = false
     /** When Home went down (uptime ms) – the double press is timed from here. */
     private var homeDownAt = 0L
+    /** When Hugminn received that Home down (uptime ms). */
+    private var homeDownSeen = 0L
     private var longFired = false
     private var ignoreUp = false
     private val longPress = Runnable {
@@ -450,10 +452,22 @@ class HugminnService : AccessibilityService() {
                 }
                 longFired = false
                 homeDownAt = e.eventTime.takeIf { it > 0 } ?: android.os.SystemClock.uptimeMillis()
+                homeDownSeen = android.os.SystemClock.uptimeMillis()
                 if (p.long != Action.NONE) ui.postDelayed(longPress, p.longMs.toLong())
             }
             KeyEvent.ACTION_UP -> {
                 ui.removeCallbacks(longPress)
+                // Pocket Duo: its firmware holds Home back and turns a double press into ONE press, handed on
+                // only when the second one is let go – down and up arrive together, but span both presses.
+                val span = e.eventTime - homeDownAt
+                val together = android.os.SystemClock.uptimeMillis() - homeDownSeen < 40
+                if (Device.isDuo && !ignoreUp && !longFired && together && span >= 100 && p.double != Action.NONE) {
+                    Glyphs.note("home up · Duo-Doppeldruck erkannt ($span ms)")
+                    ui.removeCallbacks(singlePress)
+                    pendingSingle = false
+                    perform(p.double)
+                    return true
+                }
                 when {
                     ignoreUp -> { ignoreUp = false; afterHomeUp?.let { afterHomeUp = null; ui.postDelayed(it, 60) } }
                     longFired -> {}
