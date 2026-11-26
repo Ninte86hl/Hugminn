@@ -462,7 +462,7 @@ class HugminnService : AccessibilityService() {
             KeyEvent.ACTION_UP -> {
                 ui.removeCallbacks(longPress)
                 when {
-                    ignoreUp -> ignoreUp = false
+                    ignoreUp -> { ignoreUp = false; afterHomeUp?.let { afterHomeUp = null; ui.postDelayed(it, 60) } }
                     longFired -> {}
                     p.double == Action.NONE -> perform(p.single)
                     else -> {
@@ -527,6 +527,8 @@ class HugminnService : AccessibilityService() {
     private fun extraToken(code: Int) = "extra$code"
 
     private var passHomeUntil = 0L
+    /** Runs when the Home press Hugminn holds back is let go (see RETROID). */
+    private var afterHomeUp: Runnable? = null
 
     /** The Retroid controller's input device (eventN), found once – reading the list takes a moment. */
     @Volatile private var retroidNode: String? = null
@@ -604,7 +606,9 @@ class HugminnService : AccessibilityService() {
                 // Retroid's assistant only counts Home from the controller itself: two taps written straight into the
                 // controller's input device. Only after the real second press is let go (it must not reach the
                 // firmware), and exactly these two taps pass Hugminn.
-                ui.postDelayed({
+                // only once the real second press is let go – its release must not slip into the pass-through
+                // window (a stray release confused Retroid: its control center closed again at once)
+                val send = Runnable {
                     Thread {
                         val node = retroidNode ?: findRetroidNode()
                         // the window opens only now, right before sending: finding the device took a second or more
@@ -618,7 +622,8 @@ class HugminnService : AccessibilityService() {
                         } else Root.exec("input keyevent --doubletap 3; echo no-device")
                         Glyphs.note("retroid double → ${out?.trim()?.take(120)} node=$node")
                     }.start()
-                }, 250)
+                }
+                if (ignoreUp) afterHomeUp = send else ui.postDelayed(send, 60)
             }
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
             Action.CONTROL_CENTER -> if (controlCenter.isOpen) controlCenter.close() else controlCenter.open()
