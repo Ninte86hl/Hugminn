@@ -356,10 +356,11 @@ class HugminnService : AccessibilityService() {
             if (event.keyCode != KeyEvent.KEYCODE_POWER) { val copy = KeyEvent(event); ui.post { l(copy) }; return true }
         }
         // Homes Hugminn sent on to the firmware itself (Retroid's double press)
-        // only the injected ones (no real device): the release of the real second press must not reach the firmware,
-        // it took it for one more Home and closed Retroid's control center again at once
-        if (event.keyCode == KeyEvent.KEYCODE_HOME && android.os.SystemClock.uptimeMillis() < passHomeUntil &&
-            (event.deviceId <= 0 || event.device?.isVirtual == true)) return false
+        // the double tap Hugminn hands on to Retroid's firmware (sent through the controller itself, see RETROID)
+        if (event.keyCode == KeyEvent.KEYCODE_HOME && passHome > 0 && android.os.SystemClock.uptimeMillis() < passHomeUntil) {
+            if (event.action == KeyEvent.ACTION_UP) passHome--
+            return false
+        }
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
         if (Device.isAynKey(event)) return false
         // Anbernic (RG 406H): its Home button sends F10 from the built-in pad
@@ -502,6 +503,7 @@ class HugminnService : AccessibilityService() {
     private fun extraToken(code: Int) = "extra$code"
 
     private var passHomeUntil = 0L
+    private var passHome = 0
     private var backHeld = false
     private val backLongPress = Runnable { backHeld = true; perform(prefs.backLong) }
 
@@ -552,12 +554,19 @@ class HugminnService : AccessibilityService() {
             // Hugminn holds the Home button, so Retroid's firmware never saw the double press: send it two Homes it may keep
             Action.RETROID -> {
                 closeOverlays()
-                passHomeUntil = android.os.SystemClock.uptimeMillis() + 2000
-                // a double tap as a gamepad's (Retroid's assistant may only count those), Android's own double-tap timing
-                Thread {
-                    val out = Root.exec("input gamepad keyevent --doubletap 3 2>&1 || input keyevent --doubletap 3 2>&1; echo rc=\$?", 5_000)
-                    Glyphs.note("retroid double → ${out?.trim()?.take(120)}")
-                }.start()
+                // Retroid's assistant only counts Home from the controller itself: two taps written straight into the
+                // controller's input device. Only after the real second press is let go (it must not reach the
+                // firmware), and exactly these two taps pass Hugminn.
+                ui.postDelayed({
+                    passHome = 2
+                    passHomeUntil = android.os.SystemClock.uptimeMillis() + 2000
+                    Thread {
+                        val out = Root.exec("d=\$(awk '/^N:.*Retroid Pocket Controller/{f=1} f&&/^H:/{for(i=1;i<=NF;i++) if(\$i~/^event/){print \$i; exit}}' /proc/bus/input/devices); " +
+                            "if [ -n \"\$d\" ]; then for k in 1 2; do sendevent /dev/input/\$d 1 102 1; sendevent /dev/input/\$d 0 0 0; sendevent /dev/input/\$d 1 102 0; sendevent /dev/input/\$d 0 0 0; sleep 0.06; done; echo dev=\$d; " +
+                            "else input keyevent --doubletap 3; echo no-device; fi 2>&1", 5_000)
+                        Glyphs.note("retroid double → ${out?.trim()?.take(120)}")
+                    }.start()
+                }, 250)
             }
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
             Action.CONTROL_CENTER -> if (controlCenter.isOpen) controlCenter.close() else controlCenter.open()
