@@ -509,18 +509,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         val other = Displays.second(svc)
         if (other != null && Root.available()) {
             items += t("Auf anderen Bildschirm", "To the other screen") to { toOtherScreen(a) }
-            items += t("Bildschirme tauschen", "Swap screens") to {
-                close(back = false)
-                thread {
-                    val where = screenTasks()
-                    // the front app of each screen (Android's own list, in order)
-                    val top = where.entries.firstOrNull { it.value.second == android.view.Display.DEFAULT_DISPLAY }
-                    val bottom = where.entries.firstOrNull { it.value.second == other.id }
-                    top?.let { moveToDisplay(RecentApp(it.key, it.value.first), other.id) }
-                    bottom?.let { moveToDisplay(RecentApp(it.key, it.value.first), android.view.Display.DEFAULT_DISPLAY) }
-                    if (top == null && bottom == null) Notice.show(svc, t("Keine App zum Tauschen", "No app to swap"), corner = true)
-                }
-            }
+            items += t("Bildschirme tauschen", "Swap screens") to { swapScreens() }
         }
         if (Root.available() && apps.size > 1) items += tr("Alle anderen schließen") to {
             val keep = Hotkeys.pinned(svc)
@@ -575,7 +564,25 @@ class OwnSwitcher(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_Y -> openMenu()
             // R3: the selected app to the other screen (two screens)
             KeyEvent.KEYCODE_BUTTON_THUMBR -> apps.getOrNull(sel)?.let { toOtherScreen(it) }
+            // L3: the apps of both screens swap places
+            KeyEvent.KEYCODE_BUTTON_THUMBL -> swapScreens()
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close(back = true)
+        }
+    }
+
+    /** The front apps of both screens swap places (menu, or L3). */
+    private fun swapScreens() {
+        val other = Displays.second(svc) ?: return
+        if (!Root.available()) return
+        close(back = false)
+        thread {
+            val where = screenTasks()
+            // the front app of each screen (Android's own list, in order)
+            val top = where.entries.firstOrNull { it.value.second == android.view.Display.DEFAULT_DISPLAY }
+            val bottom = where.entries.firstOrNull { it.value.second == other.id }
+            top?.let { moveToDisplay(RecentApp(it.key, it.value.first), other.id) }
+            bottom?.let { moveToDisplay(RecentApp(it.key, it.value.first), android.view.Display.DEFAULT_DISPLAY) }
+            if (top == null && bottom == null) Notice.show(svc, t("Keine App zum Tauschen", "No app to swap"), corner = true)
         }
     }
 
