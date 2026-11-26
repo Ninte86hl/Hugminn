@@ -130,6 +130,7 @@ class HugminnService : AccessibilityService() {
         if (Device.isAnbernic && android.os.Environment.isExternalStorageManager()) Thread { runCatching { AnbernicHelper.install(packageName) } }.start()
         // Anbernic after a restart: the helper isn't running – Hugminn starts it through Anbernic's script management
         if (Device.isAnbernic) ui.postDelayed({ AnbernicAutostart.afterStart(this) }, 15_000)
+        prefs.duoHomeBack()
         if (Device.isDuo) Thread { runCatching { findRetroidNode() } }.start()
         prefs.forgetOld()
         // the Android wallpaper may have changed while Hugminn was off: copy it again in the background
@@ -359,8 +360,6 @@ class HugminnService : AccessibilityService() {
             if (event.keyCode != KeyEvent.KEYCODE_POWER) { val copy = KeyEvent(event); ui.post { l(copy) }; return true }
         }
         // Homes Hugminn sent on to the firmware itself (Retroid's double press)
-        // Duo diagnosis: what the kernel sees around a Home press (real and handed on), for the feedback
-        if (Device.isDuo && event.keyCode == KeyEvent.KEYCODE_HOME && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) captureHome()
         // the double tap Hugminn hands on to Retroid's firmware (sent through the controller itself, see RETROID)
         // A time window, not a count: some events arrive here twice, the count ran out early and the second tap's
         // release was held back – Retroid then took Home as held and switched the lower screen off.
@@ -432,6 +431,7 @@ class HugminnService : AccessibilityService() {
                 if (!overlayOpen && p.ownSwitcher && !pendingSingle) foregroundPkg?.let { fg ->
                     if (windowPkg == fg && onTopScreen(fg)) Snapshots.capture(this, fg)
                 }
+                Glyphs.note("home down · wartet auf zweiten=$pendingSingle · zweimal=${p.double} lange=${p.long} (${p.doubleMs} ms)")
                 if (pendingSingle) {
                     ui.removeCallbacks(singlePress)
                     pendingSingle = false
