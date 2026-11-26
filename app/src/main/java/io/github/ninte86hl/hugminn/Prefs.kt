@@ -545,7 +545,7 @@ class Prefs(private val ctx: Context) {
 
     /** Max gap between two presses for a double press, in ms. */
     var doubleMs: Int
-        get() = p.getInt("doubleMs", if (Device.isDuo) 450 else 300)
+        get() = p.getInt("doubleMs", 300)
         set(v) = p.edit().putInt("doubleMs", v).apply()
     var longMs: Int
         get() = p.getInt("longMs", 450)
