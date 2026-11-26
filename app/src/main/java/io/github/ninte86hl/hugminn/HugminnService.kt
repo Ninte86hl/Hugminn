@@ -107,8 +107,15 @@ class HugminnService : AccessibilityService() {
     }
     private val singlePress = Runnable {
         pendingSingle = false
+        // an extra press right after opening (the windows were still coming up) must not close them again
+        if ((controlCenter.isOpen || anySwitcherOpen) && android.os.SystemClock.uptimeMillis() - openedAt < 1200) {
+            Glyphs.note("home einzeln ignoriert (gerade geöffnet)")
+            return@Runnable
+        }
         perform(prefs.single)
     }
+    /** When a double or long press last opened something (uptime ms). */
+    private var openedAt = 0L
 
     private var lastNight = -1
 
@@ -604,6 +611,8 @@ class HugminnService : AccessibilityService() {
     }
 
     fun perform(a: Action) {
+        Glyphs.note("aktion $a · offen: combo=$comboMode cc=${::controlCenter.isInitialized && controlCenter.isOpen} switcher=$anySwitcherOpen")
+        if (a == Action.BOTH || a == Action.SWITCHER || a == Action.CONTROL_CENTER) openedAt = android.os.SystemClock.uptimeMillis()
         // trying out the overlays in the setup: a single press must not leave the wizard
         if (overlayOpened != null && a == Action.HOME) return
         try {
@@ -698,6 +707,7 @@ class HugminnService : AccessibilityService() {
     fun comboBuilt() {
         if (!comboMode) return
         if (!controlCenter.isOpen) controlCenter.open(display = comboCcDisplay)
+        Glyphs.note("control center sichtbar")
         comboLook()
     }
 
