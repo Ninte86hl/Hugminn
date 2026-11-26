@@ -214,6 +214,12 @@ class ControlCenter(private val svc: HugminnService) {
         footerView?.visibility = if (active) View.VISIBLE else View.INVISIBLE
     }
 
+    /** Switcher + Control Center: L1/R1 in the switcher turn the Control Center's pages. */
+    fun turnPage(dir: Int) {
+        if (!isOpen || editing || menuView != null) return
+        changePage(dir)
+    }
+
     /** The buttons came over from the switcher: show at once which tile they are on. */
     fun activate() {
         if (!isOpen) return
