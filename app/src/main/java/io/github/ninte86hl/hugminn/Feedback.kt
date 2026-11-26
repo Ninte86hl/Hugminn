@@ -333,6 +333,9 @@ object Feedback {
             if (Root.available() && runCatching { svc.packageManager.getPackageInfo(pk, 0) }.isSuccess)
                 Root.execLong("dumpsys package $pk | grep -iE 'Action:|$pk/|Activity|Service|Receiver|exported' | head -120", 8_000)?.let { appendLine(); appendLine("Retroid-Assistent $pk:"); appendLine(it) }
         if (Device.isDuo) {
+            // what Retroid's assistant consists of (how its floating window – the control center – could be started)
+            Root.execLong("a=\$(pm path com.rp.gameassistant | head -1 | cut -d: -f2); unzip -p \$a 'classes*.dex' | grep -a -o -E 'Lcom/ro/gameassistant/[A-Za-z0-9_/]*(Float|Window|Panel|Service|Receiver|Activity)[A-Za-z0-9_]*;' | sort -u | head -80; settings get secure sysui_qs_tiles", 10_000)
+                ?.let { appendLine(); appendLine("Retroid-Assistent Klassen + QS:"); appendLine(it) }
             svc.homeTrace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Home roh (getevent):"); t.forEach { appendLine(it) } }
             Root.execLong("logcat -d -v time -t 600 | grep -iE 'dualscreen|gameassist|retroid|doubleclick|double_click|HomeKey|home key' | tail -80", 8_000)
                 ?.let { appendLine(); appendLine("Logcat (Retroid):"); appendLine(it) }
