@@ -461,7 +461,7 @@ class HugminnService : AccessibilityService() {
                 // only when the second one is let go – down and up arrive together, but span both presses.
                 val span = e.eventTime - homeDownAt
                 val together = android.os.SystemClock.uptimeMillis() - homeDownSeen < 40
-                if (Device.isDuo && !ignoreUp && !longFired && together && span >= 100 && p.double != Action.NONE) {
+                if (Device.isDuo && !ignoreUp && !longFired && together && span >= 60 && p.double != Action.NONE) {
                     Glyphs.note("home up · Duo-Doppeldruck erkannt ($span ms)")
                     ui.removeCallbacks(singlePress)
                     pendingSingle = false
