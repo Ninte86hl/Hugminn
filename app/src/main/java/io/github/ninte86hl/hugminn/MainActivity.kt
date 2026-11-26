@@ -388,16 +388,15 @@ class MainActivity : Activity() {
         // Gestures
         val g = section(tr("Home-Taste"))
         // "switcher + Control Center" only where there are two screens
-        val actions = Action.values().filter { (it != Action.BOTH || Displays.second(this) != null) && it != Action.RETROID }
+        // Retroid's own control center: on the Duo (Hugminn presses its quick-settings tile, needs root)
+        val actions = Action.values().filter { (it != Action.BOTH || Displays.second(this) != null) && (it != Action.RETROID || Device.isDuo) }
         if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch. Den Doppelklick erkennt die Firmware selbst.",
             "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch. The firmware detects the double click itself."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
-        if (Device.isDuo) g.addView(text(t("Pocket Duo: Zweimal drücken öffnet Retroids eigenes Kontrollcenter – das erkennt die Firmware selbst. Lange drücken öffnet Spielwechsler und Control Center zusammen, je einer pro Bildschirm.",
-            "Pocket Duo: a double press opens Retroid's own control center – the firmware detects it itself. Holding opens switcher and Control Center together, one on each screen."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
-        else row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
+        row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
         if (Device.isRetroid && !Device.noSticks) row(g, t("Zurück lange drücken", "Back held"), t("Kurz gedrückt bleibt es Zurück", "A short press stays Back"), { prefs.backLong.label }) { prefs.backLong = cycle(actions, prefs.backLong) }
-        if (!Device.noSticks && !Device.isDuo) row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
+        if (!Device.noSticks) row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {
             prefs.doubleMs = cycle(listOf(220, 260, 300, 350, 400), prefs.doubleMs)
         }
         row(g, tr("Zeit für langen Druck"), null, { "${prefs.longMs} ms" }) {

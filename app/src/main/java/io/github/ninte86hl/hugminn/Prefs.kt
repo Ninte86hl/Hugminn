@@ -125,7 +125,7 @@ class Prefs(private val ctx: Context) {
         set(v) = p.edit().putString("single", v.name).apply()
     var double: Action
         // Pocket Duo: the firmware takes the double press itself (Retroid's control center) – Hugminn never sees it
-        get() = if (Device.isDuo) Action.RETROID else enumOr(p.getString("double", null), Action.SWITCHER)
+        get() = enumOr(p.getString("double", null), if (Device.isDuo) Action.RETROID else Action.SWITCHER)
         set(v) = p.edit().putString("double", v.name).apply()
     var long: Action
         get() = enumOr(p.getString("long", null), if (Device.isDuo) Action.BOTH else Action.CONTROL_CENTER)
@@ -337,6 +337,11 @@ class Prefs(private val ctx: Context) {
         set(v) = p.edit().putBoolean("gaugeBars", v).apply()
 
     /** Volume as Hugminn shows it (0-100 % in 5 % steps), -1 = not set. */
+    /** Duo: last brightness of the lower screen in %. */
+    var bottomBrightness: Int
+        get() = p.getInt("bottomBrightness", 50)
+        set(v) = p.edit().putInt("bottomBrightness", v).apply()
+
     var volumePct: Int
         get() = p.getInt("volumePct", -1)
         set(v) = p.edit().putInt("volumePct", v).apply()
