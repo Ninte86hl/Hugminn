@@ -383,9 +383,26 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     private fun arrived(pkg: String, display: Int) = screenTasks()[pkg]?.second == display || svc.topAppOn(display) == pkg
 
-    /** Runs [SystemCall] as root (Hugminn's own code in a system process); its answer. */
-    private fun sysCall(cmd: String): String =
-        Root.exec("CLASSPATH=${svc.applicationInfo.sourceDir} timeout 8 app_process /system/bin ${SystemCall::class.java.name} $cmd 2>&1", 10_000)?.trim()?.take(200) ?: "-"
+    /**
+     * Runs [SystemCall] as root (Hugminn's own code in a system process) and returns its answer. It runs
+     * detached and writes into a file: Retroid's root service would otherwise wait for the whole start
+     * of the process, and everything else that needs root (feedback too) waited behind it.
+     */
+    private fun sysCall(cmd: String): String {
+        val f = "/data/local/tmp/hugminn_call_${android.os.SystemClock.uptimeMillis()}"
+        Root.exec("(CLASSPATH=${svc.applicationInfo.sourceDir} timeout 8 app_process /system/bin ${SystemCall::class.java.name} $cmd > $f 2>&1; echo END >> $f) </dev/null >/dev/null 2>&1 &")
+        val until = android.os.SystemClock.uptimeMillis() + 9_000
+        while (android.os.SystemClock.uptimeMillis() < until) {
+            Thread.sleep(250)
+            val out = Root.exec("cat $f 2>/dev/null | tr '\\n' ' '")?.trim().orEmpty()
+            if (out.endsWith("END")) {
+                Root.run("rm -f $f")
+                return out.removeSuffix("END").trim().take(200)
+            }
+        }
+        Root.run("rm -f $f")
+        return "keine Antwort"
+    }
 
     /** What moving apps between the screens did (for feedback reports). */
     @Volatile var moveDiag = ""
