@@ -130,6 +130,7 @@ class HugminnService : AccessibilityService() {
         if (Device.isAnbernic && android.os.Environment.isExternalStorageManager()) Thread { runCatching { AnbernicHelper.install(packageName) } }.start()
         // Anbernic after a restart: the helper isn't running – Hugminn starts it through Anbernic's script management
         if (Device.isAnbernic) ui.postDelayed({ AnbernicAutostart.afterStart(this) }, 15_000)
+        if (Device.isDuo) Thread { runCatching { findRetroidNode() } }.start()
         prefs.forgetOld()
         // the Android wallpaper may have changed while Hugminn was off: copy it again in the background
         if (prefs.backdrop == BackdropSource.WALLPAPER) ui.postDelayed({ if (Root.available()) Backdrop.fetchWallpaper(this) { } }, 8_000)
@@ -526,6 +527,15 @@ class HugminnService : AccessibilityService() {
 
     private var passHomeUntil = 0L
 
+    /** The Retroid controller's input device (eventN), found once – reading the list takes a moment. */
+    @Volatile private var retroidNode: String? = null
+    private fun findRetroidNode(): String? {
+        val devs = Root.execLong("cat /proc/bus/input/devices", 4_000).orEmpty()
+        return devs.split("\n\n").firstOrNull { it.contains("Retroid Pocket Controller") }
+            ?.lineSequence()?.firstOrNull { it.startsWith("H:") }?.split(" ", "=")?.firstOrNull { it.startsWith("event") }
+            ?.also { retroidNode = it }
+    }
+
     /** Duo diagnosis: raw Home events (getevent) for 3 s after a press, the last three captures. */
     val homeTrace = java.util.concurrent.ConcurrentLinkedDeque<String>()
     @Volatile private var capturing = false
@@ -595,20 +605,18 @@ class HugminnService : AccessibilityService() {
                 // controller's input device. Only after the real second press is let go (it must not reach the
                 // firmware), and exactly these two taps pass Hugminn.
                 ui.postDelayed({
-                    passHome = 2
-                    passHomeUntil = android.os.SystemClock.uptimeMillis() + 2000
                     Thread {
-                        // the controller's input device, found in Kotlin – no shell tricks the root service might not take
-                        // (the root service hands back only a short answer; the long way goes through a file)
-                        val devs = Root.execLong("cat /proc/bus/input/devices", 4_000).orEmpty()
-                        val node = devs.split("\n\n").firstOrNull { it.contains("Retroid Pocket Controller") }
-                            ?.lineSequence()?.firstOrNull { it.startsWith("H:") }?.split(" ", "=")?.firstOrNull { it.startsWith("event") }
+                        val node = retroidNode ?: findRetroidNode()
+                        // the window opens only now, right before sending: finding the device took a second or more
+                        // before, the taps came after the window had closed and Hugminn took them for new presses
+                        passHome = 2
+                        passHomeUntil = android.os.SystemClock.uptimeMillis() + 1500
                         val out = if (node != null) {
                             val d = "/dev/input/$node"
                             val tap = "sendevent $d 1 102 1; sendevent $d 0 0 0; sendevent $d 1 102 0; sendevent $d 0 0 0"
                             Root.exec("$tap; sleep 0.12; $tap; echo sent $node")
                         } else Root.exec("input keyevent --doubletap 3; echo no-device")
-                        Glyphs.note("retroid double → ${out?.trim()?.take(120)} (devices ${devs.length} chars)")
+                        Glyphs.note("retroid double → ${out?.trim()?.take(120)} node=$node")
                     }.start()
                 }, 250)
             }
