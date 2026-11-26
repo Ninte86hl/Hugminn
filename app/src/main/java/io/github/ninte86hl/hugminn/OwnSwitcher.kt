@@ -119,6 +119,7 @@ class OwnSwitcher(private val svc: HugminnService) {
     /** App that was in front when the switcher opened (null: home screen). */
     private var fromPkg: String? = null
     private var menu: List<Pair<String, () -> Unit>>? = null
+    val menuOpen get() = menu != null || help != null
     private var menuSel = 0
 
     /** What reading Android's task list found (for feedback reports). */

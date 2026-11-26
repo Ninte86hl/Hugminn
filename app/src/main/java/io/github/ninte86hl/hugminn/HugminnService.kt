@@ -717,6 +717,11 @@ class HugminnService : AccessibilityService() {
             if (!comboCc && e.keyCode == toCc) { Glyphs.note("combo → cc"); comboFocus(true); return true }
             if (comboCc && e.keyCode == toSw && controlCenter.atEdge(if (ccLow) -1 else 1)) { Glyphs.note("combo → switcher"); comboFocus(false); return true }
         }
+        // in the switcher, L1/R1 turn the Control Center's pages on the other screen
+        if (!comboCc && !own.menuOpen && (e.keyCode == KeyEvent.KEYCODE_BUTTON_L1 || e.keyCode == KeyEvent.KEYCODE_BUTTON_R1)) {
+            if (e.action == KeyEvent.ACTION_DOWN) controlCenter.turnPage(if (e.keyCode == KeyEvent.KEYCODE_BUTTON_L1) -1 else 1)
+            return true
+        }
         if (e.action == KeyEvent.ACTION_DOWN) Glyphs.note("combo ${KeyEvent.keyCodeToString(e.keyCode)} → ${if (comboCc) "cc" else "switcher"}")
         if (comboCc) controlCenter.onKey(e) else own.onKey(e)
         return true
