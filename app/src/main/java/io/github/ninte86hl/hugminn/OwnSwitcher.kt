@@ -360,19 +360,26 @@ class OwnSwitcher(private val svc: HugminnService) {
      */
     private fun screenTasks(): LinkedHashMap<String, Pair<Int, Int>> {
         val out = LinkedHashMap<String, Pair<Int, Int>>()
-        val dump = Root.execLong("dumpsys activity activities | grep -E 'Display #|\\* Task\\{'") ?: return out
+        // "RootTask id=233 … displayId=2 …" followed by its "taskId=233: com.android.chrome/…"
+        val dump = Root.execLong("cmd activity stack list 2>&1") ?: return out
+        val homes = svc.packageManager.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME), 0)
+            .map { it.activityInfo.packageName }.toSet()
         var display = 0
-        val disp = Regex("Display #(\\d+)")
-        val task = Regex("\\* Task\\{\\w+ #(\\d+) type=standard (?:A=\\d+:([\\w.]+)|I=([\\w.]+)/)")
+        val root = Regex("RootTask id=\\d+.*displayId=(\\d+)")
+        val task = Regex("taskId=(\\d+): ([\\w.]+)/")
         for (line in dump.lines()) {
-            disp.find(line)?.let { display = it.groupValues[1].toInt(); return@let }
+            root.find(line)?.let { display = it.groupValues[1].toInt() }
             val m = task.find(line) ?: continue
-            val pkg = m.groupValues[2].ifEmpty { m.groupValues[3] }
-            if (pkg.startsWith(svc.packageName) || pkg in out) continue
+            val pkg = m.groupValues[2]
+            if (pkg.startsWith(svc.packageName) || pkg in out || pkg in homes) continue
             out[pkg] = m.groupValues[1].toInt() to display
         }
+        lastStacks = dump.lines().filter { "RootTask" in it || "taskId=" in it }.joinToString("\n") { it.trim().take(140) }.take(1500)
         return out
     }
+
+    /** Android's task list as last read (for feedback reports). */
+    @Volatile var lastStacks = ""
 
     private fun arrived(pkg: String, display: Int) = screenTasks()[pkg]?.second == display || svc.topAppOn(display) == pkg
 
@@ -405,6 +412,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         val ok = arrived(a.pkg, display)
         log.append(if (ok) " → ok" else " → nicht dort angekommen")
         moveDiag = (moveDiag + "\n" + log).takeLast(1500)
+        if (!ok) moveDiag = (moveDiag + "\nAufgaben:\n" + lastStacks).takeLast(3000)
         if (!ok) Notice.show(svc, t("Verschieben hat nicht geklappt", "Moving did not work"), corner = true)
     }
 
