@@ -409,7 +409,7 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     /**
      * Moves an app's task to screen [display] as it is (the game keeps running): the system's own
-     * "move stack"; if Android refuses, the app is started on that screen (which takes its task along).
+     * call to move its task. Never a restart: a delayed one reopened apps that had been closed meanwhile.
      */
     private fun moveToDisplay(a: RecentApp, display: Int) {
         // Hugminn's pause screen must be gone first: while it closes, Android brings the app under it
@@ -425,15 +425,8 @@ class OwnSwitcher(private val svc: HugminnService) {
             sysOk = r.startsWith("ok")
             log.append(" system → ").append(r)
             Thread.sleep(400)
-            if (!sysOk && !arrived(a.pkg, display)) log.append(" | move-stack → ").append(Root.exec("am display move-stack $id $display 2>&1")?.trim()?.take(200) ?: "-")
         }
         Thread.sleep(300)
-        // a fresh start on that screen only as a last resort (it restarts the app): not when the system said yes
-        if (!sysOk && !arrived(a.pkg, display)) {
-            val launch = svc.packageManager.getLaunchIntentForPackage(a.pkg)?.component
-            if (launch != null) log.append(" | am start --display → ").append(Root.exec("am start --display $display -n ${launch.flattenToShortString()} -f 0x10200000 2>&1")?.trim()?.take(200) ?: "-")
-            Thread.sleep(600)
-        }
         val ok = arrived(a.pkg, display)
         log.append(if (ok) " → ok" else " → nicht dort angekommen")
         moveDiag = (moveDiag + "\n" + log).takeLast(1500)
