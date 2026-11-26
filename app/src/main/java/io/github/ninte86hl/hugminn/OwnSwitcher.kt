@@ -264,7 +264,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         // cover the app with a black screen so it pauses (and goes quiet) while the switcher is open
         // music and videos keep playing: pausing them would only break the flow
         val pauseIt = { if (isOpen && fromPkg != null && svc.prefs.pauseInSwitcher && !Media.playsIn(svc, fromPkg)) PauseActivity.hold(svc, "switcher") }
-        if (f != null && !swipe) Snapshots.capture(svc, f) { pauseIt(); afterList() } else { pauseIt(); afterList() }
+        // two screens: only photograph the top screen for the app if it really lies there – an app on the
+        // lower screen with the focus would get a picture of the top screen; it keeps its last picture
+        val onTopScreen = f != null && (Displays.second(svc) == null || svc.topAppOn(android.view.Display.DEFAULT_DISPLAY) == f)
+        if (f != null && !swipe && onTopScreen) Snapshots.capture(svc, f) { pauseIt(); afterList() } else { pauseIt(); afterList() }
         // two screens: the app on the lower screen gets a fresh picture too (a second later: Android allows
         // one screenshot per second) – not when the Control Center lies over it
         Displays.second(svc)?.let { other ->
