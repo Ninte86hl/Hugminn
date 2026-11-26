@@ -306,9 +306,9 @@ object GaugeColors {
         return stops.last().second
     }
 
-    fun of(pal: Palette, palette: GaugePalette, fraction: Float): Int = if (pal.dots && palette == GaugePalette.MONO) {
-        // dot-matrix, monochrome: white, red only when it gets high (Nothing look)
-        if (fraction >= 0.8f) pal.primary else pal.onSurface
+    fun of(pal: Palette, palette: GaugePalette, fraction: Float): Int = if (pal.dots) {
+        // dot matrix (Nothing look): information carries the one accent colour; the numbers stay white
+        pal.primary
     } else when (palette) {
         GaugePalette.TRAFFIC -> blend(listOf(0f to 0xFF4CAF50.toInt(), 0.5f to 0xFF8BC34A.toInt(), 0.7f to 0xFFFFC107.toInt(), 0.85f to 0xFFFF9800.toInt(), 1f to 0xFFF44336.toInt()), fraction)
         GaugePalette.COOL_WARM -> blend(listOf(0f to 0xFF42A5F5.toInt(), 0.5f to 0xFF7E57C2.toInt(), 0.8f to 0xFFEC407A.toInt(), 1f to 0xFFEF5350.toInt()), fraction)
