@@ -332,6 +332,11 @@ object Feedback {
         for (pk in listOf("com.retroidpocket.dualscreen.assistant", "com.rp.gameassistant"))
             if (Root.available() && runCatching { svc.packageManager.getPackageInfo(pk, 0) }.isSuccess)
                 Root.execLong("dumpsys package $pk | grep -iE 'Action:|$pk/|Activity|Service|Receiver|exported' | head -120", 8_000)?.let { appendLine(); appendLine("Retroid-Assistent $pk:"); appendLine(it) }
+        if (Device.isDuo) {
+            svc.homeTrace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Home roh (getevent):"); t.forEach { appendLine(it) } }
+            Root.execLong("logcat -d -v time -t 600 | grep -iE 'dualscreen|gameassist|retroid|doubleclick|double_click|HomeKey|home key' | tail -80", 8_000)
+                ?.let { appendLine(); appendLine("Logcat (Retroid):"); appendLine(it) }
+        }
         AnbernicAutostart.trace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Anbernic-Autostart:"); t.forEach { appendLine("  $it") } }
         Glyphs.trace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Tasten-Umrechnung (roh → Hugminn):"); t.forEach { appendLine("  $it") } }
         val opened = synchronized(svc.windowLog) { svc.windowLog.toList() }
