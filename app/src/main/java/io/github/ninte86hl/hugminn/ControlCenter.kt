@@ -836,6 +836,8 @@ class ControlCenter(private val svc: HugminnService) {
         val sliders = listOf(top, bottom)
         sliders.forEach {
             if (pal.cocoon && svc.prefs.tileColor == 0) it.setAccent(if (bright) 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
+            // dot matrix: the style's red (or the chosen colour), like its curves and gauges
+            else if (pal.dots) it.setAccent(pal.primary, pal.onPrimary)
             else it.setAccent(tileOn(), tileOnFg())
             box.addView(it, lp(440 * d, 56 * d).apply { topMargin = 12 * d })
         }
