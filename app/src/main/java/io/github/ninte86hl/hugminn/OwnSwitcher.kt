@@ -608,9 +608,13 @@ class OwnSwitcher(private val svc: HugminnService) {
             // the front app of each screen (Android's own list, in order)
             val top = where.entries.firstOrNull { it.value.second == android.view.Display.DEFAULT_DISPLAY }
             val bottom = where.entries.firstOrNull { it.value.second == other.id }
-            top?.let { moveToDisplay(RecentApp(it.key, it.value.first), other.id) }
-            bottom?.let { moveToDisplay(RecentApp(it.key, it.value.first), android.view.Display.DEFAULT_DISPLAY) }
-            if (top == null && bottom == null) Notice.show(svc, t("Keine App zum Tauschen", "No app to swap"), corner = true)
+            // only with an app on each screen; with just one, swapping would only move it (R3 does that)
+            if (top == null || bottom == null) {
+                Notice.show(svc, t("Tauschen braucht oben und unten eine App", "Swapping needs an app on both screens"), corner = true)
+                return@thread
+            }
+            moveToDisplay(RecentApp(top.key, top.value.first), other.id)
+            moveToDisplay(RecentApp(bottom.key, bottom.value.first), android.view.Display.DEFAULT_DISPLAY)
         }
     }
 
