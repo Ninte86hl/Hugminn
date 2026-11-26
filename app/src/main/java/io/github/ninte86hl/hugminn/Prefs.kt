@@ -143,8 +143,8 @@ class Prefs(private val ctx: Context) {
     }
 
     var double: Action
-        // Pocket Duo: the firmware takes the double press itself (Retroid's control center) – Hugminn never sees it
-        get() = enumOr(p.getString("double", null), Action.SWITCHER).let { if (it == Action.RETROID) Action.SWITCHER else it }
+        // Retroid's control center: only on the Duo, where Hugminn can hand the controller's double press on to it
+        get() = enumOr(p.getString("double", null), Action.SWITCHER).let { if (it == Action.RETROID && !Device.isDuo) Action.SWITCHER else it }
         set(v) = p.edit().putString("double", v.name).apply()
     var long: Action
         // Duo: switcher and Control Center together, one per screen (Hugminn offers what Retroid's own panel does)

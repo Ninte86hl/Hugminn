@@ -394,9 +394,11 @@ class MainActivity : Activity() {
         if (Device.noSticks) g.addView(text(t("Pocket Classic: Die Taste unter dem Bildschirm ist hier die Home-Taste. Zurück geht über die B-Taste oder per Touch. Den Doppelklick erkennt die Firmware selbst.",
             "Pocket Classic: the button below the screen is the Home button here. Back is on the B button or touch. The firmware detects the double click itself."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
         row(g, tr("Einmal drücken"), null, { prefs.single.label }) { prefs.single = cycle(actions, prefs.single) }
-        if (Device.isDuo) g.addView(text(t("Pocket Duo: Solange Hugminn die Home-Taste nutzt, öffnet sie Retroids eigenes Kontrollcenter nicht mehr – seine Funktionen gibt es als Kacheln im Control Center (Bildschirm-Fokus, unterer Bildschirm, Helligkeit und Lautstärke unten …).",
-            "Pocket Duo: while Hugminn uses the Home button, it no longer opens Retroid's own control center – its functions are tiles in the Control Center (screen focus, lower screen, brightness and volume below …)."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
-        row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(actions, prefs.double) }
+        if (Device.isDuo) g.addView(text(t("Pocket Duo: Retroids eigenes Kontrollcenter kannst du bei „Zweimal drücken“ wählen (dafür muss Retroids Game Assistant an sein). Seine Funktionen gibt es auch als Kacheln im Control Center (Bildschirm-Fokus, unterer Bildschirm, Helligkeit und Lautstärke unten …).",
+            "Pocket Duo: Retroid's own control center can be chosen for “Press twice” (Retroid's Game Assistant must be on for it). Its functions are also tiles in the Control Center (screen focus, lower screen, brightness and volume below …)."), 13f, pal.onSurfaceVariant).apply { setPadding(0, d(8), 0, d(4)) })
+        // Duo: the double press can also stay Retroid's (its own control center)
+        val doubleActions = if (Device.isDuo) actions + Action.RETROID else actions
+        row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(doubleActions, prefs.double) }
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
         if (Device.isRetroid && !Device.noSticks) row(g, t("Zurück lange drücken", "Back held"), t("Kurz gedrückt bleibt es Zurück", "A short press stays Back"), { prefs.backLong.label }) { prefs.backLong = cycle(actions, prefs.backLong) }
         if (!Device.noSticks) row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {

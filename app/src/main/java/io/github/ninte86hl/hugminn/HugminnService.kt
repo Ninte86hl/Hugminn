@@ -101,6 +101,8 @@ class HugminnService : AccessibilityService() {
     private var homeDownAt = 0L
     /** Pocket Duo: scan code of the controller's own double press (F24, Android turns it into Home). */
     private val DUO_DOUBLE = 194
+    /** The Duo's double press went on to Retroid: its release goes there too. */
+    private var passDuoDouble = false
     /** When Hugminn received that Home down (uptime ms). */
     private var homeDownSeen = 0L
     private var longFired = false
@@ -447,6 +449,13 @@ class HugminnService : AccessibilityService() {
                 Glyphs.note("home down · scan=${e.scanCode} · wartet auf zweiten=$pendingSingle · zweimal=${p.double} lange=${p.long} (${p.doubleMs} ms)")
                 // Pocket Duo: its controller tells single and double apart itself – a single press arrives as
                 // Home (scan code 102) right away, a double press as one short tap of F24 (scan code 194)
+                if (Device.isDuo && e.scanCode == DUO_DOUBLE && p.double == Action.RETROID && !overlayOpen) {
+                    // left to Retroid: its system opens its own control center from this key
+                    ui.removeCallbacks(singlePress)
+                    pendingSingle = false
+                    passDuoDouble = true
+                    return false
+                }
                 if (Device.isDuo && e.scanCode == DUO_DOUBLE) {
                     ui.removeCallbacks(singlePress)
                     pendingSingle = false
@@ -467,6 +476,7 @@ class HugminnService : AccessibilityService() {
                 if (p.long != Action.NONE) ui.postDelayed(longPress, p.longMs.toLong())
             }
             KeyEvent.ACTION_UP -> {
+                if (passDuoDouble && e.scanCode == DUO_DOUBLE) { passDuoDouble = false; return false }
                 ui.removeCallbacks(longPress)
                 when {
                     ignoreUp -> { ignoreUp = false; afterHomeUp?.let { afterHomeUp = null; ui.postDelayed(it, 60) } }
@@ -681,10 +691,9 @@ class HugminnService : AccessibilityService() {
                 }
             }
             // Hugminn holds the Home button, so Retroid's firmware never saw the double press: send it two Homes it may keep
-            Action.RETROID -> {
-                closeOverlays()
-                openRetroidPanel()
-            }
+            // Retroid's control center opens from the controller's own double press (handed on in onHome);
+            // with Hugminn's windows open, that press closes them first
+            Action.RETROID -> closeOverlays()
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
             Action.BOTTOM_SCREEN -> if (Device.isDuo && Root.available()) Thread {
                 val on = !Device.bottomScreenOn(this)
