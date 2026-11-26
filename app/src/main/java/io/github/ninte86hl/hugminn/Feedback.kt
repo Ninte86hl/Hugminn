@@ -27,6 +27,7 @@ object Feedback {
     private const val REPO = "Ninte86hl/Hugminn-Feedback"
     private const val BRANCH = "main"
     @Volatile private var busy = false
+    @Volatile private var busySince = 0L
 
     /** [quick]: upload right away without asking for a description (the game keeps running). */
     fun capture(svc: HugminnService, where: String, quick: Boolean = false) {
@@ -35,8 +36,14 @@ object Feedback {
             toast(svc, "Feedback: Bitte zuerst in den Hugminn-Einstellungen einen GitHub-Token eintragen")
             return
         }
-        if (busy) return
+        // a report that never finished (no network, screenshot refused) must not block the next one forever
+        if (busy && android.os.SystemClock.uptimeMillis() - busySince < 60_000) {
+            toast(svc, "Feedback: Der letzte Bericht wird noch gesendet")
+            return
+        }
         busy = true
+        busySince = android.os.SystemClock.uptimeMillis()
+        toast(svc, "Feedback wird aufgenommen …")
         val info = describe(svc, where)
         svc.takeScreenshot(Display.DEFAULT_DISPLAY, svc.mainExecutor, object : AccessibilityService.TakeScreenshotCallback {
             override fun onSuccess(result: AccessibilityService.ScreenshotResult) {

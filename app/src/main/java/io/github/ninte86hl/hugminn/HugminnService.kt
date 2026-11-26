@@ -419,6 +419,7 @@ class HugminnService : AccessibilityService() {
         // test builds: Select sends a feedback report (screenshot + log) from the overlays
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT && (controlCenter.isOpen || anySwitcherOpen)) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                Glyphs.note("select → feedback (combo=$comboMode)")
                 if (prefs.githubToken.isNullOrBlank()) Shot.take(this)
                 else Feedback.capture(this, if (controlCenter.isOpen) "controlcenter" else "switcher")
             }
