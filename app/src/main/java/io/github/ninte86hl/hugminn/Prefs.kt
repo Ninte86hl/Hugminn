@@ -337,6 +337,11 @@ class Prefs(private val ctx: Context) {
         set(v) = p.edit().putBoolean("gaugeBars", v).apply()
 
     /** Volume as Hugminn shows it (0-100 % in 5 % steps), -1 = not set. */
+    /** Duo: the way that brought up Retroid's control center last time. */
+    var retroidWay: String
+        get() = p.getString("retroidWay", "service") ?: "service"
+        set(v) = p.edit().putString("retroidWay", v).apply()
+
     /** Duo: last brightness of the lower screen in %. */
     var bottomBrightness: Int
         get() = p.getInt("bottomBrightness", 50)
