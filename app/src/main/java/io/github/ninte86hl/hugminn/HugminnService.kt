@@ -511,6 +511,8 @@ class HugminnService : AccessibilityService() {
     /** Runs when the Home press Hugminn holds back is let go (see RETROID). */
     private var afterHomeUp: Runnable? = null
 
+    private val RETROID_TILE = "com.rp.gameassistant/com.ro.gameassistant.service.FloatingWindowTileService"
+
     /** Home pressed / let go as raw input events (struct input_event, 64-bit: time 16 bytes, type, code, value) + sync. */
     private fun homeEventFiles(): Pair<String, String> {
         fun ev(type: Int, code: Int, value: Int) = java.nio.ByteBuffer.allocate(24).order(java.nio.ByteOrder.LITTLE_ENDIAN)
@@ -595,29 +597,12 @@ class HugminnService : AccessibilityService() {
             // Hugminn holds the Home button, so Retroid's firmware never saw the double press: send it two Homes it may keep
             Action.RETROID -> {
                 closeOverlays()
-                // Retroid's assistant only counts Home from the controller itself: two taps written straight into the
-                // controller's input device. Only after the real second press is let go (it must not reach the
-                // firmware), and exactly these two taps pass Hugminn.
-                // only once the real second press is let go – its release must not slip into the pass-through
-                // window (a stray release confused Retroid: its control center closed again at once)
-                val send = Runnable {
-                    Thread {
-                        val node = retroidNode ?: findRetroidNode()
-                        // the window opens only now, right before sending: finding the device took a second or more
-                        // before, the taps came after the window had closed and Hugminn took them for new presses
-                        // long enough for both taps (about 0.25 s), short enough to take no real press along
-                        passHomeUntil = android.os.SystemClock.uptimeMillis() + 700
-                        val out = if (node != null) {
-                            // raw input events written in one go: with sendevent (a program per event) the second
-                            // tap was held for almost half a second – Retroid saw a long press, not a double tap
-                            val (down, up) = homeEventFiles()
-                            val d = "/dev/input/$node"
-                            Root.exec("cat $down > $d; sleep 0.05; cat $up > $d; sleep 0.1; cat $down > $d; sleep 0.05; cat $up > $d; echo sent $node")
-                        } else Root.exec("input keyevent --doubletap 3; echo no-device")
-                        Glyphs.note("retroid double → ${out?.trim()?.take(120)} node=$node")
-                    }.start()
-                }
-                if (ignoreUp) afterHomeUp = send else ui.postDelayed(send, 60)
+                // Retroid's control center is its "floating window", which also has a quick-settings tile:
+                // Hugminn presses that tile (no imitated Home presses – Retroid didn't take those reliably)
+                Thread {
+                    val out = Root.execLong("cmd statusbar click-tile $RETROID_TILE 2>&1; echo rc=\$?", 4_000)
+                    Glyphs.note("retroid tile → ${out?.trim()?.take(160)}")
+                }.start()
             }
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
             Action.CONTROL_CENTER -> if (controlCenter.isOpen) controlCenter.close() else controlCenter.open()
