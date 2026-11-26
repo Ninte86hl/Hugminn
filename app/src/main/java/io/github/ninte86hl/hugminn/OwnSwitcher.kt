@@ -354,6 +354,10 @@ class OwnSwitcher(private val svc: HugminnService) {
         renderBar()
     }
 
+    /** Runs [SystemCall] as root (Hugminn's own code in a system process); its answer. */
+    private fun sysCall(cmd: String): String =
+        Root.exec("CLASSPATH=${svc.applicationInfo.sourceDir} app_process /system/bin ${SystemCall::class.java.name} $cmd 2>&1")?.trim()?.take(200) ?: "-"
+
     /** What moving apps between the screens did (for feedback reports). */
     @Volatile var moveDiag = ""
 
@@ -364,7 +368,12 @@ class OwnSwitcher(private val svc: HugminnService) {
     private fun moveToDisplay(a: RecentApp, display: Int) {
         val id = a.taskId.takeIf { it > 0 } ?: loadTasks()?.firstOrNull { it.pkg == a.pkg }?.taskId ?: -1
         val log = StringBuilder("${a.pkg} (Task $id) → Bildschirm $display:")
-        if (id > 0) log.append(" move-stack → ").append(Root.exec("am display move-stack $id $display 2>&1")?.trim()?.take(200) ?: "-")
+        if (id > 0) {
+            // Android 16 has no "move-stack" any more: Hugminn asks the system itself (as root)
+            log.append(" system → ").append(sysCall("move $id $display"))
+            Thread.sleep(400)
+            if (svc.topAppOn(display) != a.pkg) log.append(" | move-stack → ").append(Root.exec("am display move-stack $id $display 2>&1")?.trim()?.take(200) ?: "-")
+        }
         Thread.sleep(500)
         if (svc.topAppOn(display) != a.pkg) {
             val launch = svc.packageManager.getLaunchIntentForPackage(a.pkg)?.component
@@ -400,7 +409,7 @@ class OwnSwitcher(private val svc: HugminnService) {
             if (id > 0) {
                 val code = removeTaskCode()
                 if (code != null) log.append(" service call $code → ${Root.exec("service call activity_task $code i32 $id")}")
-                else log.append(" kein Transaktionscode")
+                else log.append(" system → ${sysCall("remove $id")}")
                 if (stillListed(a.pkg) == true) log.append(" | am stack remove → ${Root.exec("am stack remove $id 2>&1")}")
             }
             Root.exec("am force-stop ${a.pkg}")
