@@ -411,7 +411,7 @@ class OwnSwitcher(private val svc: HugminnService) {
      * Moves an app's task to screen [display] as it is (the game keeps running): the system's own
      * call to move its task. Never a restart: a delayed one reopened apps that had been closed meanwhile.
      */
-    private fun moveToDisplay(a: RecentApp, display: Int) {
+    private fun moveToDisplay(a: RecentApp, display: Int): Boolean {
         // Hugminn's pause screen must be gone first: while it closes, Android brings the app under it
         // back to its old screen. The task number is read fresh (a restarted app has a new one).
         PauseActivity.release(svc, "switcher")
@@ -448,6 +448,7 @@ class OwnSwitcher(private val svc: HugminnService) {
         moveDiag = (moveDiag + "\n" + log).takeLast(1500)
         if (!ok) moveDiag = (moveDiag + "\nAufgaben:\n" + lastStacks).takeLast(3000)
         if (!ok) Notice.show(svc, t("Verschieben hat nicht geklappt", "Moving did not work"), corner = true)
+        return ok
     }
 
     /** Android's recents view was opened underneath (to remove cards): leave it like after a swipe. */
@@ -626,7 +627,12 @@ class OwnSwitcher(private val svc: HugminnService) {
         close(back = false)
         thread {
             val onOther = screenTasks()[a.pkg]?.second == other.id
-            moveToDisplay(a, if (onOther) android.view.Display.DEFAULT_DISPLAY else other.id)
+            val target = if (onOther) android.view.Display.DEFAULT_DISPLAY else other.id
+            if (moveToDisplay(a, target) && Device.isDuo) {
+                // the controller follows the moved app, where the focus is fixed to one screen
+                val lock = Device.sys(svc, "screen_focus_lock")?.trim()
+                if (lock == "1" || lock == "2") Device.setSys("screen_focus_lock", if (target == android.view.Display.DEFAULT_DISPLAY) "1" else "2") {}
+            }
         }
     }
 

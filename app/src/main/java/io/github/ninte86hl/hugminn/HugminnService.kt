@@ -713,7 +713,7 @@ class HugminnService : AccessibilityService() {
                 closeOverlays()
                 // two screens: Android's Home acts on the screen with the focus – Hugminn's Home always
                 // brings the chosen launcher to the top screen
-                val top = Displays.onTop(this)
+                val top = if (prefs.homeOnTop) Displays.onTop(this) else null
                 if (top != null) runCatching {
                     startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), top)
                 }.onFailure { performGlobalAction(GLOBAL_ACTION_HOME) }

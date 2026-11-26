@@ -373,6 +373,14 @@ class Prefs(private val ctx: Context) {
         set(v) = p.edit().putString("retroidWay", v).apply()
 
     /** Duo: last brightness of the lower screen in %. */
+    /** Two screens: Home brings the launcher to the top screen (true) or acts on the screen with the focus. */
+    var homeOnTop: Boolean
+        get() = p.getBoolean("homeOnTop", true)
+        set(v) = p.edit().putBoolean("homeOnTop", v).apply()
+    /** Pocket Duo: how much brighter (+) or darker (−) the lower screen is than the top one, in %. */
+    var bottomOffset: Int
+        get() = p.getInt("bottomOffset", 0)
+        set(v) = p.edit().putInt("bottomOffset", v).apply()
     var bottomBrightness: Int
         get() = p.getInt("bottomBrightness", 50)
         set(v) = p.edit().putInt("bottomBrightness", v).apply()

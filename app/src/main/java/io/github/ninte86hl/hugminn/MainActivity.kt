@@ -399,6 +399,9 @@ class MainActivity : Activity() {
         // Duo: the double press can also stay Retroid's (its own control center)
         val doubleActions = if (Device.isDuo) actions + Action.RETROID else actions
         row(g, tr("Zweimal drücken"), null, { prefs.double.label }) { prefs.double = cycle(doubleActions, prefs.double) }
+        if (Displays.second(this) != null) row(g, t("Startbildschirm bei zwei Bildschirmen", "Home with two screens"),
+            t("Wohin „Startbildschirm“ führt, wenn oben und unten Apps laufen", "Where “Home” goes when apps run on both screens"),
+            { if (prefs.homeOnTop) t("Immer oben", "Always top") else t("Bildschirm mit Fokus", "Screen with focus") }) { prefs.homeOnTop = !prefs.homeOnTop }
         row(g, tr("Lange drücken"), null, { prefs.long.label }) { prefs.long = cycle(actions, prefs.long) }
         if (Device.isRetroid && !Device.noSticks) row(g, t("Zurück lange drücken", "Back held"), t("Kurz gedrückt bleibt es Zurück", "A short press stays Back"), { prefs.backLong.label }) { prefs.backLong = cycle(actions, prefs.backLong) }
         if (!Device.noSticks) row(g, tr("Zeit für Doppeldruck"), tr("Kürzer = einfacher Druck reagiert schneller"), { "${prefs.doubleMs} ms" }) {

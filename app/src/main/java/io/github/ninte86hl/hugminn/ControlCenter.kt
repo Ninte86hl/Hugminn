@@ -797,10 +797,11 @@ class ControlCenter(private val svc: HugminnService) {
         val bright = e.id == "brightnessDuo"
         val vertical = e.h >= e.w
         val icon = if (bright) IconView.Kind.SUN else IconView.Kind.SPEAKER
-        val top = if (bright) BigSlider(svc, pal, icon, t("Oben", "Top"), 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it) }
+        val top = if (bright) BigSlider(svc, pal, icon, t("Oben", "Top"), 255, Device.brightness(svc), pixel, vertical) { Device.setBrightness(svc, it); svc.prefs.bottomOffset = svc.prefs.bottomBrightness - Math.round(it * 100 / 255f) }
             else BigSlider(svc, pal, icon, t("Oben", "Top"), 100, mainVolumePct(), pixel, vertical) { setMainVolumePct(it) }.also { volumeSliders += it }
         val bottom = if (bright) BigSlider(svc, pal, icon, t("Unten", "Bottom"), 100, svc.prefs.bottomBrightness, pixel, vertical) {
                 svc.prefs.bottomBrightness = it
+                svc.prefs.bottomOffset = it - Math.round(Device.brightness(svc) * 100 / 255f)
                 Device.setBottomBrightness(it)
             } else BigSlider(svc, pal, icon, t("Unten", "Bottom"), 15, Device.bottomVolume(svc), pixel, vertical) { Device.setBottomVolume(it) }
         val both = listOf(top, bottom)
@@ -837,10 +838,11 @@ class ControlCenter(private val svc: HugminnService) {
         }
         box.addView(text(if (bright) tr("Helligkeit") else tr("Lautstärke"), 18f, pal.onSurface, bold = true))
         val icon = if (bright) IconView.Kind.SUN else IconView.Kind.SPEAKER
-        val top = if (bright) BigSlider(svc, pal, icon, t("Oben", "Top"), 255, Device.brightness(svc), pixel) { Device.setBrightness(svc, it) }
+        val top = if (bright) BigSlider(svc, pal, icon, t("Oben", "Top"), 255, Device.brightness(svc), pixel) { Device.setBrightness(svc, it); svc.prefs.bottomOffset = svc.prefs.bottomBrightness - Math.round(it * 100 / 255f) }
             else BigSlider(svc, pal, icon, t("Oben", "Top"), 100, mainVolumePct(), pixel) { setMainVolumePct(it) }
         val bottom = if (bright) BigSlider(svc, pal, icon, t("Unten", "Bottom"), 100, svc.prefs.bottomBrightness, pixel) {
                 svc.prefs.bottomBrightness = it
+                svc.prefs.bottomOffset = it - Math.round(Device.brightness(svc) * 100 / 255f)
                 Device.setBottomBrightness(it)
             } else BigSlider(svc, pal, icon, t("Unten", "Bottom"), 15, Device.bottomVolume(svc), pixel) { Device.setBottomVolume(it) }
         val sliders = listOf(top, bottom)
@@ -876,7 +878,8 @@ class ControlCenter(private val svc: HugminnService) {
             val both = Device.isDuo && Root.available()
             val v = if (id == "brightness" || id == "brightnessAll") BigSlider(svc, pal, IconView.Kind.SUN, tr("Helligkeit"), 255, Device.brightness(svc), pixel, vertical) {
                 Device.setBrightness(svc, it)
-                if (both) { val p = Math.round(it * 100 / 255f); svc.prefs.bottomBrightness = p; Device.setBottomBrightness(p) }
+                // the lower screen follows and keeps its difference to the top one
+                if (both) { val p = (Math.round(it * 100 / 255f) + svc.prefs.bottomOffset).coerceIn(1, 100); svc.prefs.bottomBrightness = p; Device.setBottomBrightness(p) }
             }
             else if (id == "volume" || id == "volumeAll") BigSlider(svc, pal, IconView.Kind.SPEAKER, tr("Lautstärke"), 100, mainVolumePct(), pixel, vertical) {
                 setMainVolumePct(it)
@@ -884,6 +887,7 @@ class ControlCenter(private val svc: HugminnService) {
             }.also { volumeSliders += it }
             else if (id == "brightness2") BigSlider(svc, pal, IconView.Kind.SUN, t("Helligkeit unten", "Brightness below"), 100, svc.prefs.bottomBrightness, pixel, vertical) {
                 svc.prefs.bottomBrightness = it
+                svc.prefs.bottomOffset = it - Math.round(Device.brightness(svc) * 100 / 255f)
                 Device.setBottomBrightness(it)
             }
             else BigSlider(svc, pal, IconView.Kind.SPEAKER, t("Lautstärke unten", "Volume below"), 15, Device.bottomVolume(svc), pixel, vertical) { Device.setBottomVolume(it) }
