@@ -348,3 +348,103 @@ class GaugeBar(ctx: Context, private val pal: Palette, private val pixel: Boolea
         }
     }
 }
+
+/**
+ * Dot style, a small information tile as a circle (Nothing look): a ring of dots around the value,
+ * lit in the accent up to [fraction]; the title small under the value. Draws itself into the largest
+ * circle that fits, so it is never cut off or squeezed whatever the screen's shape.
+ */
+class DotDial(ctx: Context, private val pal: Palette, private val title: String) : View(ctx) {
+    private var fraction = 0f
+    private var value = "–"
+    private var accent = pal.primary
+    private var warn = false
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val big = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = Look.font(ctx, false, true) }
+    private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; letterSpacing = 0.08f }
+
+    fun set(f: Float, v: String, color: Int, warning: Boolean) {
+        fraction = f.coerceIn(0f, 1f); value = v; accent = color; warn = warning
+        invalidate()
+    }
+
+    override fun onDraw(c: Canvas) {
+        val size = minOf(width, height).toFloat()
+        if (size <= 0f) return
+        val cx = width / 2f
+        val cy = height / 2f
+        val r = size / 2f
+        fill.color = pal.tile
+        c.drawCircle(cx, cy, r, fill)
+        if (warn) { fill.style = Paint.Style.STROKE; fill.strokeWidth = size * 0.025f; fill.color = pal.primary; c.drawCircle(cx, cy, r - fill.strokeWidth / 2, fill); fill.style = Paint.Style.FILL }
+        // 24 dots over three quarters of a circle, open at the bottom
+        val n = 24
+        val ringR = r * 0.78f
+        val dotR = (size * 0.032f).coerceAtLeast(1.5f)
+        val lit = Math.round(fraction * n)
+        for (i in 0 until n) {
+            val a = Math.toRadians(135.0 + 270.0 * i / (n - 1))
+            dot.color = if (i < lit) accent else pal.surfaceHighest
+            c.drawCircle(cx + ringR * Math.cos(a).toFloat(), cy + ringR * Math.sin(a).toFloat(), dotR, dot)
+        }
+        // value: as large as fits inside the ring
+        big.color = if (warn) pal.primary else pal.onSurface
+        big.textSize = size * 0.24f
+        val maxW = ringR * 1.35f
+        while (big.measureText(value) > maxW && big.textSize > 6f) big.textSize -= 1f
+        c.drawText(value, cx, cy + big.textSize * 0.30f, big)
+        small.color = pal.onSurfaceVariant
+        small.textSize = size * 0.085f
+        val t = android.text.TextUtils.ellipsize(title.uppercase(), android.text.TextPaint(small), ringR * 1.2f, android.text.TextUtils.TruncateAt.END).toString()
+        c.drawText(t, cx, cy + big.textSize * 0.30f + small.textSize * 1.6f, small)
+    }
+}
+
+/**
+ * Dot style, the battery as a standing capsule: segments lit from the bottom up to its charge, the
+ * percentage under them. Fits the cell in either shape (taller than wide, or the other way round).
+ */
+class DotCapsule(ctx: Context, private val pal: Palette) : View(ctx) {
+    private var charge = 0f
+    private var value = "–"
+    private var accent = pal.primary
+    private var warn = false
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val seg = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val txt = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = Look.font(ctx, false, true) }
+
+    fun set(level: Float, v: String, color: Int, warning: Boolean) {
+        charge = level.coerceIn(0f, 1f); value = v; accent = color; warn = warning
+        invalidate()
+    }
+
+    override fun onDraw(c: Canvas) {
+        if (width <= 0 || height <= 0) return
+        // the capsule: up to 92 % of the height, half as wide as tall (narrower cells get a slimmer one)
+        val h = height * 0.92f
+        val w = minOf(h * 0.55f, width * 0.8f)
+        val box = RectF((width - w) / 2f, (height - h) / 2f, (width + w) / 2f, (height + h) / 2f)
+        fill.color = pal.tile
+        c.drawRoundRect(box, w / 2, w / 2, fill)
+        if (warn) { fill.style = Paint.Style.STROKE; fill.strokeWidth = w * 0.04f; fill.color = pal.primary; c.drawRoundRect(box, w / 2, w / 2, fill); fill.style = Paint.Style.FILL }
+        txt.color = if (warn) pal.primary else pal.onSurface
+        txt.textSize = (w * 0.26f).coerceAtMost(h * 0.12f)
+        while (txt.measureText(value) > w * 0.85f && txt.textSize > 6f) txt.textSize -= 1f
+        val textTop = box.bottom - w * 0.35f - txt.textSize
+        // seven segments between the rounded top and the percentage
+        val n = 7
+        val top = box.top + w * 0.32f
+        val bottom = textTop - w * 0.08f
+        val gap = (bottom - top) * 0.06f
+        val sh = ((bottom - top) - gap * (n - 1)) / n
+        val sw = w * 0.5f
+        val lit = Math.round(charge * n)
+        for (i in 0 until n) {
+            val y = bottom - (i + 1) * sh - i * gap
+            seg.color = if (i < lit) accent else pal.surfaceHighest
+            c.drawRoundRect(RectF(box.centerX() - sw / 2, y, box.centerX() + sw / 2, y + sh), sh / 2, sh / 2, seg)
+        }
+        c.drawText(value, box.centerX(), box.bottom - w * 0.35f, txt)
+    }
+}
