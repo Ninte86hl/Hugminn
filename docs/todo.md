@@ -74,6 +74,9 @@ Hold the Back button (long press) → a small menu over the game, chosen with th
 - Helligkeit (slider)
 - Mausmodus (firmware's own mode; not on the Pocket Classic) – no extra L3 + R3 hotkey needed
 
+External controllers: their Guide/Home button already works like the device's Home in Hugminn (setting "Controller-Home", prefs.padHome, with single/double/long actions) – so "Schnellmenü" as a Home action (e.g. long) covers them. Controllers without a Guide button: optional "Select held ~1.5 s" for external pads only.
+Back double press: selectable option, default stays long press (double would delay every Back or send it twice).
+
 No Select or stick combinations, so the emulators' own hotkeys and games stay untouched. Check: whether a firmware already uses Back held for something.
 
 ## From the Steam Deck (still open which ones)
