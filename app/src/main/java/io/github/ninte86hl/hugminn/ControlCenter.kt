@@ -966,6 +966,46 @@ class ControlCenter(private val svc: HugminnService) {
         return c to Item(c, null)
     }
 
+    /**
+     * FPS with its graph on top, CPU · GPU · RAM under it (same look as the status list: spaced
+     * titles, values, thick bars). 2×2 or 4×2.
+     */
+    private fun statsFpsElement(e: GridEntry): Pair<View, Item?> {
+        val gp = svc.prefs.gaugePalette
+        val c = card().apply { setPadding(18 * d, 12 * d, 18 * d, 12 * d) }
+        val head = LinearLayout(svc).apply { gravity = Gravity.BOTTOM }
+        head.addView(text("FPS", 10f, pal.onSurfaceVariant).apply { letterSpacing = 0.12f }, lp(0, WRAP, 1f))
+        val fps = TextView(svc).apply { typeface = Look.font(svc, pixel, true); setTextColor(pal.onSurface); setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f); maxLines = 1 }
+        head.addView(fps)
+        c.addView(head)
+        val g = GraphView(svc, pal.primary, 120f).styled(pal, pixel).apply { setColors(GaugeColors.graph(pal, gp, 120f) { 1f - (it / 60f).coerceIn(0f, 1f) }) }
+        c.addView(g, lp(MATCH, 0, 1f).apply { topMargin = 2 * d; bottomMargin = 8 * d })
+        live { s -> fps.text = if (s.fps >= 0) "${s.fps}" else "–"; if (s.fps >= 0) g.push(s.fps.toFloat()) }
+        val row = LinearLayout(svc)
+        listOf(
+            Triple("CPU", { s: Metrics.Sample -> "${s.cpuPct.toInt()} %" }, { s: Metrics.Sample -> s.cpuPct / 100f }),
+            Triple("GPU", { s: Metrics.Sample -> "${s.gpuPct.toInt()} %" }, { s: Metrics.Sample -> s.gpuPct / 100f }),
+            Triple("RAM", { s: Metrics.Sample -> "%.1f GB".format(s.ramUsedMb / 1024f) }, { s: Metrics.Sample -> if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f }),
+        ).forEachIndexed { i, (name, value, frac) ->
+            val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
+            col.addView(text(name, 10f, pal.onSurfaceVariant).apply { letterSpacing = 0.12f })
+            val v = TextView(svc).apply { typeface = Look.font(svc, pixel, true); maxLines = 1; setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f) }
+            col.addView(v)
+            val bar = GaugeBar(svc, pal, pixel).apply { solid = true }
+            col.addView(bar, lp(MATCH, 6 * d).apply { topMargin = 3 * d })
+            live { s ->
+                val f = frac(s)
+                val warn = f >= 0.85f
+                v.text = value(s)
+                v.setTextColor(if (pal.dots && warn) pal.primary else pal.onSurface)
+                bar.set(f, if (pal.dots) (if (warn) pal.primary else tileOn()) else GaugeColors.of(pal, gp, f))
+            }
+            row.addView(col, lp(0, WRAP, 1f).apply { if (i > 0) leftMargin = 12 * d })
+        }
+        c.addView(row, lp(MATCH, WRAP))
+        return c to Item(c, { overlayMenu() })
+    }
+
     /** CPU and GPU load over the last minute as two graphs, with the power draw. */
     private fun statsGraphElement(e: GridEntry): Pair<View, Item?> {
         val gp = svc.prefs.gaugePalette
@@ -1056,6 +1096,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (id == "clock") return clockElement(e)
         if (id == "stats") return statsElement(e)
         if (id == "statsgraph") return statsGraphElement(e)
+        if (id == "statsfps") return statsFpsElement(e)
         if (big && (id == "perf" || id == "fan") && (rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc))) return profileElement(e)
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
