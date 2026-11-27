@@ -25,3 +25,7 @@ Idea: a fourth performance profile next to Normal / Leistung / Hohe Leistung tha
 ## Orthogonal design system
 
 See [design-system-plan.md](design-system-plan.md).
+
+## Open tests
+
+See [tests.md](tests.md).
