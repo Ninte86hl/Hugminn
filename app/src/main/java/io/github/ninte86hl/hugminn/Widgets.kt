@@ -323,6 +323,8 @@ object GaugeColors {
 /** Thin bar for a load between 0 and 1 (modern: rounded, pixel: blocks). */
 class GaugeBar(ctx: Context, private val pal: Palette, private val pixel: Boolean) : View(ctx) {
     private var fraction = 0f
+    /** A plain rounded bar also in the dot style (Nothing's status widgets). */
+    var solid = false
     private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surfaceHighest }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.primary }
 
@@ -335,7 +337,7 @@ class GaugeBar(ctx: Context, private val pal: Palette, private val pixel: Boolea
     override fun onDraw(c: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
-        if (pal.dots) {
+        if (pal.dots && !solid) {
             val n = (w / (h * 1.7f)).toInt().coerceAtLeast(6)
             val step = w / n
             val lit = Math.round(fraction * n)
