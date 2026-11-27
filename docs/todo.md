@@ -61,6 +61,8 @@ Today PadKeyboard only works inside Hugminn (Wi-Fi password). Goal: a real Andro
 
 Retroid and AYN firmwares already have their own mouse mode with a shortcut – Hugminn does not build its own pointer.
 - Instead: a CC tile "Mausmodus" (and optionally a Hugminn button action) that switches the firmware's mode, showing whether it is on.
+- Hugminn hotkey: hold L3 + R3 for about 3 s (maybe 2 s, decide when testing) → mode on/off, short vibration and a hint. The firmware's own shortcut should then not also be on L3 + R3.
+- Not on the Pocket Classic (no sticks, no external ports – touch is enough there): no tile, no hotkey.
 - First find out how the firmware switches it: a before/after settings snapshot in the device test (like the Thor volume), on a Retroid and an AYN device.
 
 ## Orthogonal design system
