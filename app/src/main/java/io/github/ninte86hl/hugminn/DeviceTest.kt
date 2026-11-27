@@ -333,6 +333,8 @@ class DeviceTestActivity : Activity() {
     private val prefs by lazy { Prefs(this) }
 
     private fun startLedTest() {
+        // AYN Thor (two screens): first learn how its lower panel is driven
+        if (Device.isAyn && Displays.second(this) != null && Root.available() && !thorDone) { thorDone = true; thorLower(); return }
         if (Device.isAnbernic && !Root.available() && AnbernicHelper.alive(this)) { anbernicLed(); return }
         if (!Root.available() || !Device.hasStickLeds(this)) { showSummary(); return }
         list.removeAllViews()
@@ -352,6 +354,75 @@ class DeviceTestActivity : Activity() {
             startLedProbe()
         }
         setButtons(button(t("Nein", "No")) { answer(false) }, button(t("Ja", "Yes"), primary = true) { answer(true) })
+    }
+
+    // ---- AYN Thor: the lower screen's panel ----
+
+    private var thorDone = false
+
+    /**
+     * Finds the lower screen's backlight: lists the panels (and the input devices and settings that may
+     * belong to it), then dims each candidate for a moment and switches it off for two seconds, asking
+     * what happened. Everything goes back as it was.
+     */
+    private fun thorLower() {
+        list.removeAllViews()
+        list.addView(text(t("Unterer Bildschirm", "Lower screen"), 18f, fg, true))
+        list.addView(text(t("Einen Moment, Hugminn sucht die Steuerung …", "One moment, Hugminn looks for its controls …"), 15f, fg).apply { setPadding(0, d(6), 0, 0) })
+        setButtons()
+        Thread {
+            val area = t("Thor unten", "Thor lower")
+            val info = Root.execLong(
+                "for b in /sys/class/backlight/*; do echo \"\$b max=\$(cat \$b/max_brightness) cur=\$(cat \$b/brightness) power=\$(cat \$b/bl_power 2>/dev/null)\"; done; " +
+                    "grep -E '^N: Name' /proc/bus/input/devices | cut -d= -f2; " +
+                    "settings list system | grep -iE 'second|sub_|dual|lower|bottom|screen2|display2'; settings list global | grep -iE 'second|dual|lower|bottom'"
+            ).orEmpty()
+            add(area, t("Gefunden", "Found"), CheckState.OK, info.lines().filter { it.isNotBlank() }.joinToString(" | ").take(1500))
+            val panels = Regex("(/sys/class/backlight/[^ ]+) max=(\\d+) cur=(\\d+)").findAll(info).map { Triple(it.groupValues[1], it.groupValues[2].toInt(), it.groupValues[3].toInt()) }.toList()
+            runOnUiThread { thorPanel(panels, 0, area) }
+        }.start()
+    }
+
+    private fun thorPanel(panels: List<Triple<String, Int, Int>>, i: Int, area: String) {
+        if (i >= panels.size) { startLedTest(); return }
+        val (path, max, cur) = panels[i]
+        val name = path.substringAfterLast('/')
+        // dim to a tenth for the question, then back
+        Root.run("echo ${(max / 10).coerceAtLeast(1)} > $path/brightness")
+        list.removeAllViews()
+        list.addView(text(t("Panel ${i + 1}/${panels.size}: $name", "Panel ${i + 1}/${panels.size}: $name"), 18f, fg, true))
+        list.addView(text(t("Welcher Bildschirm ist gerade dunkler geworden?", "Which screen just got darker?"), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
+        fun answer(a: String) {
+            Root.run("echo $cur > $path/brightness")
+            add(area, t("Helligkeit $name", "Brightness $name"), if (a == "lower") CheckState.OK else CheckState.WARN, "→ $a (max $max)")
+            if (a == "lower") thorOff(panels, i, area) else thorPanel(panels, i + 1, area)
+        }
+        listOf(t("Der untere", "The lower one") to "lower", t("Der obere", "The top one") to "top", t("Keiner", "Neither") to "none").forEach { (label, v) ->
+            list.addView(button(label) { answer(v) }, LinearLayout.LayoutParams(-1, d(44)).apply { bottomMargin = d(6) })
+        }
+        setButtons()
+    }
+
+    /** The lower panel switched off for two seconds (bl_power 4), then on again. */
+    private fun thorOff(panels: List<Triple<String, Int, Int>>, i: Int, area: String) {
+        val path = panels[i].first
+        list.removeAllViews()
+        list.addView(text(t("Unterer Bildschirm aus", "Lower screen off"), 18f, fg, true))
+        list.addView(text(t("Der untere Bildschirm geht gleich für 2 Sekunden aus. Achte darauf.", "The lower screen goes off for 2 seconds now. Watch it."), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
+        setButtons()
+        Root.run("echo 4 > $path/bl_power; sleep 2; echo 0 > $path/bl_power")
+        list.postDelayed({
+            list.removeAllViews()
+            list.addView(text(t("Ging der untere Bildschirm aus und wieder an?", "Did the lower screen go off and on again?"), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
+            fun answer(a: String, st: CheckState) { add(area, t("Ausschalten (bl_power)", "Switching off (bl_power)"), st, "→ $a"); startLedTest() }
+            listOf(t("Ja, aus und wieder an", "Yes, off and on again") to CheckState.OK, t("Ging aus, blieb aber aus", "Went off but stayed off") to CheckState.WARN,
+                t("Nur dunkel, nicht aus", "Only dark, not off") to CheckState.WARN, t("Nichts passiert", "Nothing happened") to CheckState.FAIL).forEach { (label, st) ->
+                list.addView(button(label) {
+                    if (st == CheckState.WARN) Root.run("echo 0 > $path/bl_power")
+                    answer(label, st)
+                }, LinearLayout.LayoutParams(-1, d(44)).apply { bottomMargin = d(6) })
+            }
+        }, 3_000)
     }
 
     // ---- LED tester for Anbernic (through its helper: the controller's own light settings) ----
