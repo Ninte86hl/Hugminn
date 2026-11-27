@@ -57,7 +57,7 @@ class DeviceTestActivity : Activity() {
             return
         }
         status(t("Prüfe … (etwa 10 Sekunden)", "Checking … (about 10 seconds)"))
-        Thread { runAuto(); runOnUiThread { startKeyTest() } }.start()
+        Thread { runAuto(); runOnUiThread { if (Device.isAyn) thorStart() else startKeyTest() } }.start()
     }
 
     // ---- UI helpers ----
@@ -334,7 +334,6 @@ class DeviceTestActivity : Activity() {
 
     private fun startLedTest() {
         // AYN Thor (two screens): first learn how its lower panel is driven
-        if (Device.isAyn && Displays.second(this) != null && Root.available() && !thorDone) { thorDone = true; thorLower(); return }
         if (Device.isAnbernic && !Root.available() && AnbernicHelper.alive(this)) { anbernicLed(); return }
         if (!Root.available() || !Device.hasStickLeds(this)) { showSummary(); return }
         list.removeAllViews()
@@ -358,7 +357,19 @@ class DeviceTestActivity : Activity() {
 
     // ---- AYN Thor: the lower screen's panel ----
 
-    private var thorDone = false
+    /** AYN: the lower-screen round comes first; it says why when it cannot run. */
+    private fun thorStart() {
+        val second = Displays.second(this)
+        val root = Root.available()
+        if (second != null && root) { thorLower(); return }
+        val why = if (second == null) t("Kein zweiter Bildschirm erkannt (ist er an?)", "No second screen found (is it on?)")
+            else t("Kein Root (Root-Dienst der Firmware fehlt)", "No root (the firmware's root service is missing)")
+        add(t("Thor unten", "Thor lower"), t("Test", "Test"), CheckState.FAIL, why)
+        list.removeAllViews()
+        list.addView(text(t("Unterer Bildschirm", "Lower screen"), 18f, fg, true))
+        list.addView(text(why, 15f, fg).apply { setPadding(0, d(6), 0, 0) })
+        setButtons(button(t("Weiter", "Next"), true) { startKeyTest() })
+    }
 
     /**
      * Finds the lower screen's backlight: lists the panels (and the input devices and settings that may
@@ -384,7 +395,8 @@ class DeviceTestActivity : Activity() {
     }
 
     private fun thorPanel(panels: List<Triple<String, Int, Int>>, i: Int, area: String) {
-        if (i >= panels.size) { startLedTest(); return }
+        if (panels.isEmpty()) add(area, t("Panels", "Panels"), CheckState.FAIL, t("keine Hintergrundbeleuchtung gefunden", "no backlight found"))
+        if (i >= panels.size) { startKeyTest(); return }
         val (path, max, cur) = panels[i]
         val name = path.substringAfterLast('/')
         // dim to a tenth for the question, then back
@@ -414,7 +426,7 @@ class DeviceTestActivity : Activity() {
         list.postDelayed({
             list.removeAllViews()
             list.addView(text(t("Ging der untere Bildschirm aus und wieder an?", "Did the lower screen go off and on again?"), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
-            fun answer(a: String, st: CheckState) { add(area, t("Ausschalten (bl_power)", "Switching off (bl_power)"), st, "→ $a"); startLedTest() }
+            fun answer(a: String, st: CheckState) { add(area, t("Ausschalten (bl_power)", "Switching off (bl_power)"), st, "→ $a"); startKeyTest() }
             listOf(t("Ja, aus und wieder an", "Yes, off and on again") to CheckState.OK, t("Ging aus, blieb aber aus", "Went off but stayed off") to CheckState.WARN,
                 t("Nur dunkel, nicht aus", "Only dark, not off") to CheckState.WARN, t("Nichts passiert", "Nothing happened") to CheckState.FAIL).forEach { (label, st) ->
                 list.addView(button(label) {
