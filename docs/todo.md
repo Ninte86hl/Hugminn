@@ -50,12 +50,12 @@ Today PadKeyboard only works inside Hugminn (Wi-Fi password). Goal: a real Andro
 - Y (left): space
 - X (top): numbers & symbols
 - L / R: cursor left/right
-- L3 (or the ⇧ key): upper/lower case, twice = caps lock
+- L2: shift for the next letter · R2: caps lock on/off (works on the Pocket Classic too, which has no stick buttons); the ⇧ key on the keyboard does the same by touch/A
 - + (Start): OK / send
 - − (Select): edit bar – Markieren (then L/R extend the selection), Alles markieren, Kopieren, Ausschneiden, Einfügen, Rückgängig
 - ⌨ key on the keyboard (or hold −): hide the keyboard
 - Home: stays with Hugminn
-- Kept free on purpose (simple): ZL/ZR, R3, right stick
+- Kept free on purpose (simple): L3, R3, right stick (not on every device anyway)
 
 ## Orthogonal design system
 
