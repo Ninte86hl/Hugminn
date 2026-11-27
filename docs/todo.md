@@ -61,20 +61,20 @@ Today PadKeyboard only works inside Hugminn (Wi-Fi password). Goal: a real Andro
 
 Retroid and AYN firmwares already have their own mouse mode with a shortcut – Hugminn does not build its own pointer.
 - Instead: a CC tile "Mausmodus" (and optionally a Hugminn button action) that switches the firmware's mode, showing whether it is on.
-- Hugminn hotkey: hold L3 + R3 for about 3 s (maybe 2 s, decide when testing) → mode on/off, short vibration and a hint. The firmware's own shortcut should then not also be on L3 + R3.
+- Also in the quick menu (Back held).
 - Not on the Pocket Classic (no sticks, no external ports – touch is enough there): no tile, no hotkey.
 - First find out how the firmware switches it: a before/after settings snapshot in the device test (like the Thor volume), on a Retroid and an AYN device.
 
-## Quick menu on L3 (like RetroDECK)
+## Quick menu on Back held (like RetroDECK)
 
-Hold L3 (about 3 s, maybe shorter – decide when testing; a small ring fills up) → a small menu over the game, chosen with the D-pad/stick and A, closed with B:
+Hold the Back button (long press) → a small menu over the game, chosen with the D-pad/stick and A, closed with B. A short press stays a normal Back (sent on release). Every Retroid/AYN device has Back, the Pocket Classic too. On devices with extra buttons (paddles etc.) the menu can also be put on them as a Hugminn button action.
 - Tastatur (open the keyboard anywhere)
 - Bildschirmfoto
 - Lupe (magnify a part of the screen)
 - Helligkeit (slider)
-- Mausmodus (firmware's own mode) – then L3 + R3 is not needed as an extra hotkey
+- Mausmodus (firmware's own mode; not on the Pocket Classic) – no extra L3 + R3 hotkey needed
 
-No Select combinations, so the emulators' own Select hotkeys stay untouched. Pocket Classic (no L3): reachable as a Hugminn button action (e.g. Home long/double) or from the CC.
+No Select or stick combinations, so the emulators' own hotkeys and games stay untouched. Check: whether a firmware already uses Back held for something.
 
 ## From the Steam Deck (still open which ones)
 
