@@ -10,6 +10,9 @@ object Device {
     val isRetroid get() = android.os.Build.MODEL.contains("Retroid", ignoreCase = true)
     /** Retroid Pocket Duo (two screens, Android 16): trigger modes numbered like AYN, settings only written once changed. */
     val isDuo get() = isRetroid && android.os.Build.MODEL.contains("Duo", ignoreCase = true)
+    val isThor get() = isAyn && android.os.Build.MODEL.contains("Thor", ignoreCase = true)
+    /** Two built-in screens whose lower panel Hugminn drives (panel1-backlight): Pocket Duo and AYN Thor. */
+    val isDual get() = isDuo || isThor
 
     fun performance(ctx: Context) = (sys(ctx, perfKey) ?: "0") != "0"
 
@@ -72,13 +75,19 @@ object Device {
     val focusModes get() = linkedMapOf("0" to t("Folgt Touch", "Follows touch"), "1" to t("Oben", "Top"), "2" to t("Unten", "Bottom"))
 
     /** Lower screen on (dual_screen_display_mode 0) or off (1, top only). */
-    fun bottomScreenOn(ctx: Context) = sys(ctx, "dual_screen_display_mode")?.trim() != "1"
+    fun bottomScreenOn(ctx: Context) = if (isThor) !thorLowerOff else sys(ctx, "dual_screen_display_mode")?.trim() != "1"
+
+    /** Thor: its mode setting may mean something else there, so only the backlight is switched; remembered here. */
+    @Volatile private var thorLowerOff = false
 
     /**
      * Lower screen off/on like Retroid does it: the mode setting, the backlight's power rail and touch.
      * (Brightness alone does not bring a panel back whose backlight power was switched off.)
      */
-    fun setBottomScreen(on: Boolean, then: () -> Unit) = Root.run(
+    fun setBottomScreen(on: Boolean, then: () -> Unit) = if (isThor) {
+        thorLowerOff = !on
+        Root.run("echo ${if (on) 0 else 4} > /sys/class/backlight/panel1-backlight/bl_power", then = then)
+    } else Root.run(
         "settings put system dual_screen_display_mode ${if (on) 0 else 1}",
         "echo ${if (on) 0 else 1} > /sys/class/backlight/panel1-backlight/bl_power",
         "setprop sys.temp.disabled.touch ${if (on) "0,0" else "0,1"}",
@@ -92,6 +101,8 @@ object Device {
     /** Lower screen's backlight in % (straight on the panel, as the system offers no setting for it). */
     fun setBottomBrightness(pct: Int) {
         val p = pct.coerceIn(3, 100)
+        // Thor: AYN keeps its own value for the lower screen (0..100); it follows, so AYN does not set it back
+        if (isThor) Root.run("settings put system dual_screen_brightness_level $p")
         Root.run("b=/sys/class/backlight/panel1-backlight; m=\$(cat \$b/max_brightness); echo \$(( m * $p / 100 )) > \$b/brightness")
     }
 

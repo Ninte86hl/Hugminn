@@ -664,7 +664,7 @@ class HugminnService : AccessibilityService() {
             // with Hugminn's windows open, that press closes them first
             Action.RETROID -> closeOverlays()
             Action.BOTH -> if (comboMode || controlCenter.isOpen || anySwitcherOpen) closeOverlays() else openCombo()
-            Action.BOTTOM_SCREEN -> if (Device.isDuo && Root.available()) Thread {
+            Action.BOTTOM_SCREEN -> if (Device.isDual && Root.available()) Thread {
                 val on = !Device.bottomScreenOn(this)
                 Device.setBottomScreen(on) {
                     Notice.show(this, if (on) t("Unterer Bildschirm an", "Lower screen on") else t("Unterer Bildschirm aus", "Lower screen off"), corner = true)
