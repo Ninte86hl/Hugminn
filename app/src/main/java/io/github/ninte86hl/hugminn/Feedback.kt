@@ -326,7 +326,7 @@ object Feedback {
             java.io.File(d, "hw.txt").takeIf { it.exists() }?.let { appendLine(); appendLine("Anbernic-Hardware (Helfer):"); appendLine(it.readText().take(40_000)) }
             java.io.File(d, "log").takeIf { it.exists() }?.let { appendLine(); appendLine("Helfer-Log:"); it.readLines().takeLast(30).forEach { l -> appendLine("  $l") } }
         }
-        runCatching { svc.own.diag + svc.own.removeDiag + svc.own.moveDiag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
+        runCatching { svc.own.diag + svc.own.removeDiag }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { appendLine(); appendLine("Eigener Switcher:"); appendLine(it) }
         appendLine(); appendLine("Spieltitel: ${GameTitle.titles}"); if (GameTitle.diag.isNotEmpty()) appendLine(GameTitle.diag)
         appendLine(); appendLine("Musik: Listener ${Media.listenerInfo} · spielt=${Media.playing} · app=${Media.app} · titel=${Media.title} · cover=${Media.art != null}"); if (Media.diag.isNotEmpty()) appendLine(Media.diag)
         if (FrameRate.diag.isNotEmpty()) { appendLine(); appendLine("FPS (${svc.foregroundPkg}):"); appendLine(FrameRate.diag) }
@@ -342,23 +342,6 @@ object Feedback {
         appendLine("Eingabegeräte jetzt: ${Device.padList()}")
         runCatching { Bt.batteries(svc) }.getOrNull()?.let { appendLine(); appendLine("Geräte-Akku: $it"); appendLine("  ${Bt.batteryDiag}") }
         if (keys.isNotEmpty()) { appendLine(); appendLine("Letzte Tasten (Hugminn sieht sie):"); keys.forEach { appendLine("  $it") } }
-        // Retroid's assistant (its control center on a double Home): how it can be called
-        if (Device.isDuo) {
-            // its components straight from Android (no root needed)
-            runCatching {
-                val f = android.content.pm.PackageManager.GET_ACTIVITIES or android.content.pm.PackageManager.GET_SERVICES or android.content.pm.PackageManager.GET_RECEIVERS
-                for (pk in listOf("com.rp.gameassistant", "com.retroidpocket.dualscreen.assistant")) {
-                    val pi = svc.packageManager.getPackageInfo(pk, f)
-                    appendLine(); appendLine("Bausteine $pk:")
-                    pi.activities?.forEach { appendLine("  A ${it.name} exp=${it.exported}") }
-                    pi.services?.forEach { appendLine("  S ${it.name} exp=${it.exported} perm=${it.permission}") }
-                    pi.receivers?.forEach { appendLine("  R ${it.name} exp=${it.exported}") }
-                }
-            }
-            svc.homeTrace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Home roh (getevent):"); t.forEach { appendLine(it) } }
-            Root.execLong("logcat -d -v time -t 600 | grep -iE 'dualscreen|gameassist|retroid|doubleclick|double_click|HomeKey|home key' | tail -80", 8_000)
-                ?.let { appendLine(); appendLine("Logcat (Retroid):"); appendLine(it) }
-        }
         AnbernicAutostart.trace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Anbernic-Autostart:"); t.forEach { appendLine("  $it") } }
         Glyphs.trace.toList().takeIf { it.isNotEmpty() }?.let { t -> appendLine(); appendLine("Tasten-Umrechnung (roh → Hugminn):"); t.forEach { appendLine("  $it") } }
         val opened = synchronized(svc.windowLog) { svc.windowLog.toList() }
