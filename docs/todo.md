@@ -22,6 +22,16 @@ Idea: a fourth performance profile next to Normal / Leistung / Hohe Leistung tha
 **Step 2 – "Auto-Sparen" with an FPS target:**
 - Hugminn measures FPS already. Stable at the target → lower the clocks one step; FPS drops → one step up. Stop chasing unreachable targets.
 
+## RetroAchievements page
+
+Idea: one place inside Hugminn for the running game's achievements, the same for every emulator that supports RetroAchievements (RetroArch, Dolphin, PPSSPP, ARMSX2, Flycast, DuckStation, NetherSX2/AetherSX2, melonDS-based, …), like RetroDualStation.
+
+- **Own page in the Control Center** (next to the notifications page, reached with L1/R1): game, console, progress (e.g. 12/40, points); lists "Erhalten" (with date) and "Ausstehend" (description, points); Dot-Matrix style, controller only.
+- **Own unlock notification:** Hugminn's card with badge, name and points, the same over every emulator (the emulators' own pop-ups can then be switched off).
+- **Way 1 – online, RetroAchievements Web API:** user name + web API key entered once, kept on the device only. The emulator reports the game to RA; Hugminn asks for the last active game and the achievements with the user's progress, and polls every 30–60 s while a game runs to notice new unlocks (a few seconds late). Works for every RA emulator. Offline: show the last saved state.
+- **Way 2 – offline, RAOfflineProxy** (misantronic/RAOfflineProxy, GPL-3.0, alpha): it sits between emulator and RA and knows game and unlocks at once. Its local data/API is not documented – find out from its source where it stores them, once its format is stable.
+- Open: how RetroDualStation does it (log, API?), so both feel the same.
+
 ## Orthogonal design system
 
 See [design-system-plan.md](design-system-plan.md).
