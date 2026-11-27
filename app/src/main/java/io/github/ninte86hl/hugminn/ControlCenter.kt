@@ -1579,7 +1579,28 @@ class ControlCenter(private val svc: HugminnService) {
     private fun infoElement(e: GridEntry): Pair<View, Item?> {
         val sp = spec(e.id) ?: return View(svc) to null
         val gp = svc.prefs.gaugePalette
-        val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
+        // dot style (Nothing look): a small gauge is a circle (the battery a standing capsule)
+        val frac = sp.fraction
+        if (pal.dots && e.w == 1 && e.h == 1 && frac != null) {
+            val v: View
+            if (e.id == "battery") {
+                val cap = DotCapsule(svc, pal)
+                live { s -> val f = frac(s); cap.set(1f - f, sp.value(s), GaugeColors.of(pal, gp, f), f >= 0.85f) }
+                v = cap
+            } else {
+                val dial = DotDial(svc, pal, sp.title)
+                live { s -> val f = frac(s); dial.set(f, sp.value(s), GaugeColors.of(pal, gp, f), e.id == "temp" && f >= 0.85f) }
+                v = dial
+            }
+            sp.onA?.let { a -> v.setOnClickListener { if (!editing) a() } }
+            return v to Item(v, sp.onA, round = true)
+        }
+        // dot style: a wide, one-row tile is a pill
+        val radius = if (pal.dots && e.h == 1 && e.w >= 2) 200f * d else cardRadius
+        val c = card().apply {
+            setPadding(if (radius > cardRadius) 24 * d else 14 * d, 10 * d, if (radius > cardRadius) 24 * d else 14 * d, 10 * d)
+            if (radius != cardRadius) background = tileFill(false, radius)
+        }
         val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
         head.addView(IconView(svc, sp.icon, 16).apply { setColor(pal.onSurfaceVariant) })
         head.addView(text(sp.title, 11f, pal.onSurfaceVariant, bold = true).apply { setPadding(6 * d, 0, 0, 0) }, lp(0, WRAP, 1f))
@@ -1632,7 +1653,7 @@ class ControlCenter(private val svc: HugminnService) {
                 else if (sp.colorValue && gp != GaugePalette.MONO && f != null) color else pal.onSurface)
             if (pal.dots && warn != (c.tag == "warn")) {
                 c.tag = if (warn) "warn" else null
-                c.background = if (warn) shape(pal.tile, cardRadius, 2 * d, pal.primary) else tileFill(false, cardRadius)
+                c.background = if (warn) shape(pal.tile, radius, 2 * d, pal.primary) else tileFill(false, radius)
             }
             sub.text = sp.sub(s)
             if (f != null) bar?.set(f, color)
