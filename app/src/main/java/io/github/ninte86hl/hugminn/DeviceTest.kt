@@ -383,13 +383,19 @@ class DeviceTestActivity : Activity() {
         setButtons()
         Thread {
             val area = t("Thor unten", "Thor lower")
-            val info = Root.execLong(
-                "for b in /sys/class/backlight/*; do echo \"\$b max=\$(cat \$b/max_brightness) cur=\$(cat \$b/brightness) power=\$(cat \$b/bl_power 2>/dev/null)\"; done; " +
-                    "grep -E '^N: Name' /proc/bus/input/devices | cut -d= -f2; " +
-                    "settings list system | grep -iE 'second|sub_|dual|lower|bottom|screen2|display2'; settings list global | grep -iE 'second|dual|lower|bottom'"
-            ).orEmpty()
-            add(area, t("Gefunden", "Found"), CheckState.OK, info.lines().filter { it.isNotBlank() }.joinToString(" | ").take(1500))
-            val panels = Regex("(/sys/class/backlight/[^ ]+) max=(\\d+) cur=(\\d+)").findAll(info).map { Triple(it.groupValues[1], it.groupValues[2].toInt(), it.groupValues[3].toInt()) }.toList()
+            // long pipelines only work as a script
+            val body = "for b in /sys/class/backlight/* /sys/class/leds/*backlight* /sys/class/leds/*lcd* /sys/class/leds/*panel*; do " +
+                "[ -e \"\$b/brightness\" ] && echo \"\$b max=\$(cat \$b/max_brightness) cur=\$(cat \$b/brightness) power=\$(cat \$b/bl_power 2>/dev/null)\"; done\n" +
+                "echo leds: \$(ls /sys/class/leds | tr '\\n' ' ')\n" +
+                "echo backlight: \$(ls /sys/class/backlight 2>&1 | tr '\\n' ' ')\n" +
+                "echo input: \$(grep -E '^N: Name' /proc/bus/input/devices | cut -d= -f2 | tr '\\n' ',')\n" +
+                "settings list system | grep -iE 'second|sub_|dual|lower|bottom|screen2|display2|bright'\n" +
+                "settings list global | grep -iE 'second|dual|lower|bottom|screen2'\n" +
+                "dumpsys display | grep -iE 'mBrightness=|mScreenBrightness|brightness=' | head -n 12\n" +
+                "getprop | grep -iE 'second|dual|sub_|screen2|lcd2|panel' | head -n 15\n"
+            val info = Root.script("thorlower", body)?.let { Root.execLong(it) }.orEmpty()
+            add(area, t("Gefunden", "Found"), CheckState.OK, info.lines().filter { it.isNotBlank() }.joinToString(" | ").take(2500))
+            val panels = Regex("(/sys/class/(?:backlight|leds)/[^ ]+) max=(\\d+) cur=(\\d+)").findAll(info).map { Triple(it.groupValues[1], it.groupValues[2].toInt(), it.groupValues[3].toInt()) }.distinctBy { it.first }.toList()
             runOnUiThread { thorPanel(panels, 0, area) }
         }.start()
     }
@@ -422,7 +428,10 @@ class DeviceTestActivity : Activity() {
         list.addView(text(t("Unterer Bildschirm aus", "Lower screen off"), 18f, fg, true))
         list.addView(text(t("Der untere Bildschirm geht gleich für 2 Sekunden aus. Achte darauf.", "The lower screen goes off for 2 seconds now. Watch it."), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
         setButtons()
-        Root.run("echo 4 > $path/bl_power; sleep 2; echo 0 > $path/bl_power")
+        val cur = panels[i].third
+        // backlight class: bl_power 4 = off; leds class has no bl_power, brightness 0 instead
+        if (path.contains("/leds/")) Root.run("echo 0 > $path/brightness; sleep 2; echo $cur > $path/brightness")
+        else Root.run("echo 4 > $path/bl_power; sleep 2; echo 0 > $path/bl_power")
         list.postDelayed({
             list.removeAllViews()
             list.addView(text(t("Ging der untere Bildschirm aus und wieder an?", "Did the lower screen go off and on again?"), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
@@ -430,7 +439,7 @@ class DeviceTestActivity : Activity() {
             listOf(t("Ja, aus und wieder an", "Yes, off and on again") to CheckState.OK, t("Ging aus, blieb aber aus", "Went off but stayed off") to CheckState.WARN,
                 t("Nur dunkel, nicht aus", "Only dark, not off") to CheckState.WARN, t("Nichts passiert", "Nothing happened") to CheckState.FAIL).forEach { (label, st) ->
                 list.addView(button(label) {
-                    if (st == CheckState.WARN) Root.run("echo 0 > $path/bl_power")
+                    if (st == CheckState.WARN) Root.run(if (path.contains("/leds/")) "echo $cur > $path/brightness" else "echo 0 > $path/bl_power")
                     answer(label, st)
                 }, LinearLayout.LayoutParams(-1, d(44)).apply { bottomMargin = d(6) })
             }
