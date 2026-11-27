@@ -48,7 +48,7 @@ Today PadKeyboard only works inside Hugminn (Wi-Fi password). Goal: a real Andro
 - A (right): type · hold: special characters (ä, ß, é …)
 - B (bottom): delete · hold: keeps deleting
 - Y (left): space
-- X (top): numbers & symbols
+- X (top): numbers & symbols (no permanent number row – letters only by default)
 - L / R: cursor left/right
 - L2: shift for the next letter · R2: caps lock on/off (works on the Pocket Classic too, which has no stick buttons); the ⇧ key on the keyboard does the same by touch/A
 - + (Start): OK / send
@@ -56,6 +56,13 @@ Today PadKeyboard only works inside Hugminn (Wi-Fi password). Goal: a real Andro
 - ⌨ key on the keyboard (or hold −): hide the keyboard
 - Home: stays with Hugminn
 - Kept free on purpose (simple): L3, R3, right stick (not on every device anyway)
+
+## Mouse pointer (point & click)
+
+Idea: on devices with a right stick, R3 switches a mouse mode on/off – for point-and-click adventures and apps without controller support.
+- Hugminn shows a pointer; the right stick moves it (speed by how far it is pushed); A or R1 = click, hold = drag; B leaves the mode. Devices without sticks: D-pad.
+- How: a focusable but not touchable overlay receives the stick while the mode is on; clicks go through the accessibility service as taps (dispatchGesture). No root needed. The game gets no buttons while the mode is on.
+- Check: whether Retroid/AYN firmware has its own stick-as-mouse mode that would clash.
 
 ## Orthogonal design system
 
