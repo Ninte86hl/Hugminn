@@ -65,6 +65,21 @@ Retroid and AYN firmwares already have their own mouse mode with a shortcut – 
 - Not on the Pocket Classic (no sticks, no external ports – touch is enough there): no tile, no hotkey.
 - First find out how the firmware switches it: a before/after settings snapshot in the device test (like the Thor volume), on a Retroid and an AYN device.
 
+## Quick menu on L3 (like RetroDECK)
+
+Hold L3 (about 3 s, maybe shorter – decide when testing; a small ring fills up) → a small menu over the game, chosen with the D-pad/stick and A, closed with B:
+- Tastatur (open the keyboard anywhere)
+- Bildschirmfoto
+- Lupe (magnify a part of the screen)
+- Helligkeit (slider)
+- Mausmodus (firmware's own mode) – then L3 + R3 is not needed as an extra hotkey
+
+No Select combinations, so the emulators' own Select hotkeys stay untouched. Pocket Classic (no L3): reachable as a Hugminn button action (e.g. Home long/double) or from the CC.
+
+## From the Steam Deck (still open which ones)
+
+FPS limit / refresh rate per game; overlay levels 1–4. (Charge limit exists already.)
+
 ## Orthogonal design system
 
 See [design-system-plan.md](design-system-plan.md).
