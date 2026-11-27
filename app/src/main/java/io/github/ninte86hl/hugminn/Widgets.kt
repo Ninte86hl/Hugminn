@@ -154,7 +154,9 @@ class BigSlider(
         if (e.action == MotionEvent.ACTION_DOWN || e.action == MotionEvent.ACTION_MOVE) {
             parent?.requestDisallowInterceptTouchEvent(true)
             val f = if (vertical) 1f - e.y / height else e.x / width
-            setValue(Math.round(f.coerceIn(0f, 1f) * max))
+            // in 5 % steps, like the buttons
+            val pct = Math.round(f.coerceIn(0f, 1f) * 20f) * 5
+            setValue(Math.round(pct * max / 100f))
         }
         return true
     }
@@ -278,7 +280,8 @@ class BigSlider(
         text.textSize = h * 0.36f
         text.typeface = Look.font(context, pixel, true)
         text.textAlign = Paint.Align.RIGHT
-        val pct = Math.round(value * 100f / max.coerceAtLeast(1))
+        // shown in 5 % steps (Android's few volume levels lie in between)
+        val pct = Math.round(value * 100f / max.coerceAtLeast(1) / 5f) * 5
         val fm = text.fontMetrics
         val baseline = h / 2f - (fm.ascent + fm.descent) / 2f
         text.color = if (!pixel && !pal.dots && fw > w - h * 0.4f) onFill else pal.onSurface
