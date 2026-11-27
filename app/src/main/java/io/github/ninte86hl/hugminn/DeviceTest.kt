@@ -435,7 +435,7 @@ class DeviceTestActivity : Activity() {
         list.postDelayed({
             list.removeAllViews()
             list.addView(text(t("Ging der untere Bildschirm aus und wieder an?", "Did the lower screen go off and on again?"), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
-            fun answer(a: String, st: CheckState) { add(area, t("Ausschalten (bl_power)", "Switching off (bl_power)"), st, "→ $a"); startKeyTest() }
+            fun answer(a: String, st: CheckState) { add(area, t("Ausschalten (bl_power)", "Switching off (bl_power)"), st, "→ $a"); thorVolume(area) }
             listOf(t("Ja, aus und wieder an", "Yes, off and on again") to CheckState.OK, t("Ging aus, blieb aber aus", "Went off but stayed off") to CheckState.WARN,
                 t("Nur dunkel, nicht aus", "Only dark, not off") to CheckState.WARN, t("Nichts passiert", "Nothing happened") to CheckState.FAIL).forEach { (label, st) ->
                 list.addView(button(label) {
@@ -444,6 +444,35 @@ class DeviceTestActivity : Activity() {
                 }, LinearLayout.LayoutParams(-1, d(44)).apply { bottomMargin = d(6) })
             }
         }, 3_000)
+    }
+
+    /** Thor: which settings change when the lower screen's volume is set in AYN's own menu (before/after). */
+    private fun thorVolume(area: String) {
+        val snap = "for t in system global secure; do settings list \$t | sed \"s/^/\$t:/\"; done; getprop | grep -iE 'vol|audio|second|dual' | sed 's/^/prop:/'\n"
+        list.removeAllViews()
+        list.addView(text(t("Lautstärke unten", "Volume below"), 18f, fg, true))
+        list.addView(text(t("Hugminn merkt sich die Einstellungen. Tippe auf „Los“, stelle dann in AYNs eigenem Menü die Lautstärke für den unteren Bildschirm deutlich anders ein, komm zurück und tippe auf „Fertig“.",
+            "Hugminn notes the settings. Tap \"Go\", then set the lower screen's volume clearly differently in AYN's own menu, come back and tap \"Done\"."), 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
+        var before: Set<String> = emptySet()
+        fun done() {
+            setButtons()
+            Thread {
+                val after = Root.script("thorsnap", snap)?.let { Root.execLong(it) }.orEmpty().lines().filter { it.isNotBlank() }.toSet()
+                val diff = (after - before).filter { !it.contains("_time") && !it.contains("timestamp") }
+                add(area, t("Lautstärke unten", "Volume below"), if (diff.isEmpty()) CheckState.WARN else CheckState.OK,
+                    if (diff.isEmpty()) t("keine Einstellung geändert", "no setting changed")
+                    else diff.joinToString(" | ") { l -> val k = l.substringBefore('='); (before.firstOrNull { it.startsWith("$k=") }?.substringAfter('=') ?: "neu") + " → " + l }.take(1500))
+                runOnUiThread { startKeyTest() }
+            }.start()
+        }
+        setButtons(button(t("Überspringen", "Skip")) { add(area, t("Lautstärke unten", "Volume below"), CheckState.WARN, t("übersprungen", "skipped")); startKeyTest() },
+            button(t("Los", "Go"), true) {
+                setButtons()
+                Thread {
+                    before = Root.script("thorsnap", snap)?.let { Root.execLong(it) }.orEmpty().lines().filter { it.isNotBlank() }.toSet()
+                    runOnUiThread { setButtons(button(t("Fertig", "Done"), true) { done() }) }
+                }.start()
+            })
     }
 
     // ---- LED tester for Anbernic (through its helper: the controller's own light settings) ----
