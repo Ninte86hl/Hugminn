@@ -830,7 +830,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun screensPopup(bright: Boolean) {
         val r = root ?: return
         closeMenu()
-        val dual = (if (bright) Device.isDual else Device.isDuo) && Root.available()
+        val dual = Device.isDual && Root.available()
         val box = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
@@ -1073,7 +1073,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
             else if (id == "volume" || id == "volumeAll") BigSlider(svc, pal, IconView.Kind.SPEAKER, tr("Lautstärke"), 100, mainVolumePct(), pixel, vertical) {
                 setMainVolumePct(it)
-                if (both && Device.isDuo) Device.setBottomVolume(Math.round(it * 15 / 100f))
+                if (both) Device.setBottomVolume(Math.round(it * 15 / 100f))
             }.also { volumeSliders += it }
             else if (id == "brightness2") BigSlider(svc, pal, IconView.Kind.SUN, t("Helligkeit unten", "Brightness below"), 100, svc.prefs.bottomBrightness, pixel, vertical) {
                 svc.prefs.bottomBrightness = it
