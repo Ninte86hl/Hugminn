@@ -17,7 +17,7 @@ object GridLayout {
     /** Rows of the grid (set from the settings before each layout). */
     @Volatile var ROWS = 4
 
-    private val infoIds = setOf("system", "fps", "perf", "fan", "temp", "battery", "cpu", "gpu", "ram", "power", "battime", "clock")
+    private val infoIds = setOf("system", "fps", "perf", "fan", "temp", "battery", "cpu", "gpu", "ram", "power", "battime", "clock", "stats", "statsgraph")
     private val sliderIds = setOf("brightness", "volume", "brightness2", "volume2", "brightnessAll", "volumeAll")
     /** Two sliders in one element: top and bottom screen. */
     private val doubleIds = setOf("brightnessDuo", "volumeDuo")
@@ -35,6 +35,8 @@ object GridLayout {
         "power" to tr("Leistungsaufnahme"),
         "battime" to t("Akku-Spielzeit", "Battery playtime"),
         "clock" to t("Uhr", "Clock"),
+        "stats" to t("CPU · GPU · RAM", "CPU · GPU · RAM"),
+        "statsgraph" to t("Verlauf CPU / GPU", "CPU / GPU history"),
         "brightness" to tr("Helligkeit"),
         "volume" to tr("Lautstärke"),
     ).apply {
@@ -64,13 +66,39 @@ object GridLayout {
         id == "perf" || id == "fan" -> listOf(2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
         id == "battery" -> listOf(1 to 1, 2 to 1, 2 to 2)
         id == "fps" -> listOf(2 to 1, 2 to 2)
+        id == "stats" -> listOf(2 to 1, 4 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
+        id == "statsgraph" -> listOf(2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
         id == "clock" -> listOf(1 to 1, 2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }.filter { it.first <= cols && it.second <= ROWS }
         isInfo(id) -> listOf(1 to 1, 2 to 1)
         else -> listOf(1 to 1, 2 to 1)
     }
 
     /** Default for 8 columns (RP6); on narrower screens elements that do not fit are placed automatically. */
-    val defaults = listOf(
+    /** Columns of the Control Center as last laid out (picks the default layout for the screen's shape). */
+    @Volatile var lastCols = 8
+
+    /** The default layout fitting the screen: wide (16:9), 4:3 (Pocket Duo, Thor below) or nearly square (Classic). */
+    val defaults: List<GridEntry> get() = when {
+        lastCols >= 8 -> wide
+        lastCols >= 6 -> listOf(
+            GridEntry("fps", 2, 2, 0, 0), GridEntry("perf", 2, 1, 2, 0), GridEntry("fan", 2, 1, 4, 0),
+            GridEntry("temp", 1, 1, 2, 1), GridEntry("battery", 1, 1, 3, 1), GridEntry("stats", 2, 1, 4, 1),
+            GridEntry("wifi", 1, 1, 0, 2), GridEntry("bt", 1, 1, 1, 2), GridEntry("dnd", 1, 1, 2, 2), GridEntry("refresh", 1, 1, 3, 2),
+            GridEntry("brightness", 1, 2, 4, 2), GridEntry("volume", 1, 2, 5, 2),
+            GridEntry("rotation", 1, 1, 0, 3), GridEntry("screenshot", 1, 1, 1, 3), GridEntry("power", 2, 1, 2, 3),
+            GridEntry("leds", 1, 1), GridEntry("airplane", 1, 1), GridEntry("clean", 1, 1),
+        )
+        else -> listOf(
+            GridEntry("fps", 2, 2, 0, 0), GridEntry("temp", 1, 1, 2, 0), GridEntry("battery", 1, 1, 3, 0),
+            GridEntry("perf", 2, 1, 2, 1),
+            GridEntry("wifi", 1, 1, 0, 2), GridEntry("bt", 1, 1, 1, 2), GridEntry("brightness", 1, 2, 2, 2), GridEntry("volume", 1, 2, 3, 2),
+            GridEntry("dnd", 1, 1, 0, 3), GridEntry("refresh", 1, 1, 1, 3),
+            GridEntry("stats", 2, 1), GridEntry("fan", 2, 1), GridEntry("rotation", 1, 1), GridEntry("screenshot", 1, 1),
+            GridEntry("leds", 1, 1), GridEntry("airplane", 1, 1), GridEntry("power", 2, 1), GridEntry("clean", 1, 1),
+        )
+    }
+
+    private val wide = listOf(
         GridEntry("fps", 2, 2, 0, 0), GridEntry("perf", 2, 1, 2, 0), GridEntry("fan", 2, 1, 4, 0),
         GridEntry("temp", 1, 1, 6, 0), GridEntry("battery", 1, 1, 7, 0),
         GridEntry("cpu", 2, 1, 2, 1), GridEntry("gpu", 2, 1, 4, 1), GridEntry("ram", 2, 1, 6, 1),
