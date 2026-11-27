@@ -379,6 +379,9 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     /** Android's recents view was opened underneath (to remove cards): leave it like after a swipe. */
     private var recentsUnder = false
+    /** The apps of the switcher, newest first (Control Center: "last played"). */
+    fun recentPackages(): List<String> = synchronized(this) { known.map { it.pkg } }
+
     /** What removing apps did (for feedback reports). */
     @Volatile var removeDiag = ""
 
