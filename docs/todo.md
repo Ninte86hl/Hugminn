@@ -37,6 +37,26 @@ Idea: one place inside Hugminn for the running game's achievements, the same for
 
 Later: Hugminn's own equalizer instead of opening Retroid's (Retroid's intent action `action_equalizer_config` is used for now).
 
+## Hugminn keyboard as Android's default keyboard
+
+Today PadKeyboard only works inside Hugminn (Wi-Fi password). Goal: a real Android input method usable in every app, simple to use, oriented on the Nintendo Switch keyboard.
+
+**Needed:** an InputMethodService (shows up under on-screen keyboards; with root Hugminn can enable/select it and go back), writing through the InputConnection, Hugminn's key service lets the keys through while the keyboard is open (Home/CC/switcher keep working), OK key label from the field (Search/Go/Next/Send), number pad for number/PIN fields, @ and .com for e-mail/web fields, capital letter at sentence start, no saving in password fields, opens on the screen with the field (Duo/Thor), touch keeps working. No word suggestions/autocorrect.
+
+**Buttons (Switch positions; with Xbox layout the same positions, hints show the device's labels):**
+- D-pad / left stick: choose key
+- A (right): type · hold: special characters (ä, ß, é …)
+- B (bottom): delete · hold: keeps deleting
+- Y (left): space
+- X (top): numbers & symbols
+- L / R: cursor left/right
+- L3 (or the ⇧ key): upper/lower case, twice = caps lock
+- + (Start): OK / send
+- − (Select): edit bar – Markieren (then L/R extend the selection), Alles markieren, Kopieren, Ausschneiden, Einfügen, Rückgängig
+- ⌨ key on the keyboard (or hold −): hide the keyboard
+- Home: stays with Hugminn
+- Kept free on purpose (simple): ZL/ZR, R3, right stick
+
 ## Orthogonal design system
 
 See [design-system-plan.md](design-system-plan.md).
