@@ -574,7 +574,6 @@ class OwnSwitcher(private val svc: HugminnService) {
         val other = Displays.second(svc)
         if (other != null && Root.available()) {
             items += t("Auf anderen Bildschirm", "To the other screen") to { toOtherScreen(a) }
-            items += t("Bildschirme tauschen", "Swap screens") to { swapScreens() }
         }
         if (Root.available() && apps.size > 1) items += tr("Alle anderen schließen") to {
             val keep = Hotkeys.pinned(svc)
@@ -629,8 +628,6 @@ class OwnSwitcher(private val svc: HugminnService) {
             KeyEvent.KEYCODE_BUTTON_Y -> openMenu()
             // R3: the selected app to the other screen (two screens)
             KeyEvent.KEYCODE_BUTTON_THUMBR -> apps.getOrNull(sel)?.let { toOtherScreen(it) }
-            // L3: the apps of both screens swap places
-            KeyEvent.KEYCODE_BUTTON_THUMBL -> swapScreens()
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> close(back = true)
         }
     }
@@ -639,32 +636,6 @@ class OwnSwitcher(private val svc: HugminnService) {
     private fun markScreens() {
         val other = Displays.second(svc) ?: return
         carousel?.screenOf = frontApps().mapValues { if (it.value == other.id) 2 else 1 }
-    }
-
-    /** The front apps of both screens swap places (menu, or L3). */
-    private fun swapScreens() {
-        Glyphs.note("tauschen · zweiter=${Displays.second(svc)?.id}")
-        val other = Displays.second(svc) ?: return
-        if (!Root.available()) return
-        if (moving) { Notice.show(svc, t("Verschieben läuft noch …", "Still moving …"), corner = true); return }
-        val where = frontApps()
-        moving = true
-        close(back = false)
-        thread {
-          try {
-            moveDiag = (moveDiag + "\nTauschen: " + where.entries.joinToString { "${it.key}@${it.value}" }).takeLast(3000)
-            // the front app of each screen (Android's own list, in order)
-            val top = where.entries.firstOrNull { it.value == android.view.Display.DEFAULT_DISPLAY }
-            val bottom = where.entries.firstOrNull { it.value == other.id }
-            // only with an app on each screen; with just one, swapping would only move it (R3 does that)
-            if (top == null || bottom == null) {
-                Notice.show(svc, t("Tauschen braucht oben und unten eine App", "Swapping needs an app on both screens"), corner = true)
-                return@thread
-            }
-            moveToDisplay(RecentApp(top.key, -1), other.id)
-            moveToDisplay(RecentApp(bottom.key, -1), android.view.Display.DEFAULT_DISPLAY)
-          } finally { moving = false }
-        }
     }
 
     /** The app to the other screen (menu, or R3 on the selected app). */
