@@ -1904,9 +1904,6 @@ class ControlCenter(private val svc: HugminnService) {
         "external" -> if (rootOk && ExternalDisplay.connected) Tile(t("Externer Bildschirm", "External display"), IconView.Kind.SCREEN, { tr("Verbunden") }, { true }) {
             externalMenu()
         } else null
-        "rpcc" -> if (rootOk && Device.isDuo) Tile(t("Retroid-Kontrollcenter", "Retroid control center"), IconView.Kind.GEAR, { null }, { false }) {
-            svc.perform(Action.RETROID)
-        } else null
         "trigger" -> if (rootOk && (Device.sys(svc, "trigger_input_mode") != null || Device.lazySetting("trigger_input_mode"))) Tile(tr("Trigger-Modus"), IconView.Kind.GAMEPAD, {
             Device.profileLabel(svc, "trigger_input_mode", Device.triggerModes)
         }, { false }) {

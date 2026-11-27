@@ -379,9 +379,6 @@ class OwnSwitcher(private val svc: HugminnService) {
 
     /** Android's recents view was opened underneath (to remove cards): leave it like after a swipe. */
     private var recentsUnder = false
-    /** Kept for feedback reports of older test builds (moving apps between screens was dropped). */
-    @Volatile var moveDiag = ""
-
     /** What removing apps did (for feedback reports). */
     @Volatile var removeDiag = ""
 
