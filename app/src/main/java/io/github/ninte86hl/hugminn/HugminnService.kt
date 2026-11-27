@@ -106,7 +106,6 @@ class HugminnService : AccessibilityService() {
     /** The Duo's double-press key is down (its release decides: double press, or long press if held). */
     private var duoF24 = false
     /** When Hugminn received that Home down (uptime ms). */
-    private var homeDownSeen = 0L
     private var longFired = false
     private var ignoreUp = false
     private val longPress = Runnable {
@@ -148,7 +147,6 @@ class HugminnService : AccessibilityService() {
         // Anbernic after a restart: the helper isn't running – Hugminn starts it through Anbernic's script management
         if (Device.isAnbernic) ui.postDelayed({ AnbernicAutostart.afterStart(this) }, 15_000)
         prefs.duoHomeBack()
-        if (Device.isDuo) Thread { runCatching { findRetroidNode() } }.start()
         prefs.forgetOld()
         // the Android wallpaper may have changed while Hugminn was off: copy it again in the background
         if (prefs.backdrop == BackdropSource.WALLPAPER) ui.postDelayed({ if (Root.available()) Backdrop.fetchWallpaper(this) { } }, 8_000)
@@ -376,14 +374,6 @@ class HugminnService : AccessibilityService() {
         keyTap?.let { l ->
             if (event.keyCode != KeyEvent.KEYCODE_POWER) { val copy = KeyEvent(event); ui.post { l(copy) }; return true }
         }
-        // Homes Hugminn sent on to the firmware itself (Retroid's double press)
-        // the double tap Hugminn hands on to Retroid's firmware (sent through the controller itself, see RETROID)
-        // A time window, not a count: some events arrive here twice, the count ran out early and the second tap's
-        // release was held back – Retroid then took Home as held and switched the lower screen off.
-        if (event.keyCode == KeyEvent.KEYCODE_HOME && android.os.SystemClock.uptimeMillis() < passHomeUntil) {
-            Glyphs.note("pass HOME ${if (event.action == KeyEvent.ACTION_DOWN) "down" else "up"} dev=${event.deviceId} ${event.device?.name} t=${event.eventTime}")
-            return false
-        }
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
         if (Device.isAynKey(event)) return false
         // Anbernic (RG 406H): its Home button sends F10 from the built-in pad
@@ -476,7 +466,6 @@ class HugminnService : AccessibilityService() {
                 }
                 longFired = false
                 homeDownAt = e.eventTime.takeIf { it > 0 } ?: android.os.SystemClock.uptimeMillis()
-                homeDownSeen = android.os.SystemClock.uptimeMillis()
                 if (p.long != Action.NONE) ui.postDelayed(longPress, p.longMs.toLong())
             }
             KeyEvent.ACTION_UP -> {
@@ -490,7 +479,7 @@ class HugminnService : AccessibilityService() {
                     return true
                 }
                 when {
-                    ignoreUp -> { ignoreUp = false; afterHomeUp?.let { afterHomeUp = null; ui.postDelayed(it, 60) } }
+                    ignoreUp -> ignoreUp = false
                     longFired -> {}
                     // Duo: the double press comes as a key of its own, a single one needn't wait for a second
                     p.double == Action.NONE || (Device.isDuo && e.scanCode != DUO_DOUBLE) -> perform(p.single)
@@ -559,99 +548,6 @@ class HugminnService : AccessibilityService() {
 
     private fun extraToken(code: Int) = "extra$code"
 
-    private var passHomeUntil = 0L
-    /** Runs when the Home press Hugminn holds back is let go (see RETROID). */
-    private var afterHomeUp: Runnable? = null
-
-    /**
-     * Retroid's control center is the "floating view" of its Game Assistant. Ways to bring it up, tried in turn
-     * until one of its windows shows (the first that works is remembered): its service started directly (root
-     * may start it although it isn't open to other apps), the broadcast its widget sends, its quick-settings tile.
-     */
-    private fun openRetroidPanel() {
-        val ways = listOf(
-            "service" to "am startservice -n com.rp.gameassistant/com.ro.gameassistant.service.FloatingViewService 2>&1",
-            "widget" to "am broadcast -a widget.provider.onclick.to.gameassistant 2>&1 | tail -1",
-            "tile" to "cmd statusbar expand-settings; sleep 0.5; cmd statusbar click-tile $RETROID_TILE 2>&1; sleep 0.4; cmd statusbar collapse",
-        )
-        val first = ways.indexOfFirst { it.first == prefs.retroidWay }.coerceAtLeast(0)
-        val order = ways.drop(first) + ways.take(first)
-        fun shown(since: Long) = synchronized(windowLog) { windowLog.firstOrNull() }?.let { it.contains("com.rp.gameassistant") } == true &&
-            System.currentTimeMillis() - since < 5_000
-        Thread {
-            for ((name, cmd) in order) {
-                val t0 = System.currentTimeMillis()
-                val out = Root.execLong(cmd, 5_000)
-                Thread.sleep(900)
-                val ok = shown(t0)
-                Glyphs.note("retroid $name → ${if (ok) "OPEN" else "–"} ${out?.trim()?.take(120)}")
-                if (ok) { prefs.retroidWay = name; return@Thread }
-            }
-        }.start()
-    }
-
-    private val RETROID_TILE = "com.rp.gameassistant/com.ro.gameassistant.service.FloatingWindowTileService"
-
-    /** Home pressed / let go as raw input events (struct input_event, 64-bit: time 16 bytes, type, code, value) + sync. */
-    private fun homeEventFiles(): Pair<String, String> {
-        fun ev(type: Int, code: Int, value: Int) = java.nio.ByteBuffer.allocate(24).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            .putLong(0).putLong(0).putShort(type.toShort()).putShort(code.toShort()).putInt(value).array()
-        fun file(name: String, value: Int) = java.io.File(filesDir, name).apply {
-            writeBytes(ev(1, 102, value) + ev(0, 0, 0))
-            setReadable(true, false)
-        }.absolutePath
-        return file("home_down.bin", 1) to file("home_up.bin", 0)
-    }
-
-    /** The Retroid controller's input device (eventN), found once – reading the list takes a moment. */
-    @Volatile private var retroidNode: String? = null
-    private fun findRetroidNode(): String? {
-        val devs = Root.execLong("cat /proc/bus/input/devices", 4_000).orEmpty()
-        return devs.split("\n\n").firstOrNull { it.contains("Retroid Pocket Controller") }
-            ?.lineSequence()?.firstOrNull { it.startsWith("H:") }?.split(" ", "=")?.firstOrNull { it.startsWith("event") }
-            ?.also { retroidNode = it }
-    }
-
-    /** Duo diagnosis: the last capture of the raw input devices around a Home press (see [captureHome]). */
-    val homeTrace = java.util.concurrent.ConcurrentLinkedDeque<String>()
-    @Volatile private var captureUntil = 0L
-
-    /**
-     * Duo diagnosis: for 5 s after a Home press, every input device is read raw (root, in the background),
-     * to see what the hardware sends before Retroid's firmware turns presses into the Home Hugminn gets.
-     */
-    private fun captureHome() {
-        val now = android.os.SystemClock.uptimeMillis()
-        if (now < captureUntil || !Root.available()) return
-        captureUntil = now + 40_000
-        val script = java.io.File(filesDir, "hraw.sh")
-        script.writeText("""
-            d=/data/local/tmp/hraw; rm -rf ${'$'}d; mkdir -p ${'$'}d
-            for f in /dev/input/event*; do n=${'$'}{f##*/}; timeout 30 cat ${'$'}f > ${'$'}d/${'$'}n.bin & done
-            sleep 30.5
-            for b in ${'$'}d/*.bin; do n=${'$'}(basename ${'$'}b .bin); nm=${'$'}(cat /sys/class/input/${'$'}n/device/name | tr ' ' _)
-              od -An -tx1 -w24 -v ${'$'}b | grep -E '^( [0-9a-f]{2}){16} 01 00' | sed "s/^/${'$'}n ${'$'}nm/"; done > ${'$'}d/out.txt
-            rm ${'$'}d/*.bin
-        """.trimIndent())
-        script.setReadable(true, false)
-        Root.run("sh ${script.absolutePath} >/dev/null 2>&1 &")
-        Notice.show(this, t("Home-Mitschrift läuft 30 s", "Recording Home for 30 s"), corner = true)
-        ui.postDelayed({ Thread { homeTrace.clear(); homeTrace.addLast(rawHomeReport()); Notice.show(this, t("Home-Mitschrift fertig – Bericht senden", "Home recording done – send the report"), corner = true) }.start() }, 32_000)
-    }
-
-    private fun rawHomeReport(): String {
-        val out = Root.execLong("cat /data/local/tmp/hraw/out.txt 2>&1 | tail -120", 5_000) ?: return "keine Antwort"
-        val fmt = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.ROOT)
-        val names = mapOf(194 to "HOME(F24)", 102 to "HOME", 172 to "HOMEPAGE", 158 to "BACK", 139 to "MENU", 316 to "BTN_MODE", 114 to "VOL-", 115 to "VOL+", 116 to "POWER")
-        return out.lines().filter { it.isNotBlank() }.joinToString("\n") { line ->
-            val parts = line.trim().split(Regex("\\s+"))
-            if (parts.size < 26) return@joinToString line
-            val b = parts.drop(2).map { it.toInt(16) }
-            fun le(from: Int, n: Int): Long { var v = 0L; for (i in n - 1 downTo 0) v = (v shl 8) or b[from + i].toLong(); return v }
-            val sec = le(0, 8); val usec = le(8, 8); val code = le(18, 2).toInt(); val value = le(20, 4).toInt()
-            "${fmt.format(java.util.Date(sec * 1000 + usec / 1000))} ${parts[0]} ${parts[1]} ${names[code] ?: "Taste $code"} ${when (value) { 1 -> "down"; 0 -> "up"; else -> "wdh" }}"
-        }.ifEmpty { "(keine Tasten)" }
-    }
     private var backHeld = false
     private val backLongPress = Runnable { backHeld = true; perform(prefs.backLong) }
 
