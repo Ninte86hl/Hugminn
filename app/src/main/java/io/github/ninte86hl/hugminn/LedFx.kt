@@ -16,7 +16,7 @@ enum class LedEffect(private val labelDe: String) {
     /** Not effects but displays: the sticks show the battery charge or the temperature as a colour. */
     BATTERY("Akku"),
     TEMP("Temperatur"),
-    /** Anbernic's own (hardware) effects, only offered there. */
+    /** Former controller-side effects (kept so saved choices still load). */
     MARQUEE("Marquee"),
     CHASE("Lauflicht"),
     GAMING("Gaming");
@@ -139,8 +139,6 @@ object LedFx {
 
     /** Starts the remembered effect (service start, LEDs switched on). */
     fun resume(ctx: Context) {
-        // Anbernic: the controller runs the effects itself – Hugminn only hands over mode, colour and brightness
-        if (Device.isAnbernic) { AnbernicLed.apply(ctx); return }
         load(ctx)
         if (odin) {
             // Odin 2: one loop for sticks and sides (static colours too – the firmware would paint over them)
@@ -389,7 +387,6 @@ object LedFx {
             intArrayOf(scale(left, k), scale(right, k))
         }
         LedEffect.BATTERY, LedEffect.TEMP -> indicatorColor(e).let { intArrayOf(it, it) }
-        // Anbernic's effects run in its controller, never in this loop
         LedEffect.NONE, LedEffect.MARQUEE, LedEffect.CHASE, LedEffect.GAMING -> intArrayOf(left, right)
     }
 

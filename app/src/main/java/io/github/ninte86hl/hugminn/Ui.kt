@@ -126,19 +126,8 @@ object Glyphs {
     data class Glyph(val text: String?, val shape: Shape?, val color: Int)
 
     /** True when the handheld runs in Retroid/Nintendo layout (A on the right). */
-    fun nintendoLayout(): Boolean = anbernicNs() ?: Device.aynNintendo ?: InputDevice.getDeviceIds().any { id ->
+    fun nintendoLayout(): Boolean = Device.aynNintendo ?: InputDevice.getDeviceIds().any { id ->
         InputDevice.getDevice(id)?.name?.contains("Retroid Pocket Controller", ignoreCase = true) == true
-    }
-
-    /**
-     * Anbernic: its own "Trigger Setting" – abxy_mode 0 "Ns mode", 1 "Xbox mode". Inside Hugminn's windows the
-     * buttons arrive as printed (tested on the RG 406H, see [logicalRaw]); the mode decides which one confirms
-     * and which glyphs "Automatisch" shows. Read live, it can change any time.
-     */
-    private fun anbernicNs(): Boolean? {
-        if (!Device.isAnbernic) return null
-        val ctx = Device.app ?: return null
-        return Device.sys(ctx, "abxy_mode")?.trim()?.let { it == "0" }
     }
 
     /**
@@ -167,23 +156,12 @@ object Glyphs {
         if (code in KeyEvent.KEYCODE_BUTTON_A..KeyEvent.KEYCODE_BUTTON_Z) {
             val where = Throwable().stackTrace.drop(1).take(2).joinToString(" < ") { "${it.fileName}:${it.lineNumber}" }
             trace.addLast("${java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.ROOT).format(java.util.Date())} " +
-                "${KeyEvent.keyCodeToString(code)} → ${KeyEvent.keyCodeToString(out)} · ns=${anbernicNs()} nin=${nintendoLayout()} · $where")
+                "${KeyEvent.keyCodeToString(code)} → ${KeyEvent.keyCodeToString(out)} · nin=${nintendoLayout()} · $where")
             while (trace.size > 30) trace.pollFirst()
         }
     }
 
-    private fun logicalRaw(code: Int): Int = anbernicNs()?.let { ns ->
-        // Anbernic: while Hugminn is open its key mapper is paused, so the buttons arrive as printed
-        // (A right, B bottom, X top, Y left) whatever the mode. North/west always by position;
-        // Ns mode keeps A/B as printed, Xbox mode makes the bottom button confirm.
-        when (code) {
-            KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
-            KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
-            KeyEvent.KEYCODE_BUTTON_A -> if (ns) code else KeyEvent.KEYCODE_BUTTON_B
-            KeyEvent.KEYCODE_BUTTON_B -> if (ns) code else KeyEvent.KEYCODE_BUTTON_A
-            else -> code
-        }
-    } ?: if (!nintendoLayout()) code else when (code) {
+    private fun logicalRaw(code: Int): Int = if (!nintendoLayout()) code else when (code) {
         KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
         KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
         else -> code

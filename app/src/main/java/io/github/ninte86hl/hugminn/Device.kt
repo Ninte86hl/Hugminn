@@ -18,50 +18,17 @@ object Device {
 
     /** Known profiles (value → name). Values not listed yet are shown raw and can still be picked. */
     // Values as used by the shared Retroid/AYN firmware (fan 6 = custom speed from fan_speed).
-    /** Anbernic support comes with 1.14.2 – until then only in test builds. */
-    val isAnbernic get() = (android.os.Build.MANUFACTURER.contains("Anbernic", true) || android.os.Build.MODEL.startsWith("RG", true)) && Prefs.testBuild()
+    val perfKey = "performance_mode"
 
-    /** Anbernic stores its performance mode as cpu_mode (0 Balance, 1 Game). */
-    val perfKey get() = if (isAnbernic) "cpu_mode" else "performance_mode"
-
-    val perfProfiles get() = if (isAnbernic) linkedMapOf("0" to "Normal", "1" to tr("Leistung"))
-        else linkedMapOf("0" to "Normal", "1" to tr("Leistung"), "2" to tr("Hohe Leistung"))
-    /** Anbernic: 0 Silent, 1 Balance, 2 Turbo, 3 fixed speed (custom_fan_speed %). */
-    val fanProfiles get() = if (isAnbernic) linkedMapOf("0" to tr("Leise"), "1" to tr("Ausgewogen"), "2" to "Turbo", "3" to tr("Fest"))
-        else linkedMapOf("0" to tr("Aus"), "1" to tr("Leise"), "4" to "Smart", "5" to "Sport", "6" to tr("Eigene Kurve"))
-    /** Anbernic lighting effects (led_effect). */
-    val anbernicEffects get() = linkedMapOf("0" to tr("Leuchten"), "1" to tr("Atmen"), "2" to tr("Farbwechsel"), "3" to tr("Regenbogen"), "4" to tr("Lauflicht"))
+    val perfProfiles get() = linkedMapOf("0" to "Normal", "1" to tr("Leistung"), "2" to tr("Hohe Leistung"))
+    val fanProfiles get() = linkedMapOf("0" to tr("Aus"), "1" to tr("Leise"), "4" to "Smart", "5" to "Sport", "6" to tr("Eigene Kurve"))
 
     /** App context, for writing settings without root. */
     @Volatile var app: Context? = null
 
-    /** Without root: Anbernic's helper (started by its "Root Scripts") writes the settings for Hugminn. */
-    fun canWrite(ctx: Context) = isAnbernic && AnbernicHelper.alive(ctx)
 
-    /**
-     * Anbernic: show its tiles while the helper is down too (they used to vanish, and an open LED
-     * window with them – it flickered); an action then says how to start the helper.
-     */
-    fun anbernicKnown(ctx: Context) = isAnbernic && AnbernicHelper.dir().let { java.io.File(it, "helper.sh").exists() }
-
-    private val main = android.os.Handler(android.os.Looper.getMainLooper())
-
-    /** One system setting: root if there is root, otherwise through Anbernic's helper. */
-    fun put(key: String, value: String, then: () -> Unit) {
-        val c = app
-        if (isAnbernic) AnbernicHelper.trace("put $key=$value root=${Root.available()} app=${c != null} helper=${c?.let { canWrite(it) }}")
-        if (isAnbernic && !Root.available() && c != null && !canWrite(c)) {
-            main.post { android.widget.Toast.makeText(c, tr("Der Anbernic-Helfer läuft nicht – in Anbernics Skriptverwaltung ▶ drücken"), android.widget.Toast.LENGTH_LONG).show() }
-            main.post(then)
-            return
-        }
-        if (!Root.available() && c != null && canWrite(c)) {
-            AnbernicHelper.put(c, key, value)
-            // the helper looks every 0.3 s; "settings put" itself takes a moment: refresh twice
-            main.postDelayed(then, 700)
-            main.postDelayed(then, 1800)
-        } else Root.run(Root.putSetting("system", key, value), then = then)
-    }
+    /** One system setting, as root. */
+    fun put(key: String, value: String, then: () -> Unit) = Root.run(Root.putSetting("system", key, value), then = then)
     /** Trigger modes; AYN numbers analog and digital the other way round than Retroid. */
     val triggerModes get() = if (isAyn || isDuo) linkedMapOf("2" to tr("Analog + Digital"), "0" to tr("Nur analog"), "1" to tr("Nur digital"))
         else linkedMapOf("2" to tr("Analog + Digital"), "1" to tr("Nur analog"), "0" to tr("Nur digital"))
@@ -192,13 +159,11 @@ object Device {
         return table[v] ?: t("Profil $v", "Profile $v")
     }
 
-    fun fanLabel(ctx: Context) = profileLabel(ctx, "fan_mode", fanProfiles).let { l ->
-        if (isAnbernic && sys(ctx, "fan_mode") == "3") "$l ${sys(ctx, "custom_fan_speed") ?: "50"} %" else l
-    }
+    fun fanLabel(ctx: Context) = profileLabel(ctx, "fan_mode", fanProfiles)
     fun perfLabel(ctx: Context) = profileLabel(ctx, perfKey, perfProfiles)
 
     fun setFan(value: String, then: () -> Unit) = put("fan_mode", value, then)
-    fun setPerf(value: String, then: () -> Unit) = if (isAnbernic) put(perfKey, value, then) else Root.run(
+    fun setPerf(value: String, then: () -> Unit) = Root.run(
         Root.putSetting("system", "performance_mode", value),
         "setprop persist.vendor.debug.mode ${if (value == "0") 0 else 1}",
         then = then,
@@ -326,7 +291,7 @@ object Device {
 
     // ---- LED elements: each stick (and on the Odin 2 each side) on its own ----
 
-    fun ledElNames(ctx: Context): List<String> = if (isAnbernic) listOf(tr("Sticks")) else if (hasSideLights(ctx))
+    fun ledElNames(ctx: Context): List<String> = if (hasSideLights(ctx))
         listOf(tr("Linker Stick"), tr("Rechter Stick"), tr("Linke Seite"), tr("Rechte Seite"))
         else listOf(tr("Linker Stick"), tr("Rechter Stick"))
 
@@ -335,10 +300,6 @@ object Device {
      * Colour, combination and effect are each set once; the mode picks which one lights.
      */
     fun elState(ctx: Context, i: Int): Int {
-        if (isAnbernic) {
-            if (!sysOn(ctx, "led_enable")) return 0
-            return Prefs(ctx).ledElMode.getOrNull(0)?.digitToIntOrNull()?.takeIf { it in 1..3 } ?: if (sys(ctx, "led_effect") == "0") 1 else 3
-        }
         val odin = hasSideLights(ctx)
         // switched off by AYN's/Retroid's own setting: off
         val powered = if (odin) (if (i < 2) stickLeds(ctx) else sideLights(ctx)) else stickOn(ctx, i == 0)
@@ -355,7 +316,6 @@ object Device {
     /** Sets all modes; the power switches (AYN: both sticks / both sides; Retroid: each stick) follow. */
     fun setElStates(ctx: Context, s: IntArray, then: () -> Unit) {
         Prefs(ctx).ledElMode = s.joinToString("")
-        if (isAnbernic) { LedFx.resume(ctx); main.postDelayed(then, 900); return }
         if (hasSideLights(ctx)) {
             val sticks = s[0] > 0 || s[1] > 0
             val sides = s[2] > 0 || s[3] > 0
@@ -371,8 +331,6 @@ object Device {
     /** The element's own colour (also the colour of breathing and pulsing). */
     fun elColor(ctx: Context, i: Int): Int {
         Prefs(ctx).ledElColor(i).takeIf { it != 0 }?.let { return it }
-        // Anbernic: the colour chosen in the quick menu before, otherwise its cyan
-        if (isAnbernic) return Prefs(ctx).anbLedColor.takeIf { it != 0 } ?: 0xFF00BCD4.toInt()
         if (hasSideLights(ctx)) {
             val (l, r) = areaColors(ctx, side = i >= 2)
             return if (i % 2 == 0) l else r
@@ -424,7 +382,6 @@ object Device {
 
     /** Brightness of an element in percent (Odin 2: each its own; Retroid: the one value of both sticks). */
     fun elBright(ctx: Context, i: Int): Int {
-        if (isAnbernic) return Prefs(ctx).ledElB(0).takeIf { it in 1..100 } ?: Prefs(ctx).anbLedLevel
         val global = (ledBrightness(ctx) * 100).toInt().coerceIn(5, 100)
         return Prefs(ctx).ledElB(i).takeIf { it in 1..100 } ?: global
     }

@@ -48,7 +48,7 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
             when {
                 type.startsWith("cpu-") || type.startsWith("cpuss-") -> cpuZones += temp
                 type.startsWith("gpuss-") || type == "gpu" -> gpuZones += temp
-                // Unisoc (Anbernic): soc-, big7-, mid5-, lit0-, apcpu0-thmzone … and gpu-thmzone
+                // Unisoc: soc-, big7-, mid5-, lit0-, apcpu0-thmzone … and gpu-thmzone
                 type == "gpu-thmzone" -> gpuZones += temp
                 type.endsWith("-thmzone") && Regex("^(soc|big|mid|lit|apcpu)").containsMatchIn(type) -> cpuZones += temp
             }
@@ -196,14 +196,6 @@ class Metrics(private val ctx: Context, private val foreground: () -> String? = 
 
         var cpuT = maxTemp(cpuZones)
         var gpuT = maxTemp(gpuZones)
-        // Anbernic: the helper reads what Android hides from apps
-        if (Device.isAnbernic && (cpuT <= 0f || gpuT <= 0f || gpuMhz <= 0)) AnbernicHelper.stats()?.let { st ->
-            fun t(v: Float?) = v?.takeIf { it > 0 }?.let { if (it > 1000) it / 1000f else it }
-            if (cpuT <= 0f) t(st["cpu"])?.let { cpuT = it }
-            if (gpuT <= 0f) t(st["gpu"])?.let { gpuT = it }
-            if (gpuMhz <= 0) st["gpumhz"]?.takeIf { it > 0 }?.let { gpuMhz = (if (it > 100_000) it / 1_000_000 else it).toInt() }
-            if (gpuPct <= 0f) st["gpuload"]?.let { gpuPct = it }
-        }
         return Sample(
             cpuPct.coerceIn(0f, 100f), cpuMhz, gpuPct.coerceIn(0f, 100f), gpuMhz,
             usedMb, totalMb, cpuT, gpuT, batTemp, batPct, watts, charging,

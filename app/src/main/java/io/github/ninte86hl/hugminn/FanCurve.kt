@@ -57,8 +57,6 @@ object FanCurve {
     /** How fast the fan turns right now, in percent of full speed (whoever drives it), or null. */
     fun speedPct(): Int? {
         if (running && currentPct >= 0) return currentPct
-        // Anbernic: the helper reports the fan's PWM (0–255)
-        if (Device.isAnbernic && !Root.available()) return AnbernicHelper.stats()?.get("pwm")?.let { (it * 100 / 255).toInt().coerceIn(0, 100) }
         if (periodCache <= 0) periodCache = Root.exec("cat $PERIOD 2>/dev/null")?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: return null
         val duty = Root.exec("cat $DUTY 2>/dev/null")?.trim()?.toIntOrNull() ?: return null
         return (duty * 100 / periodCache).coerceIn(0, 100)

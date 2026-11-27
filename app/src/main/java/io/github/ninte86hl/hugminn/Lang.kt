@@ -301,7 +301,6 @@ object Lang {
         "Atmen (wenn als Effekt gewählt) oder Lauflicht in beiden Farben. A übernimmt" to "Breathing (when chosen as the effect) or chasing light in both colours. A applies",
         "Beide Sticks wechseln gemeinsam durch alle Farben." to "Both sticks change through all colours together.",
         "Die Farben wandern wie ein Regenbogen rund um den Stick." to "The colours run round the stick like a rainbow.",
-        "Der Anbernic-Helfer läuft nicht – in Anbernics Skriptverwaltung ▶ drücken" to "Anbernic helper isn't running – press ▶ in Anbernic's script management",
         "Ausgewogen" to "Balanced",
         "Fest" to "Fixed",
         "Leuchten" to "Steady",

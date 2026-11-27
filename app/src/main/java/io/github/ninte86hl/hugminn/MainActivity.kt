@@ -307,28 +307,6 @@ class MainActivity : Activity() {
         // Status
         val running = HugminnService.instance != null
         val rootOk = Root.available()
-        // Anbernic: keep helper.sh in the folder up to date (an update brings a new one; ▶ in Root Scripts starts it)
-        if (Device.isAnbernic && android.os.Environment.isExternalStorageManager()) runCatching { AnbernicHelper.install(packageName) }
-        // Anbernic without root: a one-line script for its "Root Scripts" grants Hugminn the system settings
-        if (Device.isAnbernic && !rootOk && !Device.canWrite(this)) {
-            val an = section(t("Anbernic freischalten", "Unlock on Anbernic"))
-            an.addView(text(t("Ohne Root darf Hugminn Leistung, Lüfter und Beleuchtung nur anzeigen. Ein kleiner Helfer schaltet das Umschalten frei: Skripte anlegen, " +
-                "in Anbernics Einstellungen → Advanced → Root Scripts → Import Script „hugminn-anbernic.sh“ aus dem Ordner hugminn wählen und unter Script Management mit ▶ starten. " +
-                "Nach jedem Neustart einmal ▶ drücken. Läuft der Helfer, verschwindet dieser Abschnitt.",
-                "Without root Hugminn may only show performance, fan and lighting. A small helper unlocks switching them: create the scripts, in Anbernic's " +
-                    "settings → Advanced → Root Scripts → Import Script pick “hugminn-anbernic.sh” from the hugminn folder and start it with ▶ under Script Management. " +
-                    "After every restart press ▶ once. While the helper runs, this section disappears."), 13f, pal.onSurfaceVariant)
-                .apply { setPadding(0, d(8), 0, d(4)) })
-            if (!android.os.Environment.isExternalStorageManager())
-                row(an, t("Eigener Ordner „hugminn“", "Own folder “hugminn”"), t("Zugriff auf alle Dateien erlauben – dann liegen die Skripte im internen Speicher unter hugminn statt in Download", "Allow all files access – the scripts then live in internal storage under hugminn instead of Download"), { "" }) {
-                    runCatching { startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, android.net.Uri.parse("package:$packageName"))) }
-                }
-            row(an, t("Skripte anlegen", "Create the scripts"), t("hugminn-anbernic.sh und helper.sh in ", "hugminn-anbernic.sh and helper.sh in ") + AnbernicHelper.dir().path.substringAfter("/0/"), { "" }) {
-                val ok = runCatching { AnbernicHelper.install(packageName) }.isSuccess
-                android.widget.Toast.makeText(this, if (ok) t("Angelegt: ", "Created: ") + AnbernicHelper.dir().path.substringAfter("/0/")
-                    else t("Anlegen ging nicht", "Could not create"), android.widget.Toast.LENGTH_LONG).show()
-            }
-        }
         val st = section("Status")
         st.addView(text(if (running) tr("✓ Hugminn ist aktiv") else tr("✕ Hugminn ist noch nicht aktiv"), 16f, pal.onSurface, bold = true).apply {
             setPadding(0, d(6), 0, d(2))
