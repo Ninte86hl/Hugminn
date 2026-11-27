@@ -30,6 +30,7 @@ Idea: one place inside Hugminn for the running game's achievements, the same for
 - **Own unlock notification:** Hugminn's card with badge, name and points, the same over every emulator (the emulators' own pop-ups can then be switched off).
 - **Way 1 – online, RetroAchievements Web API:** user name + web API key entered once, kept on the device only. The emulator reports the game to RA; Hugminn asks for the last active game and the achievements with the user's progress, and polls every 30–60 s while a game runs to notice new unlocks (a few seconds late). Works for every RA emulator. Offline: show the last saved state.
 - **Way 2 – offline, RAOfflineProxy** (misantronic/RAOfflineProxy, GPL-3.0, alpha): it sits between emulator and RA and knows game and unlocks at once. Its local data/API is not documented – find out from its source where it stores them, once its format is stable.
+- **Way 3 – standalone emulators through root (AYN/Retroid firmware root service):** most emulators use rcheevos and write to the log when they load a game and award an achievement. Hugminn already reads logcat as root (GameTitle). So: per emulator, find its log lines for "game loaded / achievement awarded" (device-test step: play, unlock one, collect the lines) → instant notification, offline too, with the achievement list cached from the API. Fallback per emulator: its own files under /data/data (read only, never write; no use of the emulator's stored RA login).
 - Open: how RetroDualStation does it (log, API?), so both feel the same.
 
 ## Orthogonal design system
