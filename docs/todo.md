@@ -33,6 +33,10 @@ Idea: one place inside Hugminn for the running game's achievements, the same for
 - **Way 3 – standalone emulators through root (AYN/Retroid firmware root service):** most emulators use rcheevos and write to the log when they load a game and award an achievement. Hugminn already reads logcat as root (GameTitle). So: per emulator, find its log lines for "game loaded / achievement awarded" (device-test step: play, unlock one, collect the lines) → instant notification, offline too, with the achievement list cached from the API. Fallback per emulator: its own files under /data/data (read only, never write; no use of the emulator's stored RA login).
 - Open: how RetroDualStation does it (log, API?), so both feel the same.
 
+## Own equalizer
+
+Later: Hugminn's own equalizer instead of opening Retroid's (Retroid's intent action `action_equalizer_config` is used for now).
+
 ## Orthogonal design system
 
 See [design-system-plan.md](design-system-plan.md).
