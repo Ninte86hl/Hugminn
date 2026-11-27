@@ -105,7 +105,6 @@ class ControlCenter(private val svc: HugminnService) {
         Displays.snapshot(svc, svc, "Control Center")
         Device.refreshLayout(svc)
         isOpen = true
-        svc.overlayState()
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("cc") } }
         pal = Palette(svc)
         items.clear()
@@ -242,7 +241,6 @@ class ControlCenter(private val svc: HugminnService) {
         if (!isOpen) return
         isOpen = false
         svc.ui.post { svc.comboClosed() }
-        svc.overlayState()
         hat.stop()
         stopBtScan()
         if (editing) {
@@ -705,10 +703,6 @@ class ControlCenter(private val svc: HugminnService) {
         // LED window: its own hints (the north button sets what the light shows)
         if (ledCells != null && (menuView as? View)?.tag == "led") {
             hint2(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, "Tab")
-            if (Device.isAnbernic) {
-                fixed(tr("Navigieren"), tr("An/Aus"), if (ledTab == 1) tr("Übernehmen") else null, tr("Auswählen"), if (ledTab != 0 || ledWheelView) tr("Zurück") else tr("Schließen"))
-                return
-            }
             fixed(if (ledEditing != null) tr("Ändern") else tr("Navigieren"),
                 if (ledFocus == "st" && ledTab == 0 && Device.elState(svc, ledShown()) > 0) tr("Einstellen") else null,
                 if (ledTab == 0 || ledTab == 1 || (ledTab == 2 && !ledWheelView && ledFocus.startsWith("c") && ledFocus != "c15")) tr("Auf alle") else null,
@@ -1097,7 +1091,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (id == "stats") return statsElement(e)
         if (id == "statsgraph") return statsGraphElement(e)
         if (id == "statsfps") return statsFpsElement(e)
-        if (big && (id == "perf" || id == "fan") && (rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc))) return profileElement(e)
+        if (big && (id == "perf" || id == "fan") && rootOk) return profileElement(e)
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
         if (id == "media" && big) return mediaElement(e, t)
@@ -2059,10 +2053,10 @@ class ControlCenter(private val svc: HugminnService) {
         }, { Device.btOn(svc) }, { btMenu(rootOk) }) {
             if (rootOk) Device.setBt(!Device.btOn(svc)) { refreshAll() } else btMenu(false)
         }
-        "perf" -> if ((rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc)) && Device.sys(svc, Device.perfKey) != null) Tile(tr("Leistung"), IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
+        "perf" -> if (rootOk && Device.sys(svc, Device.perfKey) != null) Tile(tr("Leistung"), IconView.Kind.BOLT, { Device.perfLabel(svc) }, { Device.performance(svc) }) {
             profileMenu(tr("Leistung"), Device.perfKey, Device.perfProfiles) { v -> Device.setPerf(v) { refreshAll() } }
         } else null
-        "fan" -> if ((rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc)) && Device.sys(svc, "fan_mode") != null) Tile(tr("Lüfter"), IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
+        "fan" -> if (rootOk && Device.sys(svc, "fan_mode") != null) Tile(tr("Lüfter"), IconView.Kind.FAN, { Device.fanLabel(svc) }, { true }) {
             profileMenu(tr("Lüfter"), "fan_mode", Device.fanProfiles) { v -> chooseFan(v) }
         } else null
         "refresh" -> {
@@ -2072,13 +2066,7 @@ class ControlCenter(private val svc: HugminnService) {
                     Device.setHighRefresh(!Device.highRefresh(svc)) { refreshAll() }
                 } else null
         }
-        // Anbernic: its own lighting – on/off, effect from the menu
-        "leds" -> if (Device.isAnbernic && (rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc)) && Device.sys(svc, "led_enable") != null)
-            Tile(tr("Beleuchtung"), IconView.Kind.LED, { if (Device.sysOn(svc, "led_enable")) Device.anbernicEffects[Device.sys(svc, "led_effect")] ?: tr("An") else tr("Aus") },
-                { Device.sysOn(svc, "led_enable") }, {
-                    ledPicker()
-                }) { Device.put("led_enable", if (Device.sysOn(svc, "led_enable")) "0" else "1") { refreshAll() } }
-        else if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
+        "leds" -> if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
         // the last app played (not the one in front): A starts it
         "lastgame" -> svc.own.recentPackages().firstOrNull { it != svc.foregroundPkg }?.let { pkg ->
             Tile(t("Zuletzt gespielt", "Last played"), IconView.Kind.PLAY, { Apps.label(svc, pkg) }, { false }) {
@@ -2554,63 +2542,6 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
-    /**
-     * Anbernic's stick lights: its own effects (through its setting), plus a colour of our own and the
-     * brightness – written into the controller by the helper. One colour for both sticks: the RG 406H
-     * has no colour per stick (LED tester, rounds 1–5).
-     */
-    private fun anbernicLedMenu(select: Int = -1) {
-        val p = svc.prefs
-        val cur = Device.sys(svc, "led_effect")
-        val own = p.anbLedColor
-        val entries = mutableListOf<MenuEntry>()
-        entries += MenuEntry(t("Effekt", "Effect"), header = true, run = null)
-        Device.anbernicEffects.forEach { (v, name) ->
-            entries += MenuEntry(name, checked = v == cur && Device.sysOn(svc, "led_enable")) {
-                Device.put("led_effect", v) { Device.put("led_enable", "1") {
-                    // Anbernic puts its own colour back with the effect: ours over it again
-                    if (own != 0) svc.ui.postDelayed({ anbernicColour(own) }, 800)
-                    refreshAll()
-                } }
-            }
-        }
-        entries += MenuEntry(t("Farbe (beide Sticks)", "Colour (both sticks)"), header = true, run = null)
-        val names = listOf(t("Weiß", "White"), t("Rot", "Red"), t("Rotorange", "Red orange"), "Orange", t("Gelb", "Yellow"), t("Limette", "Lime"),
-            t("Hellgrün", "Light green"), t("Grün", "Green"), t("Mint", "Mint"), t("Türkis", "Cyan"), t("Himmelblau", "Sky blue"), t("Blau", "Blue"),
-            t("Violett", "Violet"), "Magenta", t("Pink", "Pink"))
-        ledColours15.forEachIndexed { i, c ->
-            entries += MenuEntry(names.getOrElse(i) { "#%06X".format(c and 0xFFFFFF) }, checked = own == c, swatch = c) {
-                p.anbLedColor = c
-                anbernicColour(c)
-                svc.ui.post { anbernicLedMenu(entries.indexOfFirst { it.swatch == c }) }
-            }
-        }
-        entries += MenuEntry(t("Anbernics Farbe", "Anbernic's colour"), checked = own == 0, hint = t("Die Farbe aus Anbernics App", "The colour from Anbernic's app")) {
-            p.anbLedColor = 0
-            // re-applying the effect makes Anbernic write its colour again
-            cur?.let { Device.put("led_effect", it) { refreshAll() } }
-        }
-        entries += MenuEntry(t("Helligkeit", "Brightness"), header = true, run = null)
-        val lvl = p.anbLedLevel
-        // led_level takes percent (0–100) and reads back 0–255: 127 or 255 wrapped round (127 % → 67)
-        listOf(20 to t("Niedrig", "Low"), 50 to t("Mittel", "Medium"), 100 to t("Hoch", "High")).forEach { (v, name) ->
-            entries += MenuEntry(name, checked = lvl == v) {
-                p.anbLedLevel = v
-                AnbernicHelper.joypad("led_level", v); AnbernicHelper.joypad("led_set", 1)
-                svc.ui.post { anbernicLedMenu(entries.indexOfFirst { it.label == name }) }
-            }
-        }
-        showMenu(tr("Beleuchtung"), entries, select)
-    }
-
-    /** One colour into the controller: the shared colour and both sticks' channels, then applied. */
-    private fun anbernicColour(c: Int) {
-        val r = Color.red(c); val g = Color.green(c); val b = Color.blue(c)
-        listOf("led_sync_colour" to 0, "custum_rgb_r" to r, "custum_rgb_g" to g, "custum_rgb_b" to b,
-            "Led_rgb_r1" to r, "Led_rgb_g1" to g, "Led_rgb_b1" to b, "Led_rgb_r2" to r, "Led_rgb_g2" to g, "Led_rgb_b2" to b, "led_set" to 1)
-            .forEach { (k, v) -> AnbernicHelper.joypad(k, v) }
-    }
-
     private fun profileMenu(title: String, key: String, table: Map<String, String>, sel: Int = -1, set: (String) -> Unit) {
         val cur = Device.sys(svc, key)
         val entries = table.map { (v, name) -> MenuEntry(name, checked = v == cur) { set(v) } }.toMutableList()
@@ -2619,7 +2550,7 @@ class ControlCenter(private val svc: HugminnService) {
         val app = svc.foregroundPkg
         val kind = if (key == "fan_mode") "fan" else "perf"
         // only for games and emulators (not for e.g. a file manager or Obtainium that happens to be open)
-        if (app != null && !svc.homeInFront && Apps.isGameLike(svc, app) && (Root.available() || Device.canWrite(svc)) && (key == "fan_mode" || key == Device.perfKey)) {
+        if (app != null && !svc.homeInFront && Apps.isGameLike(svc, app) && Root.available() && (key == "fan_mode" || key == Device.perfKey)) {
             val name = Apps.label(svc, app)
             val saved = AppProfiles.of(svc, app)?.let { if (kind == "fan") it.fan else it.perf }
             val now = if (kind == "fan" && svc.prefs.fanCustom) "6" else cur
@@ -2971,7 +2902,7 @@ class ControlCenter(private val svc: HugminnService) {
     private var ledEl = 0
     /** "Alle" sits after the single lights: ledEl == count. */
     private fun ledN() = Device.ledElNames(svc).size
-    private fun ledAll() = !Device.isAnbernic && ledEl >= ledN()
+    private fun ledAll() = ledEl >= ledN()
     /** The light whose values the window shows ("Alle": the first). */
     private fun ledShown() = if (ledAll()) 0 else ledEl.coerceIn(0, ledN() - 1)
     /** The lights a choice is written to. */
@@ -3037,16 +2968,7 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** Effects of the Modus tab: effect, name, description, info (device display) or not. */
     private class LedFxItem(val e: LedEffect, val name: String, val desc: String, val info: Boolean = false)
-    private val ledFxItems get() = if (Device.isAnbernic) listOf(
-        LedFxItem(LedEffect.NONE, tr("Leuchten"), tr("Leuchtet ruhig in der gewählten Farbe.")),
-        LedFxItem(LedEffect.BREATHE, tr("Atmen"), tr("Wird langsam heller und dunkler, in der gewählten Farbe.")),
-        LedFxItem(LedEffect.RAINBOW, tr("Farbwechsel"), tr("Beide Sticks wechseln gemeinsam durch alle Farben.")),
-        LedFxItem(LedEffect.RING, tr("Regenbogen"), tr("Die Farben wandern wie ein Regenbogen rund um den Stick.")),
-        LedFxItem(LedEffect.CHASE, tr("Lauflicht"), tr("Ein Licht jagt im Kreis um den Stick.")),
-        // Anbernic's "Game" looked no different from steady light in every test: left out
-        LedFxItem(LedEffect.BATTERY, tr("Akku"), tr("Die Farbe zeigt den Ladestand – ein Blick genügt."), true),
-        LedFxItem(LedEffect.TEMP, tr("Temperatur"), tr("Die Farbe zeigt, wie warm das Gerät gerade ist."), true),
-    ) else listOf(
+    private val ledFxItems get() = listOf(
         LedFxItem(LedEffect.NONE, tr("Statisch"), tr("Leuchtet ruhig in der gewählten Farbe.")),
         LedFxItem(LedEffect.BREATHE, tr("Atmen"), tr("Wird langsam heller und dunkler, wie ruhiges Atmen.")),
         LedFxItem(LedEffect.PULSE, tr("Pulsieren"), tr("Kurzer Doppelschlag, dann Pause – wie ein Herzschlag.")),
@@ -3056,239 +2978,6 @@ class ControlCenter(private val svc: HugminnService) {
         LedFxItem(LedEffect.TEMP, tr("Temperatur"), tr("Die Farbe zeigt, wie warm das Gerät gerade ist."), true),
     )
 
-    /** Anbernic: one light for both sticks – its own small window with two tabs, Farbe (15 colours + wheel) and Effekt. */
-    private val anbLevels = intArrayOf(20, 50, 100)
-
-    /** What the Anbernic light shows (0 off, otherwise on) – from Hugminn's own choice, so it does not lag behind the helper. */
-    private fun anbMode() = svc.prefs.ledElMode.getOrNull(0)?.digitToIntOrNull() ?: Device.elState(svc, 0)
-
-    private fun anbRedraw() = svc.ui.post { refreshAll(); if (root != null && ledCells != null) ledPicker() }
-
-    private fun anbToggle() {
-        Device.setElStates(svc, intArrayOf(if (anbMode() > 0) 0 else 3)) { anbRedraw() }
-        svc.ui.post { if (root != null && ledCells != null) ledPicker() }
-    }
-
-    private fun anbColour(c: Int, focus: String) {
-        ledFocus = focus
-        Device.setElColors(svc, intArrayOf(c or 0xFF000000.toInt())) {
-            if (anbMode() != 3) Device.setElStates(svc, intArrayOf(3)) { anbRedraw() } else anbRedraw()
-        }
-        svc.ui.post { if (root != null && ledCells != null) ledPicker() }
-    }
-
-    private fun anbApplyFx() {
-        val items = ledFxItems
-        val e = items.getOrNull(ledFxIdx)?.e ?: return
-        LedFx.setEls(svc, listOf(0), e)
-        Device.setElStates(svc, intArrayOf(3)) { anbRedraw() }
-    }
-
-    private fun anbLedPicker() {
-        val r = root ?: return
-        val reuse = (menuView as? LinearLayout)?.takeIf { it.tag == "led" }
-        if (reuse == null) { closeMenu(); ledWheelView = false; ledFxIdx = -1; ledEditing = null; ledTab = 0; ledFocus = "" }
-        if (ledTab > 1) ledTab = 0
-        ledEl = 0
-        val on = anbMode() > 0
-        val col = Device.elColor(svc, 0) or 0xFF000000.toInt()
-        val lvl = Device.elBright(svc, 0)
-        val li = anbLevels.indices.minByOrNull { abs(anbLevels[it] - lvl) } ?: 1
-        val levelNames = listOf(tr("Niedrig"), tr("Mittel"), tr("Hoch"))
-        val cells = mutableListOf<LedCell>()
-        val side = mutableMapOf<String, (Int) -> Unit>()
-        val dm = svc.resources.displayMetrics
-        val boxW = (dm.widthPixels * 0.9f).toInt().coerceAtMost(1100 * d)
-        val bodyH = (dm.heightPixels - 180 * d).coerceIn(160 * d, 440 * d)
-        val colW = minOf(boxW - 44 * d, 360 * d)
-        val box = reuse?.apply { removeAllViews() } ?: LinearLayout(svc).apply {
-            tag = "led"
-            orientation = LinearLayout.VERTICAL
-            background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
-            setPadding(22 * d, 12 * d, 22 * d, 14 * d)
-            elevation = 12f * d
-            isClickable = true
-        }
-        fun again(key: String) = svc.ui.post { if (root != null) { ledFocus = key; ledPicker() } }
-        fun desc(t: String) = text(t, 11f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER; setPadding(4 * d, 3 * d, 4 * d, 6 * d) }
-        /** A row "title  ◀ value ▶": left/right change it at once, A runs [act]. */
-        fun stepper(key: String, title: String, value: String, dotC: Int?, step: (Int) -> Unit, act: () -> Unit = {}): View {
-            val row = LinearLayout(svc).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(14 * d, 0, 6 * d, 0)
-                background = shape(pal.surfaceHighest, 18f * d)
-            }
-            row.addView(text(title, 13f, pal.onSurfaceVariant), lp(0, WRAP, 1f))
-            fun arrow(sym: String, dir: Int) = text(sym, 16f, pal.onSurfaceVariant, bold = true).apply {
-                gravity = Gravity.CENTER
-                setOnClickListener { ledFocus = key; step(dir) }
-            }
-            row.addView(arrow("◀", -1), lp(30 * d, 40 * d))
-            dotC?.let { row.addView(View(svc).apply { background = shape(it, 7f * d, 1 * d, pal.outline) }, lp(14 * d, 14 * d).apply { marginEnd = 8 * d }) }
-            row.addView(text(value, 14f, pal.onSurface, bold = true))
-            row.addView(arrow("▶", 1), lp(30 * d, 40 * d))
-            row.setOnClickListener { ledFocus = key; act() }
-            cells += LedCell(key, row, act)
-            side[key] = step
-            return row
-        }
-
-        box.addView(text(tr("Beleuchtung"), 18f, pal.onSurface, bold = true).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP))
-        box.addView(tabHeader(listOf(tr("Farbe"), tr("Effekt")), ledTab) { i ->
-            if (ledTab != i) { ledTab = i; ledWheelView = false; ledFocus = ""; ledPicker() }
-        }.apply { setPadding(0, 8 * d, 0, 6 * d) }, lp(MATCH, WRAP))
-        val scroll = FitBox(svc)
-        ledScroll = null
-        box.addView(scroll, lp(MATCH, bodyH))
-        val outer = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        scroll.addView(outer)
-        val body = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL }
-        outer.addView(body, lp(colW, WRAP))
-        fun gap(h: Int = 8) = body.addView(View(svc), lp(1, h * d))
-        val levelRow = { stepper("lvl", tr("Helligkeit"), levelNames[li], null, { dir ->
-            val k = (li + dir).coerceIn(0, anbLevels.lastIndex)
-            if (k != li) Device.setElBright(svc, 0, anbLevels[k]) { again("lvl") }
-        }) }
-
-        if (ledTab == 0 && !ledWheelView) {
-            body.addView(stepper("on", tr("Licht"), if (on) tr("An") else tr("Aus"), if (on) col else 0xFF2A2A2A.toInt(), { anbToggle() }) { anbToggle() }, lp(MATCH, 40 * d))
-            gap()
-            // 15 colours, the wheel as the 16th tile
-            val gapC = 8 * d
-            val cell = ((bodyH - 150 * d - 3 * gapC) / 4).coerceIn(28 * d, 50 * d)
-            val grid = android.widget.GridLayout(svc).apply { columnCount = 4 }
-            fun place(j: Int, v: View) = grid.addView(v, android.widget.GridLayout.LayoutParams().apply {
-                width = cell; height = cell
-                setMargins(0, 0, if (j % 4 < 3) gapC else 0, if (j < 12) gapC else 0)
-            })
-            ledColours15.forEachIndexed { j, c ->
-                val v = FrameLayout(svc).apply {
-                    background = shape(c, 10f * d)
-                    if (col == c) addView(text("✓", 16f, onColor(c), bold = true).apply { gravity = Gravity.CENTER },
-                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-                }
-                val act: () -> Unit = { anbColour(c, "c$j") }
-                v.setOnClickListener { act() }
-                place(j, v)
-                cells += LedCell("c$j", v, act)
-            }
-            val wt = FrameLayout(svc).apply {
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    gradientType = android.graphics.drawable.GradientDrawable.SWEEP_GRADIENT
-                    colors = intArrayOf(0xFFFF0000.toInt(), 0xFFFFFF00.toInt(), 0xFF00FF00.toInt(), 0xFF00FFFF.toInt(), 0xFF0000FF.toInt(), 0xFFFF00FF.toInt(), 0xFFFF0000.toInt())
-                    cornerRadius = 10f * d
-                }
-                contentDescription = tr("Farbrad")
-                addView(text("+", 20f, android.graphics.Color.WHITE, bold = true).apply { gravity = Gravity.CENTER },
-                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-            }
-            val wAct: () -> Unit = { ledWheelView = true; again("wheel") }
-            wt.setOnClickListener { wAct() }
-            place(15, wt)
-            cells += LedCell("c15", wt, wAct)
-            body.addView(LinearLayout(svc).apply { gravity = Gravity.CENTER; addView(grid) }, lp(MATCH, WRAP))
-            gap()
-            body.addView(levelRow(), lp(MATCH, 40 * d))
-            body.addView(desc(tr("Beide Sticks leuchten in dieser Farbe – auch Effekte laufen in ihr.")).apply { setPadding(4 * d, 6 * d, 4 * d, 0) }, lp(MATCH, WRAP))
-        } else if (ledTab == 0) {
-            // the wheel on its own: the D-pad steers it, A applies, B goes back to the colours
-            val wheelSize = (bodyH - 90 * d).coerceIn(120 * d, 260 * d)
-            val wheel = ColorWheel(svc, pal.onSurface).apply { select(col) }
-            val sample = View(svc).apply { background = shape(wheel.color, 8f * d) }
-            body.addView(LinearLayout(svc).apply { gravity = Gravity.CENTER; addView(wheel, lp(wheelSize, wheelSize)) }, lp(MATCH, WRAP))
-            body.addView(sample, lp(MATCH, 12 * d).apply { topMargin = 8 * d })
-            wheel.onChange = { c -> sample.background = shape(c, 8f * d) }
-            val done: (Int) -> Unit = { c -> activeWheel = null; ledWheelView = false; anbColour(c, "c15") }
-            wheel.onPick = done
-            val steer = {
-                activeWheel = wheel
-                wheel.active = true
-                wheelDone = done
-                wheelCancel = { activeWheel = null; ledWheelView = false; again("c15") }
-                showLedSel()
-                renderFooter()
-            }
-            cells += LedCell("wheel", wheel, steer)
-            body.addView(desc(tr("Steuerkreuz wählen · A übernehmen · B zurück")), lp(MATCH, WRAP))
-            svc.ui.post { if (root != null && activeWheel == null && ledWheelView) steer() }
-        } else {
-            val items = ledFxItems
-            if (ledFxIdx !in items.indices) ledFxIdx = items.indexOfFirst { it.e == Device.elFx(svc, 0) }.coerceAtLeast(0)
-            val it0 = items[ledFxIdx]
-            body.addView(stepper("fx", tr("Effekt"), it0.name, null, { dir ->
-                // ◀ ▶ only browse; A or X takes the effect – simple and predictable
-                ledFxIdx = (ledFxIdx + dir + items.size) % items.size
-                again("fx")
-            }) { anbApplyFx() }, lp(MATCH, 40 * d))
-            val running = anbMode() == 3 && Device.elFx(svc, 0) == it0.e
-            body.addView(text(if (running) tr("✓ läuft gerade") else tr("A oder X übernimmt den Effekt"), 12f, if (running) pal.primary else pal.onSurface, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, 6 * d, 0, 0) }, lp(MATCH, WRAP))
-            body.addView(desc(it0.desc), lp(MATCH, WRAP))
-            if (it0.info) body.addView(desc(if (it0.e == LedEffect.BATTERY) tr("Grün über 50 % · Gelb 20–50 % · Rot unter 20 %") else tr("Grün unter 60 °C · Gelb 60–75 °C · Rot ab 75 °C")), lp(MATCH, WRAP))
-            else if (it0.e != LedEffect.RAINBOW && it0.e != LedEffect.RING) body.addView(desc(tr("Läuft in der Farbe aus dem Tab Farbe.")), lp(MATCH, WRAP))
-            gap()
-            body.addView(levelRow(), lp(MATCH, 40 * d))
-            val dots = LinearLayout(svc).apply { gravity = Gravity.CENTER; setPadding(0, 10 * d, 0, 2 * d) }
-            items.indices.forEach { k -> dots.addView(View(svc).apply { background = shape(if (k == ledFxIdx) pal.primary else pal.surfaceHighest, 4f * d) }, lp(8 * d, 8 * d).apply { marginStart = 4 * d; marginEnd = 4 * d }) }
-            body.addView(dots, lp(MATCH, WRAP))
-        }
-
-        ledCells = cells
-        ledSide = side
-        ledNav = emptyMap()
-        if (cells.none { it.key == ledFocus }) ledFocus = when {
-            ledWheelView -> "wheel"
-            ledTab == 1 -> "fx"
-            else -> cells.firstOrNull { it.key.startsWith("c") && (it.view as? FrameLayout)?.childCount == 1 && it.key != "c15" }?.key ?: "on"
-        }
-        if (reuse == null) r.addView(box, FrameLayout.LayoutParams(boxW, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
-        menuView = box
-        showLedSel()
-    }
-
-    /** Anbernic LED window: ◀ ▶ change a row at once, ▲ ▼ and ◀ ▶ in the colours move, A picks, B one step back, Y on/off. */
-    private fun anbLedKey(code: Int) {
-        val cells = ledCells ?: return
-        val cur = cells.firstOrNull { it.key == ledFocus } ?: cells.first()
-        val (dx, dy) = when (code) {
-            KeyEvent.KEYCODE_BUTTON_Y -> { anbToggle(); return }
-            // Effekt tab: X takes the effect shown, like A
-            KeyEvent.KEYCODE_BUTTON_X -> { if (ledTab == 1) anbApplyFx(); return }
-            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> { ledTab = 1 - ledTab; ledWheelView = false; ledFocus = ""; ledPicker(); return }
-            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { cur.act(); return }
-            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> {
-                when {
-                    ledWheelView -> { ledWheelView = false; ledFocus = "c15"; ledPicker() }
-                    ledTab != 0 -> { ledTab = 0; ledFocus = ""; ledPicker() }
-                    else -> { closeMenu(); renderFooter() }
-                }
-                return
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT -> -1 to 0
-            KeyEvent.KEYCODE_DPAD_RIGHT -> 1 to 0
-            KeyEvent.KEYCODE_DPAD_UP -> 0 to -1
-            KeyEvent.KEYCODE_DPAD_DOWN -> 0 to 1
-            else -> return
-        }
-        if (dx != 0) ledSide[cur.key]?.let { it(dx); return }
-        fun center(v: View): Pair<Float, Float> {
-            val p = IntArray(2).also(v::getLocationOnScreen)
-            return (p[0] + v.width / 2f) to (p[1] + v.height / 2f)
-        }
-        val (cx, cy) = center(cur.view)
-        var best: LedCell? = null
-        var bestScore = Float.MAX_VALUE
-        for (c in cells) {
-            if (c === cur) continue
-            val (x, y) = center(c.view)
-            val along = (x - cx) * dx + (y - cy) * dy
-            if (along <= 4f) continue
-            val across = abs((x - cx) * dy - (y - cy) * dx)
-            val score = along + across * 2f
-            if (score < bestScore) { bestScore = score; best = c }
-        }
-        best?.let { ledFocus = it.key; showLedSel() }
-    }
-
     /**
      * LED window with three tabs (L1/R1), always the same size, content in one centred column:
      * Gerät – one element at a time (◀ ▶): status Aus · An · Benutzerdefiniert, brightness and
@@ -3297,7 +2986,6 @@ class ControlCenter(private val svc: HugminnService) {
      * Farbe, Modus and the combinations change only the elements on Benutzerdefiniert.
      */
     private fun ledPicker() {
-        if (Device.isAnbernic) return anbLedPicker()
         val r = root ?: return
         val reuse = (menuView as? LinearLayout)?.takeIf { it.tag == "led" }
         // a fresh window starts on "Alle": the simple way, single lights are one step away
@@ -3542,8 +3230,7 @@ class ControlCenter(private val svc: HugminnService) {
                     }, lp(0, WRAP, 1f))
                 }
                 cp.addView(sw2, lp(MATCH, WRAP))
-                cp.addView(text(if (Device.isAnbernic) tr("Atmen (wenn als Effekt gewählt) oder Lauflicht in beiden Farben. A übernimmt")
-                    else tr("A schaltet alle eingeschalteten Lichter auf diese Kombi: links die erste, rechts die zweite Farbe"), 11f, pal.onSurfaceVariant).apply { setPadding(0, 3 * d, 0, 0) })
+                cp.addView(text(tr("A schaltet alle eingeschalteten Lichter auf diese Kombi: links die erste, rechts die zweite Farbe"), 11f, pal.onSurfaceVariant).apply { setPadding(0, 3 * d, 0, 0) })
                 pairRow(cSel, cp)
             }
             2 -> {
@@ -3746,7 +3433,6 @@ class ControlCenter(private val svc: HugminnService) {
 
     /** D-pad in the LED window: to the nearest cell in that direction (by position on screen). */
     private fun ledKey(code: Int) {
-        if (Device.isAnbernic) return anbLedKey(code)
         val cells = ledCells ?: return
         val cur = cells.firstOrNull { it.key == ledFocus } ?: cells.first()
         // a field taken with A: left/right change it, A confirms, B leaves it (like the sliders)

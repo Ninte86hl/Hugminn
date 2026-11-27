@@ -206,7 +206,6 @@ class OwnSwitcher(private val svc: HugminnService) {
         wm = Displays.wmFor(svc, display)
         otherScreen = display != android.view.Display.DEFAULT_DISPLAY
         isOpen = true
-        svc.overlayState()
         HugminnService.overlayOpened?.let { cb -> svc.ui.post { cb("switcher") } }
         fromSwipe = swipe
         val front = svc.windowPkg // from the window events: no waiting for the app in front
@@ -291,7 +290,6 @@ class OwnSwitcher(private val svc: HugminnService) {
         if (!isOpen) return
         isOpen = false
         svc.ui.post { svc.comboClosed() }
-        svc.overlayState()
         closedAt = SystemClock.uptimeMillis()
         hat.stop()
         menu = null
@@ -348,14 +346,12 @@ class OwnSwitcher(private val svc: HugminnService) {
             Notice.show(svc, t("Angeheftet – lösen mit Y", "Pinned – unpin with Y"), corner = true)
             return
         }
-        val helper = !Root.available() && Device.canWrite(svc)
-        if (!Root.available() && !helper) {
+        if (!Root.available()) {
             svc.startApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")))
             close(back = false)
             return
         }
-        // Anbernic without root: its helper ends the app; the card leaves Hugminn's list
-        if (helper) AnbernicHelper.stop(svc, a.pkg) else removeTask(a)
+        removeTask(a)
         Snapshots.remove(svc, a.pkg)
         synchronized(this) { known.removeAll { it.pkg == a.pkg } }
         if (a.pkg == fromPkg) fromPkg = null

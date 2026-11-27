@@ -142,10 +142,6 @@ class HugminnService : AccessibilityService() {
         prefs.keepOldStyle()
         Apps.chosenHome = prefs.launcherPkg.ifBlank { null }
         Device.app = applicationContext
-        // Anbernic: after an update the new helper.sh goes down at once – the running helper picks it up itself
-        if (Device.isAnbernic && android.os.Environment.isExternalStorageManager()) Thread { runCatching { AnbernicHelper.install(packageName) } }.start()
-        // Anbernic after a restart: the helper isn't running – Hugminn starts it through Anbernic's script management
-        if (Device.isAnbernic) ui.postDelayed({ AnbernicAutostart.afterStart(this) }, 15_000)
         prefs.duoHomeBack()
         prefs.forgetOld()
         // the Android wallpaper may have changed while Hugminn was off: copy it again in the background
@@ -237,8 +233,6 @@ class HugminnService : AccessibilityService() {
                 // AYN with two stick colours: the firmware puts its one colour back on waking
                 if (Device.aynSplit(this@HugminnService) && LedFx.current() == LedEffect.NONE && Device.stickLeds(this@HugminnService))
                     LedFx.restoreStatic(this@HugminnService, delayMs = 1500)
-                // Anbernic: the controller's lights stay dark after standby – switch them fully on again
-                if (Device.isAnbernic) ui.postDelayed({ AnbernicLed.wake(this@HugminnService) }, 1200)
                 ui.postDelayed({
                     Thread {
                         if (Root.available() && Device.builtinOff(this@HugminnService) && !Device.externalPad())
@@ -387,11 +381,9 @@ class HugminnService : AccessibilityService() {
         }
         // AYN's own button (Thor): it sends Home, but belongs to AYN – its menu, closing it, screen off
         if (Device.isAynKey(event)) return false
-        // Anbernic (RG 406H): its Home button sends F10 from the built-in pad
-        val anbernicHome = event.keyCode == KeyEvent.KEYCODE_F10 && event.device?.name == "retrogame_joypad"
         // the device test asks for the Home button: it goes there instead of opening anything
         keyProbe?.let { probe ->
-            if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || anbernicHome) {
+            if (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME) {
                 if (event.action == KeyEvent.ACTION_UP) ui.post { probe(KeyEvent.KEYCODE_HOME) }
                 return true
             }
@@ -402,7 +394,6 @@ class HugminnService : AccessibilityService() {
         if (Device.noSticks && event.keyCode == KeyEvent.KEYCODE_BACK && event.device?.name?.contains("Retroid", true) == true) return onClassicKey(event, false)
         if (Device.noSticks && (event.keyCode == KeyEvent.KEYCODE_HOME || event.keyCode == KeyEvent.KEYCODE_MOVE_HOME)) return onClassicKey(event, true)
         if (event.keyCode == KeyEvent.KEYCODE_MOVE_HOME || event.keyCode == KeyEvent.KEYCODE_HOME) return onHome(event)
-        if (anbernicHome) return onHome(event, forced = true)
         // extra buttons (paddles, M1/M2) – only once the person gave them something to do
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_C || event.keyCode == KeyEvent.KEYCODE_BUTTON_Z) onExtraKey(event)?.let { return it }
         // Retroid's Back button held: an action of its own (switcher on the Duo); a short press stays Back
@@ -684,23 +675,6 @@ class HugminnService : AccessibilityService() {
                 ui.postDelayed({ performGlobalAction(GLOBAL_ACTION_RECENTS) }, 280)
             }
         }
-    }
-
-    private var keymapPaused = false
-
-    /**
-     * An overlay opened or closed. Anbernic: its key mapper is paused meanwhile (as its own panel
-     * does it), otherwise it turns B into Back and the like inside Hugminn's windows.
-     */
-    fun overlayState() {
-        if (!Device.isAnbernic) return
-        val open = (::controlCenter.isInitialized && controlCenter.isOpen) || anySwitcherOpen
-        if (open == keymapPaused) return
-        keymapPaused = open
-        Thread {
-            runCatching { android.provider.Settings.Global.putString(contentResolver, "keymap_paused_by_panel", if (open) "1" else "0") }
-                .onFailure { AnbernicHelper.trace("keymap pause failed: ${it.message}") }
-        }.start()
     }
 
     // ---------- switcher + Control Center on two screens ----------

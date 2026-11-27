@@ -187,7 +187,7 @@ class DeviceTestActivity : Activity() {
             // a moment after the last button: leftovers of it don't count for the next one
             if (android.os.SystemClock.uptimeMillis() - askedAt < 500) return
             val got = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
-            // Home: whatever the maker sends for it (Home, F10 on Anbernic, Back on the Pocket Classic) is fine
+            // Home: whatever the maker sends for it (Home, Back on the Pocket Classic) is fine
             val ok = code == want || (want == KeyEvent.KEYCODE_HOME && code in setOf(KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_MOVE_HOME, KeyEvent.KEYCODE_F10, KeyEvent.KEYCODE_BACK))
             rows += "$name→$got($code/$scan)"
             if (!ok) wrong += "$name→$got"
@@ -334,7 +334,6 @@ class DeviceTestActivity : Activity() {
 
     private fun startLedTest() {
         // AYN Thor (two screens): first learn how its lower panel is driven
-        if (Device.isAnbernic && !Root.available() && AnbernicHelper.alive(this)) { anbernicLed(); return }
         if (!Root.available() || !Device.hasStickLeds(this)) { showSummary(); return }
         list.removeAllViews()
         list.addView(text(t("Stick-LEDs", "Stick LEDs"), 18f, fg, true))
@@ -473,74 +472,6 @@ class DeviceTestActivity : Activity() {
                     runOnUiThread { setButtons(button(t("Fertig", "Done"), true) { done() }) }
                 }.start()
             })
-    }
-
-    // ---- LED tester for Anbernic (through its helper: the controller's own light settings) ----
-
-    private class AStep(val name: String, val writes: List<Pair<String, Int>>, val ask: String, val answers: List<String>)
-
-    /**
-     * Anbernic: the stick lights hang on the controller driver (singleadc-joypad) – colour per stick,
-     * mode, speed, brightness. Each step writes some of them and asks what changed, so Hugminn learns
-     * how to drive them itself (own colours per stick instead of Anbernic's six effects).
-     */
-    private fun anbernicLed() {
-        val before = AnbernicHelper.joypadNow()
-        val colour = t("Was zeigen die Sticks?", "What do the sticks show?")
-        val colours = listOf(t("Links rot, rechts blau", "Left red, right blue"), t("Beide dieselbe Farbe", "Both the same colour"),
-            t("Keine Änderung", "No change"), t("Etwas anderes", "Something else"))
-        val look = t("Was macht das Licht?", "What does the light do?")
-        val looks = listOf(t("Leuchtet ruhig", "Steady"), t("Atmet / pulsiert", "Breathes / pulses"), t("Regenbogen / Farbwechsel", "Rainbow / colour change"),
-            t("Läuft im Kreis", "Runs round"), t("Aus", "Off"), t("Etwas anderes", "Something else"))
-        // Anbernic's own light service steers the LEDs all the time (led_level reads back changing values):
-        // with its lighting switched off in the settings it should leave them to us
-        val off = listOf("set:led_enable" to 0)
-        // round 5: Anbernic's own "Steady" is led_mode 1 with speed 0, its colour in custum_rgb and in both
-        // sticks' Led_rgb. So: steady with a different colour per stick, then breathing through the speed
-        val what = t("Was siehst du?", "What do you see?")
-        val answers = listOf(t("Links rot, rechts blau – ruhig", "Left red, right blue – steady"), t("Links rot, rechts blau – atmet", "Left red, right blue – breathes"),
-            t("Beide rot", "Both red"), t("Beide blau", "Both blue"), t("Beide grün", "Both green"), t("Andere Farbe", "Another colour"), t("Aus", "Off"))
-        val split = listOf("led_sync_colour" to 0, "custum_rgb_r" to 255, "custum_rgb_g" to 0, "custum_rgb_b" to 0,
-            "Led_rgb_r1" to 255, "Led_rgb_g1" to 0, "Led_rgb_b1" to 0, "Led_rgb_r2" to 0, "Led_rgb_g2" to 0, "Led_rgb_b2" to 255)
-        // round 6: every mode of the controller itself, so Hugminn can run Anbernic's effects without its service.
-        // Two colours (red / blue) and a middle speed, so colour changes and movement both show.
-        val modeLooks = listOf(t("Leuchtet ruhig", "Steady"), t("Atmet / pulsiert", "Breathes / pulses"),
-            t("Wechselt zwischen Rot und Blau", "Changes between red and blue"), t("Regenbogen – alle Farben", "Rainbow – all colours"),
-            t("Läuft im Kreis – Rot/Blau", "Runs round – red/blue"), t("Läuft im Kreis – Regenbogen", "Runs round – rainbow"),
-            t("Blinkt", "Flashes"), t("Aus", "Off"), t("Etwas anderes", "Something else"))
-        val steps = mutableListOf<AStep>()
-        for (m in 0..10) {
-            val w = (if (m == 0) off + listOf("led_switch" to 1, "led_level" to 80) + split else emptyList()) +
-                listOf("led_mode" to m, "led_speed" to 3, "led_set" to 1)
-            steps += AStep(t("Modus $m", "Mode $m"), w, look, modeLooks)
-        }
-        steps += AStep(t("Modus 1, Tempo 8", "Mode 1, speed 8"), listOf("led_mode" to 1, "led_speed" to 8, "led_set" to 1),
-            t("Schneller als bei Modus 1 vorhin?", "Faster than mode 1 before?"), listOf(t("Schneller", "Faster"), t("Langsamer", "Slower"), t("Gleich", "The same")))
-        aStep(steps, 0, before)
-    }
-
-    private fun aStep(steps: List<AStep>, i: Int, before: Map<String, Int>) {
-        if (i >= steps.size) {
-            // back as it was (the order matters little: everything is written once more)
-            before.forEach { (k, v) -> AnbernicHelper.joypad(k, v) }
-            // Anbernic's own lighting back on: it takes over again
-            AnbernicHelper.put(this, "led_enable", "1")
-            showSummary()
-            return
-        }
-        val s = steps[i]
-        s.writes.forEach { (k, v) -> if (k.startsWith("set:")) AnbernicHelper.put(this, k.removePrefix("set:"), "$v") else AnbernicHelper.joypad(k, v) }
-        list.removeAllViews()
-        list.addView(text(t("LED-Tester · ${i + 1}/${steps.size}", "LED tester · ${i + 1}/${steps.size}"), 18f, fg, true))
-        list.addView(text(s.name + " – " + s.writes.joinToString { "${it.first}=${it.second}" }, 13f, dim).apply { setPadding(0, d(4), 0, 0) })
-        list.addView(text(s.ask, 15f, fg).apply { setPadding(0, d(8), 0, d(10)) })
-        s.answers.forEach { a ->
-            list.addView(button(a) {
-                add(t("LED-Tester", "LED tester"), s.name, if (a.startsWith(t("Keine", "No"))) CheckState.WARN else CheckState.OK, "→ $a")
-                aStep(steps, i + 1, before)
-            }, LinearLayout.LayoutParams(-1, d(44)).apply { bottomMargin = d(6) })
-        }
-        setButtons(button(t("Abbrechen", "Cancel")) { aStep(steps, steps.size, before) })
     }
 
     // ---- LED tester (AYN Odin 2: sticks and side lights) ----
@@ -717,10 +648,6 @@ object DeviceReport {
         val root = Root.available()
         add(perm, t("Bedienungshilfe", "Accessibility service"), ok(HugminnService.instance != null), if (HugminnService.instance == null) t("Hugminn ist nicht eingeschaltet", "Hugminn is not switched on") else "")
         add(perm, "Root", ok(root), if (!root) t("Ohne Root fehlen Leistung, Lüfter, LEDs und mehr", "Without root, performance, fan, LEDs and more are missing") else "")
-        if (!root) add(perm, t("Systemeinstellungen schreiben", "Write system settings"), if (Device.canWrite(this)) CheckState.OK else CheckState.WARN,
-            if (Device.canWrite(this)) t("Helfer läuft – Leistung, Lüfter, Beleuchtung ohne Root", "Helper running – performance, fan, lighting without root")
-            else t("Helfer läuft nicht (Anbernic: Skript von der Startseite, nach Neustart ▶)", "Helper not running (Anbernic: script from the start page, ▶ after a restart)"))
-        if (!root && Device.isAnbernic) add(perm, t("Helfer-Protokoll", "Helper log"), CheckState.OK, AnbernicHelper.report(this))
         add(perm, t("Hintergrund-Erlaubnis", "Background whitelist"), if (Device.whitelisted(this)) CheckState.OK else CheckState.WARN, if (!Device.whitelisted(this)) t("Das System könnte Hugminn beenden", "The system might end Hugminn") else "")
         val listeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners").orEmpty()
         add(perm, t("Musik-Zugriff", "Music access"), if (listeners.contains(packageName)) CheckState.OK else CheckState.WARN, if (!listeners.contains(packageName)) t("Musikkachel zeigt evtl. keine Titel", "Music tile may show no titles") else "")
@@ -790,9 +717,9 @@ object DeviceReport {
             }
         } else add(pad, t("Externer Controller", "External controller"), CheckState.OK, t("Keiner verbunden", "None connected"))
 
-        // other makers (Anbernic …): which of their own settings exist – the way to their performance, fan and lights
+        // other makers: which of their own settings exist – the way to their performance, fan and lights
         if (!Device.isRetroid && !android.os.Build.MANUFACTURER.contains("AYN", true)) {
-            val words = Regex("perf|fan|cpu|gpu|gov|freq|light|led|rgb|joy|stick|key|button|home|charg|power|mode|anbernic|rg_", RegexOption.IGNORE_CASE)
+            val words = Regex("perf|fan|cpu|gpu|gov|freq|light|led|rgb|joy|stick|key|button|home|charg|power|mode", RegexOption.IGNORE_CASE)
             // only "system": that is where the makers keep theirs (global/secure made the report too long for GitHub's link)
             listOf("system" to android.provider.Settings.System.CONTENT_URI).forEach { (name, uri) ->
                 val found = runCatching {
