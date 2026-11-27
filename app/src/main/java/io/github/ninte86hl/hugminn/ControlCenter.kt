@@ -437,6 +437,7 @@ class ControlCenter(private val svc: HugminnService) {
         val body = bodyView ?: return
         GridLayout.ROWS = svc.prefs.gridRows.coerceIn(2, 6)
         gridCols = computeCols()
+        GridLayout.lastCols = gridCols
         if (!editing) entries = svc.prefs.ccGrid.toMutableList()
         placed = GridLayout.place(entries, gridCols)
         val pageCount = pages() + if (editing) 1 else 0 // one empty page to add more while editing
@@ -912,6 +913,75 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
+    /**
+     * CPU, GPU and RAM in one element. 2×1 / 4×1: three columns with value and bar; 2×2: three gauges
+     * (dot rings in the dot style) with the power draw and temperature under them.
+     */
+    private fun statsElement(e: GridEntry): Pair<View, Item?> {
+        val gp = svc.prefs.gaugePalette
+        val ids = listOf("cpu", "gpu", "ram")
+        val specs = ids.mapNotNull { spec(it) }
+        val big = e.h >= 2
+        val c = if (pal.dots && e.h == 1) card().apply { background = tileFill(false, 200f * d); setPadding(22 * d, 8 * d, 22 * d, 8 * d) }
+            else card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
+        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+        c.addView(row, lp(MATCH, 0, 1f))
+        specs.forEach { sp ->
+            if (big) {
+                val gauge: View
+                if (pal.dots) {
+                    val dial = DotDial(svc, pal, sp.title)
+                    live { s -> val f = sp.fraction?.invoke(s) ?: 0f; dial.set(f, sp.value(s), GaugeColors.of(pal, gp, f), false) }
+                    gauge = dial
+                } else {
+                    val ring = RingView(svc, pal, sp.title, pal.primary, pixel)
+                    live { s -> val f = sp.fraction?.invoke(s) ?: 0f; ring.setColor(GaugeColors.of(pal, gp, f)); ring.set(f, sp.value(s), "") }
+                    gauge = ring
+                }
+                row.addView(gauge, lp(0, MATCH, 1f).apply { leftMargin = 3 * d; rightMargin = 3 * d })
+            } else {
+                val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
+                col.addView(text(sp.title, 10f, pal.onSurfaceVariant, bold = true))
+                val v = TextView(svc).apply { setTextColor(pal.onSurface); typeface = Look.font(svc, pixel, true); maxLines = 1
+                    setAutoSizeTextTypeUniformWithConfiguration(8, 20, 1, TypedValue.COMPLEX_UNIT_SP) }
+                col.addView(v, lp(MATCH, 0, 1f))
+                val bar = GaugeBar(svc, pal, pixel)
+                col.addView(bar, lp(MATCH, 4 * d).apply { topMargin = 3 * d })
+                live { s -> val f = sp.fraction?.invoke(s) ?: 0f; v.text = sp.value(s); bar.set(f, GaugeColors.of(pal, gp, f)) }
+                row.addView(col, lp(0, MATCH, 1f).apply { leftMargin = 6 * d; rightMargin = 6 * d })
+            }
+        }
+        if (big) {
+            val foot = text("", 12f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER }
+            c.addView(foot, lp(MATCH, WRAP).apply { topMargin = 4 * d })
+            live { s -> foot.text = listOfNotNull("%.1f W".format(s.watts), s.cpuTemp.takeIf { it > 0 }?.let { "${it.toInt()} °C" }, s.fps.takeIf { it >= 0 }?.let { "$it FPS" }).joinToString("  ·  ") }
+        }
+        return c to Item(c, null)
+    }
+
+    /** CPU and GPU load over the last minute as two graphs, with the power draw. */
+    private fun statsGraphElement(e: GridEntry): Pair<View, Item?> {
+        val gp = svc.prefs.gaugePalette
+        val c = card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
+        listOf(
+            Triple("CPU", { s: Metrics.Sample -> s.cpuPct }, { s: Metrics.Sample -> "${s.cpuPct.toInt()} %" }),
+            Triple("GPU", { s: Metrics.Sample -> s.gpuPct }, { s: Metrics.Sample -> "${s.gpuPct.toInt()} %" }),
+        ).forEach { (name, pct, label) ->
+            val head = LinearLayout(svc).apply { gravity = Gravity.CENTER_VERTICAL }
+            head.addView(text(name, 11f, pal.onSurfaceVariant, bold = true), lp(0, WRAP, 1f))
+            val v = text("", 13f, pal.onSurface, bold = true).apply { typeface = Look.font(svc, pixel, true) }
+            head.addView(v)
+            c.addView(head)
+            val g = GraphView(svc, pal.primary, 100f).styled(pal, pixel).apply { setColors(GaugeColors.graph(pal, gp, 100f) { it / 100f }) }
+            c.addView(g, lp(MATCH, 0, 1f).apply { topMargin = 2 * d; bottomMargin = 6 * d })
+            live { s -> v.text = label(s); g.push(pct(s)) }
+        }
+        val foot = text("", 12f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER }
+        c.addView(foot)
+        live { s -> foot.text = listOfNotNull("%.1f W".format(s.watts), "RAM %.1f GB".format(s.ramUsedMb / 1024f), s.cpuTemp.takeIf { it > 0 }?.let { "${it.toInt()} °C" }).joinToString("  ·  ") }
+        return c to Item(c, null)
+    }
+
     /** Clock with the date: the time large (dot font in the dot style), the date under it from 2×1 on. */
     private fun clockElement(e: GridEntry): Pair<View, Item?> {
         val small = e.w == 1 && e.h == 1
@@ -977,6 +1047,8 @@ class ControlCenter(private val svc: HugminnService) {
         val big = e.w >= 2 && e.h >= 2
         if (id == "system") return systemElement(e)
         if (id == "clock") return clockElement(e)
+        if (id == "stats") return statsElement(e)
+        if (id == "statsgraph") return statsGraphElement(e)
         if (big && (id == "perf" || id == "fan") && (rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc))) return profileElement(e)
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
