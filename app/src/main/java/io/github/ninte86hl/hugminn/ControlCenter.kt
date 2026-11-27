@@ -912,6 +912,35 @@ class ControlCenter(private val svc: HugminnService) {
         }
     }
 
+    /** Clock with the date: the time large (dot font in the dot style), the date under it from 2×1 on. */
+    private fun clockElement(e: GridEntry): Pair<View, Item?> {
+        val small = e.w == 1 && e.h == 1
+        val big = e.w >= 2 && e.h >= 2
+        val c = if (pal.dots && e.h == 1 && e.w >= 2) card().apply { background = tileFill(false, 200f * d) } else card()
+        c.gravity = Gravity.CENTER
+        c.setPadding(12 * d, 8 * d, 12 * d, 8 * d)
+        val time = TextView(svc).apply {
+            setTextColor(pal.onSurface)
+            typeface = Look.font(svc, pixel, true)
+            gravity = Gravity.CENTER
+            maxLines = 1
+            setAutoSizeTextTypeUniformWithConfiguration(10, if (big) 72 else 40, 1, TypedValue.COMPLEX_UNIT_SP)
+        }
+        c.addView(time, lp(MATCH, 0, 1f))
+        val date = text("", if (big) 14f else 12f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER; maxLines = 1 }
+        if (!small) c.addView(date, lp(MATCH, WRAP))
+        val fmtTime = android.text.format.DateFormat.getTimeFormat(svc)
+        val fmtDate = java.text.SimpleDateFormat(if (big) "EEEE, d. MMMM" else "EE, d. MMM", java.util.Locale.getDefault())
+        fun update() {
+            val now = java.util.Date()
+            time.text = fmtTime.format(now)
+            date.text = fmtDate.format(now)
+        }
+        update()
+        live { update() }
+        return c to Item(c, null)
+    }
+
     /** View for one grid element at its size, plus what A does on it. */
     private fun element(e: GridEntry, rootOk: Boolean): Pair<View, Item?> {
         val id = e.id
@@ -947,6 +976,7 @@ class ControlCenter(private val svc: HugminnService) {
         }
         val big = e.w >= 2 && e.h >= 2
         if (id == "system") return systemElement(e)
+        if (id == "clock") return clockElement(e)
         if (big && (id == "perf" || id == "fan") && (rootOk || Device.canWrite(svc) || Device.anbernicKnown(svc))) return profileElement(e)
         if (GridLayout.isInfo(id)) return infoElement(e)
         val t = tileFor(id, rootOk) ?: return View(svc).let { it to Item(it, null) }
@@ -1615,6 +1645,10 @@ class ControlCenter(private val svc: HugminnService) {
             "gpu" -> InfoSpec(IconView.Kind.REFRESH, "GPU", { s -> "${s.gpuPct.toInt()} %" }, { s -> "${s.gpuMhz} MHz" }, { s -> s.gpuPct / 100f })
             "ram" -> InfoSpec(IconView.Kind.SCREEN, "RAM", { s -> "%.1f GB".format(s.ramUsedMb / 1024f) },
                 { s -> t("von ${Device.ramInstalledGb(s.ramTotalMb)} GB", "of ${Device.ramInstalledGb(s.ramTotalMb)} GB") }, { s -> if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f })
+            // how long the battery lasts at the current draw (playing time)
+            "battime" -> InfoSpec(IconView.Kind.BATTERY, t("SPIELZEIT", "PLAYTIME"),
+                { s -> if (s.charging) tr("lädt") else s.batMinutes.takeIf { it > 0 }?.let { m -> if (m >= 60) "${m / 60}:%02d h".format(m % 60) else "$m min" } ?: "–" },
+                { s -> if (s.charging) (batteryTime(s) ?: "") else t("bei %.1f W · ${s.batPct} %%", "at %.1f W · ${s.batPct} %%").format(s.watts) })
             "power" -> InfoSpec(IconView.Kind.PLUG, "WATT", { s -> "%.1f W".format(s.watts) }, { s -> if (s.charging) tr("lädt") else tr("aus dem Akku") }, { s -> s.watts / 15f })
             else -> null
         }
@@ -1925,6 +1959,22 @@ class ControlCenter(private val svc: HugminnService) {
                     ledPicker()
                 }) { Device.put("led_enable", if (Device.sysOn(svc, "led_enable")) "0" else "1") { refreshAll() } }
         else if (rootOk && Device.hasStickLeds(svc)) Tile(if (Device.hasSideLights(svc)) tr("Beleuchtung") else tr("Stick-LEDs"), IconView.Kind.LED, { if (Device.lightsOn(svc)) tr("An") else tr("Aus") }, { Device.lightsOn(svc) }, { ledMenu() }) { toggleLeds() } else null
+        // the last app played (not the one in front): A starts it
+        "lastgame" -> svc.own.recentPackages().firstOrNull { it != svc.foregroundPkg }?.let { pkg ->
+            Tile(t("Zuletzt gespielt", "Last played"), IconView.Kind.PLAY, { Apps.label(svc, pkg) }, { false }) {
+                close()
+                svc.packageManager.getLaunchIntentForPackage(pkg)?.let { svc.startApp(it) }
+            }
+        } ?: Tile(t("Zuletzt gespielt", "Last played"), IconView.Kind.PLAY, { "–" }, { false }) {}
+        "nightlight" -> if (rootOk) Tile(t("Nachtlicht", "Night light"), IconView.Kind.MOON, { if (nightLight()) tr("An") else tr("Aus") }, { nightLight() }) {
+            Root.run("settings put secure night_display_activated ${if (nightLight()) 0 else 1}") { svc.ui.post { refreshAll() } }
+        } else null
+        // where the sound goes; A opens Android's own output picker
+        "audioout" -> Tile(t("Audio-Ausgang", "Audio output"), IconView.Kind.SPEAKER, { audioOutput() }, { audioOutput() != t("Lautsprecher", "Speaker") }) {
+            close()
+            val picker = Intent("com.android.systemui.action.LAUNCH_SYSTEM_MEDIA_OUTPUT_DIALOG").setPackage("com.android.systemui")
+            runCatching { svc.sendBroadcast(picker) }.onFailure { svc.startApp(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)) }
+        }
         "dnd" -> if (rootOk) Tile(tr("Nicht stören"), IconView.Kind.MOON, { if (Device.dnd(svc)) tr("An") else tr("Aus") }, { Device.dnd(svc) }) {
             Device.setDnd(!Device.dnd(svc)) { refreshAll() }
         } else null
@@ -2252,6 +2302,20 @@ class ControlCenter(private val svc: HugminnService) {
         FanCurve.stop(restoreSmart = false)
         svc.prefs.fanCustom = false
         Device.setFan(v) { refreshAll() }
+    }
+
+    private fun nightLight() = android.provider.Settings.Secure.getInt(svc.contentResolver, "night_display_activated", 0) == 1
+
+    /** Where media sound goes right now. */
+    private fun audioOutput(): String {
+        val outs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.type }
+        return when {
+            outs.any { it == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it == 26 /* BLE headset */ || it == 27 } -> "Bluetooth"
+            outs.any { it == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES || it == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET } -> t("Kopfhörer", "Headphones")
+            outs.any { it == android.media.AudioDeviceInfo.TYPE_USB_HEADSET || it == android.media.AudioDeviceInfo.TYPE_USB_DEVICE } -> "USB"
+            outs.any { it == android.media.AudioDeviceInfo.TYPE_HDMI || it == 9 } -> t("Monitor", "Display")
+            else -> t("Lautsprecher", "Speaker")
+        }
     }
 
     /** Monitor on USB-C: Retroid's switches for video output, the resolution on its own page (for now). */

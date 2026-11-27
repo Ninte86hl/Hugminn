@@ -17,7 +17,7 @@ object GridLayout {
     /** Rows of the grid (set from the settings before each layout). */
     @Volatile var ROWS = 4
 
-    private val infoIds = setOf("system", "fps", "perf", "fan", "temp", "battery", "cpu", "gpu", "ram", "power")
+    private val infoIds = setOf("system", "fps", "perf", "fan", "temp", "battery", "cpu", "gpu", "ram", "power", "battime", "clock")
     private val sliderIds = setOf("brightness", "volume", "brightness2", "volume2", "brightnessAll", "volumeAll")
     /** Two sliders in one element: top and bottom screen. */
     private val doubleIds = setOf("brightnessDuo", "volumeDuo")
@@ -33,6 +33,8 @@ object GridLayout {
         "gpu" to "GPU",
         "ram" to "RAM",
         "power" to tr("Leistungsaufnahme"),
+        "battime" to t("Akku-Spielzeit", "Battery playtime"),
+        "clock" to t("Uhr", "Clock"),
         "brightness" to tr("Helligkeit"),
         "volume" to tr("Lautstärke"),
     ).apply {
@@ -61,7 +63,8 @@ object GridLayout {
         id == "wifi" || id == "bt" -> listOf(1 to 1, 2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
         id == "perf" || id == "fan" -> listOf(2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
         id == "battery" -> listOf(1 to 1, 2 to 1, 2 to 2)
-        id == "fps" -> listOf(2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
+        id == "fps" -> listOf(2 to 1, 2 to 2)
+        id == "clock" -> listOf(1 to 1, 2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }.filter { it.first <= cols && it.second <= ROWS }
         isInfo(id) -> listOf(1 to 1, 2 to 1)
         else -> listOf(1 to 1, 2 to 1)
     }
