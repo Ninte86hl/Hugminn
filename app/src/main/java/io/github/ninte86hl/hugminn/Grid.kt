@@ -42,8 +42,8 @@ object GridLayout {
         "volume" to tr("Lautstärke"),
     ).apply {
         // Pocket Duo: the lower screen has its own brightness and volume
-        if (Device.isDual) { put("brightness2", t("Helligkeit unten", "Brightness below")); put("brightnessDuo", t("Helligkeit oben + unten", "Brightness top + bottom")) }
-        if (Device.isDuo) { put("volume2", t("Lautstärke unten", "Volume below")); put("volumeDuo", t("Lautstärke oben + unten", "Volume top + bottom")) }
+        if (Device.isDual) { put("brightness2", t("Helligkeit unten", "Brightness below")); put("brightnessDuo", t("Helligkeit oben + unten", "Brightness top + bottom"))
+            put("volume2", t("Lautstärke unten", "Volume below")); put("volumeDuo", t("Lautstärke oben + unten", "Volume top + bottom")) }
     }
 
     fun name(id: String) = widgetNames[id] ?: TileCatalog.all[id] ?: id
