@@ -830,7 +830,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun screensPopup(bright: Boolean) {
         val r = root ?: return
         closeMenu()
-        val dual = Device.isDuo && Root.available()
+        val dual = (if (bright) Device.isDual else Device.isDuo) && Root.available()
         val box = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
@@ -1065,7 +1065,7 @@ class ControlCenter(private val svc: HugminnService) {
         if (GridLayout.isSlider(id)) {
             val vertical = e.h > e.w
             // Pocket Duo: brightness and volume work on both screens; Y opens one slider per screen
-            val both = Device.isDuo && Root.available()
+            val both = Device.isDual && Root.available()
             val v = if (id == "brightness" || id == "brightnessAll") BigSlider(svc, pal, IconView.Kind.SUN, tr("Helligkeit"), 255, Device.brightness(svc), pixel, vertical) {
                 Device.setBrightness(svc, it)
                 // the lower screen follows and keeps its difference to the top one
@@ -1073,7 +1073,7 @@ class ControlCenter(private val svc: HugminnService) {
             }
             else if (id == "volume" || id == "volumeAll") BigSlider(svc, pal, IconView.Kind.SPEAKER, tr("Lautstärke"), 100, mainVolumePct(), pixel, vertical) {
                 setMainVolumePct(it)
-                if (both) Device.setBottomVolume(Math.round(it * 15 / 100f))
+                if (both && Device.isDuo) Device.setBottomVolume(Math.round(it * 15 / 100f))
             }.also { volumeSliders += it }
             else if (id == "brightness2") BigSlider(svc, pal, IconView.Kind.SUN, t("Helligkeit unten", "Brightness below"), 100, svc.prefs.bottomBrightness, pixel, vertical) {
                 svc.prefs.bottomBrightness = it
@@ -2129,7 +2129,7 @@ class ControlCenter(private val svc: HugminnService) {
         }, { (Device.sys(svc, "screen_focus_lock")?.trim() ?: "0") != "0" }) {
             profileMenu(t("Bildschirm-Fokus", "Screen focus"), "screen_focus_lock", Device.focusModes) { v -> Device.setSys("screen_focus_lock", v) { refreshAll() } }
         } else null
-        "bottomscreen" -> if (rootOk && Device.isDuo) Tile(t("Unterer Bildschirm", "Lower screen"), IconView.Kind.SCREEN, {
+        "bottomscreen" -> if (rootOk && Device.isDual) Tile(t("Unterer Bildschirm", "Lower screen"), IconView.Kind.SCREEN, {
             if (Device.bottomScreenOn(svc)) tr("An") else tr("Aus")
         }, { Device.bottomScreenOn(svc) }) { Device.setBottomScreen(!Device.bottomScreenOn(svc)) { refreshAll() } } else null
         // Retroid's equalizer (its Handheld Settings page)
