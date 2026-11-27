@@ -829,6 +829,7 @@ class ControlCenter(private val svc: HugminnService) {
     private fun screensPopup(bright: Boolean) {
         val r = root ?: return
         closeMenu()
+        val dual = Device.isDuo && Root.available()
         val box = LinearLayout(svc).apply {
             orientation = LinearLayout.VERTICAL
             background = shape(pal.surfaceHigh, 28f * d, 1 * d, pal.outline)
@@ -838,31 +839,74 @@ class ControlCenter(private val svc: HugminnService) {
         }
         box.addView(text(if (bright) tr("Helligkeit") else tr("Lautstärke"), 18f, pal.onSurface, bold = true))
         val icon = if (bright) IconView.Kind.SUN else IconView.Kind.SPEAKER
-        val top = if (bright) BigSlider(svc, pal, icon, t("Oben", "Top"), 255, Device.brightness(svc), pixel) { Device.setBrightness(svc, it); svc.prefs.bottomOffset = svc.prefs.bottomBrightness - Math.round(it * 100 / 255f) }
-            else BigSlider(svc, pal, icon, t("Oben", "Top"), 100, mainVolumePct(), pixel) { setMainVolumePct(it) }
-        val bottom = if (bright) BigSlider(svc, pal, icon, t("Unten", "Bottom"), 100, svc.prefs.bottomBrightness, pixel) {
+        val sliders = mutableListOf<BigSlider>()
+        sliders += if (bright) BigSlider(svc, pal, icon, t("Oben", "Top"), 255, Device.brightness(svc), pixel) { Device.setBrightness(svc, it); svc.prefs.bottomOffset = svc.prefs.bottomBrightness - Math.round(it * 100 / 255f) }
+            else BigSlider(svc, pal, icon, if (dual) t("Oben", "Top") else t("Medien", "Media"), 100, mainVolumePct(), pixel) { setMainVolumePct(it) }.also { volumeSliders += it }
+        if (dual) sliders += if (bright) BigSlider(svc, pal, icon, t("Unten", "Bottom"), 100, svc.prefs.bottomBrightness, pixel) {
                 svc.prefs.bottomBrightness = it
                 svc.prefs.bottomOffset = it - Math.round(Device.brightness(svc) * 100 / 255f)
                 Device.setBottomBrightness(it)
             } else BigSlider(svc, pal, icon, t("Unten", "Bottom"), 15, Device.bottomVolume(svc), pixel) { Device.setBottomVolume(it) }
-        val sliders = listOf(top, bottom)
         sliders.forEach {
             if (pal.cocoon && svc.prefs.tileColor == 0) it.setAccent(if (bright) 0xFFF5A623.toInt() else 0xFF7C5CF2.toInt(), Color.WHITE)
             else it.setAccent(tileOn(), tileOnFg())
             box.addView(it, lp(440 * d, 56 * d).apply { topMargin = 12 * d })
         }
-        box.addView(text(t("▲ ▼ Bildschirm · ◀ ▶ ändern · B zurück", "▲ ▼ screen · ◀ ▶ change · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 10 * d, 0, 0) })
+        // volume: ring, vibrate or silent, as in Android's own volume panel
+        val modes = listOf(AudioManager.RINGER_MODE_NORMAL to t("Ton", "Sound"), AudioManager.RINGER_MODE_VIBRATE to t("Vibration", "Vibrate"), AudioManager.RINGER_MODE_SILENT to t("Lautlos", "Silent"))
+        val chips = mutableListOf<TextView>()
+        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER }
+        fun paintChips() {
+            val cur = audio.ringerMode
+            chips.forEachIndexed { i, c ->
+                val on = modes[i].first == cur
+                c.background = shape(if (on) tileOn() else pal.tile, 22f * d, if (on) 0 else 1 * d, pal.outline)
+                c.setTextColor(if (on) tileOnFg() else pal.onSurface)
+            }
+        }
+        fun setMode(m: Int) {
+            runCatching { audio.ringerMode = m }.onFailure {
+                // without "Do not disturb" access Android refuses silent: root does it
+                if (Root.available()) Root.run("cmd audio set-ringer-mode ${when (m) { AudioManager.RINGER_MODE_SILENT -> "SILENT"; AudioManager.RINGER_MODE_VIBRATE -> "VIBRATE"; else -> "NORMAL" }}")
+            }
+            svc.ui.postDelayed({ paintChips() }, 250)
+        }
+        if (!bright) {
+            modes.forEach { (m, name) ->
+                val c = text(name, 14f, pal.onSurface, bold = true).apply {
+                    gravity = Gravity.CENTER
+                    setPadding(18 * d, 10 * d, 18 * d, 10 * d)
+                    setOnClickListener { setMode(m) }
+                }
+                chips += c
+                row.addView(c, lp(0, WRAP, 1f).apply { leftMargin = 4 * d; rightMargin = 4 * d })
+            }
+            box.addView(row, lp(440 * d, WRAP).apply { topMargin = 14 * d })
+            paintChips()
+        }
+        val rows = sliders.size + if (bright) 0 else 1
+        box.addView(text(if (bright) t("▲ ▼ Bildschirm · ◀ ▶ ändern · B zurück", "▲ ▼ screen · ◀ ▶ change · B back")
+            else t("▲ ▼ Zeile · ◀ ▶ ändern · B zurück", "▲ ▼ row · ◀ ▶ change · B back"), 12f, pal.onSurfaceVariant).apply { setPadding(0, 10 * d, 0, 0) })
         var active = 0
-        fun mark() = sliders.forEachIndexed { i, sl -> sl.alpha = if (i == active) 1f else 0.5f }
+        fun mark() {
+            sliders.forEachIndexed { i, sl -> sl.alpha = if (i == active) 1f else 0.5f }
+            row.alpha = if (active == sliders.size) 1f else 0.5f
+        }
         mark()
         r.addView(box, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         menuView = box
         popupKeys = { code ->
             when (code) {
-                KeyEvent.KEYCODE_DPAD_UP -> { active = 0; mark() }
-                KeyEvent.KEYCODE_DPAD_DOWN -> { active = 1; mark() }
-                KeyEvent.KEYCODE_DPAD_LEFT -> sliders[active].step(-5)
-                KeyEvent.KEYCODE_DPAD_RIGHT -> sliders[active].step(5)
+                KeyEvent.KEYCODE_DPAD_UP -> { active = (active - 1).coerceAtLeast(0); mark() }
+                KeyEvent.KEYCODE_DPAD_DOWN -> { active = (active + 1).coerceAtMost(rows - 1); mark() }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    val dir = if (code == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1
+                    if (active < sliders.size) sliders[active].step(5 * dir)
+                    else {
+                        val i = modes.indexOfFirst { it.first == audio.ringerMode }.coerceAtLeast(0)
+                        setMode(modes[(i + dir).coerceIn(0, modes.lastIndex)].first)
+                    }
+                }
                 KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_Y -> { closeMenu(); renderGrid() }
             }
         }
@@ -897,7 +941,8 @@ class ControlCenter(private val svc: HugminnService) {
             val wrap = FrameLayout(svc)
             wrap.addView(v, if (vertical) FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             else FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 56 * d, Gravity.CENTER_VERTICAL))
-            val split = if (both && (id == "brightness" || id == "volume" || id.endsWith("All"))) ({ screensPopup(id.startsWith("brightness")) }) else null
+            // Y: brightness per screen (Duo); volume per screen (Duo) plus sound / vibrate / silent (everywhere)
+            val split = if (id == "volume" || id == "volumeAll" || (both && (id == "brightness" || id == "brightnessAll"))) ({ screensPopup(id.startsWith("brightness")) }) else null
             return wrap to Item(v, null, { dir -> v.step(5 * dir) }, vertical, onY = split)
         }
         val big = e.w >= 2 && e.h >= 2
