@@ -677,19 +677,31 @@ class HugminnService : AccessibilityService() {
      * there goes into the background. Started a moment after the top one and checked: a start right
      * after another was sometimes dropped.
      */
-    private fun lowerHome(display: Int, tries: Int) {
+    /** The chosen launcher on the top screen, by name (a plain "home" intent can end in Android's chooser). */
+    private fun topHome(opts: android.os.Bundle) {
+        val home = packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)?.activityInfo
+        if (home == null || home.packageName == "android") { performGlobalAction(GLOBAL_ACTION_HOME); return }
+        runCatching {
+            startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setClassName(home.packageName, home.name)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), opts)
+        }.onFailure { performGlobalAction(GLOBAL_ACTION_HOME) }
+    }
+
+    private fun lowerHome(display: Int, tries: Int, then: (() -> Unit)? = null) {
         ui.postDelayed({
             val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_SECONDARY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             // the lower home of the chosen launcher, else the system's
             val home = packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)?.activityInfo?.packageName
             val all = packageManager.queryIntentActivities(i, 0)
             val pick = (all.firstOrNull { it.activityInfo.packageName == home } ?: all.firstOrNull { it.activityInfo.packageName != "android" })?.activityInfo
-            if (pick == null) { Glyphs.note("unten kein Startbildschirm gefunden (${all.size})"); return@postDelayed }
+            if (pick == null) { Glyphs.note("unten kein Startbildschirm gefunden (${all.size})"); then?.invoke(); return@postDelayed }
             i.setClassName(pick.packageName, pick.name)
             val r = runCatching { startActivity(i, android.app.ActivityOptions.makeBasic().setLaunchDisplayId(display).toBundle()) }
             Glyphs.note("unten Startbildschirm ${i.component?.shortClassName} · ${r.exceptionOrNull() ?: "ok"}")
-            if (tries < 2) ui.postDelayed({ if (topAppOn(display) != null) lowerHome(display, tries + 1) }, 600)
-        }, if (tries == 0) 150 else 0)
+            // then the top screen (it takes the focus); checked: if an app stayed below, again (top last again)
+            ui.postDelayed({ then?.invoke() }, 200)
+            if (tries < 2) ui.postDelayed({ if (topAppOn(display) != null) lowerHome(display, tries + 1, then) }, 700)
+        }, if (tries == 0) 0 else 0)
     }
 
     fun perform(a: Action) {
@@ -716,15 +728,10 @@ class HugminnService : AccessibilityService() {
                 val top = if (prefs.homeOnTop) Displays.onTop(this) else null
                 Glyphs.note("startbildschirm · oben=${top != null} (immer oben=${prefs.homeOnTop}) zweiter=${Displays.second(this)?.id}")
                 if (top != null) {
-                    // the chosen launcher by name: a plain "home" intent can end in Android's chooser
-                    val home = packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)?.activityInfo
-                    if (home == null || home.packageName == "android") performGlobalAction(GLOBAL_ACTION_HOME)
-                    else runCatching {
-                        startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setClassName(home.packageName, home.name)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), top)
-                    }.onFailure { performGlobalAction(GLOBAL_ACTION_HOME) }
-                    // the app on the lower screen goes into the background too (its own home screen comes up)
-                    Displays.second(this)?.let { other -> lowerHome(other.id, 0) }
+                    // the lower screen first, the top one last: the last one started gets the focus, and
+                    // the buttons belong on the top screen
+                    val other = Displays.second(this)
+                    if (other != null) lowerHome(other.id, 0) { topHome(top) } else topHome(top)
                 }
                 else performGlobalAction(GLOBAL_ACTION_HOME)
             }
