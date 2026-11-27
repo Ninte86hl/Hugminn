@@ -57,12 +57,11 @@ Today PadKeyboard only works inside Hugminn (Wi-Fi password). Goal: a real Andro
 - Home: stays with Hugminn
 - Kept free on purpose (simple): L3, R3, right stick (not on every device anyway)
 
-## Mouse pointer (point & click)
+## Mouse mode (point & click)
 
-Idea: on devices with a right stick, R3 switches a mouse mode on/off – for point-and-click adventures and apps without controller support.
-- Hugminn shows a pointer; the right stick moves it (speed by how far it is pushed); A or R1 = click, hold = drag; B leaves the mode. Devices without sticks: D-pad.
-- How: a focusable but not touchable overlay receives the stick while the mode is on; clicks go through the accessibility service as taps (dispatchGesture). No root needed. The game gets no buttons while the mode is on.
-- Check: whether Retroid/AYN firmware has its own stick-as-mouse mode that would clash.
+Retroid and AYN firmwares already have their own mouse mode with a shortcut – Hugminn does not build its own pointer.
+- Instead: a CC tile "Mausmodus" (and optionally a Hugminn button action) that switches the firmware's mode, showing whether it is on.
+- First find out how the firmware switches it: a before/after settings snapshot in the device test (like the Thor volume), on a Retroid and an AYN device.
 
 ## Orthogonal design system
 
