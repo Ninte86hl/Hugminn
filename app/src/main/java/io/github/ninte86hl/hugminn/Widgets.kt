@@ -272,7 +272,7 @@ class BigSlider(
         text.typeface = Look.font(context, pixel, true)
         text.textAlign = Paint.Align.CENTER
         text.color = if (!pixel && !pal.dots && f > 0.85f) onFill else pal.onSurface
-        c.drawText("${Math.round(f * 100)} %", w / 2f, w * 0.32f + text.textSize * 0.4f, text)
+        c.drawText("${Math.round(f * 20) * 5} %", w / 2f, w * 0.32f + text.textSize * 0.4f, text)
     }
 
     private fun drawLabel(c: Canvas, w: Float, h: Float, fw: Float) {
