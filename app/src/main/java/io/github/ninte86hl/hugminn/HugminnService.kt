@@ -683,7 +683,9 @@ class HugminnService : AccessibilityService() {
             // the lower home of the chosen launcher, else the system's
             val home = packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)?.activityInfo?.packageName
             val all = packageManager.queryIntentActivities(i, 0)
-            (all.firstOrNull { it.activityInfo.packageName == home } ?: all.firstOrNull())?.activityInfo?.let { i.setClassName(it.packageName, it.name) }
+            val pick = (all.firstOrNull { it.activityInfo.packageName == home } ?: all.firstOrNull { it.activityInfo.packageName != "android" })?.activityInfo
+            if (pick == null) { Glyphs.note("unten kein Startbildschirm gefunden (${all.size})"); return@postDelayed }
+            i.setClassName(pick.packageName, pick.name)
             val r = runCatching { startActivity(i, android.app.ActivityOptions.makeBasic().setLaunchDisplayId(display).toBundle()) }
             Glyphs.note("unten Startbildschirm ${i.component?.shortClassName} · ${r.exceptionOrNull() ?: "ok"}")
             if (tries < 2) ui.postDelayed({ if (topAppOn(display) != null) lowerHome(display, tries + 1) }, 600)
@@ -712,9 +714,14 @@ class HugminnService : AccessibilityService() {
                 // two screens: Android's Home acts on the screen with the focus – Hugminn's Home always
                 // brings the chosen launcher to the top screen
                 val top = if (prefs.homeOnTop) Displays.onTop(this) else null
+                Glyphs.note("startbildschirm · oben=${top != null} (immer oben=${prefs.homeOnTop}) zweiter=${Displays.second(this)?.id}")
                 if (top != null) {
-                    runCatching {
-                        startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), top)
+                    // the chosen launcher by name: a plain "home" intent can end in Android's chooser
+                    val home = packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)?.activityInfo
+                    if (home == null || home.packageName == "android") performGlobalAction(GLOBAL_ACTION_HOME)
+                    else runCatching {
+                        startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setClassName(home.packageName, home.name)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), top)
                     }.onFailure { performGlobalAction(GLOBAL_ACTION_HOME) }
                     // the app on the lower screen goes into the background too (its own home screen comes up)
                     Displays.second(this)?.let { other -> lowerHome(other.id, 0) }
