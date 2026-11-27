@@ -914,47 +914,54 @@ class ControlCenter(private val svc: HugminnService) {
     }
 
     /**
-     * CPU, GPU and RAM in one element. 2×1 / 4×1: three columns with value and bar; 2×2: three gauges
-     * (dot rings in the dot style) with the power draw and temperature under them.
+     * Status values in one element, as a list: small spaced title, the value, a thick bar (like Nothing's
+     * own widgets). 2×1: CPU · GPU · RAM side by side; 2×2: the chip's name and CPU, RAM, temperature;
+     * 2×3: all of them with GPU and power. Loads fill white (tile colour), the temperature red, warnings red.
      */
     private fun statsElement(e: GridEntry): Pair<View, Item?> {
         val gp = svc.prefs.gaugePalette
-        val ids = listOf("cpu", "gpu", "ram")
-        val specs = ids.mapNotNull { spec(it) }
-        val big = e.h >= 2
-        val c = if (pal.dots && e.h == 1) card().apply { background = tileFill(false, 200f * d); setPadding(22 * d, 8 * d, 22 * d, 8 * d) }
-            else card().apply { setPadding(14 * d, 10 * d, 14 * d, 10 * d) }
-        val row = LinearLayout(svc).apply { gravity = Gravity.CENTER }
-        c.addView(row, lp(MATCH, 0, 1f))
-        specs.forEach { sp ->
-            if (big) {
-                val gauge: View
-                if (pal.dots) {
-                    val dial = DotDial(svc, pal, sp.title)
-                    live { s -> val f = sp.fraction?.invoke(s) ?: 0f; dial.set(f, sp.value(s), GaugeColors.of(pal, gp, f), false) }
-                    gauge = dial
-                } else {
-                    val ring = RingView(svc, pal, sp.title, pal.primary, pixel)
-                    live { s -> val f = sp.fraction?.invoke(s) ?: 0f; ring.setColor(GaugeColors.of(pal, gp, f)); ring.set(f, sp.value(s), "") }
-                    gauge = ring
-                }
-                row.addView(gauge, lp(0, MATCH, 1f).apply { leftMargin = 3 * d; rightMargin = 3 * d })
-            } else {
-                val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
-                col.addView(text(sp.title, 10f, pal.onSurfaceVariant, bold = true))
-                val v = TextView(svc).apply { setTextColor(pal.onSurface); typeface = Look.font(svc, pixel, true); maxLines = 1
-                    setAutoSizeTextTypeUniformWithConfiguration(8, 20, 1, TypedValue.COMPLEX_UNIT_SP) }
-                col.addView(v, lp(MATCH, 0, 1f))
-                val bar = GaugeBar(svc, pal, pixel)
-                col.addView(bar, lp(MATCH, 4 * d).apply { topMargin = 3 * d })
-                live { s -> val f = sp.fraction?.invoke(s) ?: 0f; v.text = sp.value(s); bar.set(f, GaugeColors.of(pal, gp, f)) }
-                row.addView(col, lp(0, MATCH, 1f).apply { leftMargin = 6 * d; rightMargin = 6 * d })
-            }
+        val c = card().apply { setPadding(18 * d, 12 * d, 18 * d, 12 * d) }
+        class Row(val title: String, val value: (Metrics.Sample) -> String, val f: (Metrics.Sample) -> Float, val accent: Boolean)
+        val all = mapOf(
+            "cpu" to Row(t("CPU-LAST", "CPU USAGE"), { s -> "${s.cpuPct.toInt()} %" }, { s -> s.cpuPct / 100f }, false),
+            "gpu" to Row(t("GPU-LAST", "GPU USAGE"), { s -> "${s.gpuPct.toInt()} %" }, { s -> s.gpuPct / 100f }, false),
+            "ram" to Row("RAM", { s -> "%.1f GB".format(s.ramUsedMb / 1024f) }, { s -> if (s.ramTotalMb > 0) s.ramUsedMb.toFloat() / s.ramTotalMb else 0f }, false),
+            "temp" to Row(t("TEMPERATUR", "TEMPERATURE"), { s -> if (s.cpuTemp > 0) "${s.cpuTemp.toInt()} °C" else "–" }, { s -> ((s.cpuTemp - 25f) / 65f).coerceIn(0f, 1f) }, true),
+            "power" to Row(t("LEISTUNGSAUFNAHME", "POWER DRAW"), { s -> "%.1f W".format(s.watts) }, { s -> s.watts / 15f }, false),
+        )
+        val wide = e.h == 1
+        val rows = when {
+            wide -> listOf("cpu", "gpu", "ram")
+            e.h >= 3 -> listOf("cpu", "gpu", "ram", "temp", "power")
+            else -> listOf("cpu", "ram", "temp")
         }
-        if (big) {
-            val foot = text("", 12f, pal.onSurfaceVariant).apply { gravity = Gravity.CENTER }
-            c.addView(foot, lp(MATCH, WRAP).apply { topMargin = 4 * d })
-            live { s -> foot.text = listOfNotNull("%.1f W".format(s.watts), s.cpuTemp.takeIf { it > 0 }?.let { "${it.toInt()} °C" }, s.fps.takeIf { it >= 0 }?.let { "$it FPS" }).joinToString("  ·  ") }
+        if (!wide) {
+            val chip = if (android.os.Build.VERSION.SDK_INT >= 31 && android.os.Build.SOC_MODEL.isNotBlank() && android.os.Build.SOC_MODEL != "unknown")
+                "${android.os.Build.SOC_MANUFACTURER} ${android.os.Build.SOC_MODEL}" else android.os.Build.MODEL
+            c.addView(text(chip, 13f, pal.onSurfaceVariant).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, lp(MATCH, WRAP).apply { bottomMargin = 4 * d })
+        }
+        val box = LinearLayout(svc).apply { orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL }
+        c.addView(box, lp(MATCH, 0, 1f))
+        rows.forEach { id ->
+            val r = all.getValue(id)
+            val col = LinearLayout(svc).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
+            col.addView(text(r.title, 10f, pal.onSurfaceVariant).apply { letterSpacing = 0.12f; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+            val v = TextView(svc).apply {
+                typeface = Look.font(svc, pixel, true); maxLines = 1
+                setAutoSizeTextTypeUniformWithConfiguration(8, 22, 1, TypedValue.COMPLEX_UNIT_SP)
+            }
+            col.addView(v, lp(MATCH, 0, 1f))
+            val bar = GaugeBar(svc, pal, pixel).apply { solid = true }
+            col.addView(bar, lp(MATCH, 7 * d).apply { topMargin = 2 * d })
+            live { s ->
+                val f = r.f(s)
+                val warn = f >= 0.85f
+                val col0 = if (pal.dots) (if (r.accent || warn) pal.primary else tileOn()) else GaugeColors.of(pal, gp, f)
+                v.text = r.value(s)
+                v.setTextColor(if (pal.dots && (r.accent || warn)) pal.primary else pal.onSurface)
+                bar.set(f, col0)
+            }
+            box.addView(col, if (wide) lp(0, MATCH, 1f).apply { leftMargin = 6 * d; rightMargin = 6 * d } else lp(MATCH, 0, 1f).apply { topMargin = 4 * d })
         }
         return c to Item(c, null)
     }

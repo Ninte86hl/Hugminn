@@ -66,7 +66,7 @@ object GridLayout {
         id == "perf" || id == "fan" -> listOf(2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
         id == "battery" -> listOf(1 to 1, 2 to 1, 2 to 2)
         id == "fps" -> listOf(2 to 1, 2 to 2)
-        id == "stats" -> listOf(2 to 1, 4 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }
+        id == "stats" -> listOf(2 to 1, 4 to 1, 2 to 2, 2 to 3).filter { it.first <= cols && it.second <= ROWS }
         id == "statsgraph" -> listOf(2 to 2, 4 to 2).filter { it.first <= cols && it.second <= ROWS }
         id == "clock" -> listOf(1 to 1, 2 to 1, 2 to 2).filter { it.first <= cols && it.second <= ROWS }.filter { it.first <= cols && it.second <= ROWS }
         isInfo(id) -> listOf(1 to 1, 2 to 1)
