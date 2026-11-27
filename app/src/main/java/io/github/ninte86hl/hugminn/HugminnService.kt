@@ -672,6 +672,24 @@ class HugminnService : AccessibilityService() {
         ui.postAtTime(r, extraToken(code), android.os.SystemClock.uptimeMillis() + prefs.longMs)
     }
 
+    /**
+     * The lower screen's own home (Quickstep's app mirror, Cocoon's lower part …) in front, so an app
+     * there goes into the background. Started a moment after the top one and checked: a start right
+     * after another was sometimes dropped.
+     */
+    private fun lowerHome(display: Int, tries: Int) {
+        ui.postDelayed({
+            val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_SECONDARY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // the lower home of the chosen launcher, else the system's
+            val home = packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)?.activityInfo?.packageName
+            val all = packageManager.queryIntentActivities(i, 0)
+            (all.firstOrNull { it.activityInfo.packageName == home } ?: all.firstOrNull())?.activityInfo?.let { i.setClassName(it.packageName, it.name) }
+            val r = runCatching { startActivity(i, android.app.ActivityOptions.makeBasic().setLaunchDisplayId(display).toBundle()) }
+            Glyphs.note("unten Startbildschirm ${i.component?.shortClassName} · ${r.exceptionOrNull() ?: "ok"}")
+            if (tries < 2) ui.postDelayed({ if (topAppOn(display) != null) lowerHome(display, tries + 1) }, 600)
+        }, if (tries == 0) 150 else 0)
+    }
+
     fun perform(a: Action) {
         Glyphs.note("aktion $a · offen: combo=$comboMode cc=${::controlCenter.isInitialized && controlCenter.isOpen} switcher=$anySwitcherOpen")
         if (a == Action.BOTH || a == Action.SWITCHER || a == Action.CONTROL_CENTER) openedAt = android.os.SystemClock.uptimeMillis()
@@ -699,12 +717,7 @@ class HugminnService : AccessibilityService() {
                         startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), top)
                     }.onFailure { performGlobalAction(GLOBAL_ACTION_HOME) }
                     // the app on the lower screen goes into the background too (its own home screen comes up)
-                    Displays.second(this)?.let { other ->
-                        runCatching {
-                            startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_SECONDARY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                                android.app.ActivityOptions.makeBasic().setLaunchDisplayId(other.id).toBundle())
-                        }
-                    }
+                    Displays.second(this)?.let { other -> lowerHome(other.id, 0) }
                 }
                 else performGlobalAction(GLOBAL_ACTION_HOME)
             }
